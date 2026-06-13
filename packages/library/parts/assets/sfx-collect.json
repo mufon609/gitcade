@@ -1,0 +1,14 @@
+{
+  "id": "sfx-collect",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "collect"],
+  "license": "MIT",
+  "description": "Bright two-note triangle blip for pickups. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"collect\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-collect",
+    "params": { "key": "collect" }
+  }
+}

@@ -238,3 +238,106 @@ No CORE blockers; no BLOCKED.md entries this session.
   loader is a host concern not reachable from a `SystemFn`); other parts read the
   level key. **`upgrade-tree` is request-driven**: UI/game code sets
   `world.state[requestKey]` to an upgrade id; the system fulfils one per tick.
+
+---
+
+## Phase 2B — Component Library: Entities, Art, Audio, UI, FX — 2026-06-13
+
+Scope this session: built the PRESENTATIONAL half of `@gitcade/library` (still
+v0.1.0) — 54 new parts across `entities/` (19), `assets/` (world: 4 tilesets +
+3 backgrounds + 3 camera presets; audio: 8 SFX + 2 music = 20), `ui/` (8), `fx/`
+(7) — plus the deterministic procedural asset pipeline, the audio/fx/ui runtime
+modules, an extended `CATALOG.json` (now **81 parts**, all 7 marketplace
+categories), and the re-skin proof. The SDK schema and the Phase 2A logic parts
+were NOT touched; everything new registers only as new TYPES via the frozen
+registration API or is pure data/host-glue. No CORE blockers; no BLOCKED.md
+entries this session.
+
+### What Phase 3 inherits (conventions established here)
+- **Generated assets are byte-deterministic.** `scripts/gen-assets.ts` →
+  `packages/library/assets/` (27 PNGs + `manifest.json`) via a dependency-free
+  PNG encoder (raw scanlines → `node:zlib.deflateSync`, fixed level 9) on the
+  fixed 8-color palette. Re-running reproduces identical bytes (verified: two runs
+  diff-clean). Runs on Node 22 directly (`node scripts/gen-assets.ts`, built-in
+  type-stripping — the script uses erasable syntax + zero imports beyond `node:*`).
+  Verify with `npm run gen-assets` twice + `git diff assets/`.
+- **The fixed 8-color palette** (`src/palette.ts` `LIBRARY_PALETTE`, mirrored as a
+  literal inside `gen-assets.ts`; a unit test asserts they match via
+  `assets/manifest.json`). All sprites/tiles/backgrounds AND runtime-drawn shapes
+  (particles, HUD bars) draw from it.
+- **2B part files use the SAME single-file convention as 2A** (`parts/<kind>/<id>.json`
+  with metadata + `definition`). The build script (`scripts/build-catalog.mjs`)
+  now reads all six subdirs (`PART_DIRS`); the catalog/schema were NOT reshaped —
+  every part still satisfies `definition.type === id` and `definition: { type,
+  params }`. For non-behavior/system kinds, `definition.params` carries the
+  payload: an **entity template** (entities, HUD widgets), an **asset descriptor**
+  (tilesets/backgrounds/audio), a **scene fragment** (menus), or **system/behavior
+  params** (fx). `kind` + `category` disambiguate the 7 marketplace buckets
+  (Behaviors, Systems, Entities, World, Audio, UI, FX) — `kind: asset` splits into
+  World vs Audio by `category`.
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **License rule: a part is `CC-BY-4.0` iff it references a generated PNG
+  (`assets/…png`), else `MIT`.** So entities + tilesets + backgrounds are CC-BY
+  (art-bearing); audio (synthesized, zero binary), camera presets, UI, and FX are
+  MIT (code/data). A catalog test enforces this mechanically. Updated the prior
+  2A "all parts MIT" test accordingly.
+- **Audio extends the SDK, never modifies it.** `LibraryAudioPlayer extends
+  AudioPlayer` (SDK frozen, but its `audio.ts` explicitly reserves a stable
+  `play(key)` for 2B to enrich). A game wires it via
+  `createGame(..., { audio: new LibraryAudioPlayer() })`; every behavior's
+  `world.audio.play(key)` then routes to richer synthesis. Adds
+  `startMusic`/`stopMusic` for two generative chiptune loops. Subclass fields are
+  named distinctly from the base's privates to avoid TS collision. **Zero binary
+  audio**; everything no-ops with no `AudioContext` (jsdom/Node).
+- **FX particles are short-lived entities, not a renderer change.**
+  `explosion`/`sparkle` are event-driven SYSTEMS (attach a `world.events` listener
+  exactly once per world via a module-level `WeakMap<World,Set>` — the listener
+  fires synchronously inside the emitting behavior, so it spawns at the dying
+  entity's still-live position); `trail`/`dust` are per-entity BEHAVIORS. All spawn
+  particle entities carrying an internal **`particle`** behavior (self-contained
+  motion + gravity + shrink-fade + **silent** destroy — it deliberately does NOT
+  use `health-and-death`, whose death always plays a sound). `particle` is
+  registered infra with no catalog part. Particle bursts use `world.rng` so they
+  are deterministic under a seed.
+- **Screen effects are a host-side controller, not a runtime system.** The frozen
+  renderer draws in absolute coords with no camera, so `ScreenEffects`
+  (shake/flash/fade) is a pure, deterministic controller the page applies to the
+  canvas (`attachScreenEffects`); the `screen-*` fx parts are presets, register no
+  runtime type, and their params are presentational literals (never validated, as
+  they never enter a scene's behaviors/systems).
+- **Camera presets are likewise host hints** (no SDK camera exists; renderer is
+  absolute). `camera-fixed/follow/auto-scroll` are descriptor parts (MIT), category
+  `world`; `auto-scroll` real scrolling is the existing 2A behavior.
+- **FX/UI register on SEPARATE maps** (`registerLibraryFx`/`registerLibraryUi`,
+  both called by `registerLibrary`) so the catalog's behavior/system-KIND coverage
+  check stays exactly the 18+9 logic parts — FX/UI register runtime types but are
+  catalogued as kind `fx`/`ui`. The code-backed UI widgets are `hud-bar` (drives a
+  rect's width from `world.state[valueKey]/maxKey`) and `touch-dpad`/`touch-button`
+  (read SDK Input pointers; pure helpers `dpadVector`/`buttonPressed` are unit-
+  tested directly). Touch geometry uses nested whitelisted keys (`zone:{x,y,radius}`,
+  `rect:{x,y,w,h}`) so templates pass the no-magic-numbers rule as structural.
+- **Entities reference assets via the SDK `image`/`sheet` sprite `src`** (path
+  `assets/…png`, resolved by the host page). A couple ship animated sheets
+  (`player-blob` 2-frame idle, `coin` 4-frame spin) to exercise `sprite-animate`;
+  the rest are single-frame images. Entity behavior balance is `$cfg`; structural
+  fields (size/layer/position/sprite) are literals — same rule as 2A prototypes.
+- **HUD text widgets need no code** — they are `text` sprites with a live `bind`
+  to a `world.state` key (the SDK's frozen text feature). Only the health BAR needs
+  the `hud-bar` behavior.
+- **The re-skin proof is a NEW workspace member** `proofs/arena-reskin/` (additive;
+  the 2A `arena-mobs` proof is left intact). It re-skins that demo with generated
+  sprites (player-blob, enemy-chaser, coins), a starfield backdrop + space-tileset
+  accents, the synthesized `LibraryAudioPlayer` + `action` music loop, and the
+  `explosion`/`sparkle` particle systems + host screen-shake. Same four logic parts,
+  same deterministic win outcome (verified headless). It is a Vite app for the
+  visual check; its `public/assets/` is a build-time copy of the library assets
+  (gitignored, recreated by a `sync-assets` script) — the canonical, shipped copy
+  is `packages/library/assets/`.
+- **The library tarball ships the assets.** `package.json#files` now includes
+  `assets`, `scripts/gen-assets.ts` (reproducibility), `parts`, `dist`, and the
+  catalog files. `npm pack --dry-run` = clean tarball, 120 files incl. all 27 PNGs
+  (per the Library-distribution locked decision; human publishes v0.1.0 at the gate).
+- **`tsx`/loaders avoided** — Node 22's built-in TypeScript stripping runs
+  `gen-assets.ts` directly, so the library gains no new devDependency for the asset
+  pipeline.

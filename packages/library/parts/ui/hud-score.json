@@ -1,0 +1,21 @@
+{
+  "id": "hud-score",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "hud", "score", "text"],
+  "license": "MIT",
+  "description": "A score readout HUD entity: a text sprite live-bound to world.state.score (the SDK's frozen text `bind`). Behavior-free — drop it in any scene's entities and the score system updates it.",
+  "dependencies": ["score"],
+  "definition": {
+    "type": "hud-score",
+    "params": {
+      "sprite": { "kind": "text", "bind": "score", "text": "0", "font": "20px monospace", "color": "#f4f4f4", "align": "left" },
+      "size": { "w": 120, "h": 24 },
+      "position": { "x": 12, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    }
+  }
+}

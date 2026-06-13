@@ -1,0 +1,25 @@
+{
+  "id": "enemy-chaser",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["enemy", "ai", "chaser", "reuse-proof"],
+  "license": "CC-BY-4.0",
+  "description": "The canonical pursuing enemy: ships with ai-chase + velocity + contact-damage + health-and-death already attached. Drop it in (or feed it to wave-spawner) and it hunts the player and hurts on touch.",
+  "dependencies": ["ai-chase", "velocity", "contact-damage", "health-and-death"],
+  "definition": {
+    "type": "enemy-chaser",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/enemy-chaser.png" },
+      "size": { "w": 28, "h": 28 },
+      "tags": ["enemy"],
+      "layer": 3,
+      "behaviors": [
+        { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.enemySpeed" } },
+        { "type": "velocity", "params": {} },
+        { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.enemyDamage", "cooldown": "$cfg.damageCooldown" } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.enemyHp", "tallyKey": "kills", "deathEvent": "enemy-died" } }
+      ]
+    }
+  }
+}

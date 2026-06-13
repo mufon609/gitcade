@@ -1,0 +1,22 @@
+{
+  "id": "powerup-capsule",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["pickup", "powerup", "capsule"],
+  "license": "CC-BY-4.0",
+  "description": "A power-up capsule collected on touch; tracks into a 'powerups' tally the game reads to apply an effect (collect-on-touch with kind 'powerup').",
+  "dependencies": ["collect-on-touch", "aabb-collision"],
+  "definition": {
+    "type": "powerup-capsule",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/powerup-capsule.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["powerup", "pickup"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "collect-on-touch", "params": { "collectorTag": "player", "value": "$cfg.powerupValue", "scoreKey": "powerups", "kind": "powerup" } }
+      ]
+    }
+  }
+}

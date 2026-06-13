@@ -1,0 +1,14 @@
+{
+  "id": "sfx-click",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "click"],
+  "license": "MIT",
+  "description": "Crisp tiny square tick for UI clicks. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"click\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-click",
+    "params": { "key": "click" }
+  }
+}

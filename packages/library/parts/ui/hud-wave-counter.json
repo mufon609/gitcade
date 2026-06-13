@@ -1,0 +1,21 @@
+{
+  "id": "hud-wave-counter",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "hud", "wave", "text"],
+  "license": "MIT",
+  "description": "A wave/level readout HUD entity: a text sprite bound to world.state.wave (written by wave-spawner via its waveKey). Behavior-free.",
+  "dependencies": ["wave-spawner"],
+  "definition": {
+    "type": "hud-wave-counter",
+    "params": {
+      "sprite": { "kind": "text", "bind": "wave", "text": "1", "font": "20px monospace", "color": "#41a6f6", "align": "center" },
+      "size": { "w": 160, "h": 24 },
+      "position": { "x": 320, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    }
+  }
+}

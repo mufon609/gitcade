@@ -1,0 +1,14 @@
+{
+  "id": "sfx-win",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "win"],
+  "license": "MIT",
+  "description": "Rising triangle arpeggio fanfare for victory. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"win\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-win",
+    "params": { "key": "win" }
+  }
+}

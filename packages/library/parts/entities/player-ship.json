@@ -1,0 +1,47 @@
+{
+  "id": "player-ship",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["player", "shooter", "ship"],
+  "license": "CC-BY-4.0",
+  "description": "A keyboard-driven shooter ship: move-4dir + velocity + clamp-to-world + shoot (fires bullets upward) + health-and-death. The hero for shmup/invaders genres.",
+  "dependencies": ["move-4dir", "velocity", "clamp-to-world", "shoot", "contact-damage", "health-and-death"],
+  "definition": {
+    "type": "player-ship",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/player-ship.png" },
+      "size": { "w": 32, "h": 32 },
+      "tags": ["player"],
+      "layer": 4,
+      "behaviors": [
+        { "type": "move-4dir", "params": { "speed": "$cfg.playerSpeed" } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "padding": 8 } },
+        {
+          "type": "shoot",
+          "params": {
+            "projectileSpeed": "$cfg.bulletSpeed",
+            "cooldown": "$cfg.fireCooldown",
+            "fireKeys": ["Space"],
+            "direction": { "x": 0, "y": -1 },
+            "spawnOffset": { "x": 0, "y": -16 },
+            "projectile": {
+              "id": "bullet",
+              "sprite": { "kind": "image", "src": "assets/sprites/bullet.png" },
+              "size": { "w": 8, "h": 8 },
+              "tags": ["bullet"],
+              "layer": 3,
+              "behaviors": [
+                { "type": "velocity", "params": {} },
+                { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.bulletDamage", "selfDestruct": true } },
+                { "type": "health-and-death", "params": { "hp": "$cfg.bulletHp", "lifespan": "$cfg.bulletLifespan", "deathSound": "" } }
+              ]
+            }
+          }
+        },
+        { "type": "health-and-death", "params": { "hp": "$cfg.playerHp", "deathEvent": "player-died", "deathSound": "lose", "destroyOnDeath": false } }
+      ]
+    }
+  }
+}

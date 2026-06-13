@@ -1,0 +1,149 @@
+{
+  "palette": [
+    "#1a1c2c",
+    "#41a6f6",
+    "#3b5dc9",
+    "#ef7d57",
+    "#ffcd75",
+    "#a7f070",
+    "#b13e53",
+    "#f4f4f4"
+  ],
+  "files": [
+    {
+      "path": "assets/backgrounds/gradient.png",
+      "w": 256,
+      "h": 256
+    },
+    {
+      "path": "assets/backgrounds/parallax-far.png",
+      "w": 256,
+      "h": 128
+    },
+    {
+      "path": "assets/backgrounds/parallax-near.png",
+      "w": 256,
+      "h": 128
+    },
+    {
+      "path": "assets/backgrounds/starfield.png",
+      "w": 256,
+      "h": 256
+    },
+    {
+      "path": "assets/sprites/breakable-block.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/bullet.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/coin.png",
+      "w": 64,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/enemy-chaser.png",
+      "w": 32,
+      "h": 32
+    },
+    {
+      "path": "assets/sprites/enemy-patroller.png",
+      "w": 32,
+      "h": 32
+    },
+    {
+      "path": "assets/sprites/enemy-shooter.png",
+      "w": 32,
+      "h": 32
+    },
+    {
+      "path": "assets/sprites/enemy-swarm.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/gem.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/key.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/laser.png",
+      "w": 32,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/lobbed-bomb.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/moving-platform.png",
+      "w": 32,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/player-blob.png",
+      "w": 64,
+      "h": 32
+    },
+    {
+      "path": "assets/sprites/player-humanoid.png",
+      "w": 32,
+      "h": 32
+    },
+    {
+      "path": "assets/sprites/player-ship.png",
+      "w": 32,
+      "h": 32
+    },
+    {
+      "path": "assets/sprites/powerup-capsule.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/snake-segment.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/spike.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/sprites/wall.png",
+      "w": 16,
+      "h": 16
+    },
+    {
+      "path": "assets/tilesets/dungeon.png",
+      "w": 80,
+      "h": 16
+    },
+    {
+      "path": "assets/tilesets/grass.png",
+      "w": 80,
+      "h": 16
+    },
+    {
+      "path": "assets/tilesets/neon-arcade.png",
+      "w": 80,
+      "h": 16
+    },
+    {
+      "path": "assets/tilesets/space.png",
+      "w": 80,
+      "h": 16
+    }
+  ]
+}

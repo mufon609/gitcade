@@ -1791,6 +1791,2557 @@
           ]
         }
       }
+    },
+    {
+      "id": "breakable-block",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "block",
+        "breakable",
+        "destructible"
+      ],
+      "description": "A destructible block: health-and-death gives it HP and a 'block-broken' death event (bricks for breakout, crates for arenas). Damage it via a projectile's contact-damage.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "breakable-block",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/breakable-block.png"
+          },
+          "size": {
+            "w": 32,
+            "h": 16
+          },
+          "tags": [
+            "breakable",
+            "solid"
+          ],
+          "layer": 1,
+          "behaviors": [
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.blockHp",
+                "tallyKey": "blocksBroken",
+                "deathEvent": "block-broken",
+                "deathSound": "hit"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bullet",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "projectile",
+        "bullet"
+      ],
+      "description": "A straight-flying pellet: velocity + contact-damage (self-destructs on hit) + health-and-death lifespan. Embed it as a shoot/ai-aim-and-fire projectile, or spawn directly.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "bullet",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/bullet.png"
+          },
+          "size": {
+            "w": 8,
+            "h": 8
+          },
+          "tags": [
+            "bullet"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "contact-damage",
+              "params": {
+                "targetTag": "enemy",
+                "damage": "$cfg.bulletDamage",
+                "selfDestruct": true
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.bulletHp",
+                "lifespan": "$cfg.bulletLifespan",
+                "deathSound": ""
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "coin",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "pickup",
+        "collectible",
+        "coin",
+        "animated"
+      ],
+      "description": "A spinning coin (4-frame sheet) that adds to the score on touch (collect-on-touch). The staple collectible for every genre.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "sprite-animate",
+        "collect-on-touch",
+        "aabb-collision"
+      ],
+      "definition": {
+        "type": "coin",
+        "params": {
+          "sprite": {
+            "kind": "sheet",
+            "src": "assets/sprites/coin.png",
+            "frameWidth": 16,
+            "frameHeight": 16,
+            "frameCount": 4,
+            "fps": 8,
+            "animations": {
+              "spin": {
+                "from": 0,
+                "to": 3
+              }
+            }
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "coin",
+            "pickup"
+          ],
+          "layer": 2,
+          "behaviors": [
+            {
+              "type": "sprite-animate",
+              "params": {
+                "play": "spin"
+              }
+            },
+            {
+              "type": "collect-on-touch",
+              "params": {
+                "collectorTag": "player",
+                "value": "$cfg.coinValue",
+                "scoreKey": "score",
+                "kind": "coin"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "enemy-chaser",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "enemy",
+        "ai",
+        "chaser",
+        "reuse-proof"
+      ],
+      "description": "The canonical pursuing enemy: ships with ai-chase + velocity + contact-damage + health-and-death already attached. Drop it in (or feed it to wave-spawner) and it hunts the player and hurts on touch.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "ai-chase",
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "enemy-chaser",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/enemy-chaser.png"
+          },
+          "size": {
+            "w": 28,
+            "h": 28
+          },
+          "tags": [
+            "enemy"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "ai-chase",
+              "params": {
+                "targetTag": "player",
+                "speed": "$cfg.enemySpeed"
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "contact-damage",
+              "params": {
+                "targetTag": "player",
+                "damage": "$cfg.enemyDamage",
+                "cooldown": "$cfg.damageCooldown"
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.enemyHp",
+                "tallyKey": "kills",
+                "deathEvent": "enemy-died"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "enemy-patroller",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "enemy",
+        "ai",
+        "patrol"
+      ],
+      "description": "A guard that walks a fixed patrol route (ai-patrol) and hurts on contact, with health-and-death. Predictable hazard for platformer/maze genres; edit its points per placement.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "ai-patrol",
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "enemy-patroller",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/enemy-patroller.png"
+          },
+          "size": {
+            "w": 30,
+            "h": 30
+          },
+          "tags": [
+            "enemy"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "ai-patrol",
+              "params": {
+                "points": [
+                  {
+                    "x": 100,
+                    "y": 200
+                  },
+                  {
+                    "x": 400,
+                    "y": 200
+                  }
+                ],
+                "speed": "$cfg.guardSpeed",
+                "waitTime": "$cfg.guardWaitTime",
+                "arriveRadius": 6
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "contact-damage",
+              "params": {
+                "targetTag": "player",
+                "damage": "$cfg.enemyDamage",
+                "cooldown": "$cfg.damageCooldown"
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.enemyHp",
+                "tallyKey": "kills",
+                "deathEvent": "enemy-died"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "enemy-shooter",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "enemy",
+        "ai",
+        "ranged",
+        "turret"
+      ],
+      "description": "A stationary ranged enemy: ai-aim-and-fire lobs enemy-bullets at the player within range, with health-and-death. The pressure source for arena/shmup genres.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "ai-aim-and-fire",
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "enemy-shooter",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/enemy-shooter.png"
+          },
+          "size": {
+            "w": 30,
+            "h": 30
+          },
+          "tags": [
+            "enemy"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "ai-aim-and-fire",
+              "params": {
+                "targetTag": "player",
+                "range": "$cfg.turretRange",
+                "cooldown": "$cfg.turretCooldown",
+                "projectileSpeed": "$cfg.turretBulletSpeed",
+                "projectile": {
+                  "id": "enemy-bullet",
+                  "sprite": {
+                    "kind": "image",
+                    "src": "assets/sprites/bullet.png"
+                  },
+                  "size": {
+                    "w": 8,
+                    "h": 8
+                  },
+                  "tags": [
+                    "enemy-bullet"
+                  ],
+                  "layer": 3,
+                  "behaviors": [
+                    {
+                      "type": "velocity",
+                      "params": {}
+                    },
+                    {
+                      "type": "contact-damage",
+                      "params": {
+                        "targetTag": "player",
+                        "damage": "$cfg.turretBulletDamage",
+                        "selfDestruct": true
+                      }
+                    },
+                    {
+                      "type": "health-and-death",
+                      "params": {
+                        "hp": "$cfg.bulletHp",
+                        "lifespan": "$cfg.bulletLifespan",
+                        "deathSound": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.enemyHp",
+                "tallyKey": "kills",
+                "deathEvent": "enemy-died"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "enemy-swarm",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "enemy",
+        "ai",
+        "swarm",
+        "small"
+      ],
+      "description": "A small, fast, low-HP swarm bug: ai-chase + contact-damage + health-and-death. Cheap to spawn in large counts via wave-spawner for survival-arena pressure.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "ai-chase",
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "enemy-swarm",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/enemy-swarm.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "enemy"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "ai-chase",
+              "params": {
+                "targetTag": "player",
+                "speed": "$cfg.swarmSpeed"
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "contact-damage",
+              "params": {
+                "targetTag": "player",
+                "damage": "$cfg.swarmDamage",
+                "cooldown": "$cfg.damageCooldown"
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.swarmHp",
+                "tallyKey": "kills",
+                "deathEvent": "enemy-died"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "gem",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "pickup",
+        "collectible",
+        "gem"
+      ],
+      "description": "A higher-value gem collectible (collect-on-touch). Same mechanic as coin, distinct sprite + score weight for tiered rewards.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "collect-on-touch",
+        "aabb-collision"
+      ],
+      "definition": {
+        "type": "gem",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/gem.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "gem",
+            "pickup"
+          ],
+          "layer": 2,
+          "behaviors": [
+            {
+              "type": "collect-on-touch",
+              "params": {
+                "collectorTag": "player",
+                "value": "$cfg.gemValue",
+                "scoreKey": "score",
+                "kind": "gem"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "key",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "pickup",
+        "key",
+        "progression"
+      ],
+      "description": "A key collectible that increments a 'keys' tally on touch (collect-on-touch). Pair with a door/portal gated on the keys count for lock-and-key puzzles.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "collect-on-touch",
+        "aabb-collision"
+      ],
+      "definition": {
+        "type": "key",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/key.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "key",
+            "pickup"
+          ],
+          "layer": 2,
+          "behaviors": [
+            {
+              "type": "collect-on-touch",
+              "params": {
+                "collectorTag": "player",
+                "value": "$cfg.keyValue",
+                "scoreKey": "keys",
+                "kind": "key"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "laser",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "projectile",
+        "laser",
+        "piercing"
+      ],
+      "description": "A piercing beam: velocity + contact-damage that does NOT self-destruct (hits everything it passes), expiring by lifespan. A heavier weapon than bullet.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "laser",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/laser.png"
+          },
+          "size": {
+            "w": 32,
+            "h": 12
+          },
+          "tags": [
+            "laser",
+            "bullet"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "contact-damage",
+              "params": {
+                "targetTag": "enemy",
+                "damage": "$cfg.laserDamage",
+                "cooldown": "$cfg.laserHitCooldown",
+                "selfDestruct": false
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.laserHp",
+                "lifespan": "$cfg.laserLifespan",
+                "deathSound": ""
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "lobbed-bomb",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "projectile",
+        "bomb",
+        "explosive"
+      ],
+      "description": "A thrown bomb that flies (velocity), then detonates by lifespan emitting an 'explode' event + sound — wire the fx 'explosion' system to that event for debris. Area damage is the game's to apply on the event.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "velocity",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "lobbed-bomb",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/lobbed-bomb.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "bomb"
+          ],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.bombHp",
+                "lifespan": "$cfg.bombLifespan",
+                "deathEvent": "explode",
+                "deathSound": "explode"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "moving-platform",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "block",
+        "platform",
+        "moving",
+        "ground"
+      ],
+      "description": "A platform that shuttles between two points (ai-patrol reused as a mover) while tagged 'ground' so players can ride it. Edit its points per placement.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "ai-patrol",
+        "velocity"
+      ],
+      "definition": {
+        "type": "moving-platform",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/moving-platform.png"
+          },
+          "size": {
+            "w": 64,
+            "h": 16
+          },
+          "tags": [
+            "ground",
+            "platform",
+            "solid"
+          ],
+          "layer": 1,
+          "behaviors": [
+            {
+              "type": "ai-patrol",
+              "params": {
+                "points": [
+                  {
+                    "x": 120,
+                    "y": 360
+                  },
+                  {
+                    "x": 360,
+                    "y": 360
+                  }
+                ],
+                "speed": "$cfg.platformSpeed",
+                "waitTime": "$cfg.platformWaitTime",
+                "arriveRadius": 4
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "player-blob",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "player",
+        "topdown",
+        "blob",
+        "animated"
+      ],
+      "description": "A round top-down player blob (2-frame idle squash). Composes move-topdown-360 + velocity + clamp-to-world + health-and-death. The default hero for arena/survival genres.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "sprite-animate",
+        "move-topdown-360",
+        "velocity",
+        "clamp-to-world",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "player-blob",
+        "params": {
+          "sprite": {
+            "kind": "sheet",
+            "src": "assets/sprites/player-blob.png",
+            "frameWidth": 32,
+            "frameHeight": 32,
+            "frameCount": 2,
+            "fps": 4,
+            "animations": {
+              "idle": {
+                "from": 0,
+                "to": 1
+              }
+            }
+          },
+          "size": {
+            "w": 32,
+            "h": 32
+          },
+          "tags": [
+            "player"
+          ],
+          "layer": 4,
+          "behaviors": [
+            {
+              "type": "sprite-animate",
+              "params": {
+                "play": "idle"
+              }
+            },
+            {
+              "type": "move-topdown-360",
+              "params": {
+                "speed": "$cfg.playerSpeed",
+                "pointerFollow": false
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "clamp-to-world",
+              "params": {
+                "padding": 8
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.playerHp",
+                "deathEvent": "player-died",
+                "deathSound": "lose",
+                "destroyOnDeath": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "player-humanoid",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "player",
+        "platformer",
+        "humanoid"
+      ],
+      "description": "A side-view platformer hero: move-platformer (gravity/jump/coyote-time) + velocity + health-and-death. The hero for platformer genres; expects a 'ground'-tagged world.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "move-platformer",
+        "velocity",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "player-humanoid",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/player-humanoid.png"
+          },
+          "size": {
+            "w": 32,
+            "h": 32
+          },
+          "tags": [
+            "player"
+          ],
+          "layer": 4,
+          "behaviors": [
+            {
+              "type": "move-platformer",
+              "params": {
+                "moveSpeed": "$cfg.playerSpeed",
+                "gravity": "$cfg.gravity",
+                "jumpSpeed": "$cfg.jumpSpeed",
+                "coyoteTime": "$cfg.coyoteTime",
+                "groundTag": "ground"
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.playerHp",
+                "deathEvent": "player-died",
+                "deathSound": "lose",
+                "destroyOnDeath": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "player-ship",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "player",
+        "shooter",
+        "ship"
+      ],
+      "description": "A keyboard-driven shooter ship: move-4dir + velocity + clamp-to-world + shoot (fires bullets upward) + health-and-death. The hero for shmup/invaders genres.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "move-4dir",
+        "velocity",
+        "clamp-to-world",
+        "shoot",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "definition": {
+        "type": "player-ship",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/player-ship.png"
+          },
+          "size": {
+            "w": 32,
+            "h": 32
+          },
+          "tags": [
+            "player"
+          ],
+          "layer": 4,
+          "behaviors": [
+            {
+              "type": "move-4dir",
+              "params": {
+                "speed": "$cfg.playerSpeed"
+              }
+            },
+            {
+              "type": "velocity",
+              "params": {}
+            },
+            {
+              "type": "clamp-to-world",
+              "params": {
+                "padding": 8
+              }
+            },
+            {
+              "type": "shoot",
+              "params": {
+                "projectileSpeed": "$cfg.bulletSpeed",
+                "cooldown": "$cfg.fireCooldown",
+                "fireKeys": [
+                  "Space"
+                ],
+                "direction": {
+                  "x": 0,
+                  "y": -1
+                },
+                "spawnOffset": {
+                  "x": 0,
+                  "y": -16
+                },
+                "projectile": {
+                  "id": "bullet",
+                  "sprite": {
+                    "kind": "image",
+                    "src": "assets/sprites/bullet.png"
+                  },
+                  "size": {
+                    "w": 8,
+                    "h": 8
+                  },
+                  "tags": [
+                    "bullet"
+                  ],
+                  "layer": 3,
+                  "behaviors": [
+                    {
+                      "type": "velocity",
+                      "params": {}
+                    },
+                    {
+                      "type": "contact-damage",
+                      "params": {
+                        "targetTag": "enemy",
+                        "damage": "$cfg.bulletDamage",
+                        "selfDestruct": true
+                      }
+                    },
+                    {
+                      "type": "health-and-death",
+                      "params": {
+                        "hp": "$cfg.bulletHp",
+                        "lifespan": "$cfg.bulletLifespan",
+                        "deathSound": ""
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "health-and-death",
+              "params": {
+                "hp": "$cfg.playerHp",
+                "deathEvent": "player-died",
+                "deathSound": "lose",
+                "destroyOnDeath": false
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "powerup-capsule",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "pickup",
+        "powerup",
+        "capsule"
+      ],
+      "description": "A power-up capsule collected on touch; tracks into a 'powerups' tally the game reads to apply an effect (collect-on-touch with kind 'powerup').",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "collect-on-touch",
+        "aabb-collision"
+      ],
+      "definition": {
+        "type": "powerup-capsule",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/powerup-capsule.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "powerup",
+            "pickup"
+          ],
+          "layer": 2,
+          "behaviors": [
+            {
+              "type": "collect-on-touch",
+              "params": {
+                "collectorTag": "player",
+                "value": "$cfg.powerupValue",
+                "scoreKey": "powerups",
+                "kind": "powerup"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "snake-segment",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "player",
+        "snake",
+        "segment"
+      ],
+      "description": "A passive snake body segment (the snake head's grid movement is game logic). Tagged 'snake'+'player' so it both follows the head and counts for collision. Behavior-free by design.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "snake-segment",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/snake-segment.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "snake",
+            "player"
+          ],
+          "layer": 3,
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "spike",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "hazard",
+        "spike",
+        "trap"
+      ],
+      "description": "A spike hazard: trigger-zone emits a 'hazard' event (and can kill) when the player overlaps it. The instant-death trap for platformers/mazes.",
+      "license": "CC-BY-4.0",
+      "dependencies": [
+        "trigger-zone",
+        "aabb-collision"
+      ],
+      "definition": {
+        "type": "spike",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/spike.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "hazard"
+          ],
+          "layer": 1,
+          "behaviors": [
+            {
+              "type": "trigger-zone",
+              "params": {
+                "tag": "player",
+                "enterEvent": "hazard",
+                "kill": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wall",
+      "kind": "entity",
+      "version": "1.0.0",
+      "category": "entities",
+      "tags": [
+        "block",
+        "solid",
+        "wall",
+        "ground"
+      ],
+      "description": "A static solid block, tagged 'ground'+'solid' so platformer movement stands on it and collision pairs treat it as a wall. Behavior-free.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "wall",
+        "params": {
+          "sprite": {
+            "kind": "image",
+            "src": "assets/sprites/wall.png"
+          },
+          "size": {
+            "w": 16,
+            "h": 16
+          },
+          "tags": [
+            "wall",
+            "solid",
+            "ground"
+          ],
+          "layer": 1,
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "background-gradient",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "background",
+        "gradient"
+      ],
+      "description": "A 256×256 vertical gradient (ink → deep blue) for calm menus and abstract scenes. Stretch or tile as a scene background.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "background-gradient",
+        "params": {
+          "src": "assets/backgrounds/gradient.png",
+          "tileWidth": 256,
+          "tileHeight": 256,
+          "tile": false
+        }
+      }
+    },
+    {
+      "id": "background-parallax-2layer",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "background",
+        "parallax",
+        "scrolling"
+      ],
+      "description": "A two-layer parallax backdrop (far hills + near hills) for side-scrollers. The host scrolls each layer at its own speed factor; the near layer has a transparent sky so it overlays the far layer.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "background-parallax-2layer",
+        "params": {
+          "tileWidth": 256,
+          "tileHeight": 128,
+          "layers": [
+            {
+              "src": "assets/backgrounds/parallax-far.png",
+              "speedFactor": 0.3
+            },
+            {
+              "src": "assets/backgrounds/parallax-near.png",
+              "speedFactor": 0.6
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "background-starfield",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "background",
+        "starfield",
+        "space"
+      ],
+      "description": "A tiling 256×256 starfield (deterministic seeded stars on ink). Set as a scene background; tile it across the world for space genres.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "background-starfield",
+        "params": {
+          "src": "assets/backgrounds/starfield.png",
+          "tileWidth": 256,
+          "tileHeight": 256,
+          "tile": true
+        }
+      }
+    },
+    {
+      "id": "camera-auto-scroll",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "camera",
+        "auto-scroll"
+      ],
+      "description": "Camera preset: the viewport scrolls at a constant velocity (endless runners, shmups, helicopter). A host hint; pair with the auto-scroll behavior on the world. Registers no runtime type.",
+      "license": "MIT",
+      "dependencies": [
+        "auto-scroll"
+      ],
+      "definition": {
+        "type": "camera-auto-scroll",
+        "params": {
+          "mode": "auto-scroll",
+          "direction": {
+            "x": 1,
+            "y": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "camera-fixed",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "camera",
+        "fixed"
+      ],
+      "description": "Camera preset: a static viewport equal to the scene size (single-screen games — arena, breakout, puzzle). A host hint; the frozen SDK renderer draws in absolute world coords, so no runtime type is registered.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "camera-fixed",
+        "params": {
+          "mode": "fixed"
+        }
+      }
+    },
+    {
+      "id": "camera-follow",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "camera",
+        "follow"
+      ],
+      "description": "Camera preset: follow a tagged entity with optional smoothing and deadzone (platformers, top-down explorers). A host hint consumed by the page that owns the canvas; registers no runtime type.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "camera-follow",
+        "params": {
+          "mode": "follow",
+          "targetTag": "player",
+          "smoothing": 0.12,
+          "deadzone": {
+            "w": 80,
+            "h": 60
+          }
+        }
+      }
+    },
+    {
+      "id": "music-action",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "music",
+        "chiptune",
+        "action",
+        "loop"
+      ],
+      "description": "A driving 132 BPM chiptune loop (walking square bass + bright triangle arpeggio) for gameplay. Generated note-by-note via Web Audio (LibraryAudioPlayer.startMusic(\"action\")) — zero binary audio, loops seamlessly, no-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "music-action",
+        "params": {
+          "track": "action",
+          "bpm": 132,
+          "loopBeats": 8
+        }
+      }
+    },
+    {
+      "id": "music-menu",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "music",
+        "chiptune",
+        "menu",
+        "loop"
+      ],
+      "description": "A calm 96 BPM chiptune loop (sparse triangle pad + gentle sine melody) for title/menu screens. Generated via Web Audio (LibraryAudioPlayer.startMusic(\"menu\")) — zero binary audio, no-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "music-menu",
+        "params": {
+          "track": "menu",
+          "bpm": 96,
+          "loopBeats": 8
+        }
+      }
+    },
+    {
+      "id": "sfx-click",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "click"
+      ],
+      "description": "Crisp tiny square tick for UI clicks. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"click\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-click",
+        "params": {
+          "key": "click"
+        }
+      }
+    },
+    {
+      "id": "sfx-collect",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "collect"
+      ],
+      "description": "Bright two-note triangle blip for pickups. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"collect\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-collect",
+        "params": {
+          "key": "collect"
+        }
+      }
+    },
+    {
+      "id": "sfx-explode",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "explode"
+      ],
+      "description": "Filtered noise burst + falling square for explosions/deaths. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"explode\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-explode",
+        "params": {
+          "key": "explode"
+        }
+      }
+    },
+    {
+      "id": "sfx-hit",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "hit"
+      ],
+      "description": "Short low square thud + noise for impacts/damage. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"hit\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-hit",
+        "params": {
+          "key": "hit"
+        }
+      }
+    },
+    {
+      "id": "sfx-jump",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "jump"
+      ],
+      "description": "Springy upward square sweep for jumps/launches. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"jump\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-jump",
+        "params": {
+          "key": "jump"
+        }
+      }
+    },
+    {
+      "id": "sfx-lose",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "lose"
+      ],
+      "description": "Falling saw+square for defeat/game-over. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"lose\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-lose",
+        "params": {
+          "key": "lose"
+        }
+      }
+    },
+    {
+      "id": "sfx-shoot",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "shoot"
+      ],
+      "description": "Pitched-down square zap + noise click for firing. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"shoot\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-shoot",
+        "params": {
+          "key": "shoot"
+        }
+      }
+    },
+    {
+      "id": "sfx-win",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "audio",
+      "tags": [
+        "audio",
+        "sfx",
+        "win"
+      ],
+      "description": "Rising triangle arpeggio fanfare for victory. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"win\")) — zero binary audio. No-ops headless.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "sfx-win",
+        "params": {
+          "key": "win"
+        }
+      }
+    },
+    {
+      "id": "tileset-dungeon",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "tileset",
+        "dungeon",
+        "indoor"
+      ],
+      "description": "A 5-tile dungeon tileset (16px): floor, wall, edge, accent, hazard. Procedurally generated on the fixed palette; index by name into the sheet.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "tileset-dungeon",
+        "params": {
+          "src": "assets/tilesets/dungeon.png",
+          "tileWidth": 16,
+          "tileHeight": 16,
+          "cols": 5,
+          "tiles": {
+            "floor": 0,
+            "wall": 1,
+            "edge": 2,
+            "accent": 3,
+            "hazard": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "tileset-grass",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "tileset",
+        "grass",
+        "outdoor"
+      ],
+      "description": "A 5-tile grass/outdoor tileset (16px): ground, wall, edge, accent, hazard. Procedurally generated by gen-assets.ts on the fixed palette; index by name into the sheet.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "tileset-grass",
+        "params": {
+          "src": "assets/tilesets/grass.png",
+          "tileWidth": 16,
+          "tileHeight": 16,
+          "cols": 5,
+          "tiles": {
+            "ground": 0,
+            "wall": 1,
+            "edge": 2,
+            "accent": 3,
+            "hazard": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "tileset-neon-arcade",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "tileset",
+        "neon",
+        "arcade"
+      ],
+      "description": "A 5-tile neon-arcade tileset (16px): floor, wall, edge, accent, glow. Procedurally generated on the fixed palette; index by name into the sheet.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "tileset-neon-arcade",
+        "params": {
+          "src": "assets/tilesets/neon-arcade.png",
+          "tileWidth": 16,
+          "tileHeight": 16,
+          "cols": 5,
+          "tiles": {
+            "floor": 0,
+            "wall": 1,
+            "edge": 2,
+            "accent": 3,
+            "glow": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "tileset-space",
+      "kind": "asset",
+      "version": "1.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "tileset",
+        "space",
+        "sci-fi"
+      ],
+      "description": "A 5-tile space/station tileset (16px): panel, hull, edge, accent, hazard. Procedurally generated on the fixed palette; index by name into the sheet.",
+      "license": "CC-BY-4.0",
+      "dependencies": [],
+      "definition": {
+        "type": "tileset-space",
+        "params": {
+          "src": "assets/tilesets/space.png",
+          "tileWidth": 16,
+          "tileHeight": 16,
+          "cols": 5,
+          "tiles": {
+            "panel": 0,
+            "hull": 1,
+            "edge": 2,
+            "accent": 3,
+            "hazard": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "hud-health-bar",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "hud",
+        "health",
+        "bar"
+      ],
+      "description": "A health/progress bar HUD entity: a flat rect whose width the hud-bar behavior drives from world.state.hp / world.state.maxHp each tick. Anchored top-left; recolor/threshold are optional add-ons.",
+      "license": "MIT",
+      "dependencies": [
+        "hud-bar"
+      ],
+      "definition": {
+        "type": "hud-health-bar",
+        "params": {
+          "sprite": {
+            "kind": "shape",
+            "shape": "rect",
+            "color": "#a7f070"
+          },
+          "size": {
+            "w": 120,
+            "h": 12
+          },
+          "position": {
+            "x": 12,
+            "y": 40
+          },
+          "tags": [
+            "hud"
+          ],
+          "layer": 100,
+          "behaviors": [
+            {
+              "type": "hud-bar",
+              "params": {
+                "valueKey": "hp",
+                "maxKey": "maxHp",
+                "width": 120
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "hud-score",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "hud",
+        "score",
+        "text"
+      ],
+      "description": "A score readout HUD entity: a text sprite live-bound to world.state.score (the SDK's frozen text `bind`). Behavior-free — drop it in any scene's entities and the score system updates it.",
+      "license": "MIT",
+      "dependencies": [
+        "score"
+      ],
+      "definition": {
+        "type": "hud-score",
+        "params": {
+          "sprite": {
+            "kind": "text",
+            "bind": "score",
+            "text": "0",
+            "font": "20px monospace",
+            "color": "#f4f4f4",
+            "align": "left"
+          },
+          "size": {
+            "w": 120,
+            "h": 24
+          },
+          "position": {
+            "x": 12,
+            "y": 10
+          },
+          "tags": [
+            "hud"
+          ],
+          "layer": 100,
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "hud-timer",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "hud",
+        "timer",
+        "text"
+      ],
+      "description": "A countdown readout HUD entity: a text sprite bound to world.state.timeLeft (written by the timer-countdown system). Behavior-free.",
+      "license": "MIT",
+      "dependencies": [
+        "timer-countdown"
+      ],
+      "definition": {
+        "type": "hud-timer",
+        "params": {
+          "sprite": {
+            "kind": "text",
+            "bind": "timeLeft",
+            "text": "0",
+            "font": "20px monospace",
+            "color": "#ffcd75",
+            "align": "right"
+          },
+          "size": {
+            "w": 120,
+            "h": 24
+          },
+          "position": {
+            "x": 668,
+            "y": 10
+          },
+          "tags": [
+            "hud"
+          ],
+          "layer": 100,
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "hud-wave-counter",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "hud",
+        "wave",
+        "text"
+      ],
+      "description": "A wave/level readout HUD entity: a text sprite bound to world.state.wave (written by wave-spawner via its waveKey). Behavior-free.",
+      "license": "MIT",
+      "dependencies": [
+        "wave-spawner"
+      ],
+      "definition": {
+        "type": "hud-wave-counter",
+        "params": {
+          "sprite": {
+            "kind": "text",
+            "bind": "wave",
+            "text": "1",
+            "font": "20px monospace",
+            "color": "#41a6f6",
+            "align": "center"
+          },
+          "size": {
+            "w": 160,
+            "h": 24
+          },
+          "position": {
+            "x": 320,
+            "y": 10
+          },
+          "tags": [
+            "hud"
+          ],
+          "layer": 100,
+          "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "menu-game-over",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "menu",
+        "game-over",
+        "scene"
+      ],
+      "description": "A game-over scene fragment: 'GAME OVER', a final score readout bound to world.state.score, and a retry prompt. Load it when a lose condition fires; pairs with the sfx-lose cue.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "menu-game-over",
+        "params": {
+          "background": "#1a1c2c",
+          "entities": [
+            {
+              "id": "over",
+              "sprite": {
+                "kind": "text",
+                "text": "GAME OVER",
+                "font": "56px monospace",
+                "color": "#b13e53",
+                "align": "center"
+              },
+              "size": {
+                "w": 800,
+                "h": 70
+              },
+              "position": {
+                "x": 400,
+                "y": 200
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 100
+            },
+            {
+              "id": "final-score",
+              "sprite": {
+                "kind": "text",
+                "bind": "score",
+                "text": "0",
+                "font": "28px monospace",
+                "color": "#f4f4f4",
+                "align": "center"
+              },
+              "size": {
+                "w": 800,
+                "h": 34
+              },
+              "position": {
+                "x": 400,
+                "y": 290
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 100
+            },
+            {
+              "id": "retry",
+              "sprite": {
+                "kind": "text",
+                "text": "press SPACE to retry",
+                "font": "22px monospace",
+                "color": "#ffcd75",
+                "align": "center"
+              },
+              "size": {
+                "w": 800,
+                "h": 28
+              },
+              "position": {
+                "x": 400,
+                "y": 350
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 100
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "menu-pause",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "menu",
+        "pause",
+        "overlay"
+      ],
+      "description": "A pause overlay scene fragment: a dimmed panel + 'PAUSED' + resume prompt. Render over the frozen gameplay scene (the host stops stepping the loop while paused).",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "menu-pause",
+        "params": {
+          "background": "#1a1c2c",
+          "entities": [
+            {
+              "id": "panel",
+              "sprite": {
+                "kind": "shape",
+                "shape": "rect",
+                "color": "#3b5dc9"
+              },
+              "size": {
+                "w": 360,
+                "h": 140
+              },
+              "position": {
+                "x": 220,
+                "y": 230
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 100
+            },
+            {
+              "id": "paused",
+              "sprite": {
+                "kind": "text",
+                "text": "PAUSED",
+                "font": "48px monospace",
+                "color": "#f4f4f4",
+                "align": "center"
+              },
+              "size": {
+                "w": 360,
+                "h": 60
+              },
+              "position": {
+                "x": 400,
+                "y": 250
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 101
+            },
+            {
+              "id": "resume",
+              "sprite": {
+                "kind": "text",
+                "text": "press ESC to resume",
+                "font": "20px monospace",
+                "color": "#ffcd75",
+                "align": "center"
+              },
+              "size": {
+                "w": 360,
+                "h": 24
+              },
+              "position": {
+                "x": 400,
+                "y": 320
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 101
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "menu-title",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "menu",
+        "title",
+        "scene"
+      ],
+      "description": "A title-screen scene fragment: centered title + prompt text on a flat background. Load it as a scene (add a start-on-input handler in game code) before the gameplay scene; pairs with music-menu.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "menu-title",
+        "params": {
+          "background": "#1a1c2c",
+          "entities": [
+            {
+              "id": "title",
+              "sprite": {
+                "kind": "text",
+                "text": "GITCADE",
+                "font": "64px monospace",
+                "color": "#ffcd75",
+                "align": "center"
+              },
+              "size": {
+                "w": 800,
+                "h": 80
+              },
+              "position": {
+                "x": 400,
+                "y": 200
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 100
+            },
+            {
+              "id": "prompt",
+              "sprite": {
+                "kind": "text",
+                "text": "press SPACE to play",
+                "font": "24px monospace",
+                "color": "#f4f4f4",
+                "align": "center"
+              },
+              "size": {
+                "w": 800,
+                "h": 30
+              },
+              "position": {
+                "x": 400,
+                "y": 320
+              },
+              "tags": [
+                "menu"
+              ],
+              "layer": 100
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "touch-controls",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "touch",
+        "mobile",
+        "dpad",
+        "buttons"
+      ],
+      "description": "On-screen mobile controls: a virtual d-pad (attach touch-dpad to your player, replacing its keyboard mover) plus a controller entity carrying two touch-button behaviors that set world.state flags ('fire', 'jump'). Includes decorative d-pad/button visuals. No-op without touch input, so desktop play is unaffected.",
+      "license": "MIT",
+      "dependencies": [
+        "touch-dpad",
+        "touch-button",
+        "velocity"
+      ],
+      "definition": {
+        "type": "touch-controls",
+        "params": {
+          "playerBehavior": {
+            "type": "touch-dpad",
+            "params": {
+              "speed": "$cfg.playerSpeed",
+              "zone": {
+                "x": 90,
+                "y": 510,
+                "radius": 60
+              }
+            }
+          },
+          "controllerEntity": {
+            "id": "touch-controller",
+            "sprite": {
+              "kind": "none"
+            },
+            "size": {
+              "w": 1,
+              "h": 1
+            },
+            "position": {
+              "x": 0,
+              "y": 0
+            },
+            "tags": [
+              "ui",
+              "controller"
+            ],
+            "layer": 101,
+            "behaviors": [
+              {
+                "type": "touch-button",
+                "params": {
+                  "actionKey": "fire",
+                  "rect": {
+                    "x": 640,
+                    "y": 470,
+                    "w": 110,
+                    "h": 110
+                  },
+                  "pressEvent": "fire-pressed"
+                }
+              },
+              {
+                "type": "touch-button",
+                "params": {
+                  "actionKey": "jump",
+                  "rect": {
+                    "x": 640,
+                    "y": 350,
+                    "w": 100,
+                    "h": 100
+                  },
+                  "pressEvent": "jump-pressed"
+                }
+              }
+            ]
+          },
+          "visuals": [
+            {
+              "id": "dpad-ring",
+              "sprite": {
+                "kind": "shape",
+                "shape": "circle",
+                "color": "#3b5dc9",
+                "stroke": "#f4f4f4",
+                "strokeWidth": 2
+              },
+              "size": {
+                "w": 120,
+                "h": 120
+              },
+              "position": {
+                "x": 30,
+                "y": 450
+              },
+              "tags": [
+                "ui"
+              ],
+              "layer": 100
+            },
+            {
+              "id": "btn-fire",
+              "sprite": {
+                "kind": "shape",
+                "shape": "circle",
+                "color": "#b13e53"
+              },
+              "size": {
+                "w": 90,
+                "h": 90
+              },
+              "position": {
+                "x": 650,
+                "y": 480
+              },
+              "tags": [
+                "ui"
+              ],
+              "layer": 100
+            },
+            {
+              "id": "btn-jump",
+              "sprite": {
+                "kind": "shape",
+                "shape": "circle",
+                "color": "#5d9c3b"
+              },
+              "size": {
+                "w": 80,
+                "h": 80
+              },
+              "position": {
+                "x": 650,
+                "y": 360
+              },
+              "tags": [
+                "ui"
+              ],
+              "layer": 100
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "dust",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "particles",
+        "dust",
+        "behavior"
+      ],
+      "description": "A per-entity BEHAVIOR that kicks up puffs only while the entity is moving above minSpeed (footsteps, landings, sliding). Emits nothing at rest.",
+      "license": "MIT",
+      "dependencies": [
+        "particle"
+      ],
+      "params": {
+        "rate": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between puffs."
+        },
+        "minSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "Speed threshold below which no dust spawns."
+        },
+        "ttl": {
+          "type": "number",
+          "balance": true,
+          "description": "Particle lifetime (s)."
+        },
+        "size": {
+          "type": "number",
+          "balance": false,
+          "description": "Particle box size in px (structural)."
+        },
+        "color": {
+          "type": "string",
+          "balance": false,
+          "description": "Palette hex color."
+        }
+      },
+      "definition": {
+        "type": "dust",
+        "params": {
+          "rate": "$cfg.fxDustRate",
+          "minSpeed": "$cfg.fxDustMinSpeed",
+          "ttl": "$cfg.fxDustTtl",
+          "size": 3,
+          "color": "#f4f4f4"
+        }
+      }
+    },
+    {
+      "id": "explosion",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "particles",
+        "explosion",
+        "system"
+      ],
+      "description": "An event-driven particle SYSTEM: on a game event (default 'enemy-died'/'explode') it bursts fast gravity-pulled debris at the event's position. Wire a mortal entity's health-and-death.deathEvent to the same name.",
+      "license": "MIT",
+      "dependencies": [
+        "particle"
+      ],
+      "params": {
+        "event": {
+          "type": "string",
+          "balance": false,
+          "description": "Game event that triggers a burst."
+        },
+        "count": {
+          "type": "number",
+          "balance": true,
+          "description": "Particles per burst."
+        },
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Base outward speed (px/s)."
+        },
+        "ttl": {
+          "type": "number",
+          "balance": true,
+          "description": "Particle lifetime (s)."
+        },
+        "gravity": {
+          "type": "number",
+          "balance": true,
+          "description": "Downward pull (px/s²)."
+        },
+        "size": {
+          "type": "number",
+          "balance": false,
+          "description": "Particle box size in px (structural)."
+        },
+        "colors": {
+          "type": "array",
+          "balance": false,
+          "description": "Palette hex colors cycled across particles."
+        }
+      },
+      "definition": {
+        "type": "explosion",
+        "params": {
+          "event": "enemy-died",
+          "count": "$cfg.fxExplosionCount",
+          "speed": "$cfg.fxExplosionSpeed",
+          "ttl": "$cfg.fxExplosionTtl",
+          "gravity": "$cfg.fxExplosionGravity",
+          "size": 5,
+          "colors": [
+            "#ef7d57",
+            "#ffcd75",
+            "#b13e53",
+            "#f4f4f4"
+          ]
+        }
+      }
+    },
+    {
+      "id": "screen-fade",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "screen",
+        "fade",
+        "transition",
+        "host"
+      ],
+      "description": "A screen fade preset for the host-side ScreenEffects controller (fade to/from a color for scene transitions and intros). Trigger fx.fadeOut(color, duration) / fx.fadeIn(...). Registers no runtime type.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "color": {
+          "type": "string",
+          "balance": false,
+          "description": "Fade color (palette hex)."
+        },
+        "duration": {
+          "type": "number",
+          "balance": false,
+          "description": "Fade time in seconds."
+        }
+      },
+      "definition": {
+        "type": "screen-fade",
+        "params": {
+          "color": "#1a1c2c",
+          "duration": 0.5
+        }
+      }
+    },
+    {
+      "id": "screen-flash",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "screen",
+        "flash",
+        "host"
+      ],
+      "description": "A full-screen flash preset for the host-side ScreenEffects controller (a colored overlay that fades out). Trigger fx.flash(color, duration) on big hits/pickups. Registers no runtime type.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "color": {
+          "type": "string",
+          "balance": false,
+          "description": "Overlay color (palette hex)."
+        },
+        "duration": {
+          "type": "number",
+          "balance": false,
+          "description": "Fade-out time in seconds."
+        }
+      },
+      "definition": {
+        "type": "screen-flash",
+        "params": {
+          "color": "#f4f4f4",
+          "duration": 0.2
+        }
+      }
+    },
+    {
+      "id": "screen-shake",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "screen",
+        "shake",
+        "host"
+      ],
+      "description": "A screen-shake preset for the host-side ScreenEffects controller (the frozen renderer draws in absolute coords, so camera shake belongs to the page that owns the canvas). Trigger fx.shake(magnitude, duration) on impacts/deaths. Deterministic; registers no runtime type.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "magnitude": {
+          "type": "number",
+          "balance": false,
+          "description": "Peak shake offset in px (presentational, host-applied)."
+        },
+        "duration": {
+          "type": "number",
+          "balance": false,
+          "description": "Decay time in seconds."
+        },
+        "frequency": {
+          "type": "number",
+          "balance": false,
+          "description": "Oscillation frequency."
+        }
+      },
+      "definition": {
+        "type": "screen-shake",
+        "params": {
+          "magnitude": 10,
+          "duration": 0.3,
+          "frequency": 40
+        }
+      }
+    },
+    {
+      "id": "sparkle",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "particles",
+        "sparkle",
+        "system"
+      ],
+      "description": "A gentle event-driven particle SYSTEM: soft upward twinkles on a game event (default 'collect') for pickups, power-ups, and level-ups. Same wiring model as explosion.",
+      "license": "MIT",
+      "dependencies": [
+        "particle"
+      ],
+      "params": {
+        "event": {
+          "type": "string",
+          "balance": false,
+          "description": "Game event that triggers a twinkle."
+        },
+        "count": {
+          "type": "number",
+          "balance": true,
+          "description": "Particles per burst."
+        },
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Base upward speed (px/s)."
+        },
+        "ttl": {
+          "type": "number",
+          "balance": true,
+          "description": "Particle lifetime (s)."
+        },
+        "gravity": {
+          "type": "number",
+          "balance": true,
+          "description": "Vertical pull; negative floats up."
+        },
+        "size": {
+          "type": "number",
+          "balance": false,
+          "description": "Particle box size in px (structural)."
+        },
+        "colors": {
+          "type": "array",
+          "balance": false,
+          "description": "Palette hex colors cycled across particles."
+        }
+      },
+      "definition": {
+        "type": "sparkle",
+        "params": {
+          "event": "collect",
+          "count": "$cfg.fxSparkleCount",
+          "speed": "$cfg.fxSparkleSpeed",
+          "ttl": "$cfg.fxSparkleTtl",
+          "gravity": "$cfg.fxSparkleGravity",
+          "size": 3,
+          "colors": [
+            "#ffcd75",
+            "#f4f4f4",
+            "#a7f070"
+          ]
+        }
+      }
+    },
+    {
+      "id": "trail",
+      "kind": "fx",
+      "version": "1.0.0",
+      "category": "fx",
+      "tags": [
+        "fx",
+        "particles",
+        "trail",
+        "behavior"
+      ],
+      "description": "A per-entity BEHAVIOR that drips a fading particle behind a moving entity at a fixed rate (projectiles, comets, dashes). Time-based, so density is frame-rate independent.",
+      "license": "MIT",
+      "dependencies": [
+        "particle"
+      ],
+      "params": {
+        "rate": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between drips."
+        },
+        "ttl": {
+          "type": "number",
+          "balance": true,
+          "description": "Particle lifetime (s)."
+        },
+        "size": {
+          "type": "number",
+          "balance": false,
+          "description": "Particle box size in px (structural)."
+        },
+        "color": {
+          "type": "string",
+          "balance": false,
+          "description": "Palette hex color."
+        }
+      },
+      "definition": {
+        "type": "trail",
+        "params": {
+          "rate": "$cfg.fxTrailRate",
+          "ttl": "$cfg.fxTrailTtl",
+          "size": 4,
+          "color": "#41a6f6"
+        }
+      }
     }
   ]
 }

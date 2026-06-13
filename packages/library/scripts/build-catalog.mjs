@@ -58,7 +58,11 @@ function orderPart(part) {
   return out;
 }
 
-const parts = [...readParts("behaviors"), ...readParts("systems")]
+// Phase 2A authored behaviors/ + systems/; Phase 2B extends with the presentational
+// half (entities/, assets/ [world + audio], ui/, fx/). Each subdir maps to a `kind`
+// the catalog schema already allows; the kind itself comes from each part file.
+const PART_DIRS = ["behaviors", "systems", "entities", "assets", "ui", "fx"];
+const parts = PART_DIRS.flatMap((d) => readParts(d))
   .sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.id.localeCompare(b.id))
   .map(orderPart);
 

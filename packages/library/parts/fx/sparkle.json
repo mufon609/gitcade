@@ -1,0 +1,31 @@
+{
+  "id": "sparkle",
+  "kind": "fx",
+  "version": "1.0.0",
+  "category": "fx",
+  "tags": ["fx", "particles", "sparkle", "system"],
+  "license": "MIT",
+  "description": "A gentle event-driven particle SYSTEM: soft upward twinkles on a game event (default 'collect') for pickups, power-ups, and level-ups. Same wiring model as explosion.",
+  "dependencies": ["particle"],
+  "params": {
+    "event": { "type": "string", "balance": false, "description": "Game event that triggers a twinkle." },
+    "count": { "type": "number", "balance": true, "description": "Particles per burst." },
+    "speed": { "type": "number", "balance": true, "description": "Base upward speed (px/s)." },
+    "ttl": { "type": "number", "balance": true, "description": "Particle lifetime (s)." },
+    "gravity": { "type": "number", "balance": true, "description": "Vertical pull; negative floats up." },
+    "size": { "type": "number", "balance": false, "description": "Particle box size in px (structural)." },
+    "colors": { "type": "array", "balance": false, "description": "Palette hex colors cycled across particles." }
+  },
+  "definition": {
+    "type": "sparkle",
+    "params": {
+      "event": "collect",
+      "count": "$cfg.fxSparkleCount",
+      "speed": "$cfg.fxSparkleSpeed",
+      "ttl": "$cfg.fxSparkleTtl",
+      "gravity": "$cfg.fxSparkleGravity",
+      "size": 3,
+      "colors": ["#ffcd75", "#f4f4f4", "#a7f070"]
+    }
+  }
+}

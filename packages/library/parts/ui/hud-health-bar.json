@@ -1,0 +1,23 @@
+{
+  "id": "hud-health-bar",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "hud", "health", "bar"],
+  "license": "MIT",
+  "description": "A health/progress bar HUD entity: a flat rect whose width the hud-bar behavior drives from world.state.hp / world.state.maxHp each tick. Anchored top-left; recolor/threshold are optional add-ons.",
+  "dependencies": ["hud-bar"],
+  "definition": {
+    "type": "hud-health-bar",
+    "params": {
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#a7f070" },
+      "size": { "w": 120, "h": 12 },
+      "position": { "x": 12, "y": 40 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": [
+        { "type": "hud-bar", "params": { "valueKey": "hp", "maxKey": "maxHp", "width": 120 } }
+      ]
+    }
+  }
+}

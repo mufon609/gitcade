@@ -1,0 +1,14 @@
+{
+  "id": "sfx-lose",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "lose"],
+  "license": "MIT",
+  "description": "Falling saw+square for defeat/game-over. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"lose\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-lose",
+    "params": { "key": "lose" }
+  }
+}

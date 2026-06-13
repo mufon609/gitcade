@@ -1,0 +1,18 @@
+{
+  "id": "screen-fade",
+  "kind": "fx",
+  "version": "1.0.0",
+  "category": "fx",
+  "tags": ["fx", "screen", "fade", "transition", "host"],
+  "license": "MIT",
+  "description": "A screen fade preset for the host-side ScreenEffects controller (fade to/from a color for scene transitions and intros). Trigger fx.fadeOut(color, duration) / fx.fadeIn(...). Registers no runtime type.",
+  "dependencies": [],
+  "params": {
+    "color": { "type": "string", "balance": false, "description": "Fade color (palette hex)." },
+    "duration": { "type": "number", "balance": false, "description": "Fade time in seconds." }
+  },
+  "definition": {
+    "type": "screen-fade",
+    "params": { "color": "#1a1c2c", "duration": 0.5 }
+  }
+}

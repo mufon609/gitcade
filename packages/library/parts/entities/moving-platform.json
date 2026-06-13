@@ -1,0 +1,23 @@
+{
+  "id": "moving-platform",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["block", "platform", "moving", "ground"],
+  "license": "CC-BY-4.0",
+  "description": "A platform that shuttles between two points (ai-patrol reused as a mover) while tagged 'ground' so players can ride it. Edit its points per placement.",
+  "dependencies": ["ai-patrol", "velocity"],
+  "definition": {
+    "type": "moving-platform",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/moving-platform.png" },
+      "size": { "w": 64, "h": 16 },
+      "tags": ["ground", "platform", "solid"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "ai-patrol", "params": { "points": [{ "x": 120, "y": 360 }, { "x": 360, "y": 360 }], "speed": "$cfg.platformSpeed", "waitTime": "$cfg.platformWaitTime", "arriveRadius": 4 } },
+        { "type": "velocity", "params": {} }
+      ]
+    }
+  }
+}

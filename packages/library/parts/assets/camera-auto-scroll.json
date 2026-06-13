@@ -1,0 +1,14 @@
+{
+  "id": "camera-auto-scroll",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "camera", "auto-scroll"],
+  "license": "MIT",
+  "description": "Camera preset: the viewport scrolls at a constant velocity (endless runners, shmups, helicopter). A host hint; pair with the auto-scroll behavior on the world. Registers no runtime type.",
+  "dependencies": ["auto-scroll"],
+  "definition": {
+    "type": "camera-auto-scroll",
+    "params": { "mode": "auto-scroll", "direction": { "x": 1, "y": 0 } }
+  }
+}

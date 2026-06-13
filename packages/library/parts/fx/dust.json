@@ -1,0 +1,27 @@
+{
+  "id": "dust",
+  "kind": "fx",
+  "version": "1.0.0",
+  "category": "fx",
+  "tags": ["fx", "particles", "dust", "behavior"],
+  "license": "MIT",
+  "description": "A per-entity BEHAVIOR that kicks up puffs only while the entity is moving above minSpeed (footsteps, landings, sliding). Emits nothing at rest.",
+  "dependencies": ["particle"],
+  "params": {
+    "rate": { "type": "number", "balance": true, "description": "Seconds between puffs." },
+    "minSpeed": { "type": "number", "balance": true, "description": "Speed threshold below which no dust spawns." },
+    "ttl": { "type": "number", "balance": true, "description": "Particle lifetime (s)." },
+    "size": { "type": "number", "balance": false, "description": "Particle box size in px (structural)." },
+    "color": { "type": "string", "balance": false, "description": "Palette hex color." }
+  },
+  "definition": {
+    "type": "dust",
+    "params": {
+      "rate": "$cfg.fxDustRate",
+      "minSpeed": "$cfg.fxDustMinSpeed",
+      "ttl": "$cfg.fxDustTtl",
+      "size": 3,
+      "color": "#f4f4f4"
+    }
+  }
+}

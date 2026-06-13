@@ -36,6 +36,8 @@
   "files": [
     "dist",
     "parts",
+    "assets",
+    "scripts/gen-assets.ts",
     "CATALOG.json",
     "catalog.schema.json",
     "README.md"
@@ -44,6 +46,7 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
+    "gen-assets": "node scripts/gen-assets.ts",
     "catalog": "node scripts/build-catalog.mjs",
     "test": "vitest run",
     "test:watch": "vitest",

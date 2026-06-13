@@ -1,6 +1,8 @@
 import { createDefaultRegistry, type Registry } from "@gitcade/sdk";
 import { registerLibraryBehaviors } from "./behaviors/index.js";
 import { registerLibrarySystems } from "./systems/index.js";
+import { registerLibraryFx } from "./fx/index.js";
+import { registerLibraryUi } from "./ui/index.js";
 
 /**
  * Register every `@gitcade/library` behavior and system TYPE onto an existing
@@ -16,6 +18,8 @@ import { registerLibrarySystems } from "./systems/index.js";
 export function registerLibrary(registry: Registry): Registry {
   registerLibraryBehaviors(registry);
   registerLibrarySystems(registry);
+  registerLibraryFx(registry);
+  registerLibraryUi(registry);
   return registry;
 }
 

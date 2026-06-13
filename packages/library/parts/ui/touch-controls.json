@@ -1,0 +1,33 @@
+{
+  "id": "touch-controls",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "touch", "mobile", "dpad", "buttons"],
+  "license": "MIT",
+  "description": "On-screen mobile controls: a virtual d-pad (attach touch-dpad to your player, replacing its keyboard mover) plus a controller entity carrying two touch-button behaviors that set world.state flags ('fire', 'jump'). Includes decorative d-pad/button visuals. No-op without touch input, so desktop play is unaffected.",
+  "dependencies": ["touch-dpad", "touch-button", "velocity"],
+  "definition": {
+    "type": "touch-controls",
+    "params": {
+      "playerBehavior": { "type": "touch-dpad", "params": { "speed": "$cfg.playerSpeed", "zone": { "x": 90, "y": 510, "radius": 60 } } },
+      "controllerEntity": {
+        "id": "touch-controller",
+        "sprite": { "kind": "none" },
+        "size": { "w": 1, "h": 1 },
+        "position": { "x": 0, "y": 0 },
+        "tags": ["ui", "controller"],
+        "layer": 101,
+        "behaviors": [
+          { "type": "touch-button", "params": { "actionKey": "fire", "rect": { "x": 640, "y": 470, "w": 110, "h": 110 }, "pressEvent": "fire-pressed" } },
+          { "type": "touch-button", "params": { "actionKey": "jump", "rect": { "x": 640, "y": 350, "w": 100, "h": 100 }, "pressEvent": "jump-pressed" } }
+        ]
+      },
+      "visuals": [
+        { "id": "dpad-ring", "sprite": { "kind": "shape", "shape": "circle", "color": "#3b5dc9", "stroke": "#f4f4f4", "strokeWidth": 2 }, "size": { "w": 120, "h": 120 }, "position": { "x": 30, "y": 450 }, "tags": ["ui"], "layer": 100 },
+        { "id": "btn-fire", "sprite": { "kind": "shape", "shape": "circle", "color": "#b13e53" }, "size": { "w": 90, "h": 90 }, "position": { "x": 650, "y": 480 }, "tags": ["ui"], "layer": 100 },
+        { "id": "btn-jump", "sprite": { "kind": "shape", "shape": "circle", "color": "#5d9c3b" }, "size": { "w": 80, "h": 80 }, "position": { "x": 650, "y": 360 }, "tags": ["ui"], "layer": 100 }
+      ]
+    }
+  }
+}

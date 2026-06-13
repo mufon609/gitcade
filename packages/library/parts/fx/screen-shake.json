@@ -1,0 +1,19 @@
+{
+  "id": "screen-shake",
+  "kind": "fx",
+  "version": "1.0.0",
+  "category": "fx",
+  "tags": ["fx", "screen", "shake", "host"],
+  "license": "MIT",
+  "description": "A screen-shake preset for the host-side ScreenEffects controller (the frozen renderer draws in absolute coords, so camera shake belongs to the page that owns the canvas). Trigger fx.shake(magnitude, duration) on impacts/deaths. Deterministic; registers no runtime type.",
+  "dependencies": [],
+  "params": {
+    "magnitude": { "type": "number", "balance": false, "description": "Peak shake offset in px (presentational, host-applied)." },
+    "duration": { "type": "number", "balance": false, "description": "Decay time in seconds." },
+    "frequency": { "type": "number", "balance": false, "description": "Oscillation frequency." }
+  },
+  "definition": {
+    "type": "screen-shake",
+    "params": { "magnitude": 10, "duration": 0.3, "frequency": 40 }
+  }
+}

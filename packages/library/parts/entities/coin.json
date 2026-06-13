@@ -1,0 +1,23 @@
+{
+  "id": "coin",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["pickup", "collectible", "coin", "animated"],
+  "license": "CC-BY-4.0",
+  "description": "A spinning coin (4-frame sheet) that adds to the score on touch (collect-on-touch). The staple collectible for every genre.",
+  "dependencies": ["sprite-animate", "collect-on-touch", "aabb-collision"],
+  "definition": {
+    "type": "coin",
+    "params": {
+      "sprite": { "kind": "sheet", "src": "assets/sprites/coin.png", "frameWidth": 16, "frameHeight": 16, "frameCount": 4, "fps": 8, "animations": { "spin": { "from": 0, "to": 3 } } },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["coin", "pickup"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "sprite-animate", "params": { "play": "spin" } },
+        { "type": "collect-on-touch", "params": { "collectorTag": "player", "value": "$cfg.coinValue", "scoreKey": "score", "kind": "coin" } }
+      ]
+    }
+  }
+}

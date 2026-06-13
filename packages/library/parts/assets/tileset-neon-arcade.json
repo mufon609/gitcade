@@ -1,0 +1,20 @@
+{
+  "id": "tileset-neon-arcade",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "tileset", "neon", "arcade"],
+  "license": "CC-BY-4.0",
+  "description": "A 5-tile neon-arcade tileset (16px): floor, wall, edge, accent, glow. Procedurally generated on the fixed palette; index by name into the sheet.",
+  "dependencies": [],
+  "definition": {
+    "type": "tileset-neon-arcade",
+    "params": {
+      "src": "assets/tilesets/neon-arcade.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "cols": 5,
+      "tiles": { "floor": 0, "wall": 1, "edge": 2, "accent": 3, "glow": 4 }
+    }
+  }
+}

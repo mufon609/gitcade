@@ -1,0 +1,24 @@
+{
+  "id": "player-humanoid",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["player", "platformer", "humanoid"],
+  "license": "CC-BY-4.0",
+  "description": "A side-view platformer hero: move-platformer (gravity/jump/coyote-time) + velocity + health-and-death. The hero for platformer genres; expects a 'ground'-tagged world.",
+  "dependencies": ["move-platformer", "velocity", "health-and-death"],
+  "definition": {
+    "type": "player-humanoid",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/player-humanoid.png" },
+      "size": { "w": 32, "h": 32 },
+      "tags": ["player"],
+      "layer": 4,
+      "behaviors": [
+        { "type": "move-platformer", "params": { "moveSpeed": "$cfg.playerSpeed", "gravity": "$cfg.gravity", "jumpSpeed": "$cfg.jumpSpeed", "coyoteTime": "$cfg.coyoteTime", "groundTag": "ground" } },
+        { "type": "velocity", "params": {} },
+        { "type": "health-and-death", "params": { "hp": "$cfg.playerHp", "deathEvent": "player-died", "deathSound": "lose", "destroyOnDeath": false } }
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Arena Re-Skin — GitCade Phase 2B</title>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: #07060c;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        font-family: monospace;
+      }
+      #stage {
+        position: relative;
+        width: 800px;
+        height: 600px;
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+      #game {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        image-rendering: pixelated;
+        touch-action: none;
+      }
+      #overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: #1a1c2c;
+        opacity: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="game" width="800" height="600"></canvas>
+      <div id="overlay"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

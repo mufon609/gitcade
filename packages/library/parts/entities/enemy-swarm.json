@@ -1,0 +1,25 @@
+{
+  "id": "enemy-swarm",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["enemy", "ai", "swarm", "small"],
+  "license": "CC-BY-4.0",
+  "description": "A small, fast, low-HP swarm bug: ai-chase + contact-damage + health-and-death. Cheap to spawn in large counts via wave-spawner for survival-arena pressure.",
+  "dependencies": ["ai-chase", "velocity", "contact-damage", "health-and-death"],
+  "definition": {
+    "type": "enemy-swarm",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/enemy-swarm.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["enemy"],
+      "layer": 3,
+      "behaviors": [
+        { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.swarmSpeed" } },
+        { "type": "velocity", "params": {} },
+        { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.swarmDamage", "cooldown": "$cfg.damageCooldown" } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.swarmHp", "tallyKey": "kills", "deathEvent": "enemy-died" } }
+      ]
+    }
+  }
+}

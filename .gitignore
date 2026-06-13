@@ -12,3 +12,6 @@ node_modules/
 dist/
 .next/
 *.tsbuildinfo
+
+# Phase 2B proof: build-time copy of generated library assets
+packages/library/proofs/*/public/assets/

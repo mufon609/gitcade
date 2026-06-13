@@ -1,0 +1,23 @@
+{
+  "id": "lobbed-bomb",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["projectile", "bomb", "explosive"],
+  "license": "CC-BY-4.0",
+  "description": "A thrown bomb that flies (velocity), then detonates by lifespan emitting an 'explode' event + sound — wire the fx 'explosion' system to that event for debris. Area damage is the game's to apply on the event.",
+  "dependencies": ["velocity", "health-and-death"],
+  "definition": {
+    "type": "lobbed-bomb",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/lobbed-bomb.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["bomb"],
+      "layer": 3,
+      "behaviors": [
+        { "type": "velocity", "params": {} },
+        { "type": "health-and-death", "params": { "hp": "$cfg.bombHp", "lifespan": "$cfg.bombLifespan", "deathEvent": "explode", "deathSound": "explode" } }
+      ]
+    }
+  }
+}

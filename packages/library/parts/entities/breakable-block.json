@@ -1,0 +1,22 @@
+{
+  "id": "breakable-block",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["block", "breakable", "destructible"],
+  "license": "CC-BY-4.0",
+  "description": "A destructible block: health-and-death gives it HP and a 'block-broken' death event (bricks for breakout, crates for arenas). Damage it via a projectile's contact-damage.",
+  "dependencies": ["health-and-death"],
+  "definition": {
+    "type": "breakable-block",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/breakable-block.png" },
+      "size": { "w": 32, "h": 16 },
+      "tags": ["breakable", "solid"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "health-and-death", "params": { "hp": "$cfg.blockHp", "tallyKey": "blocksBroken", "deathEvent": "block-broken", "deathSound": "hit" } }
+      ]
+    }
+  }
+}

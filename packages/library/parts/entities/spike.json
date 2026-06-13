@@ -1,0 +1,22 @@
+{
+  "id": "spike",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["hazard", "spike", "trap"],
+  "license": "CC-BY-4.0",
+  "description": "A spike hazard: trigger-zone emits a 'hazard' event (and can kill) when the player overlaps it. The instant-death trap for platformers/mazes.",
+  "dependencies": ["trigger-zone", "aabb-collision"],
+  "definition": {
+    "type": "spike",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/spike.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["hazard"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "trigger-zone", "params": { "tag": "player", "enterEvent": "hazard", "kill": true } }
+      ]
+    }
+  }
+}

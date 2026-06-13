@@ -1,0 +1,21 @@
+{
+  "id": "menu-game-over",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "menu", "game-over", "scene"],
+  "license": "MIT",
+  "description": "A game-over scene fragment: 'GAME OVER', a final score readout bound to world.state.score, and a retry prompt. Load it when a lose condition fires; pairs with the sfx-lose cue.",
+  "dependencies": [],
+  "definition": {
+    "type": "menu-game-over",
+    "params": {
+      "background": "#1a1c2c",
+      "entities": [
+        { "id": "over", "sprite": { "kind": "text", "text": "GAME OVER", "font": "56px monospace", "color": "#b13e53", "align": "center" }, "size": { "w": 800, "h": 70 }, "position": { "x": 400, "y": 200 }, "tags": ["menu"], "layer": 100 },
+        { "id": "final-score", "sprite": { "kind": "text", "bind": "score", "text": "0", "font": "28px monospace", "color": "#f4f4f4", "align": "center" }, "size": { "w": 800, "h": 34 }, "position": { "x": 400, "y": 290 }, "tags": ["menu"], "layer": 100 },
+        { "id": "retry", "sprite": { "kind": "text", "text": "press SPACE to retry", "font": "22px monospace", "color": "#ffcd75", "align": "center" }, "size": { "w": 800, "h": 28 }, "position": { "x": 400, "y": 350 }, "tags": ["menu"], "layer": 100 }
+      ]
+    }
+  }
+}

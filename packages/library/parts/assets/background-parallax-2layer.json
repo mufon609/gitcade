@@ -1,0 +1,21 @@
+{
+  "id": "background-parallax-2layer",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "background", "parallax", "scrolling"],
+  "license": "CC-BY-4.0",
+  "description": "A two-layer parallax backdrop (far hills + near hills) for side-scrollers. The host scrolls each layer at its own speed factor; the near layer has a transparent sky so it overlays the far layer.",
+  "dependencies": [],
+  "definition": {
+    "type": "background-parallax-2layer",
+    "params": {
+      "tileWidth": 256,
+      "tileHeight": 128,
+      "layers": [
+        { "src": "assets/backgrounds/parallax-far.png", "speedFactor": 0.3 },
+        { "src": "assets/backgrounds/parallax-near.png", "speedFactor": 0.6 }
+      ]
+    }
+  }
+}

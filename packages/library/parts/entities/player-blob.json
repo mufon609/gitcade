@@ -1,0 +1,26 @@
+{
+  "id": "player-blob",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["player", "topdown", "blob", "animated"],
+  "license": "CC-BY-4.0",
+  "description": "A round top-down player blob (2-frame idle squash). Composes move-topdown-360 + velocity + clamp-to-world + health-and-death. The default hero for arena/survival genres.",
+  "dependencies": ["sprite-animate", "move-topdown-360", "velocity", "clamp-to-world", "health-and-death"],
+  "definition": {
+    "type": "player-blob",
+    "params": {
+      "sprite": { "kind": "sheet", "src": "assets/sprites/player-blob.png", "frameWidth": 32, "frameHeight": 32, "frameCount": 2, "fps": 4, "animations": { "idle": { "from": 0, "to": 1 } } },
+      "size": { "w": 32, "h": 32 },
+      "tags": ["player"],
+      "layer": 4,
+      "behaviors": [
+        { "type": "sprite-animate", "params": { "play": "idle" } },
+        { "type": "move-topdown-360", "params": { "speed": "$cfg.playerSpeed", "pointerFollow": false } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "padding": 8 } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.playerHp", "deathEvent": "player-died", "deathSound": "lose", "destroyOnDeath": false } }
+      ]
+    }
+  }
+}

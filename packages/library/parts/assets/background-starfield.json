@@ -1,0 +1,14 @@
+{
+  "id": "background-starfield",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "background", "starfield", "space"],
+  "license": "CC-BY-4.0",
+  "description": "A tiling 256×256 starfield (deterministic seeded stars on ink). Set as a scene background; tile it across the world for space genres.",
+  "dependencies": [],
+  "definition": {
+    "type": "background-starfield",
+    "params": { "src": "assets/backgrounds/starfield.png", "tileWidth": 256, "tileHeight": 256, "tile": true }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "sfx-jump",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "jump"],
+  "license": "MIT",
+  "description": "Springy upward square sweep for jumps/launches. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"jump\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-jump",
+    "params": { "key": "jump" }
+  }
+}

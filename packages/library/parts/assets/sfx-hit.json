@@ -1,0 +1,14 @@
+{
+  "id": "sfx-hit",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "hit"],
+  "license": "MIT",
+  "description": "Short low square thud + noise for impacts/damage. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"hit\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-hit",
+    "params": { "key": "hit" }
+  }
+}

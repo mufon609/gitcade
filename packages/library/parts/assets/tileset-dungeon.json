@@ -1,0 +1,20 @@
+{
+  "id": "tileset-dungeon",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "tileset", "dungeon", "indoor"],
+  "license": "CC-BY-4.0",
+  "description": "A 5-tile dungeon tileset (16px): floor, wall, edge, accent, hazard. Procedurally generated on the fixed palette; index by name into the sheet.",
+  "dependencies": [],
+  "definition": {
+    "type": "tileset-dungeon",
+    "params": {
+      "src": "assets/tilesets/dungeon.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "cols": 5,
+      "tiles": { "floor": 0, "wall": 1, "edge": 2, "accent": 3, "hazard": 4 }
+    }
+  }
+}

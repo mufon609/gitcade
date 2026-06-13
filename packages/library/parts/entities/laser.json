@@ -1,0 +1,24 @@
+{
+  "id": "laser",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["projectile", "laser", "piercing"],
+  "license": "CC-BY-4.0",
+  "description": "A piercing beam: velocity + contact-damage that does NOT self-destruct (hits everything it passes), expiring by lifespan. A heavier weapon than bullet.",
+  "dependencies": ["velocity", "contact-damage", "health-and-death"],
+  "definition": {
+    "type": "laser",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/laser.png" },
+      "size": { "w": 32, "h": 12 },
+      "tags": ["laser", "bullet"],
+      "layer": 3,
+      "behaviors": [
+        { "type": "velocity", "params": {} },
+        { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.laserDamage", "cooldown": "$cfg.laserHitCooldown", "selfDestruct": false } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.laserHp", "lifespan": "$cfg.laserLifespan", "deathSound": "" } }
+      ]
+    }
+  }
+}

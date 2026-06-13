@@ -1,0 +1,20 @@
+{
+  "id": "snake-segment",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["player", "snake", "segment"],
+  "license": "CC-BY-4.0",
+  "description": "A passive snake body segment (the snake head's grid movement is game logic). Tagged 'snake'+'player' so it both follows the head and counts for collision. Behavior-free by design.",
+  "dependencies": [],
+  "definition": {
+    "type": "snake-segment",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/snake-segment.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["snake", "player"],
+      "layer": 3,
+      "behaviors": []
+    }
+  }
+}

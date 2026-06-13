@@ -1,0 +1,20 @@
+{
+  "id": "tileset-space",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "tileset", "space", "sci-fi"],
+  "license": "CC-BY-4.0",
+  "description": "A 5-tile space/station tileset (16px): panel, hull, edge, accent, hazard. Procedurally generated on the fixed palette; index by name into the sheet.",
+  "dependencies": [],
+  "definition": {
+    "type": "tileset-space",
+    "params": {
+      "src": "assets/tilesets/space.png",
+      "tileWidth": 16,
+      "tileHeight": 16,
+      "cols": 5,
+      "tiles": { "panel": 0, "hull": 1, "edge": 2, "accent": 3, "hazard": 4 }
+    }
+  }
+}

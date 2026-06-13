@@ -1,0 +1,22 @@
+{
+  "id": "gem",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["pickup", "collectible", "gem"],
+  "license": "CC-BY-4.0",
+  "description": "A higher-value gem collectible (collect-on-touch). Same mechanic as coin, distinct sprite + score weight for tiered rewards.",
+  "dependencies": ["collect-on-touch", "aabb-collision"],
+  "definition": {
+    "type": "gem",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/gem.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["gem", "pickup"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "collect-on-touch", "params": { "collectorTag": "player", "value": "$cfg.gemValue", "scoreKey": "score", "kind": "gem" } }
+      ]
+    }
+  }
+}

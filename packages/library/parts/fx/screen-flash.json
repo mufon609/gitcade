@@ -1,0 +1,18 @@
+{
+  "id": "screen-flash",
+  "kind": "fx",
+  "version": "1.0.0",
+  "category": "fx",
+  "tags": ["fx", "screen", "flash", "host"],
+  "license": "MIT",
+  "description": "A full-screen flash preset for the host-side ScreenEffects controller (a colored overlay that fades out). Trigger fx.flash(color, duration) on big hits/pickups. Registers no runtime type.",
+  "dependencies": [],
+  "params": {
+    "color": { "type": "string", "balance": false, "description": "Overlay color (palette hex)." },
+    "duration": { "type": "number", "balance": false, "description": "Fade-out time in seconds." }
+  },
+  "definition": {
+    "type": "screen-flash",
+    "params": { "color": "#f4f4f4", "duration": 0.2 }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "explosion",
+  "kind": "fx",
+  "version": "1.0.0",
+  "category": "fx",
+  "tags": ["fx", "particles", "explosion", "system"],
+  "license": "MIT",
+  "description": "An event-driven particle SYSTEM: on a game event (default 'enemy-died'/'explode') it bursts fast gravity-pulled debris at the event's position. Wire a mortal entity's health-and-death.deathEvent to the same name.",
+  "dependencies": ["particle"],
+  "params": {
+    "event": { "type": "string", "balance": false, "description": "Game event that triggers a burst." },
+    "count": { "type": "number", "balance": true, "description": "Particles per burst." },
+    "speed": { "type": "number", "balance": true, "description": "Base outward speed (px/s)." },
+    "ttl": { "type": "number", "balance": true, "description": "Particle lifetime (s)." },
+    "gravity": { "type": "number", "balance": true, "description": "Downward pull (px/s²)." },
+    "size": { "type": "number", "balance": false, "description": "Particle box size in px (structural)." },
+    "colors": { "type": "array", "balance": false, "description": "Palette hex colors cycled across particles." }
+  },
+  "definition": {
+    "type": "explosion",
+    "params": {
+      "event": "enemy-died",
+      "count": "$cfg.fxExplosionCount",
+      "speed": "$cfg.fxExplosionSpeed",
+      "ttl": "$cfg.fxExplosionTtl",
+      "gravity": "$cfg.fxExplosionGravity",
+      "size": 5,
+      "colors": ["#ef7d57", "#ffcd75", "#b13e53", "#f4f4f4"]
+    }
+  }
+}

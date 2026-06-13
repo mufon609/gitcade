@@ -1,0 +1,24 @@
+{
+  "id": "bullet",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["projectile", "bullet"],
+  "license": "CC-BY-4.0",
+  "description": "A straight-flying pellet: velocity + contact-damage (self-destructs on hit) + health-and-death lifespan. Embed it as a shoot/ai-aim-and-fire projectile, or spawn directly.",
+  "dependencies": ["velocity", "contact-damage", "health-and-death"],
+  "definition": {
+    "type": "bullet",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/bullet.png" },
+      "size": { "w": 8, "h": 8 },
+      "tags": ["bullet"],
+      "layer": 3,
+      "behaviors": [
+        { "type": "velocity", "params": {} },
+        { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.bulletDamage", "selfDestruct": true } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.bulletHp", "lifespan": "$cfg.bulletLifespan", "deathSound": "" } }
+      ]
+    }
+  }
+}

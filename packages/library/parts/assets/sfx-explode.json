@@ -1,0 +1,14 @@
+{
+  "id": "sfx-explode",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "explode"],
+  "license": "MIT",
+  "description": "Filtered noise burst + falling square for explosions/deaths. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"explode\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-explode",
+    "params": { "key": "explode" }
+  }
+}

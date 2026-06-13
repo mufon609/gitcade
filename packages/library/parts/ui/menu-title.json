@@ -1,0 +1,20 @@
+{
+  "id": "menu-title",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "menu", "title", "scene"],
+  "license": "MIT",
+  "description": "A title-screen scene fragment: centered title + prompt text on a flat background. Load it as a scene (add a start-on-input handler in game code) before the gameplay scene; pairs with music-menu.",
+  "dependencies": [],
+  "definition": {
+    "type": "menu-title",
+    "params": {
+      "background": "#1a1c2c",
+      "entities": [
+        { "id": "title", "sprite": { "kind": "text", "text": "GITCADE", "font": "64px monospace", "color": "#ffcd75", "align": "center" }, "size": { "w": 800, "h": 80 }, "position": { "x": 400, "y": 200 }, "tags": ["menu"], "layer": 100 },
+        { "id": "prompt", "sprite": { "kind": "text", "text": "press SPACE to play", "font": "24px monospace", "color": "#f4f4f4", "align": "center" }, "size": { "w": 800, "h": 30 }, "position": { "x": 400, "y": 320 }, "tags": ["menu"], "layer": 100 }
+      ]
+    }
+  }
+}

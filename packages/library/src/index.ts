@@ -27,4 +27,8 @@
 
 export * from "./behaviors/index.js";
 export * from "./systems/index.js";
+export * from "./fx/index.js";
+export * from "./ui/index.js";
+export * from "./audio/index.js";
+export { LIBRARY_PALETTE, PALETTE } from "./palette.js";
 export { registerLibrary, createLibraryRegistry } from "./registry.js";

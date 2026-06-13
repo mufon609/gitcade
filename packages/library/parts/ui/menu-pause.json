@@ -1,0 +1,21 @@
+{
+  "id": "menu-pause",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "menu", "pause", "overlay"],
+  "license": "MIT",
+  "description": "A pause overlay scene fragment: a dimmed panel + 'PAUSED' + resume prompt. Render over the frozen gameplay scene (the host stops stepping the loop while paused).",
+  "dependencies": [],
+  "definition": {
+    "type": "menu-pause",
+    "params": {
+      "background": "#1a1c2c",
+      "entities": [
+        { "id": "panel", "sprite": { "kind": "shape", "shape": "rect", "color": "#3b5dc9" }, "size": { "w": 360, "h": 140 }, "position": { "x": 220, "y": 230 }, "tags": ["menu"], "layer": 100 },
+        { "id": "paused", "sprite": { "kind": "text", "text": "PAUSED", "font": "48px monospace", "color": "#f4f4f4", "align": "center" }, "size": { "w": 360, "h": 60 }, "position": { "x": 400, "y": 250 }, "tags": ["menu"], "layer": 101 },
+        { "id": "resume", "sprite": { "kind": "text", "text": "press ESC to resume", "font": "20px monospace", "color": "#ffcd75", "align": "center" }, "size": { "w": 360, "h": 24 }, "position": { "x": 400, "y": 320 }, "tags": ["menu"], "layer": 101 }
+      ]
+    }
+  }
+}

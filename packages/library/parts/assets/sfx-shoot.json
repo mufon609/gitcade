@@ -1,0 +1,14 @@
+{
+  "id": "sfx-shoot",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "sfx", "shoot"],
+  "license": "MIT",
+  "description": "Pitched-down square zap + noise click for firing. Runtime-synthesized via Web Audio (LibraryAudioPlayer.play(\"shoot\")) — zero binary audio. No-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "sfx-shoot",
+    "params": { "key": "shoot" }
+  }
+}

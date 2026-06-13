@@ -1,0 +1,14 @@
+{
+  "id": "music-action",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "music", "chiptune", "action", "loop"],
+  "license": "MIT",
+  "description": "A driving 132 BPM chiptune loop (walking square bass + bright triangle arpeggio) for gameplay. Generated note-by-note via Web Audio (LibraryAudioPlayer.startMusic(\"action\")) — zero binary audio, loops seamlessly, no-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "music-action",
+    "params": { "track": "action", "bpm": 132, "loopBeats": 8 }
+  }
+}

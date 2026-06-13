@@ -1,0 +1,14 @@
+{
+  "id": "camera-fixed",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "camera", "fixed"],
+  "license": "MIT",
+  "description": "Camera preset: a static viewport equal to the scene size (single-screen games — arena, breakout, puzzle). A host hint; the frozen SDK renderer draws in absolute world coords, so no runtime type is registered.",
+  "dependencies": [],
+  "definition": {
+    "type": "camera-fixed",
+    "params": { "mode": "fixed" }
+  }
+}

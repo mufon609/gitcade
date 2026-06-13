@@ -1,0 +1,14 @@
+{
+  "id": "music-menu",
+  "kind": "asset",
+  "version": "1.0.0",
+  "category": "audio",
+  "tags": ["audio", "music", "chiptune", "menu", "loop"],
+  "license": "MIT",
+  "description": "A calm 96 BPM chiptune loop (sparse triangle pad + gentle sine melody) for title/menu screens. Generated via Web Audio (LibraryAudioPlayer.startMusic(\"menu\")) — zero binary audio, no-ops headless.",
+  "dependencies": [],
+  "definition": {
+    "type": "music-menu",
+    "params": { "track": "menu", "bpm": 96, "loopBeats": 8 }
+  }
+}

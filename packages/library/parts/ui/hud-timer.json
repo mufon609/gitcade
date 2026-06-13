@@ -1,0 +1,21 @@
+{
+  "id": "hud-timer",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "hud", "timer", "text"],
+  "license": "MIT",
+  "description": "A countdown readout HUD entity: a text sprite bound to world.state.timeLeft (written by the timer-countdown system). Behavior-free.",
+  "dependencies": ["timer-countdown"],
+  "definition": {
+    "type": "hud-timer",
+    "params": {
+      "sprite": { "kind": "text", "bind": "timeLeft", "text": "0", "font": "20px monospace", "color": "#ffcd75", "align": "right" },
+      "size": { "w": 120, "h": 24 },
+      "position": { "x": 668, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "enemy-patroller",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["enemy", "ai", "patrol"],
+  "license": "CC-BY-4.0",
+  "description": "A guard that walks a fixed patrol route (ai-patrol) and hurts on contact, with health-and-death. Predictable hazard for platformer/maze genres; edit its points per placement.",
+  "dependencies": ["ai-patrol", "velocity", "contact-damage", "health-and-death"],
+  "definition": {
+    "type": "enemy-patroller",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/enemy-patroller.png" },
+      "size": { "w": 30, "h": 30 },
+      "tags": ["enemy"],
+      "layer": 3,
+      "behaviors": [
+        { "type": "ai-patrol", "params": { "points": [{ "x": 100, "y": 200 }, { "x": 400, "y": 200 }], "speed": "$cfg.guardSpeed", "waitTime": "$cfg.guardWaitTime", "arriveRadius": 6 } },
+        { "type": "velocity", "params": {} },
+        { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.enemyDamage", "cooldown": "$cfg.damageCooldown" } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.enemyHp", "tallyKey": "kills", "deathEvent": "enemy-died" } }
+      ]
+    }
+  }
+}

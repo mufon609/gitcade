@@ -1,0 +1,20 @@
+{
+  "id": "wall",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["block", "solid", "wall", "ground"],
+  "license": "CC-BY-4.0",
+  "description": "A static solid block, tagged 'ground'+'solid' so platformer movement stands on it and collision pairs treat it as a wall. Behavior-free.",
+  "dependencies": [],
+  "definition": {
+    "type": "wall",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/wall.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["wall", "solid", "ground"],
+      "layer": 1,
+      "behaviors": []
+    }
+  }
+}

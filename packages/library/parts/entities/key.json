@@ -1,0 +1,22 @@
+{
+  "id": "key",
+  "kind": "entity",
+  "version": "1.0.0",
+  "category": "entities",
+  "tags": ["pickup", "key", "progression"],
+  "license": "CC-BY-4.0",
+  "description": "A key collectible that increments a 'keys' tally on touch (collect-on-touch). Pair with a door/portal gated on the keys count for lock-and-key puzzles.",
+  "dependencies": ["collect-on-touch", "aabb-collision"],
+  "definition": {
+    "type": "key",
+    "params": {
+      "sprite": { "kind": "image", "src": "assets/sprites/key.png" },
+      "size": { "w": 16, "h": 16 },
+      "tags": ["key", "pickup"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "collect-on-touch", "params": { "collectorTag": "player", "value": "$cfg.keyValue", "scoreKey": "keys", "kind": "key" } }
+      ]
+    }
+  }
+}

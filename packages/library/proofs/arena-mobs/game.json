@@ -1,0 +1,13 @@
+{
+  "name": "Survival-Arena Mobs (reuse proof)",
+  "slug": "proof-arena-mobs",
+  "description": "Reuse proof: scaling waves of mobs swarm the player, who clears them with contact-damage thorns. Same four parts as the other three proofs.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

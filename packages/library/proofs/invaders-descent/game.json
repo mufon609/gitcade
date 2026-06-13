@@ -1,0 +1,13 @@
+{
+  "name": "Space-Invaders Descent (reuse proof)",
+  "slug": "proof-invaders-descent",
+  "description": "Reuse proof: invaders descend in their column (ai-chase with a Y-axis lock) and are shot down before they reach the ship. Same four parts as the other three proofs.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

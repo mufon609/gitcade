@@ -1,0 +1,25 @@
+{
+  "id": "follow-path",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "path", "waypoints", "on-rails"],
+  "license": "MIT",
+  "description": "Travel an ordered list of waypoints, advancing on arrival; loops or stops at the end. Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "points": { "type": "array", "balance": false, "description": "Array of { x, y } waypoints (structural geometry)." },
+    "speed": { "type": "number", "balance": true, "description": "Travel speed in px/sec." },
+    "arriveRadius": { "type": "number", "balance": false, "description": "Distance at which a waypoint is reached (structural)." },
+    "loop": { "type": "boolean", "balance": false, "description": "Restart from the first point at the end." }
+  },
+  "definition": {
+    "type": "follow-path",
+    "params": {
+      "points": [{ "x": 0, "y": 300 }, { "x": 800, "y": 300 }],
+      "speed": "$cfg.creepSpeed",
+      "arriveRadius": 6,
+      "loop": false
+    }
+  }
+}

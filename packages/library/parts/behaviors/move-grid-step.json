@@ -1,0 +1,24 @@
+{
+  "id": "move-grid-step",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "grid", "snake", "discrete"],
+  "license": "MIT",
+  "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed.",
+  "dependencies": [],
+  "params": {
+    "tileSize": { "type": "number", "balance": false, "description": "Grid cell size in px (structural)." },
+    "stepInterval": { "type": "number", "balance": true, "description": "Seconds between steps (feel/balance)." },
+    "up": { "type": "array", "balance": false, "description": "Up key codes." },
+    "down": { "type": "array", "balance": false, "description": "Down key codes." },
+    "left": { "type": "array", "balance": false, "description": "Left key codes." },
+    "right": { "type": "array", "balance": false, "description": "Right key codes." },
+    "continuous": { "type": "boolean", "balance": false, "description": "Keep moving without input, Snake-style." },
+    "snap": { "type": "boolean", "balance": false, "description": "Snap to the tile grid each step." }
+  },
+  "definition": {
+    "type": "move-grid-step",
+    "params": { "tileSize": 20, "stepInterval": "$cfg.stepInterval", "continuous": true }
+  }
+}

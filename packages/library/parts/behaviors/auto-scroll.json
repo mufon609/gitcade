@@ -1,0 +1,19 @@
+{
+  "id": "auto-scroll",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "scroller", "parallax", "auto"],
+  "license": "MIT",
+  "description": "Force a constant velocity each tick, optionally wrapping back to the opposite edge — scrolling worlds/tiles or auto-advancing scroller obstacles. Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "vx": { "type": "number", "balance": true, "description": "Constant horizontal scroll velocity in px/sec." },
+    "vy": { "type": "number", "balance": true, "description": "Constant vertical scroll velocity in px/sec." },
+    "wrap": { "type": "boolean", "balance": false, "description": "Re-enter from the opposite edge on exit." }
+  },
+  "definition": {
+    "type": "auto-scroll",
+    "params": { "vx": "$cfg.scrollSpeed", "vy": "$cfg.scrollVy", "wrap": false }
+  }
+}

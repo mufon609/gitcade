@@ -1,0 +1,37 @@
+{
+  "id": "melee-swing",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "combat",
+  "tags": ["combat", "melee", "player", "weapon"],
+  "license": "MIT",
+  "description": "On a cooldown'd key press, spawn a short-lived hitbox entity in the facing direction. Damage and despawn reuse contact-damage + health-and-death lifespan.",
+  "dependencies": ["contact-damage", "health-and-death"],
+  "params": {
+    "hitbox": { "type": "object", "balance": false, "description": "Entity-definition for the transient strike volume." },
+    "cooldown": { "type": "number", "balance": true, "description": "Seconds between swings." },
+    "attackKeys": { "type": "array", "balance": false, "description": "Key codes that trigger a swing." },
+    "auto": { "type": "boolean", "balance": false, "description": "Swing continuously without input." },
+    "reach": { "type": "object", "balance": false, "description": "{ x, y } hitbox offset from center (structural)." },
+    "faceVelocity": { "type": "boolean", "balance": false, "description": "Place the hitbox in the movement direction." }
+  },
+  "definition": {
+    "type": "melee-swing",
+    "params": {
+      "cooldown": "$cfg.swingCooldown",
+      "attackKeys": ["KeyJ"],
+      "reach": { "x": 28, "y": 0 },
+      "hitbox": {
+        "id": "swing",
+        "sprite": { "kind": "shape", "shape": "rect", "color": "#ffffff" },
+        "size": { "w": 28, "h": 28 },
+        "tags": ["melee"],
+        "layer": 3,
+        "behaviors": [
+          { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.meleeDamage" } },
+          { "type": "health-and-death", "params": { "lifespan": "$cfg.swingDuration" } }
+        ]
+      }
+    }
+  }
+}

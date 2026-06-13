@@ -1,0 +1,13 @@
+{
+  "name": "Tower-Defense Creep Wave (reuse proof)",
+  "slug": "proof-creep-wave",
+  "description": "Reuse proof: creeps spawn in waves, advance on the core, and are cut down by tower contact-damage. Same four parts as the other three proofs.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

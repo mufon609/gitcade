@@ -1,0 +1,20 @@
+{
+  "id": "score",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "progression",
+  "tags": ["progression", "score", "storage", "high-score"],
+  "license": "MIT",
+  "description": "Track the score and persist a high score via the SDK storage API (never raw localStorage), keeping the high-score key at the running maximum.",
+  "dependencies": [],
+  "params": {
+    "scoreKey": { "type": "string", "balance": false, "description": "Live score key on world.state." },
+    "highKey": { "type": "string", "balance": false, "description": "High-score key on world.state." },
+    "storageKey": { "type": "string", "balance": false, "description": "Persistence key under the game's storage namespace." },
+    "persist": { "type": "boolean", "balance": false, "description": "Write the high score to storage." }
+  },
+  "definition": {
+    "type": "score",
+    "params": { "scoreKey": "score", "highKey": "highScore", "storageKey": "highScore" }
+  }
+}

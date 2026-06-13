@@ -1,0 +1,21 @@
+{
+  "playerSpeed": 220,
+  "playerHp": 100,
+  "bulletSpeed": 520,
+  "bulletDamage": 1,
+  "bulletHp": 1,
+  "bulletLifespan": 3,
+  "fireCooldown": 0.12,
+  "invaderSpeed": 45,
+  "invaderHp": 2,
+  "invaderDamage": 10,
+  "invaderDamageCooldown": 0.5,
+  "spawnInterval": 0.8,
+  "waveSize": 3,
+  "waveSizeGrowth": 0,
+  "waveDelay": 1.5,
+  "maxWaves": 3,
+  "maxAlive": 6,
+  "killsToWin": 9,
+  "deathsToLose": 1
+}

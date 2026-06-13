@@ -1,0 +1,19 @@
+{
+  "id": "ai-wander",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "ai",
+  "tags": ["ai", "enemy", "wander", "ambient", "movement"],
+  "license": "MIT",
+  "description": "Drift in a heading that re-randomizes periodically, turning away from world edges; deterministic via world.rng. Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "speed": { "type": "number", "balance": true, "description": "Wander speed in px/sec." },
+    "changeInterval": { "type": "number", "balance": true, "description": "Seconds between heading changes." },
+    "edgePadding": { "type": "number", "balance": false, "description": "Distance from a wall at which it turns inward (structural)." }
+  },
+  "definition": {
+    "type": "ai-wander",
+    "params": { "speed": "$cfg.critterSpeed", "changeInterval": "$cfg.wanderInterval", "edgePadding": 16 }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "id": "currency",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "economy",
+  "tags": ["economy", "currency", "idle", "tower-defense"],
+  "license": "MIT",
+  "description": "A currency balance with optional passive income and a cap. Seeds the balance, accrues per second, and clamps. Other parts earn and spend against the key.",
+  "dependencies": [],
+  "params": {
+    "currencyKey": { "type": "string", "balance": false, "description": "world.state key holding the balance." },
+    "startAmount": { "type": "number", "balance": true, "description": "Opening balance." },
+    "passiveIncome": { "type": "number", "balance": true, "description": "Units earned per second." },
+    "maxAmount": { "type": "number", "balance": true, "description": "Balance cap, 0 = uncapped." }
+  },
+  "definition": {
+    "type": "currency",
+    "params": { "currencyKey": "gold", "startAmount": "$cfg.startGold", "passiveIncome": "$cfg.goldPerSec" }
+  }
+}

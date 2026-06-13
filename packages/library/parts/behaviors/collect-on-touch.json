@@ -1,0 +1,23 @@
+{
+  "id": "collect-on-touch",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "interaction",
+  "tags": ["interaction", "pickup", "collectible", "score"],
+  "license": "MIT",
+  "description": "A pickup consumed when a collector tag touches it, crediting a score and/or grant key and emitting a collect event. Coins, gems, power-ups, keys.",
+  "dependencies": ["aabb-collision"],
+  "params": {
+    "collectorTag": { "type": "string", "balance": false, "description": "Tag of the entity that can collect." },
+    "value": { "type": "number", "balance": true, "description": "Amount awarded on pickup." },
+    "scoreKey": { "type": "string", "balance": false, "description": "Optional world.state score key to credit." },
+    "grantKey": { "type": "string", "balance": false, "description": "Optional second world.state key to credit." },
+    "kind": { "type": "string", "balance": false, "description": "Item label included in the event." },
+    "sound": { "type": "string", "balance": false, "description": "Sound key on pickup." },
+    "consume": { "type": "boolean", "balance": false, "description": "Destroy the pickup on collection." }
+  },
+  "definition": {
+    "type": "collect-on-touch",
+    "params": { "collectorTag": "player", "value": "$cfg.coinValue", "scoreKey": "score", "kind": "coin" }
+  }
+}

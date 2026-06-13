@@ -1,0 +1,13 @@
+{
+  "name": "Snake-Tail Threat (reuse proof)",
+  "slug": "proof-snake-threat",
+  "description": "Reuse proof: a growing swarm of chasers hunts the player. Same four parts as the other three proofs.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

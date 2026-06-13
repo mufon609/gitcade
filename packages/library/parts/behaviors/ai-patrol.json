@@ -1,0 +1,26 @@
+{
+  "id": "ai-patrol",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "ai",
+  "tags": ["ai", "enemy", "patrol", "guard", "movement"],
+  "license": "MIT",
+  "description": "Patrol between waypoints with dwell time at each, ping-pong or loop — the guard/sentry pattern. Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "points": { "type": "array", "balance": false, "description": "Array of { x, y } patrol waypoints (structural)." },
+    "speed": { "type": "number", "balance": true, "description": "Patrol speed in px/sec." },
+    "waitTime": { "type": "number", "balance": true, "description": "Dwell time at each waypoint in seconds." },
+    "pingPong": { "type": "boolean", "balance": false, "description": "Reverse at the ends instead of looping." },
+    "arriveRadius": { "type": "number", "balance": false, "description": "Distance at which a waypoint is reached (structural)." }
+  },
+  "definition": {
+    "type": "ai-patrol",
+    "params": {
+      "points": [{ "x": 100, "y": 200 }, { "x": 400, "y": 200 }],
+      "speed": "$cfg.guardSpeed",
+      "waitTime": "$cfg.guardWaitTime",
+      "arriveRadius": 6
+    }
+  }
+}

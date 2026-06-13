@@ -1,0 +1,25 @@
+{
+  "id": "level-progression",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "progression",
+  "tags": ["progression", "level", "difficulty"],
+  "license": "MIT",
+  "description": "Advance a level/difficulty counter on a score threshold or when a tracked tag is fully cleared, emitting a level-up event. Manages the counter, not scene loading.",
+  "dependencies": [],
+  "params": {
+    "levelKey": { "type": "string", "balance": false, "description": "world.state key holding the current level (1-based)." },
+    "mode": { "type": "string", "balance": false, "description": "'scoreGte' | 'clearTag'." },
+    "scoreKey": { "type": "string", "balance": false, "description": "Score key to read in scoreGte mode." },
+    "threshold": { "type": "number", "balance": true, "description": "Score for the first level-up in scoreGte mode." },
+    "thresholdGrowth": { "type": "number", "balance": true, "description": "Added to threshold per level." },
+    "clearTag": { "type": "string", "balance": false, "description": "Tag whose disappearance triggers a level-up." },
+    "maxLevel": { "type": "number", "balance": true, "description": "Stop advancing past this level, 0 = endless." },
+    "event": { "type": "string", "balance": false, "description": "Event emitted on each advance." },
+    "stateKey": { "type": "string", "balance": false, "description": "world.state scratch key." }
+  },
+  "definition": {
+    "type": "level-progression",
+    "params": { "levelKey": "level", "mode": "clearTag", "clearTag": "enemy", "maxLevel": "$cfg.maxLevel" }
+  }
+}

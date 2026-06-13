@@ -1,0 +1,79 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b1410",
+  "entities": [
+    {
+      "id": "core",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#7cffb2" },
+      "size": { "w": 40, "h": 80 },
+      "position": { "x": 740, "y": 240 },
+      "tags": ["core"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "health-and-death", "params": { "hp": "$cfg.coreHp", "tallyKey": "coreBreaches", "deathSound": "lose", "deathEvent": "core-destroyed" } }
+      ]
+    },
+    {
+      "id": "tower-a",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#3b82f6" },
+      "size": { "w": 30, "h": 160 },
+      "position": { "x": 340, "y": 200 },
+      "tags": ["tower"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.towerDamage", "cooldown": "$cfg.towerCooldown" } }
+      ]
+    },
+    {
+      "id": "tower-b",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#3b82f6" },
+      "size": { "w": 30, "h": 160 },
+      "position": { "x": 540, "y": 200 },
+      "tags": ["tower"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.towerDamage", "cooldown": "$cfg.towerCooldown" } }
+      ]
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["enemy", "tower"], ["enemy", "core"]] } },
+    {
+      "type": "wave-spawner",
+      "params": {
+        "interval": "$cfg.spawnInterval",
+        "waveSize": "$cfg.waveSize",
+        "waveSizeGrowth": "$cfg.waveSizeGrowth",
+        "waveDelay": "$cfg.waveDelay",
+        "maxWaves": "$cfg.maxWaves",
+        "maxAlive": "$cfg.maxAlive",
+        "countTag": "enemy",
+        "spawnPoints": [{ "x": 20, "y": 270 }],
+        "prototype": {
+          "id": "creep",
+          "sprite": { "kind": "shape", "shape": "rect", "color": "#ffb454" },
+          "size": { "w": 20, "h": 20 },
+          "position": { "x": 20, "y": 270 },
+          "tags": ["enemy"],
+          "layer": 2,
+          "behaviors": [
+            { "type": "ai-chase", "params": { "targetTag": "core", "speed": "$cfg.creepSpeed" } },
+            { "type": "velocity", "params": {} },
+            { "type": "contact-damage", "params": { "targetTag": "core", "damage": "$cfg.creepDamage", "cooldown": "$cfg.creepDamageCooldown" } },
+            { "type": "health-and-death", "params": { "hp": "$cfg.creepHp", "tallyKey": "kills" } }
+          ]
+        }
+      }
+    },
+    {
+      "type": "win-lose-conditions",
+      "params": {
+        "conditions": [
+          { "key": "kills", "cmp": "gte", "value": "$cfg.killsToWin", "outcome": "win", "winner": "player" },
+          { "key": "coreBreaches", "cmp": "gte", "value": "$cfg.breachesToLose", "outcome": "lose", "winner": "none" }
+        ]
+      }
+    }
+  ]
+}

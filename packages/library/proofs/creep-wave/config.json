@@ -1,0 +1,17 @@
+{
+  "creepSpeed": 70,
+  "creepHp": 4,
+  "creepDamage": 5,
+  "creepDamageCooldown": 0.2,
+  "coreHp": 200,
+  "towerDamage": 2,
+  "towerCooldown": 0.1,
+  "spawnInterval": 0.5,
+  "waveSize": 3,
+  "waveSizeGrowth": 0,
+  "waveDelay": 1.5,
+  "maxWaves": 3,
+  "maxAlive": 12,
+  "killsToWin": 9,
+  "breachesToLose": 1
+}

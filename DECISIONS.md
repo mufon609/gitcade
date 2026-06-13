@@ -152,3 +152,89 @@ workspaces (logged below).
   ENVIRONMENT.md. No Phase 1 DoD needs a real browser — routed around with the
   Vitest simulation smoke + a dev-server HTTP probe. Phase 4A bundles Chromium in
   its builder image regardless, so it is unaffected.
+
+---
+
+## Phase 2A — Component Library: Behaviors + Systems — 2026-06-13
+
+Scope this session: built the LOGIC half of `@gitcade/library` (v0.1.0) —
+18 behaviors + 9 systems, each with implementation + JSON definition/metadata +
+unit test — plus `CATALOG.json`, the reuse proof (4 demos), and registration
+patterns. The SDK schema was NOT touched; parts register only as new TYPES via the
+frozen registration API. SDK, `examples/pong`, docs, and `setup/` left intact.
+No CORE blockers; no BLOCKED.md entries this session.
+
+### What Phase 2B inherits (frozen-ish conventions established here)
+- **Part = one JSON file in `parts/{behaviors,systems}/<id>.json`** holding both
+  metadata (`id, kind, version, category, tags, license, description,
+  dependencies`) AND a ready-to-use `definition` instance template + a `params`
+  doc. This single file is the source of truth.
+- **`CATALOG.json` is GENERATED** from `parts/*.json` by
+  `scripts/build-catalog.mjs` (`npm run catalog`), with a stable key order and
+  `(kind, id)` sort. Never hand-edit it. A test asserts it is in sync with the
+  part files and valid against `catalog.schema.json`. **2B extends CATALOG by
+  adding part files and re-running the script** — its `kind` enum already allows
+  `entity | asset | ui | fx`.
+- **`catalog.schema.json`** is a draft-07 JSON Schema (validated with `ajv`, a
+  devDependency). Phase 6 ingests `CATALOG.json` against this schema. The
+  catalog/library `version` field tracks the package version.
+- **Registration API**: `registerLibrary(registry)` and `createLibraryRegistry()`
+  (SDK built-ins + library on a fresh registry). 2B's parts register the same way.
+- **Part `type` ids are the keys** of `LIBRARY_BEHAVIORS` / `LIBRARY_SYSTEMS`
+  maps in `src/{behaviors,systems}/index.ts` — the single id↔impl mapping shared
+  by catalog, registration, and runtime.
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **`@gitcade/sdk` is a PEER dependency of the library** (exact `0.1.0`), with a
+  matching devDependency for local build/test. Avoids a duplicate SDK instance in
+  a consuming game; games already pin both versions per the locked decisions.
+- **Movement/AI behaviors SET velocity and require an SDK `velocity` integrator
+  ordered AFTER them** (the Pong composition pattern). `move-grid-step` and the
+  platformer floor-snap write position directly. Documented per part.
+- **Stateful systems take a `stateKey` param** to namespace their scratch under
+  `world.state` (since `SystemFn` gets no per-instance handle), so multiple
+  instances of the same system coexist. `wave-spawner`/`lives-respawn`/
+  `timer-countdown`/`level-progression` use this; economy systems use semantic
+  keys (`currencyKey`, `inventoryKey`, `levelsKey`).
+- **`health-and-death` seeds `state.hp` on its first tick**; `contact-damage`
+  SKIPS a victim whose `damageKey` is not yet a number (avoids
+  `undefined - dmg = NaN` making a victim unkillable). Because collisions persist
+  while overlapping, the hit simply lands one tick later. *Load-bearing
+  robustness; documented in both parts.*
+- **`health-and-death.lifespan`** is the generalization that expires
+  bullets/hitboxes (no separate TTL part). **`ai-chase.lockAxis`** is the
+  generalization that yields space-invaders descent. These were added under
+  reuse-proof pressure rather than writing one-off behaviors — exactly the test
+  the phase prescribes.
+- **`spawnFrom` (in `src/util.ts`)** deep-clones a resolved entity-def embedded in
+  a part's params, assigns a unique id (`world.state.__spawnSeq`), and backfills
+  the fields `buildEntity` reads (runtime-spawned defs bypass the schema's default
+  application). `shoot`/`melee-swing`/`ai-aim-and-fire` recenter the spawn on the
+  muzzle point (params position is a center; entity coords are top-left).
+- **`wave-spawner` and `lives-respawn` carry the spawn `prototype` as a nested
+  object param.** The SDK resolves its `$cfg` refs at scene load (deep resolve),
+  so the cloned prototype is already numeric at spawn time. The prototype's
+  balance params are `$cfg`; only structural keys (size/position/layer) are
+  literals — so the embedded prototype passes the no-magic-numbers rule.
+- **Reuse-proof demos are workspace-member mini-games** under
+  `packages/library/proofs/*` (added that glob to the root `package.json`
+  workspaces — a reversible change parallel to Phase 1 adding `examples/*`). Each
+  has its own `vitest.config.ts` (so `gitcade validate`'s deferred `npm test`
+  finds the proof's smoke test rather than walking up to the library config) and
+  its own `package.json` (deps on `@gitcade/sdk` + `@gitcade/library`).
+- **Proof scenes reference parts by `type` only, NOT `partId@version` `part`
+  provenance.** This keeps them validatable in-monorepo without a published
+  catalog in `node_modules` (the validator's catalog lookup only checks the
+  game's own `node_modules/@gitcade/library/CATALOG.json`). Pong proved an
+  ecosystem game can pin `libraryVersion` with zero `part` refs and validate. The
+  `part` provenance path is exercised later by Phase 3 standalone-repo games.
+- **Proof demos are tier `ecosystem`** with `libraryVersion: "0.1.0"`. Each runs
+  to a DETERMINISTIC outcome headlessly (idle input): snake-threat → loss
+  (swarmed); creep-wave/arena-mobs/invaders-descent → win. The smoke tests assert
+  the specific outcome, proving the four parts integrate end-to-end.
+- **Categories**: behaviors use `movement | combat | ai | interaction`; systems
+  use `progression | spawning | rules | economy`. Phase 6 can group by these.
+- **`level-progression` manages a counter, not scene loading** (the SDK's scene
+  loader is a host concern not reachable from a `SystemFn`); other parts read the
+  level key. **`upgrade-tree` is request-driven**: UI/game code sets
+  `world.state[requestKey]` to an upgrade id; the system fulfils one per tick.

@@ -1,0 +1,21 @@
+{
+  "id": "timer-countdown",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "progression",
+  "tags": ["progression", "timer", "countdown", "rules"],
+  "license": "MIT",
+  "description": "A countdown clock that ends the game with a win or lose outcome at zero, pausable via a world.state flag. Survive-the-clock or beat-the-clock.",
+  "dependencies": [],
+  "params": {
+    "duration": { "type": "number", "balance": true, "description": "Starting time in seconds." },
+    "timeKey": { "type": "string", "balance": false, "description": "world.state key holding the remaining time." },
+    "event": { "type": "string", "balance": false, "description": "Event emitted at zero." },
+    "onExpire": { "type": "string", "balance": false, "description": "'lose' | 'win' | 'none' — outcome at zero." },
+    "pauseKey": { "type": "string", "balance": false, "description": "world.state key that pauses the timer while truthy." }
+  },
+  "definition": {
+    "type": "timer-countdown",
+    "params": { "duration": "$cfg.roundTime", "timeKey": "timeLeft", "onExpire": "lose" }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "win-lose-conditions",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "rules",
+  "tags": ["rules", "win", "lose", "game-over"],
+  "license": "MIT",
+  "description": "Generalized end-of-game check: a list of conditions with gte/lte/eq comparisons and per-condition win or lose outcomes. The first match ends the game.",
+  "dependencies": [],
+  "params": {
+    "conditions": { "type": "array", "balance": false, "description": "Array of { key, cmp?, value, outcome?, winner?, sound? }; each value is a $cfg threshold." }
+  },
+  "definition": {
+    "type": "win-lose-conditions",
+    "params": {
+      "conditions": [
+        { "key": "kills", "cmp": "gte", "value": "$cfg.killsToWin", "outcome": "win", "winner": "player" },
+        { "key": "playerDeaths", "cmp": "gte", "value": "$cfg.deathsToLose", "outcome": "lose", "winner": "none" }
+      ]
+    }
+  }
+}

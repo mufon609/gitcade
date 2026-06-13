@@ -1,0 +1,39 @@
+{
+  "id": "ai-aim-and-fire",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "ai",
+  "tags": ["ai", "enemy", "turret", "shooter", "projectile"],
+  "license": "MIT",
+  "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot.",
+  "dependencies": ["velocity", "contact-damage", "health-and-death"],
+  "params": {
+    "targetTag": { "type": "string", "balance": false, "description": "Tag of entities to fire at." },
+    "range": { "type": "number", "balance": true, "description": "Max engagement distance in px." },
+    "cooldown": { "type": "number", "balance": true, "description": "Seconds between shots." },
+    "projectile": { "type": "object", "balance": false, "description": "Entity-definition to spawn." },
+    "projectileSpeed": { "type": "number", "balance": true, "description": "Launch speed in px/sec." },
+    "spawnOffset": { "type": "object", "balance": false, "description": "{ x, y } muzzle offset (structural)." }
+  },
+  "definition": {
+    "type": "ai-aim-and-fire",
+    "params": {
+      "targetTag": "player",
+      "range": "$cfg.turretRange",
+      "cooldown": "$cfg.turretCooldown",
+      "projectileSpeed": "$cfg.turretBulletSpeed",
+      "projectile": {
+        "id": "enemy-bullet",
+        "sprite": { "kind": "shape", "shape": "circle", "color": "#ff6b6b" },
+        "size": { "w": 8, "h": 8 },
+        "tags": ["enemy-bullet"],
+        "layer": 3,
+        "behaviors": [
+          { "type": "velocity", "params": {} },
+          { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.turretBulletDamage", "selfDestruct": true } },
+          { "type": "health-and-death", "params": { "hp": "$cfg.bulletHp", "lifespan": "$cfg.bulletLifespan" } }
+        ]
+      }
+    }
+  }
+}

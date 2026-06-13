@@ -1,0 +1,23 @@
+{
+  "id": "contact-damage",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "combat",
+  "tags": ["combat", "damage", "collision", "reuse-proof"],
+  "license": "MIT",
+  "description": "Deal damage to overlapping entities of a target tag, with per-target cooldown, optional knockback and self-destruct. One of the four reuse-proof parts.",
+  "dependencies": ["aabb-collision", "health-and-death"],
+  "params": {
+    "targetTag": { "type": "string", "balance": false, "description": "Tag of entities to damage." },
+    "damage": { "type": "number", "balance": true, "description": "Hit points removed per hit." },
+    "cooldown": { "type": "number", "balance": true, "description": "Seconds before re-hitting the same target (0 = every tick)." },
+    "damageKey": { "type": "string", "balance": false, "description": "Victim state key to reduce (default 'hp')." },
+    "knockback": { "type": "number", "balance": true, "description": "Impulse applied to the victim away from this entity." },
+    "selfDestruct": { "type": "boolean", "balance": false, "description": "Destroy this entity after a successful hit." },
+    "sound": { "type": "string", "balance": false, "description": "Sound key on a successful hit." }
+  },
+  "definition": {
+    "type": "contact-damage",
+    "params": { "targetTag": "player", "damage": "$cfg.enemyDamage", "cooldown": "$cfg.damageCooldown" }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#140b16",
+  "entities": [
+    {
+      "id": "player",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#ffe066" },
+      "size": { "w": 28, "h": 28 },
+      "position": { "x": 386, "y": 286 },
+      "tags": ["player"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "move-topdown-360", "params": { "speed": "$cfg.playerSpeed" } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "padding": 8 } },
+        { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.playerThorns", "cooldown": "$cfg.thornsCooldown" } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.playerHp", "tallyKey": "playerDeaths", "deathSound": "lose", "deathEvent": "player-died" } }
+      ]
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["enemy", "player"]] } },
+    { "type": "score", "params": { "scoreKey": "kills", "highKey": "best", "storageKey": "arena.best" } },
+    {
+      "type": "wave-spawner",
+      "params": {
+        "interval": "$cfg.spawnInterval",
+        "waveSize": "$cfg.waveSize",
+        "waveSizeGrowth": "$cfg.waveSizeGrowth",
+        "waveDelay": "$cfg.waveDelay",
+        "maxWaves": "$cfg.maxWaves",
+        "maxAlive": "$cfg.maxAlive",
+        "countTag": "enemy",
+        "spawnPoints": [{ "x": 40, "y": 40 }, { "x": 760, "y": 40 }, { "x": 40, "y": 560 }, { "x": 760, "y": 560 }, { "x": 400, "y": 30 }],
+        "prototype": {
+          "id": "mob",
+          "sprite": { "kind": "shape", "shape": "rect", "color": "#ff5d8f" },
+          "size": { "w": 20, "h": 20 },
+          "position": { "x": 0, "y": 0 },
+          "tags": ["enemy"],
+          "layer": 2,
+          "behaviors": [
+            { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.mobSpeed" } },
+            { "type": "velocity", "params": {} },
+            { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.mobDamage", "cooldown": "$cfg.mobDamageCooldown" } },
+            { "type": "health-and-death", "params": { "hp": "$cfg.mobHp", "tallyKey": "kills" } }
+          ]
+        }
+      }
+    },
+    {
+      "type": "win-lose-conditions",
+      "params": {
+        "conditions": [
+          { "key": "kills", "cmp": "gte", "value": "$cfg.killsToWin", "outcome": "win", "winner": "player" },
+          { "key": "playerDeaths", "cmp": "gte", "value": "$cfg.deathsToLose", "outcome": "lose", "winner": "none" }
+        ]
+      }
+    }
+  ]
+}

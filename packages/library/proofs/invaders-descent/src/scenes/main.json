@@ -1,0 +1,83 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#05060f",
+  "entities": [
+    {
+      "id": "player",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#7cd6ff" },
+      "size": { "w": 32, "h": 16 },
+      "position": { "x": 384, "y": 560 },
+      "tags": ["player"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "move-4dir", "params": { "speed": "$cfg.playerSpeed", "up": [], "down": [] } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "axis": "x", "padding": 8 } },
+        {
+          "type": "shoot",
+          "params": {
+            "auto": true,
+            "cooldown": "$cfg.fireCooldown",
+            "projectileSpeed": "$cfg.bulletSpeed",
+            "direction": { "x": 0, "y": -1 },
+            "spawnOffset": { "x": 0, "y": -12 },
+            "projectile": {
+              "id": "bullet",
+              "sprite": { "kind": "shape", "shape": "rect", "color": "#ffe066" },
+              "size": { "w": 4, "h": 12 },
+              "position": { "x": 0, "y": 0 },
+              "tags": ["bullet"],
+              "layer": 3,
+              "behaviors": [
+                { "type": "velocity", "params": {} },
+                { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.bulletDamage", "selfDestruct": true } },
+                { "type": "health-and-death", "params": { "hp": "$cfg.bulletHp", "lifespan": "$cfg.bulletLifespan" } }
+              ]
+            }
+          }
+        },
+        { "type": "health-and-death", "params": { "hp": "$cfg.playerHp", "tallyKey": "playerDeaths", "deathSound": "lose", "deathEvent": "player-died" } }
+      ]
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["bullet", "enemy"], ["enemy", "player"]] } },
+    {
+      "type": "wave-spawner",
+      "params": {
+        "interval": "$cfg.spawnInterval",
+        "waveSize": "$cfg.waveSize",
+        "waveSizeGrowth": "$cfg.waveSizeGrowth",
+        "waveDelay": "$cfg.waveDelay",
+        "maxWaves": "$cfg.maxWaves",
+        "maxAlive": "$cfg.maxAlive",
+        "countTag": "enemy",
+        "spawnPoints": [{ "x": 388, "y": 20 }],
+        "prototype": {
+          "id": "invader",
+          "sprite": { "kind": "shape", "shape": "rect", "color": "#9d7cff" },
+          "size": { "w": 24, "h": 18 },
+          "position": { "x": 388, "y": 20 },
+          "tags": ["enemy"],
+          "layer": 2,
+          "behaviors": [
+            { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.invaderSpeed", "lockAxis": "y" } },
+            { "type": "velocity", "params": {} },
+            { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.invaderDamage", "cooldown": "$cfg.invaderDamageCooldown" } },
+            { "type": "health-and-death", "params": { "hp": "$cfg.invaderHp", "tallyKey": "kills" } }
+          ]
+        }
+      }
+    },
+    {
+      "type": "win-lose-conditions",
+      "params": {
+        "conditions": [
+          { "key": "kills", "cmp": "gte", "value": "$cfg.killsToWin", "outcome": "win", "winner": "player" },
+          { "key": "playerDeaths", "cmp": "gte", "value": "$cfg.deathsToLose", "outcome": "lose", "winner": "none" }
+        ]
+      }
+    }
+  ]
+}

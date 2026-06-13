@@ -1,0 +1,51 @@
+{
+  "id": "wave-spawner",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "spawning",
+  "tags": ["spawning", "waves", "enemy", "reuse-proof"],
+  "license": "MIT",
+  "description": "Spawn entities in escalating waves over time from a prototype definition, with per-wave growth, max-alive cap, and spawn points. One of the four reuse-proof parts.",
+  "dependencies": ["ai-chase", "contact-damage", "health-and-death", "velocity"],
+  "params": {
+    "prototype": { "type": "object", "balance": false, "description": "Entity-definition to spawn (required)." },
+    "interval": { "type": "number", "balance": true, "description": "Seconds between individual spawns within a wave." },
+    "waveSize": { "type": "number", "balance": true, "description": "Spawns in the first wave." },
+    "waveSizeGrowth": { "type": "number", "balance": true, "description": "Added to waveSize each subsequent wave." },
+    "waveDelay": { "type": "number", "balance": true, "description": "Seconds between waves." },
+    "maxWaves": { "type": "number", "balance": true, "description": "Total waves, 0 = endless." },
+    "maxAlive": { "type": "number", "balance": true, "description": "Cap on concurrent countTag entities, 0 = uncapped." },
+    "startDelay": { "type": "number", "balance": true, "description": "Seconds before the first spawn." },
+    "countTag": { "type": "string", "balance": false, "description": "Tag counted for maxAlive and wave-clear detection." },
+    "spawnPoints": { "type": "array", "balance": false, "description": "Array of { x, y } spawn positions, round-robin (structural)." },
+    "advanceOnClear": { "type": "boolean", "balance": false, "description": "Start the next wave when all countTag are gone." },
+    "stateKey": { "type": "string", "balance": false, "description": "world.state scratch key for this spawner." },
+    "waveKey": { "type": "string", "balance": false, "description": "world.state key exposing the current wave number." }
+  },
+  "definition": {
+    "type": "wave-spawner",
+    "params": {
+      "interval": "$cfg.spawnInterval",
+      "waveSize": "$cfg.waveSize",
+      "waveSizeGrowth": "$cfg.waveSizeGrowth",
+      "waveDelay": "$cfg.waveDelay",
+      "maxWaves": "$cfg.maxWaves",
+      "maxAlive": "$cfg.maxAlive",
+      "countTag": "enemy",
+      "spawnPoints": [{ "x": 40, "y": 40 }, { "x": 760, "y": 40 }],
+      "prototype": {
+        "id": "enemy",
+        "sprite": { "kind": "shape", "shape": "rect", "color": "#ff6b6b" },
+        "size": { "w": 22, "h": 22 },
+        "tags": ["enemy"],
+        "layer": 2,
+        "behaviors": [
+          { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.enemySpeed" } },
+          { "type": "velocity", "params": {} },
+          { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.enemyDamage", "cooldown": "$cfg.damageCooldown" } },
+          { "type": "health-and-death", "params": { "hp": "$cfg.enemyHp", "tallyKey": "kills" } }
+        ]
+      }
+    }
+  }
+}

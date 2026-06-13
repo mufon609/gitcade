@@ -1,0 +1,18 @@
+{
+  "playerSpeed": 170,
+  "playerHp": 500,
+  "playerThorns": 5,
+  "thornsCooldown": 0.15,
+  "mobSpeed": 80,
+  "mobHp": 5,
+  "mobDamage": 1,
+  "mobDamageCooldown": 0.4,
+  "spawnInterval": 0.25,
+  "waveSize": 4,
+  "waveSizeGrowth": 2,
+  "waveDelay": 1,
+  "maxWaves": 3,
+  "maxAlive": 30,
+  "killsToWin": 18,
+  "deathsToLose": 1
+}

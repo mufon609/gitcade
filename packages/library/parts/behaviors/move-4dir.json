@@ -1,0 +1,23 @@
+{
+  "id": "move-4dir",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "player", "keyboard", "topdown"],
+  "license": "MIT",
+  "description": "Four-directional keyboard movement (arrows + WASD). Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "speed": { "type": "number", "balance": true, "description": "Movement speed in px/sec." },
+    "up": { "type": "array", "balance": false, "description": "KeyboardEvent.code values for up." },
+    "down": { "type": "array", "balance": false, "description": "KeyboardEvent.code values for down." },
+    "left": { "type": "array", "balance": false, "description": "KeyboardEvent.code values for left." },
+    "right": { "type": "array", "balance": false, "description": "KeyboardEvent.code values for right." },
+    "normalizeDiagonal": { "type": "boolean", "balance": false, "description": "Scale diagonal speed to match cardinals." },
+    "accel": { "type": "number", "balance": true, "description": "Optional acceleration in px/sec² (0 = snap)." }
+  },
+  "definition": {
+    "type": "move-4dir",
+    "params": { "speed": "$cfg.playerSpeed" }
+  }
+}

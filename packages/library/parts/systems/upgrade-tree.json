@@ -1,0 +1,26 @@
+{
+  "id": "upgrade-tree",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "economy",
+  "tags": ["economy", "upgrades", "idle", "skill-tree"],
+  "license": "MIT",
+  "description": "A purchasable upgrade tree driven by a request flag: spend currency, bump the owned level, apply an effect to a world.state key, with cost growth and prerequisites. All costs/effects are $cfg-driven.",
+  "dependencies": ["currency"],
+  "params": {
+    "upgrades": { "type": "array", "balance": false, "description": "Array of { id, cost, effectKey?, effectAmount?, maxLevel?, costGrowth?, requires? }; cost/effectAmount/maxLevel/costGrowth are $cfg values." },
+    "currencyKey": { "type": "string", "balance": false, "description": "Balance key to spend from." },
+    "levelsKey": { "type": "string", "balance": false, "description": "world.state record of upgradeId → owned levels." },
+    "requestKey": { "type": "string", "balance": false, "description": "world.state key holding a pending buy request." }
+  },
+  "definition": {
+    "type": "upgrade-tree",
+    "params": {
+      "currencyKey": "gold",
+      "requestKey": "upgradeRequest",
+      "upgrades": [
+        { "id": "damage", "cost": "$cfg.upgradeDamageCost", "effectKey": "towerDamage", "effectAmount": "$cfg.upgradeDamageAmount", "maxLevel": "$cfg.upgradeDamageMax", "costGrowth": "$cfg.upgradeCostGrowth" }
+      ]
+    }
+  }
+}

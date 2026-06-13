@@ -1,0 +1,18 @@
+{
+  "name": "@gitcade-proofs/creep-wave",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reuse proof #2 — tower-defense creep wave. The same four parts: creeps ai-chase the core, contact-damage it, spawn in waves, and die (health-and-death) to tower contact-damage.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "validate": "gitcade validate ."
+  },
+  "dependencies": {
+    "@gitcade/sdk": "0.1.0",
+    "@gitcade/library": "0.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}

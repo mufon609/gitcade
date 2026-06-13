@@ -1,0 +1,1796 @@
+{
+  "schemaVersion": 1,
+  "library": "@gitcade/library",
+  "version": "0.1.0",
+  "generatedFrom": "parts/",
+  "parts": [
+    {
+      "id": "ai-aim-and-fire",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "ai",
+      "tags": [
+        "ai",
+        "enemy",
+        "turret",
+        "shooter",
+        "projectile"
+      ],
+      "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "params": {
+        "targetTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of entities to fire at."
+        },
+        "range": {
+          "type": "number",
+          "balance": true,
+          "description": "Max engagement distance in px."
+        },
+        "cooldown": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between shots."
+        },
+        "projectile": {
+          "type": "object",
+          "balance": false,
+          "description": "Entity-definition to spawn."
+        },
+        "projectileSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "Launch speed in px/sec."
+        },
+        "spawnOffset": {
+          "type": "object",
+          "balance": false,
+          "description": "{ x, y } muzzle offset (structural)."
+        }
+      },
+      "definition": {
+        "type": "ai-aim-and-fire",
+        "params": {
+          "targetTag": "player",
+          "range": "$cfg.turretRange",
+          "cooldown": "$cfg.turretCooldown",
+          "projectileSpeed": "$cfg.turretBulletSpeed",
+          "projectile": {
+            "id": "enemy-bullet",
+            "sprite": {
+              "kind": "shape",
+              "shape": "circle",
+              "color": "#ff6b6b"
+            },
+            "size": {
+              "w": 8,
+              "h": 8
+            },
+            "tags": [
+              "enemy-bullet"
+            ],
+            "layer": 3,
+            "behaviors": [
+              {
+                "type": "velocity",
+                "params": {}
+              },
+              {
+                "type": "contact-damage",
+                "params": {
+                  "targetTag": "player",
+                  "damage": "$cfg.turretBulletDamage",
+                  "selfDestruct": true
+                }
+              },
+              {
+                "type": "health-and-death",
+                "params": {
+                  "hp": "$cfg.bulletHp",
+                  "lifespan": "$cfg.bulletLifespan"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "ai-chase",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "ai",
+      "tags": [
+        "ai",
+        "enemy",
+        "pursuit",
+        "movement",
+        "reuse-proof"
+      ],
+      "description": "Pursue the nearest entity of a target tag in full 2D, with optional axis lock and acceleration. Generalizes the SDK follow-entity-axis primitive. One of the four reuse-proof parts.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "targetTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of the entity to pursue."
+        },
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Pursuit speed in px/sec."
+        },
+        "stopDistance": {
+          "type": "number",
+          "balance": true,
+          "description": "Center distance within which it holds still."
+        },
+        "accel": {
+          "type": "number",
+          "balance": true,
+          "description": "Optional approach acceleration in px/sec² (0 = snap)."
+        },
+        "lockAxis": {
+          "type": "string",
+          "balance": false,
+          "description": "'x' | 'y' | 'none' — constrain pursuit to one axis."
+        }
+      },
+      "definition": {
+        "type": "ai-chase",
+        "params": {
+          "targetTag": "player",
+          "speed": "$cfg.enemySpeed",
+          "stopDistance": "$cfg.enemyStopDistance",
+          "lockAxis": "none"
+        }
+      }
+    },
+    {
+      "id": "ai-flee",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "ai",
+      "tags": [
+        "ai",
+        "enemy",
+        "flee",
+        "movement"
+      ],
+      "description": "Flee from the nearest entity of a threat tag — the mirror of ai-chase — panicking only within an optional radius. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "threatTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of the entity to flee from."
+        },
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Flee speed in px/sec."
+        },
+        "panicDistance": {
+          "type": "number",
+          "balance": true,
+          "description": "Only flee when the threat is within this distance (0 = always)."
+        },
+        "accel": {
+          "type": "number",
+          "balance": true,
+          "description": "Optional acceleration in px/sec² (0 = snap)."
+        },
+        "lockAxis": {
+          "type": "string",
+          "balance": false,
+          "description": "'x' | 'y' | 'none' — constrain fleeing to one axis."
+        }
+      },
+      "definition": {
+        "type": "ai-flee",
+        "params": {
+          "threatTag": "player",
+          "speed": "$cfg.preySpeed",
+          "panicDistance": "$cfg.preyPanicDistance"
+        }
+      }
+    },
+    {
+      "id": "ai-patrol",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "ai",
+      "tags": [
+        "ai",
+        "enemy",
+        "patrol",
+        "guard",
+        "movement"
+      ],
+      "description": "Patrol between waypoints with dwell time at each, ping-pong or loop — the guard/sentry pattern. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "points": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { x, y } patrol waypoints (structural)."
+        },
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Patrol speed in px/sec."
+        },
+        "waitTime": {
+          "type": "number",
+          "balance": true,
+          "description": "Dwell time at each waypoint in seconds."
+        },
+        "pingPong": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Reverse at the ends instead of looping."
+        },
+        "arriveRadius": {
+          "type": "number",
+          "balance": false,
+          "description": "Distance at which a waypoint is reached (structural)."
+        }
+      },
+      "definition": {
+        "type": "ai-patrol",
+        "params": {
+          "points": [
+            {
+              "x": 100,
+              "y": 200
+            },
+            {
+              "x": 400,
+              "y": 200
+            }
+          ],
+          "speed": "$cfg.guardSpeed",
+          "waitTime": "$cfg.guardWaitTime",
+          "arriveRadius": 6
+        }
+      }
+    },
+    {
+      "id": "ai-wander",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "ai",
+      "tags": [
+        "ai",
+        "enemy",
+        "wander",
+        "ambient",
+        "movement"
+      ],
+      "description": "Drift in a heading that re-randomizes periodically, turning away from world edges; deterministic via world.rng. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Wander speed in px/sec."
+        },
+        "changeInterval": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between heading changes."
+        },
+        "edgePadding": {
+          "type": "number",
+          "balance": false,
+          "description": "Distance from a wall at which it turns inward (structural)."
+        }
+      },
+      "definition": {
+        "type": "ai-wander",
+        "params": {
+          "speed": "$cfg.critterSpeed",
+          "changeInterval": "$cfg.wanderInterval",
+          "edgePadding": 16
+        }
+      }
+    },
+    {
+      "id": "auto-scroll",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "scroller",
+        "parallax",
+        "auto"
+      ],
+      "description": "Force a constant velocity each tick, optionally wrapping back to the opposite edge — scrolling worlds/tiles or auto-advancing scroller obstacles. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "vx": {
+          "type": "number",
+          "balance": true,
+          "description": "Constant horizontal scroll velocity in px/sec."
+        },
+        "vy": {
+          "type": "number",
+          "balance": true,
+          "description": "Constant vertical scroll velocity in px/sec."
+        },
+        "wrap": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Re-enter from the opposite edge on exit."
+        }
+      },
+      "definition": {
+        "type": "auto-scroll",
+        "params": {
+          "vx": "$cfg.scrollSpeed",
+          "vy": "$cfg.scrollVy",
+          "wrap": false
+        }
+      }
+    },
+    {
+      "id": "collect-on-touch",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "interaction",
+      "tags": [
+        "interaction",
+        "pickup",
+        "collectible",
+        "score"
+      ],
+      "description": "A pickup consumed when a collector tag touches it, crediting a score and/or grant key and emitting a collect event. Coins, gems, power-ups, keys.",
+      "license": "MIT",
+      "dependencies": [
+        "aabb-collision"
+      ],
+      "params": {
+        "collectorTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of the entity that can collect."
+        },
+        "value": {
+          "type": "number",
+          "balance": true,
+          "description": "Amount awarded on pickup."
+        },
+        "scoreKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional world.state score key to credit."
+        },
+        "grantKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional second world.state key to credit."
+        },
+        "kind": {
+          "type": "string",
+          "balance": false,
+          "description": "Item label included in the event."
+        },
+        "sound": {
+          "type": "string",
+          "balance": false,
+          "description": "Sound key on pickup."
+        },
+        "consume": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Destroy the pickup on collection."
+        }
+      },
+      "definition": {
+        "type": "collect-on-touch",
+        "params": {
+          "collectorTag": "player",
+          "value": "$cfg.coinValue",
+          "scoreKey": "score",
+          "kind": "coin"
+        }
+      }
+    },
+    {
+      "id": "contact-damage",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "combat",
+      "tags": [
+        "combat",
+        "damage",
+        "collision",
+        "reuse-proof"
+      ],
+      "description": "Deal damage to overlapping entities of a target tag, with per-target cooldown, optional knockback and self-destruct. One of the four reuse-proof parts.",
+      "license": "MIT",
+      "dependencies": [
+        "aabb-collision",
+        "health-and-death"
+      ],
+      "params": {
+        "targetTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of entities to damage."
+        },
+        "damage": {
+          "type": "number",
+          "balance": true,
+          "description": "Hit points removed per hit."
+        },
+        "cooldown": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds before re-hitting the same target (0 = every tick)."
+        },
+        "damageKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Victim state key to reduce (default 'hp')."
+        },
+        "knockback": {
+          "type": "number",
+          "balance": true,
+          "description": "Impulse applied to the victim away from this entity."
+        },
+        "selfDestruct": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Destroy this entity after a successful hit."
+        },
+        "sound": {
+          "type": "string",
+          "balance": false,
+          "description": "Sound key on a successful hit."
+        }
+      },
+      "definition": {
+        "type": "contact-damage",
+        "params": {
+          "targetTag": "player",
+          "damage": "$cfg.enemyDamage",
+          "cooldown": "$cfg.damageCooldown"
+        }
+      }
+    },
+    {
+      "id": "follow-path",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "path",
+        "waypoints",
+        "on-rails"
+      ],
+      "description": "Travel an ordered list of waypoints, advancing on arrival; loops or stops at the end. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "points": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { x, y } waypoints (structural geometry)."
+        },
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Travel speed in px/sec."
+        },
+        "arriveRadius": {
+          "type": "number",
+          "balance": false,
+          "description": "Distance at which a waypoint is reached (structural)."
+        },
+        "loop": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Restart from the first point at the end."
+        }
+      },
+      "definition": {
+        "type": "follow-path",
+        "params": {
+          "points": [
+            {
+              "x": 0,
+              "y": 300
+            },
+            {
+              "x": 800,
+              "y": 300
+            }
+          ],
+          "speed": "$cfg.creepSpeed",
+          "arriveRadius": 6,
+          "loop": false
+        }
+      }
+    },
+    {
+      "id": "health-and-death",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "combat",
+      "tags": [
+        "combat",
+        "health",
+        "death",
+        "reuse-proof"
+      ],
+      "description": "Own an entity's hit points and death: seed hp, count an optional lifespan down, then emit a death event, tally a score key, and destroy. One of the four reuse-proof parts.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "hp": {
+          "type": "number",
+          "balance": true,
+          "description": "Starting hit points (only if state.hp unset)."
+        },
+        "lifespan": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds to live before dying of old age (0 = no limit)."
+        },
+        "deathEvent": {
+          "type": "string",
+          "balance": false,
+          "description": "Event name emitted on death."
+        },
+        "deathSound": {
+          "type": "string",
+          "balance": false,
+          "description": "Sound key on death."
+        },
+        "tallyKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional world.state key incremented on death."
+        },
+        "tallyAmount": {
+          "type": "number",
+          "balance": true,
+          "description": "Amount added to tallyKey."
+        },
+        "destroyOnDeath": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Remove the entity on death."
+        }
+      },
+      "definition": {
+        "type": "health-and-death",
+        "params": {
+          "hp": "$cfg.enemyHp",
+          "tallyKey": "kills",
+          "deathSound": "explode"
+        }
+      }
+    },
+    {
+      "id": "melee-swing",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "combat",
+      "tags": [
+        "combat",
+        "melee",
+        "player",
+        "weapon"
+      ],
+      "description": "On a cooldown'd key press, spawn a short-lived hitbox entity in the facing direction. Damage and despawn reuse contact-damage + health-and-death lifespan.",
+      "license": "MIT",
+      "dependencies": [
+        "contact-damage",
+        "health-and-death"
+      ],
+      "params": {
+        "hitbox": {
+          "type": "object",
+          "balance": false,
+          "description": "Entity-definition for the transient strike volume."
+        },
+        "cooldown": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between swings."
+        },
+        "attackKeys": {
+          "type": "array",
+          "balance": false,
+          "description": "Key codes that trigger a swing."
+        },
+        "auto": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Swing continuously without input."
+        },
+        "reach": {
+          "type": "object",
+          "balance": false,
+          "description": "{ x, y } hitbox offset from center (structural)."
+        },
+        "faceVelocity": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Place the hitbox in the movement direction."
+        }
+      },
+      "definition": {
+        "type": "melee-swing",
+        "params": {
+          "cooldown": "$cfg.swingCooldown",
+          "attackKeys": [
+            "KeyJ"
+          ],
+          "reach": {
+            "x": 28,
+            "y": 0
+          },
+          "hitbox": {
+            "id": "swing",
+            "sprite": {
+              "kind": "shape",
+              "shape": "rect",
+              "color": "#ffffff"
+            },
+            "size": {
+              "w": 28,
+              "h": 28
+            },
+            "tags": [
+              "melee"
+            ],
+            "layer": 3,
+            "behaviors": [
+              {
+                "type": "contact-damage",
+                "params": {
+                  "targetTag": "enemy",
+                  "damage": "$cfg.meleeDamage"
+                }
+              },
+              {
+                "type": "health-and-death",
+                "params": {
+                  "lifespan": "$cfg.swingDuration"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "move-4dir",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "player",
+        "keyboard",
+        "topdown"
+      ],
+      "description": "Four-directional keyboard movement (arrows + WASD). Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Movement speed in px/sec."
+        },
+        "up": {
+          "type": "array",
+          "balance": false,
+          "description": "KeyboardEvent.code values for up."
+        },
+        "down": {
+          "type": "array",
+          "balance": false,
+          "description": "KeyboardEvent.code values for down."
+        },
+        "left": {
+          "type": "array",
+          "balance": false,
+          "description": "KeyboardEvent.code values for left."
+        },
+        "right": {
+          "type": "array",
+          "balance": false,
+          "description": "KeyboardEvent.code values for right."
+        },
+        "normalizeDiagonal": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Scale diagonal speed to match cardinals."
+        },
+        "accel": {
+          "type": "number",
+          "balance": true,
+          "description": "Optional acceleration in px/sec² (0 = snap)."
+        }
+      },
+      "definition": {
+        "type": "move-4dir",
+        "params": {
+          "speed": "$cfg.playerSpeed"
+        }
+      }
+    },
+    {
+      "id": "move-grid-step",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "grid",
+        "snake",
+        "discrete"
+      ],
+      "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "tileSize": {
+          "type": "number",
+          "balance": false,
+          "description": "Grid cell size in px (structural)."
+        },
+        "stepInterval": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between steps (feel/balance)."
+        },
+        "up": {
+          "type": "array",
+          "balance": false,
+          "description": "Up key codes."
+        },
+        "down": {
+          "type": "array",
+          "balance": false,
+          "description": "Down key codes."
+        },
+        "left": {
+          "type": "array",
+          "balance": false,
+          "description": "Left key codes."
+        },
+        "right": {
+          "type": "array",
+          "balance": false,
+          "description": "Right key codes."
+        },
+        "continuous": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Keep moving without input, Snake-style."
+        },
+        "snap": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Snap to the tile grid each step."
+        }
+      },
+      "definition": {
+        "type": "move-grid-step",
+        "params": {
+          "tileSize": 20,
+          "stepInterval": "$cfg.stepInterval",
+          "continuous": true
+        }
+      }
+    },
+    {
+      "id": "move-platformer",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "player",
+        "platformer",
+        "gravity",
+        "jump"
+      ],
+      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "moveSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "Horizontal run speed in px/sec."
+        },
+        "gravity": {
+          "type": "number",
+          "balance": true,
+          "description": "Downward acceleration in px/sec²."
+        },
+        "jumpSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "Upward jump launch velocity in px/sec."
+        },
+        "coyoteTime": {
+          "type": "number",
+          "balance": true,
+          "description": "Post-ledge jump grace in seconds."
+        },
+        "maxFall": {
+          "type": "number",
+          "balance": true,
+          "description": "Terminal fall speed in px/sec (0 = uncapped)."
+        },
+        "left": {
+          "type": "array",
+          "balance": false,
+          "description": "Left key codes."
+        },
+        "right": {
+          "type": "array",
+          "balance": false,
+          "description": "Right key codes."
+        },
+        "jump": {
+          "type": "array",
+          "balance": false,
+          "description": "Jump key codes."
+        },
+        "groundTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of solid ground entities."
+        }
+      },
+      "definition": {
+        "type": "move-platformer",
+        "params": {
+          "moveSpeed": "$cfg.playerSpeed",
+          "gravity": "$cfg.gravity",
+          "jumpSpeed": "$cfg.jumpSpeed",
+          "coyoteTime": "$cfg.coyoteTime",
+          "groundTag": "ground"
+        }
+      }
+    },
+    {
+      "id": "move-topdown-360",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "player",
+        "topdown",
+        "twin-stick",
+        "touch"
+      ],
+      "description": "Top-down movement with normalized 8-direction keys and optional move-toward-pointer steering. Sets velocity for a following velocity integrator.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "speed": {
+          "type": "number",
+          "balance": true,
+          "description": "Movement speed in px/sec."
+        },
+        "up": {
+          "type": "array",
+          "balance": false,
+          "description": "Up key codes."
+        },
+        "down": {
+          "type": "array",
+          "balance": false,
+          "description": "Down key codes."
+        },
+        "left": {
+          "type": "array",
+          "balance": false,
+          "description": "Left key codes."
+        },
+        "right": {
+          "type": "array",
+          "balance": false,
+          "description": "Right key codes."
+        },
+        "pointerFollow": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Steer toward the active pointer when no key is held."
+        },
+        "accel": {
+          "type": "number",
+          "balance": true,
+          "description": "Optional acceleration in px/sec² (0 = snap)."
+        }
+      },
+      "definition": {
+        "type": "move-topdown-360",
+        "params": {
+          "speed": "$cfg.playerSpeed",
+          "pointerFollow": true
+        }
+      }
+    },
+    {
+      "id": "portal",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "interaction",
+      "tags": [
+        "interaction",
+        "portal",
+        "teleport",
+        "warp"
+      ],
+      "description": "Teleport entities of a tag to a fixed point or a paired exit entity on contact, with a per-entrant cooldown to prevent bounce-back.",
+      "license": "MIT",
+      "dependencies": [
+        "aabb-collision"
+      ],
+      "params": {
+        "tag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of entities that can use the portal."
+        },
+        "to": {
+          "type": "object",
+          "balance": false,
+          "description": "{ x, y } destination (structural; used when targetId unset)."
+        },
+        "targetId": {
+          "type": "string",
+          "balance": false,
+          "description": "Id of an entity whose position is the destination."
+        },
+        "cooldown": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds before the same entity can teleport again."
+        },
+        "sound": {
+          "type": "string",
+          "balance": false,
+          "description": "Sound key on teleport."
+        }
+      },
+      "definition": {
+        "type": "portal",
+        "params": {
+          "tag": "player",
+          "to": {
+            "x": 40,
+            "y": 40
+          },
+          "cooldown": "$cfg.portalCooldown"
+        }
+      }
+    },
+    {
+      "id": "shoot",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "combat",
+      "tags": [
+        "combat",
+        "projectile",
+        "player",
+        "weapon"
+      ],
+      "description": "Fire projectiles on a cooldown — on key press or automatically — in a fixed direction or aimed at a tag. Spawns a clone of the projectile definition.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity",
+        "contact-damage",
+        "health-and-death"
+      ],
+      "params": {
+        "projectile": {
+          "type": "object",
+          "balance": false,
+          "description": "Entity-definition to spawn as the projectile."
+        },
+        "projectileSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "Launch speed in px/sec."
+        },
+        "cooldown": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between shots."
+        },
+        "fireKeys": {
+          "type": "array",
+          "balance": false,
+          "description": "Key codes that trigger a shot."
+        },
+        "auto": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Fire continuously without input."
+        },
+        "direction": {
+          "type": "object",
+          "balance": false,
+          "description": "{ x, y } launch vector when not aiming (structural)."
+        },
+        "aimTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Aim at nearest entity with this tag."
+        },
+        "spawnOffset": {
+          "type": "object",
+          "balance": false,
+          "description": "{ x, y } muzzle offset (structural)."
+        }
+      },
+      "definition": {
+        "type": "shoot",
+        "params": {
+          "projectileSpeed": "$cfg.bulletSpeed",
+          "cooldown": "$cfg.fireCooldown",
+          "fireKeys": [
+            "Space"
+          ],
+          "direction": {
+            "x": 0,
+            "y": -1
+          },
+          "spawnOffset": {
+            "x": 0,
+            "y": -12
+          },
+          "projectile": {
+            "id": "bullet",
+            "sprite": {
+              "kind": "shape",
+              "shape": "rect",
+              "color": "#ffe066"
+            },
+            "size": {
+              "w": 4,
+              "h": 10
+            },
+            "tags": [
+              "bullet"
+            ],
+            "layer": 3,
+            "behaviors": [
+              {
+                "type": "velocity",
+                "params": {}
+              },
+              {
+                "type": "contact-damage",
+                "params": {
+                  "targetTag": "enemy",
+                  "damage": "$cfg.bulletDamage",
+                  "selfDestruct": true
+                }
+              },
+              {
+                "type": "health-and-death",
+                "params": {
+                  "hp": "$cfg.bulletHp",
+                  "lifespan": "$cfg.bulletLifespan"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "trigger-zone",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "interaction",
+      "tags": [
+        "interaction",
+        "trigger",
+        "zone",
+        "hazard",
+        "checkpoint"
+      ],
+      "description": "A volume that emits enter/exit events for a tag, can set a world.state flag while occupied, and can destroy entrants (hazard / kill-plane).",
+      "license": "MIT",
+      "dependencies": [
+        "aabb-collision"
+      ],
+      "params": {
+        "tag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of entities that activate the zone."
+        },
+        "enterEvent": {
+          "type": "string",
+          "balance": false,
+          "description": "Event name on entry."
+        },
+        "exitEvent": {
+          "type": "string",
+          "balance": false,
+          "description": "Event name on exit."
+        },
+        "setStateKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional world.state boolean key, true while occupied."
+        },
+        "kill": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Destroy entrants on entry."
+        },
+        "once": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Fire only the first time, then go inert."
+        },
+        "sound": {
+          "type": "string",
+          "balance": false,
+          "description": "Sound key on entry."
+        }
+      },
+      "definition": {
+        "type": "trigger-zone",
+        "params": {
+          "tag": "player",
+          "enterEvent": "hazard",
+          "kill": true
+        }
+      }
+    },
+    {
+      "id": "currency",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "economy",
+      "tags": [
+        "economy",
+        "currency",
+        "idle",
+        "tower-defense"
+      ],
+      "description": "A currency balance with optional passive income and a cap. Seeds the balance, accrues per second, and clamps. Other parts earn and spend against the key.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "currencyKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding the balance."
+        },
+        "startAmount": {
+          "type": "number",
+          "balance": true,
+          "description": "Opening balance."
+        },
+        "passiveIncome": {
+          "type": "number",
+          "balance": true,
+          "description": "Units earned per second."
+        },
+        "maxAmount": {
+          "type": "number",
+          "balance": true,
+          "description": "Balance cap, 0 = uncapped."
+        }
+      },
+      "definition": {
+        "type": "currency",
+        "params": {
+          "currencyKey": "gold",
+          "startAmount": "$cfg.startGold",
+          "passiveIncome": "$cfg.goldPerSec"
+        }
+      }
+    },
+    {
+      "id": "level-progression",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "progression",
+      "tags": [
+        "progression",
+        "level",
+        "difficulty"
+      ],
+      "description": "Advance a level/difficulty counter on a score threshold or when a tracked tag is fully cleared, emitting a level-up event. Manages the counter, not scene loading.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "levelKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding the current level (1-based)."
+        },
+        "mode": {
+          "type": "string",
+          "balance": false,
+          "description": "'scoreGte' | 'clearTag'."
+        },
+        "scoreKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Score key to read in scoreGte mode."
+        },
+        "threshold": {
+          "type": "number",
+          "balance": true,
+          "description": "Score for the first level-up in scoreGte mode."
+        },
+        "thresholdGrowth": {
+          "type": "number",
+          "balance": true,
+          "description": "Added to threshold per level."
+        },
+        "clearTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag whose disappearance triggers a level-up."
+        },
+        "maxLevel": {
+          "type": "number",
+          "balance": true,
+          "description": "Stop advancing past this level, 0 = endless."
+        },
+        "event": {
+          "type": "string",
+          "balance": false,
+          "description": "Event emitted on each advance."
+        },
+        "stateKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state scratch key."
+        }
+      },
+      "definition": {
+        "type": "level-progression",
+        "params": {
+          "levelKey": "level",
+          "mode": "clearTag",
+          "clearTag": "enemy",
+          "maxLevel": "$cfg.maxLevel"
+        }
+      }
+    },
+    {
+      "id": "lives-respawn",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "progression",
+      "tags": [
+        "progression",
+        "lives",
+        "respawn",
+        "arcade"
+      ],
+      "description": "Lives + respawn loop: seed lives, watch the player tag for death, spend a life and respawn a prototype after a delay, end the game when lives run out.",
+      "license": "MIT",
+      "dependencies": [
+        "health-and-death"
+      ],
+      "params": {
+        "startLives": {
+          "type": "number",
+          "balance": true,
+          "description": "Starting life count."
+        },
+        "prototype": {
+          "type": "object",
+          "balance": false,
+          "description": "Entity-definition respawned on death."
+        },
+        "livesKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding remaining lives."
+        },
+        "watchTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of the entity whose death costs a life."
+        },
+        "respawnPosition": {
+          "type": "object",
+          "balance": false,
+          "description": "{ x, y } respawn point (structural)."
+        },
+        "respawnDelay": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds before respawning."
+        },
+        "stateKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state scratch key for this system."
+        }
+      },
+      "definition": {
+        "type": "lives-respawn",
+        "params": {
+          "startLives": "$cfg.startLives",
+          "watchTag": "player",
+          "respawnPosition": {
+            "x": 400,
+            "y": 300
+          },
+          "respawnDelay": "$cfg.respawnDelay",
+          "prototype": {
+            "id": "player",
+            "sprite": {
+              "kind": "shape",
+              "shape": "rect",
+              "color": "#7cd6ff"
+            },
+            "size": {
+              "w": 24,
+              "h": 24
+            },
+            "tags": [
+              "player"
+            ],
+            "layer": 2,
+            "behaviors": [
+              {
+                "type": "move-topdown-360",
+                "params": {
+                  "speed": "$cfg.playerSpeed"
+                }
+              },
+              {
+                "type": "velocity",
+                "params": {}
+              },
+              {
+                "type": "health-and-death",
+                "params": {
+                  "hp": "$cfg.playerHp",
+                  "deathEvent": "player-died"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "score",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "progression",
+      "tags": [
+        "progression",
+        "score",
+        "storage",
+        "high-score"
+      ],
+      "description": "Track the score and persist a high score via the SDK storage API (never raw localStorage), keeping the high-score key at the running maximum.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "scoreKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Live score key on world.state."
+        },
+        "highKey": {
+          "type": "string",
+          "balance": false,
+          "description": "High-score key on world.state."
+        },
+        "storageKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Persistence key under the game's storage namespace."
+        },
+        "persist": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Write the high score to storage."
+        }
+      },
+      "definition": {
+        "type": "score",
+        "params": {
+          "scoreKey": "score",
+          "highKey": "highScore",
+          "storageKey": "highScore"
+        }
+      }
+    },
+    {
+      "id": "simple-inventory",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "economy",
+      "tags": [
+        "economy",
+        "inventory",
+        "items"
+      ],
+      "description": "Maintain a keyed item inventory on world.state: ensure it exists, clamp counts to capacity, and emit item-gained/item-lost events on change.",
+      "license": "MIT",
+      "dependencies": [
+        "collect-on-touch"
+      ],
+      "params": {
+        "inventoryKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding the inventory record."
+        },
+        "capacity": {
+          "type": "number",
+          "balance": true,
+          "description": "Max count per item, 0 = unlimited."
+        },
+        "stateKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state scratch key for change detection."
+        }
+      },
+      "definition": {
+        "type": "simple-inventory",
+        "params": {
+          "inventoryKey": "inventory",
+          "capacity": "$cfg.inventoryCapacity"
+        }
+      }
+    },
+    {
+      "id": "timer-countdown",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "progression",
+      "tags": [
+        "progression",
+        "timer",
+        "countdown",
+        "rules"
+      ],
+      "description": "A countdown clock that ends the game with a win or lose outcome at zero, pausable via a world.state flag. Survive-the-clock or beat-the-clock.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "duration": {
+          "type": "number",
+          "balance": true,
+          "description": "Starting time in seconds."
+        },
+        "timeKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding the remaining time."
+        },
+        "event": {
+          "type": "string",
+          "balance": false,
+          "description": "Event emitted at zero."
+        },
+        "onExpire": {
+          "type": "string",
+          "balance": false,
+          "description": "'lose' | 'win' | 'none' — outcome at zero."
+        },
+        "pauseKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key that pauses the timer while truthy."
+        }
+      },
+      "definition": {
+        "type": "timer-countdown",
+        "params": {
+          "duration": "$cfg.roundTime",
+          "timeKey": "timeLeft",
+          "onExpire": "lose"
+        }
+      }
+    },
+    {
+      "id": "upgrade-tree",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "economy",
+      "tags": [
+        "economy",
+        "upgrades",
+        "idle",
+        "skill-tree"
+      ],
+      "description": "A purchasable upgrade tree driven by a request flag: spend currency, bump the owned level, apply an effect to a world.state key, with cost growth and prerequisites. All costs/effects are $cfg-driven.",
+      "license": "MIT",
+      "dependencies": [
+        "currency"
+      ],
+      "params": {
+        "upgrades": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { id, cost, effectKey?, effectAmount?, maxLevel?, costGrowth?, requires? }; cost/effectAmount/maxLevel/costGrowth are $cfg values."
+        },
+        "currencyKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Balance key to spend from."
+        },
+        "levelsKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state record of upgradeId → owned levels."
+        },
+        "requestKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding a pending buy request."
+        }
+      },
+      "definition": {
+        "type": "upgrade-tree",
+        "params": {
+          "currencyKey": "gold",
+          "requestKey": "upgradeRequest",
+          "upgrades": [
+            {
+              "id": "damage",
+              "cost": "$cfg.upgradeDamageCost",
+              "effectKey": "towerDamage",
+              "effectAmount": "$cfg.upgradeDamageAmount",
+              "maxLevel": "$cfg.upgradeDamageMax",
+              "costGrowth": "$cfg.upgradeCostGrowth"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "wave-spawner",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "spawning",
+      "tags": [
+        "spawning",
+        "waves",
+        "enemy",
+        "reuse-proof"
+      ],
+      "description": "Spawn entities in escalating waves over time from a prototype definition, with per-wave growth, max-alive cap, and spawn points. One of the four reuse-proof parts.",
+      "license": "MIT",
+      "dependencies": [
+        "ai-chase",
+        "contact-damage",
+        "health-and-death",
+        "velocity"
+      ],
+      "params": {
+        "prototype": {
+          "type": "object",
+          "balance": false,
+          "description": "Entity-definition to spawn (required)."
+        },
+        "interval": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between individual spawns within a wave."
+        },
+        "waveSize": {
+          "type": "number",
+          "balance": true,
+          "description": "Spawns in the first wave."
+        },
+        "waveSizeGrowth": {
+          "type": "number",
+          "balance": true,
+          "description": "Added to waveSize each subsequent wave."
+        },
+        "waveDelay": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds between waves."
+        },
+        "maxWaves": {
+          "type": "number",
+          "balance": true,
+          "description": "Total waves, 0 = endless."
+        },
+        "maxAlive": {
+          "type": "number",
+          "balance": true,
+          "description": "Cap on concurrent countTag entities, 0 = uncapped."
+        },
+        "startDelay": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds before the first spawn."
+        },
+        "countTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag counted for maxAlive and wave-clear detection."
+        },
+        "spawnPoints": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { x, y } spawn positions, round-robin (structural)."
+        },
+        "advanceOnClear": {
+          "type": "boolean",
+          "balance": false,
+          "description": "Start the next wave when all countTag are gone."
+        },
+        "stateKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state scratch key for this spawner."
+        },
+        "waveKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key exposing the current wave number."
+        }
+      },
+      "definition": {
+        "type": "wave-spawner",
+        "params": {
+          "interval": "$cfg.spawnInterval",
+          "waveSize": "$cfg.waveSize",
+          "waveSizeGrowth": "$cfg.waveSizeGrowth",
+          "waveDelay": "$cfg.waveDelay",
+          "maxWaves": "$cfg.maxWaves",
+          "maxAlive": "$cfg.maxAlive",
+          "countTag": "enemy",
+          "spawnPoints": [
+            {
+              "x": 40,
+              "y": 40
+            },
+            {
+              "x": 760,
+              "y": 40
+            }
+          ],
+          "prototype": {
+            "id": "enemy",
+            "sprite": {
+              "kind": "shape",
+              "shape": "rect",
+              "color": "#ff6b6b"
+            },
+            "size": {
+              "w": 22,
+              "h": 22
+            },
+            "tags": [
+              "enemy"
+            ],
+            "layer": 2,
+            "behaviors": [
+              {
+                "type": "ai-chase",
+                "params": {
+                  "targetTag": "player",
+                  "speed": "$cfg.enemySpeed"
+                }
+              },
+              {
+                "type": "velocity",
+                "params": {}
+              },
+              {
+                "type": "contact-damage",
+                "params": {
+                  "targetTag": "player",
+                  "damage": "$cfg.enemyDamage",
+                  "cooldown": "$cfg.damageCooldown"
+                }
+              },
+              {
+                "type": "health-and-death",
+                "params": {
+                  "hp": "$cfg.enemyHp",
+                  "tallyKey": "kills"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "win-lose-conditions",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "rules",
+      "tags": [
+        "rules",
+        "win",
+        "lose",
+        "game-over"
+      ],
+      "description": "Generalized end-of-game check: a list of conditions with gte/lte/eq comparisons and per-condition win or lose outcomes. The first match ends the game.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "conditions": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { key, cmp?, value, outcome?, winner?, sound? }; each value is a $cfg threshold."
+        }
+      },
+      "definition": {
+        "type": "win-lose-conditions",
+        "params": {
+          "conditions": [
+            {
+              "key": "kills",
+              "cmp": "gte",
+              "value": "$cfg.killsToWin",
+              "outcome": "win",
+              "winner": "player"
+            },
+            {
+              "key": "playerDeaths",
+              "cmp": "gte",
+              "value": "$cfg.deathsToLose",
+              "outcome": "lose",
+              "winner": "none"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

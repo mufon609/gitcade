@@ -1,0 +1,23 @@
+{
+  "id": "move-topdown-360",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "player", "topdown", "twin-stick", "touch"],
+  "license": "MIT",
+  "description": "Top-down movement with normalized 8-direction keys and optional move-toward-pointer steering. Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "speed": { "type": "number", "balance": true, "description": "Movement speed in px/sec." },
+    "up": { "type": "array", "balance": false, "description": "Up key codes." },
+    "down": { "type": "array", "balance": false, "description": "Down key codes." },
+    "left": { "type": "array", "balance": false, "description": "Left key codes." },
+    "right": { "type": "array", "balance": false, "description": "Right key codes." },
+    "pointerFollow": { "type": "boolean", "balance": false, "description": "Steer toward the active pointer when no key is held." },
+    "accel": { "type": "number", "balance": true, "description": "Optional acceleration in px/sec² (0 = snap)." }
+  },
+  "definition": {
+    "type": "move-topdown-360",
+    "params": { "speed": "$cfg.playerSpeed", "pointerFollow": true }
+  }
+}

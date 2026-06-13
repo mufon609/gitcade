@@ -1,0 +1,21 @@
+{
+  "id": "ai-flee",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "ai",
+  "tags": ["ai", "enemy", "flee", "movement"],
+  "license": "MIT",
+  "description": "Flee from the nearest entity of a threat tag — the mirror of ai-chase — panicking only within an optional radius. Sets velocity for a following velocity integrator.",
+  "dependencies": ["velocity"],
+  "params": {
+    "threatTag": { "type": "string", "balance": false, "description": "Tag of the entity to flee from." },
+    "speed": { "type": "number", "balance": true, "description": "Flee speed in px/sec." },
+    "panicDistance": { "type": "number", "balance": true, "description": "Only flee when the threat is within this distance (0 = always)." },
+    "accel": { "type": "number", "balance": true, "description": "Optional acceleration in px/sec² (0 = snap)." },
+    "lockAxis": { "type": "string", "balance": false, "description": "'x' | 'y' | 'none' — constrain fleeing to one axis." }
+  },
+  "definition": {
+    "type": "ai-flee",
+    "params": { "threatTag": "player", "speed": "$cfg.preySpeed", "panicDistance": "$cfg.preyPanicDistance" }
+  }
+}

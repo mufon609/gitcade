@@ -9,6 +9,7 @@
   },
   "workspaces": [
     "packages/*",
+    "packages/library/proofs/*",
     "games/*",
     "platform/*",
     "templates/*",
@@ -18,6 +19,7 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "validate:pong": "gitcade validate examples/pong"
+    "validate:pong": "gitcade validate examples/pong",
+    "validate:proofs": "for d in packages/library/proofs/*/; do gitcade validate \"$d\" || exit 1; done"
   }
 }

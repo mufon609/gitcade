@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://gitcade.dev/schemas/catalog.schema.json",
+  "title": "GitCade Component Library Catalog",
+  "description": "Machine-readable index of every catalog part. Authored from packages/library/parts/*.json by scripts/build-catalog.mjs; ingested by the Phase 6 marketplace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "library", "version", "parts"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "library": { "type": "string", "const": "@gitcade/library" },
+    "version": {
+      "type": "string",
+      "description": "Exact semver of this library release; partId@version references resolve within it.",
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-.]+)?(?:\\+[0-9A-Za-z-.]+)?$"
+    },
+    "generatedFrom": { "type": "string" },
+    "parts": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/definitions/part" }
+    }
+  },
+  "definitions": {
+    "part": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "version", "category", "tags", "description", "license", "dependencies", "definition"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+        "kind": { "type": "string", "enum": ["behavior", "system", "entity", "asset", "ui", "fx"] },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z-.]+)?(?:\\+[0-9A-Za-z-.]+)?$"
+        },
+        "category": { "type": "string", "minLength": 1 },
+        "tags": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "description": { "type": "string", "minLength": 1 },
+        "license": { "type": "string", "enum": ["MIT", "CC-BY-4.0"] },
+        "dependencies": {
+          "type": "array",
+          "description": "Other part/SDK-builtin type ids this part composes with.",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "params": {
+          "type": "object",
+          "description": "Per-parameter documentation for marketplace UIs (optional).",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["type", "description"],
+            "properties": {
+              "type": { "type": "string", "enum": ["number", "string", "boolean", "array", "object"] },
+              "balance": { "type": "boolean", "description": "True if this param is a balance value (must be a $cfg reference)." },
+              "description": { "type": "string" }
+            }
+          }
+        },
+        "definition": {
+          "type": "object",
+          "description": "A ready-to-use behavior/system instance template (balance via $cfg, structural literals allowed).",
+          "required": ["type", "params"],
+          "properties": {
+            "type": { "type": "string", "minLength": 1 },
+            "params": { "type": "object" }
+          }
+        }
+      }
+    }
+  }
+}

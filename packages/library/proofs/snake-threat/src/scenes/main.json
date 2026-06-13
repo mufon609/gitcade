@@ -1,0 +1,60 @@
+{
+  "id": "main",
+  "size": { "width": 600, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "player",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#7cd6ff" },
+      "size": { "w": 24, "h": 24 },
+      "position": { "x": 288, "y": 288 },
+      "tags": ["player"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "move-4dir", "params": { "speed": "$cfg.playerSpeed" } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "padding": 8 } },
+        { "type": "health-and-death", "params": { "hp": "$cfg.playerHp", "deathEvent": "player-died", "tallyKey": "playerDeaths", "deathSound": "lose" } }
+      ]
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["enemy", "player"]] } },
+    {
+      "type": "wave-spawner",
+      "params": {
+        "interval": "$cfg.spawnInterval",
+        "waveSize": "$cfg.waveSize",
+        "waveSizeGrowth": "$cfg.waveSizeGrowth",
+        "waveDelay": "$cfg.waveDelay",
+        "maxWaves": "$cfg.maxWaves",
+        "maxAlive": "$cfg.maxAlive",
+        "countTag": "enemy",
+        "spawnPoints": [{ "x": 150, "y": 150 }, { "x": 450, "y": 150 }, { "x": 150, "y": 450 }, { "x": 450, "y": 450 }],
+        "prototype": {
+          "id": "threat",
+          "sprite": { "kind": "shape", "shape": "rect", "color": "#ff5d5d" },
+          "size": { "w": 20, "h": 20 },
+          "position": { "x": 0, "y": 0 },
+          "tags": ["enemy"],
+          "layer": 2,
+          "behaviors": [
+            { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.enemySpeed" } },
+            { "type": "velocity", "params": {} },
+            { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.enemyDamage", "cooldown": "$cfg.damageCooldown" } },
+            { "type": "health-and-death", "params": { "hp": "$cfg.enemyHp", "tallyKey": "kills" } }
+          ]
+        }
+      }
+    },
+    {
+      "type": "win-lose-conditions",
+      "params": {
+        "conditions": [
+          { "key": "wave", "cmp": "gte", "value": "$cfg.winWave", "outcome": "win", "winner": "player" },
+          { "key": "playerDeaths", "cmp": "gte", "value": "$cfg.deathsToLose", "outcome": "lose", "winner": "none" }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "playerSpeed": 150,
+  "playerHp": 24,
+  "enemySpeed": 130,
+  "enemyHp": 5,
+  "enemyDamage": 3,
+  "damageCooldown": 0.3,
+  "spawnInterval": 0.3,
+  "waveSize": 4,
+  "waveSizeGrowth": 2,
+  "waveDelay": 1,
+  "maxWaves": 8,
+  "maxAlive": 12,
+  "winWave": 8,
+  "deathsToLose": 1
+}

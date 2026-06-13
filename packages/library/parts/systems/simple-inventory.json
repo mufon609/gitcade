@@ -1,0 +1,19 @@
+{
+  "id": "simple-inventory",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "economy",
+  "tags": ["economy", "inventory", "items"],
+  "license": "MIT",
+  "description": "Maintain a keyed item inventory on world.state: ensure it exists, clamp counts to capacity, and emit item-gained/item-lost events on change.",
+  "dependencies": ["collect-on-touch"],
+  "params": {
+    "inventoryKey": { "type": "string", "balance": false, "description": "world.state key holding the inventory record." },
+    "capacity": { "type": "number", "balance": true, "description": "Max count per item, 0 = unlimited." },
+    "stateKey": { "type": "string", "balance": false, "description": "world.state scratch key for change detection." }
+  },
+  "definition": {
+    "type": "simple-inventory",
+    "params": { "inventoryKey": "inventory", "capacity": "$cfg.inventoryCapacity" }
+  }
+}

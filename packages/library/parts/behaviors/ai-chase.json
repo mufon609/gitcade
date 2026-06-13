@@ -1,0 +1,21 @@
+{
+  "id": "ai-chase",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "ai",
+  "tags": ["ai", "enemy", "pursuit", "movement", "reuse-proof"],
+  "license": "MIT",
+  "description": "Pursue the nearest entity of a target tag in full 2D, with optional axis lock and acceleration. Generalizes the SDK follow-entity-axis primitive. One of the four reuse-proof parts.",
+  "dependencies": ["velocity"],
+  "params": {
+    "targetTag": { "type": "string", "balance": false, "description": "Tag of the entity to pursue." },
+    "speed": { "type": "number", "balance": true, "description": "Pursuit speed in px/sec." },
+    "stopDistance": { "type": "number", "balance": true, "description": "Center distance within which it holds still." },
+    "accel": { "type": "number", "balance": true, "description": "Optional approach acceleration in px/sec² (0 = snap)." },
+    "lockAxis": { "type": "string", "balance": false, "description": "'x' | 'y' | 'none' — constrain pursuit to one axis." }
+  },
+  "definition": {
+    "type": "ai-chase",
+    "params": { "targetTag": "player", "speed": "$cfg.enemySpeed", "stopDistance": "$cfg.enemyStopDistance", "lockAxis": "none" }
+  }
+}

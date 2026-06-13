@@ -1,0 +1,42 @@
+{
+  "id": "shoot",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "combat",
+  "tags": ["combat", "projectile", "player", "weapon"],
+  "license": "MIT",
+  "description": "Fire projectiles on a cooldown — on key press or automatically — in a fixed direction or aimed at a tag. Spawns a clone of the projectile definition.",
+  "dependencies": ["velocity", "contact-damage", "health-and-death"],
+  "params": {
+    "projectile": { "type": "object", "balance": false, "description": "Entity-definition to spawn as the projectile." },
+    "projectileSpeed": { "type": "number", "balance": true, "description": "Launch speed in px/sec." },
+    "cooldown": { "type": "number", "balance": true, "description": "Seconds between shots." },
+    "fireKeys": { "type": "array", "balance": false, "description": "Key codes that trigger a shot." },
+    "auto": { "type": "boolean", "balance": false, "description": "Fire continuously without input." },
+    "direction": { "type": "object", "balance": false, "description": "{ x, y } launch vector when not aiming (structural)." },
+    "aimTag": { "type": "string", "balance": false, "description": "Aim at nearest entity with this tag." },
+    "spawnOffset": { "type": "object", "balance": false, "description": "{ x, y } muzzle offset (structural)." }
+  },
+  "definition": {
+    "type": "shoot",
+    "params": {
+      "projectileSpeed": "$cfg.bulletSpeed",
+      "cooldown": "$cfg.fireCooldown",
+      "fireKeys": ["Space"],
+      "direction": { "x": 0, "y": -1 },
+      "spawnOffset": { "x": 0, "y": -12 },
+      "projectile": {
+        "id": "bullet",
+        "sprite": { "kind": "shape", "shape": "rect", "color": "#ffe066" },
+        "size": { "w": 4, "h": 10 },
+        "tags": ["bullet"],
+        "layer": 3,
+        "behaviors": [
+          { "type": "velocity", "params": {} },
+          { "type": "contact-damage", "params": { "targetTag": "enemy", "damage": "$cfg.bulletDamage", "selfDestruct": true } },
+          { "type": "health-and-death", "params": { "hp": "$cfg.bulletHp", "lifespan": "$cfg.bulletLifespan" } }
+        ]
+      }
+    }
+  }
+}

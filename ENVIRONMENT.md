@@ -13,8 +13,8 @@
 | git | apt | Identity configured; default branch `main`. |
 | GitHub CLI (`gh`) | apt, **already authenticated** | `gh auth setup-git` done — push/pull/fork/repo-create all work with no password prompt. Prefer `gh` for repo creation and forking. |
 | Docker + compose | apt, user in `docker` group | Run docker **without sudo**. The 4A worker runs builds as SIBLING containers by mounting `/var/run/docker.sock` — never Docker-in-Docker. Two traps: (1) inside any container, `localhost` is NOT the host — host services are loopback-bound, so attach to the infra compose network and use service names (`db:5432`, `minio:9000`), or `--network host`; (2) `-v` paths resolve on the HOST — share build workspaces between worker and builder via NAMED volumes, never the worker's internal paths. docker-group membership is root-equivalent; acceptable on this dedicated dev box. |
-| Postgres 16 | Docker container, always running | `postgresql://forkplay:forkplay@localhost:5432/forkplay` |
-| MinIO (S3-compatible) | Docker container, always running | `http://localhost:9000`, keys `forkplay` / `forkplay-secret`. Use as the artifact store locally; the S3 client config must work for both MinIO and real S3/R2 via env vars. |
+| Postgres 16 | Docker container, always running | `postgresql://gitcade:gitcade@localhost:5432/gitcade` |
+| MinIO (S3-compatible) | Docker container, always running | `http://localhost:9000`, keys `gitcade` / `gitcade-secret`. Use as the artifact store locally; the S3 client config must work for both MinIO and real S3/R2 via env vars. |
 | Chromium | apt | For headless testing. |
 | Build toolchain | apt | gcc, make, pkg-config, cairo/pango/jpeg/gif dev libs (node-canvas compiles if needed). |
 

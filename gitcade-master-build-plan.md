@@ -1,11 +1,11 @@
-# ForkPlay — Master Build Plan
+# GitCade — Master Build Plan
 ### Git for Gamers: open-source, AI-built, community-governed games
 
 ---
 
 ## 1. The Vision
 
-ForkPlay is a platform where AI-built, open-source browser games are published, played, forked, remixed, and governed by their communities.
+GitCade is a platform where AI-built, open-source browser games are published, played, forked, remixed, and governed by their communities.
 
 Three pillars, no platform combines today:
 
@@ -25,7 +25,7 @@ These decisions are final for v1. Every phase prompt assumes them. Do not reliti
 |---|---|---|
 | Git backend | GitHub API (Octokit), each game = one repo | Forking/branching/merging for free; migrate to self-hosted Gitea later if needed |
 | Game runtime | Browser-only, served in sandboxed iframe with strict CSP | One-click play of any branch; security from day one |
-| Engine standard | Custom lightweight SDK ("ForkPlay SDK") on TypeScript + Canvas/WebGL | Required for behavior-level interoperability across games |
+| Engine standard | Custom lightweight SDK ("GitCade SDK") on TypeScript + Canvas/WebGL | Required for behavior-level interoperability across games |
 | Two game tiers | **Ecosystem games** (built on SDK, full marketplace access) and **Open games** (any web tech, fork-and-play only) | Standard via incentive; door stays open for everything else |
 | Structure enforcement | Scaffold template repo + publish-time validator + the platform's webhook-triggered build pipeline. **The platform pipeline IS the CI** — do not also create GitHub Actions on game repos | The cheap path must be the compliant path; one validation system, not two |
 | Tunables | All balance values live in `config.json`, never in code | Most community votes become one-line JSON diffs |
@@ -33,7 +33,7 @@ These decisions are final for v1. Every phase prompt assumes them. Do not reliti
 | Platform stack | Next.js (App Router) + TypeScript + Tailwind + Postgres/Prisma + GitHub OAuth | Boring, fast, well-known to AI models |
 | Votes | Proposals with 70% approval threshold; owner retains veto in v1 | Simple defaults; forking is the escape valve |
 | SDK versioning | Games pin an exact SDK version in `game.json` (`sdkVersion`); SDK follows semver; builds install the pinned version | A v1.1 SDK release must never silently change or break published games |
-| SDK distribution | SDK published to **public npm** as `@forkplay/sdk` (validator CLI included). The build worker installs the pinned version from npm; the monorepo uses workspace linking only for internal development | Standalone game repos and user forks build outside the monorepo — the SDK must be installable from a public registry or no real game can build |
+| SDK distribution | SDK published to **public npm** as `@gitcade/sdk` (validator CLI included). The build worker installs the pinned version from npm; the monorepo uses workspace linking only for internal development | Standalone game repos and user forks build outside the monorepo — the SDK must be installable from a public registry or no real game can build |
 | Part versioning | Catalog parts are versioned; games reference `partId@version`; updates are opt-in per game | A part update must never silently change every game using it |
 | Save data | SDK storage API namespaces all persistence by `gameSlug + branch` automatically; raw localStorage use fails validation **(ecosystem tier only — open-tier games may use any storage and accept the cross-branch save risk)** | Switching branches or playing a fork must never corrupt saves in ecosystem games |
 | Artifact storage | Built game artifacts in S3-compatible object storage (S3/R2), served via CDN from a separate origin | Cheap, scalable, and isolates untrusted game code from the platform origin |
@@ -42,7 +42,7 @@ These decisions are final for v1. Every phase prompt assumes them. Do not reliti
 | Open-tier validation | Open games get a lighter gate: valid manifest + license + builds to static /dist + loads without console errors. No SDK/structure checks | Keeps the door open without diluting the ecosystem standard |
 | Fork naming | Fork slug = `{original-slug}--{username}` (auto, editable later); display name defaults to "Original Name (username's fork)" | One-shot prompts trip on unstated conventions; collisions prevented by design |
 | Game storage isolation | Game iframes get `sandbox="allow-scripts"` ONLY (opaque origin — strongest isolation). Games therefore CANNOT use localStorage/indexedDB directly; the SDK storage API is a **postMessage bridge**: the parent platform page persists data namespaced by `gameSlug + branch`. SDK ships a dev-shim (in-memory + JSON file) so games work standalone in `npm run dev` | `allow-scripts` alone makes browser storage throw SecurityError; adding `allow-same-origin` on a shared artifact origin would let every untrusted game read every other game's saves. The bridge resolves both and enables future cloud saves |
-| Library distribution | Library published to **public npm** as `@forkplay/library`; games pin an exact `libraryVersion` in `game.json`; `partId@version` resolves within that release. User-published marketplace parts are **vendored into the game repo** at remix time (under `src/vendored-parts/`) | Standalone repos and the build worker must resolve parts from a public registry; vendoring keeps user parts fork-safe without a private registry |
+| Library distribution | Library published to **public npm** as `@gitcade/library`; games pin an exact `libraryVersion` in `game.json`; `partId@version` resolves within that release. User-published marketplace parts are **vendored into the game repo** at remix time (under `src/vendored-parts/`) | Standalone repos and the build worker must resolve parts from a public registry; vendoring keeps user parts fork-safe without a private registry |
 | Artifact serving | A dedicated **artifact server** (built in 4A, owns storage access) serves `/artifacts/{game}/{branch}/{path}` by streaming from the bucket with correct content-types, the strict game CSP, and immutable cache headers. Port 3001 locally; the separate artifact domain in prod. **Never presigned URLs** (they break relative asset paths) and never raw MinIO/S3 (they can't set CSP) | The iframe needs index.html + relative assets with exact headers; this is load-bearing security and an ambiguity a one-shot would improvise badly |
 | Repo visibility (v1) | **Public repos only**, enforced at publish time. Anonymous clone in the worker — no worker GitHub token needed | Open-source games are the product thesis; private-repo support is a paid-tier question for later |
 | Webhooks | The **GitHub App owns the webhook**: one app-level webhook (push events) covers every installed repo automatically. No per-repo hook creation, no `admin:repo_hook` OAuth scope ever | Per-repo webhook registration was an unowned step that fell between phases; app-level delivery closes it structurally |
@@ -73,7 +73,7 @@ Each phase is one single-shot prompt. Each prompt ends at a **handoff point**: a
 **Monorepo layout (created in Phase 1, used by all phases):**
 
 ```
-forkplay/
+gitcade/
 ├── packages/
 │   ├── sdk/            # Phase 1
 │   └── library/        # Phases 2A + 2B
@@ -96,13 +96,13 @@ forkplay/
 
 ### ☑ Manual checklist (do these yourself)
 1. **Run `setup-kali.sh` once** (the one-time machine prep: system packages, Docker, nvm/Node 22, gh auth, local Postgres + MinIO). Re-login afterward for the docker group. Then place **ENVIRONMENT.md** in the repo root — it is the machine contract every AI session reads first.
-2. **GitHub org** created (e.g. `forkplay-games`) — seed games and forks live here.
+2. **GitHub org** created (e.g. `gitcade-games`) — seed games and forks live here.
 3. **GitHub OAuth App** registered (client ID/secret) for platform login + repo operations.
 4. **Postgres**: local dev DB already running via Docker from step 1; provision managed Postgres (Neon/Supabase/RDS) only when deploying.
 5. **Object storage**: local MinIO already running from step 1; create the real S3/R2 bucket only when deploying.
 6. **Worker host** chosen for the build pipeline (Fly.io, a VPS with Docker, or ECS). Decide now; Phase 4A builds against it (locally, the worker runs as a Docker container on this machine).
 7. **Domains**: one for the platform app, one *separate* domain/subdomain for serving game artifacts (security isolation — locked decision). Needed at deploy time, not for local dev.
-8. **npm account** created (and `npm login` done) — you publish `@forkplay/sdk` (Phase 1 gate) and `@forkplay/library` (Phase 2B gate) manually; the org/scope `@forkplay` must be claimed now.
+8. **npm account** created (and `npm login` done) — you publish `@gitcade/sdk` (Phase 1 gate) and `@gitcade/library` (Phase 2B gate) manually; the org/scope `@gitcade` must be claimed now.
 8b. **GitHub App** registered under the org with: contents read/write permission, **push-event webhook enabled at the app level** (per the locked Webhooks decision), webhook secret set. Generate the private key; key + secret go in `.env`.
 8c. **smee.io channel** created (one click at smee.io) and set as the App's webhook URL for local dev; the channel URL goes in `.env` as WEBHOOK_PROXY_URL. Swap to the real endpoint at deploy time.
 9. **Anthropic API key / Claude Code** ready for the build sessions.
@@ -110,7 +110,7 @@ forkplay/
 ### ▶ SINGLE-SHOT PROMPT — PHASE 0 (the only AI part)
 
 ```
-You are building Phase 0 of ForkPlay (read MASTER-PLAN.md). Create
+You are building Phase 0 of GitCade (read MASTER-PLAN.md). Create
 the monorepo skeleton and environment plumbing only — no app code.
 
 1. Initialize the monorepo (npm workspaces) with the layout from
@@ -157,17 +157,17 @@ The next prompt consumes: the monorepo skeleton and DECISIONS.md. All credential
 ### ▶ SINGLE-SHOT PROMPT — PHASE 1
 
 ```
-You are building Phase 1 of ForkPlay (read MASTER-PLAN.md in repo root
+You are building Phase 1 of GitCade (read MASTER-PLAN.md in repo root
 for full context; obey all Locked Architecture Decisions).
 
-Build the ForkPlay SDK: a lightweight TypeScript entity-component game
+Build the GitCade SDK: a lightweight TypeScript entity-component game
 runtime for 2D browser games, in packages/sdk/.
 
 DELIVERABLES
 
 1. SCHEMA (packages/sdk/src/schema/) — Zod schemas + exported TS types:
    - game.json manifest: { name, slug, description, version,
-     engine: "forkplay-sdk", sdkVersion (exact semver pin),
+     engine: "gitcade-sdk", sdkVersion (exact semver pin),
      libraryVersion (exact semver pin; REQUIRED for ecosystem
      tier, omitted for open tier), entryPoint, license, authors[],
      tier: "ecosystem" | "open" }
@@ -218,7 +218,7 @@ DELIVERABLES
    - npm scripts: dev, build (outputs static /dist), test
 
 4. VALIDATOR (packages/sdk/src/validate/):
-   - CLI: `forkplay validate <dir>` — checks manifest, schema
+   - CLI: `gitcade validate <dir>` — checks manifest, schema
      compliance, the storage rule, and the MECHANICAL no-magic-
      numbers rule: a numeric literal in behavior/system params
      FAILS unless its key is on the structural whitelist defined
@@ -239,7 +239,7 @@ CONSTRAINTS
 - Zero runtime dependencies beyond the platform (Zod for schema ok)
 - Every public API has TSDoc comments
 - Vitest for tests; meaningful coverage on runtime core
-- Package as @forkplay/sdk ready for public npm publish (proper
+- Package as @gitcade/sdk ready for public npm publish (proper
   exports map, files whitelist, semver 0.1.0, validator exposed as
   a bin). Do a dry-run pack; the human runs `npm publish` at the
   gate (publishing is a core-path human action, not yours)
@@ -253,10 +253,10 @@ peripheral blockers are logged and routed around.
 ```
 
 ### ✅ Definition of Done
-- `forkplay validate examples/pong` passes
+- `gitcade validate examples/pong` passes
 - Pong is playable via `npm run dev`
 - All schemas exported as both Zod validators and TS types
-- `npm pack` dry-run produces a clean publishable @forkplay/sdk tarball; human publishes v0.1.0 to npm at this gate
+- `npm pack` dry-run produces a clean publishable @gitcade/sdk tarball; human publishes v0.1.0 to npm at this gate
 
 ### 🔗 Handoff to Phase 2
 The next prompt consumes: `packages/sdk` (published locally via workspace), the schema types, the behavior function signature, and the `$cfg` tunable convention. **The schema is now frozen** — Phase 2 may add behavior *types* but may not change the schema shape.
@@ -270,7 +270,7 @@ The next prompt consumes: `packages/sdk` (published locally via workspace), the 
 ### ▶ SINGLE-SHOT PROMPT — PHASE 2A
 
 ```
-You are building Phase 2A of ForkPlay (read MASTER-PLAN.md and
+You are building Phase 2A of GitCade (read MASTER-PLAN.md and
 DECISIONS.md). The SDK in packages/sdk is frozen — build against it,
 do not modify its schema. Add behavior/system TYPES only via its
 registration API.
@@ -332,7 +332,7 @@ The next prompt consumes: the behavior/system catalog and the registration patte
 ### ▶ SINGLE-SHOT PROMPT — PHASE 2B
 
 ```
-You are building Phase 2B of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 2B of GitCade (read MASTER-PLAN.md,
 DECISIONS.md). SDK and Phase 2A logic parts are frozen. Build the
 presentational half of packages/library/, extending CATALOG.json.
 Same per-item requirements as 2A (versioned, tested, licensed —
@@ -386,7 +386,7 @@ peripheral blockers are logged and routed around.
 - `gen-assets.ts` deterministically produces every sprite/tileset
 - The re-skinned demo looks stylistically coherent and has working audio
 - `CATALOG.json` now covers all 7 categories, all versioned
-- `npm pack` dry-run produces a clean publishable @forkplay/library tarball (assets included); human publishes v0.1.0 at this gate per the Library-distribution locked decision
+- `npm pack` dry-run produces a clean publishable @gitcade/library tarball (assets included); human publishes v0.1.0 at this gate per the Library-distribution locked decision
 
 ### 🔗 Handoff to Phase 3
 The next prompt consumes: the complete `packages/library` + `CATALOG.json`. Seed games must be built **only** from catalog parts (referenced as `partId@version`) plus per-game `config.json` and scene definitions. Custom behaviors allowed only in `src/custom-behaviors/` and flagged as candidates for library generalization.
@@ -402,7 +402,7 @@ Games: **Snake, Helicopter (one-button scroller), Breakout, Tower Defense (3 tow
 ### ▶ SINGLE-SHOT PROMPT — PHASE 3
 
 ```
-You are building Phase 3 of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 3 of GitCade (read MASTER-PLAN.md,
 DECISIONS.md). SDK and library are frozen. Build six complete,
 polished seed games in games/, each starting from
 templates/game-scaffold and composing ONLY parts from
@@ -425,7 +425,7 @@ GAMES & WHAT EACH MUST PROVE
    scaling, FX showcase (particles, screen shake)
 
 REQUIREMENTS PER GAME
-- Passes `forkplay validate`
+- Passes `gitcade validate`
 - Title screen, pause, game-over, mobile touch support
 - README.md: how it's composed (which library parts), how to fork
   and rebalance via config.json, with one worked example
@@ -435,7 +435,7 @@ REQUIREMENTS PER GAME
 - If a game genuinely needs a custom behavior, write it in
   src/custom-behaviors/, keep it param-driven, and log it in
   games/LIBRARY-GAPS.md as a generalization candidate.
-- Games must depend on @forkplay/sdk AND @forkplay/library from
+- Games must depend on @gitcade/sdk AND @gitcade/library from
   npm (pinned sdkVersion + libraryVersion in game.json), NOT
   workspace links — they are about to live in standalone repos
   and the 4A worker must resolve everything from public npm.
@@ -463,7 +463,7 @@ peripheral blockers are logged and routed around.
 - `LIBRARY-GAPS.md` exists (even if empty)
 - Tower Defense and Idle Clicker have 100% of balance in config.json
 - Six standalone repos + the template repo exist in the GitHub org; `games/PUBLISHED.md` lists them
-- Each standalone game builds in a clean clone using @forkplay/sdk from npm (no workspace link)
+- Each standalone game builds in a clean clone using @gitcade/sdk from npm (no workspace link)
 
 ### 🔗 Handoff to Phase 4
 The next prompt consumes: six standalone GitHub repos (URLs in `games/PUBLISHED.md`), each building from a clean clone against the published npm SDK. The platform treats these as its launch content; the build worker (Phase 4A) must reproduce these builds.
@@ -477,7 +477,7 @@ The next prompt consumes: six standalone GitHub repos (URLs in `games/PUBLISHED.
 ### ▶ SINGLE-SHOT PROMPT — PHASE 4A
 
 ```
-You are building Phase 4A of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 4A of GitCade (read MASTER-PLAN.md,
 DECISIONS.md, ENVIRONMENT.md). Build the build worker as a
 standalone service in platform/worker/ — no web UI in this phase.
 
@@ -489,7 +489,7 @@ Postgres-backed queue table and executes:
   locked decision; visibility is enforced at publish, not here) →
   detect tier from game.json →
   install deps including the PINNED sdkVersion from npm →
-  tier-appropriate validation (ECOSYSTEM: full `forkplay validate`;
+  tier-appropriate validation (ECOSYSTEM: full `gitcade validate`;
   OPEN: manifest + license + builds + loads headlessly without
   console errors, using system Chromium per ENVIRONMENT.md) →
   build /dist → upload artifact to S3-compatible storage
@@ -570,7 +570,7 @@ The next prompt consumes: the worker service, its queue table contract (how to e
 ### ▶ SINGLE-SHOT PROMPT — PHASE 4B
 
 ```
-You are building Phase 4B of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 4B of GitCade (read MASTER-PLAN.md,
 DECISIONS.md, ENVIRONMENT.md). The build worker from 4A is frozen —
 the web app enqueues jobs and reads Build rows; it NEVER builds.
 
@@ -600,7 +600,7 @@ FEATURES
    → on pass: live; on fail: show the worker's stored errors
    verbatim. THE VALIDATOR IS THE GATE — no manual override.
    ECOSYSTEM games additionally get a "Enable community governance"
-   step: prompt the owner to install the ForkPlay GitHub App on
+   step: prompt the owner to install the GitCade GitHub App on
    the repo (link to the install URL, then capture and store the
    installationId on the Game row via the callback). Skippable at
    publish, but Phase 7 proposals are disabled until installed —
@@ -656,7 +656,7 @@ The next prompt consumes: the worker + queue (already branch-aware), the Game mo
 ### ▶ SINGLE-SHOT PROMPT — PHASE 5
 
 ```
-You are building Phase 5 of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 5 of GitCade (read MASTER-PLAN.md,
 DECISIONS.md). Extend platform/ with forking and branch play.
 
 FEATURES
@@ -722,7 +722,7 @@ The next prompt consumes: `CATALOG.json` from Phase 2, the build pipeline, and t
 ### ▶ SINGLE-SHOT PROMPT — PHASE 6
 
 ```
-You are building Phase 6 of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 6 of GitCade (read MASTER-PLAN.md,
 DECISIONS.md). Build the marketplace into platform/.
 
 FEATURES
@@ -775,7 +775,7 @@ The next prompt consumes: the ConfigDiff component (Phase 5), the remix commit m
 ### ▶ SINGLE-SHOT PROMPT — PHASE 7
 
 ```
-You are building Phase 7 of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 7 of GitCade (read MASTER-PLAN.md,
 DECISIONS.md). Build governance into platform/.
 
 CORE MODEL
@@ -847,7 +847,7 @@ The next prompt consumes: the complete, working platform. Phase 8 hardens, polis
 ### ▶ SINGLE-SHOT PROMPT — PHASE 8
 
 ```
-You are building Phase 8 of ForkPlay (read MASTER-PLAN.md,
+You are building Phase 8 of GitCade (read MASTER-PLAN.md,
 DECISIONS.md). Hardening and launch prep only — no new features.
 
 1. SECURITY PASS: audit iframe sandboxing + CSP; ensure built
@@ -867,7 +867,7 @@ DECISIONS.md). Hardening and launch prep only — no new features.
 5. THE STARTER KIT (public growth asset): write
    platform/public/starter-kit.md — a copy-paste prompt for Claude
    that generates a brand-new, fully compliant ecosystem game from
-   the scaffold + catalog, ready to publish on ForkPlay. Test it by
+   the scaffold + catalog, ready to publish on GitCade. Test it by
    actually generating one new game with it and publishing through
    the real flow.
 6. OPS: error tracking, structured logs, health checks, seed +

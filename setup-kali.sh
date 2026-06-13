@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# ForkPlay — one-time environment prep for Kali Linux (rolling)
+# GitCade — one-time environment prep for Kali Linux (rolling)
 # Run as your normal user: bash setup-kali.sh
 # It will ask for sudo ONCE for system packages, then never again.
 # After this script, no AI session should ever need sudo.
@@ -99,19 +99,19 @@ gh auth status || gh auth login
 gh auth setup-git   # git push/pull now uses gh credentials — no password walls
 
 echo "==> [6/7] Local Postgres via Docker (dev database)"
-mkdir -p ~/forkplay-infra
-cat > ~/forkplay-infra/docker-compose.yml <<'EOF'
+mkdir -p ~/gitcade-infra
+cat > ~/gitcade-infra/docker-compose.yml <<'EOF'
 services:
   db:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: forkplay
-      POSTGRES_PASSWORD: forkplay
-      POSTGRES_DB: forkplay
+      POSTGRES_USER: gitcade
+      POSTGRES_PASSWORD: gitcade
+      POSTGRES_DB: gitcade
     ports: ["127.0.0.1:5432:5432"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U forkplay"]
+      test: ["CMD-SHELL", "pg_isready -U gitcade"]
       interval: 3s
       timeout: 3s
       retries: 15
@@ -121,16 +121,16 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: forkplay
-      MINIO_ROOT_PASSWORD: forkplay-secret
+      MINIO_ROOT_USER: gitcade
+      MINIO_ROOT_PASSWORD: gitcade-secret
     ports: ["127.0.0.1:9000:9000", "127.0.0.1:9001:9001"]
     volumes: [miniodata:/data]
 volumes:
   pgdata:
   miniodata:
 EOF
-docker compose -f ~/forkplay-infra/docker-compose.yml up -d || \
-  echo "!! If this failed with a permissions error, log out/in (docker group) and run: docker compose -f ~/forkplay-infra/docker-compose.yml up -d"
+docker compose -f ~/gitcade-infra/docker-compose.yml up -d || \
+  echo "!! If this failed with a permissions error, log out/in (docker group) and run: docker compose -f ~/gitcade-infra/docker-compose.yml up -d"
 
 echo "==> [7/7] Sanity checks"
 node -v && npm -v
@@ -153,8 +153,8 @@ echo "   docker ps            -> shows postgres + minio"
 echo "   gh auth status       -> logged in"
 echo ""
 echo " Dev connection strings for .env:"
-echo "   DATABASE_URL=postgresql://forkplay:forkplay@localhost:5432/forkplay"
-echo "   S3_ENDPOINT=http://localhost:9000  (keys: forkplay / forkplay-secret)"
+echo "   DATABASE_URL=postgresql://gitcade:gitcade@localhost:5432/gitcade"
+echo "   S3_ENDPOINT=http://localhost:9000  (keys: gitcade / gitcade-secret)"
 echo "   S3_FORCE_PATH_STYLE=true   # MinIO needs path-style; real S3 = false"
 echo ""
 echo " CHROMIUM NOTE: if chromium failed above, do NOT fight apt."

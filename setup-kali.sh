@@ -76,10 +76,18 @@ else
 fi
 
 echo "==> [3/7] Node via nvm (user-space — no sudo ever needed for npm)"
-if [ ! -d "$HOME/.nvm" ]; then
+# nvm may already live at the XDG path (~/.config/nvm) or the classic ~/.nvm.
+# Detect an existing install before reinstalling; only bootstrap to ~/.nvm if
+# neither exists. (Sourcing a hardcoded ~/.nvm/nvm.sh under `set -e` was a fatal
+# crash when nvm was actually at ~/.config/nvm.)
+if [ -s "$HOME/.config/nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.config/nvm"
+elif [ -s "$HOME/.nvm/nvm.sh" ]; then
+  export NVM_DIR="$HOME/.nvm"
+else
+  export NVM_DIR="$HOME/.nvm"
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
 fi
-export NVM_DIR="$HOME/.nvm"
 # shellcheck disable=SC1091
 . "$NVM_DIR/nvm.sh"
 nvm install 22

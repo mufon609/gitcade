@@ -15,7 +15,7 @@
 | Docker + compose | apt, user in `docker` group | Run docker **without sudo**. The 4A worker runs builds as SIBLING containers by mounting `/var/run/docker.sock` — never Docker-in-Docker. Two traps: (1) inside any container, `localhost` is NOT the host — host services are loopback-bound, so attach to the infra compose network and use service names (`db:5432`, `minio:9000`), or `--network host`; (2) `-v` paths resolve on the HOST — share build workspaces between worker and builder via NAMED volumes, never the worker's internal paths. docker-group membership is root-equivalent; acceptable on this dedicated dev box. |
 | Postgres 16 | Docker container, always running | `postgresql://gitcade:gitcade@localhost:5432/gitcade` |
 | MinIO (S3-compatible) | Docker container, always running | `http://localhost:9000`, keys `gitcade` / `gitcade-secret`. Use as the artifact store locally; the S3 client config must work for both MinIO and real S3/R2 via env vars. |
-| Chromium | apt | For headless testing. |
+| Chromium (Chrome for Testing) | Playwright-managed, user-space | Headless **and** headed browser for rendering tests. The Debian/Kali `chromium` apt package is uninstallable on this rolling box (libflac12 / chromium-common conflict) — do **not** try. Instead a Playwright Chrome-for-Testing build lives under `~/.cache/ms-playwright`, exposed on PATH as `chromium` via a `~/.local/bin/chromium` shim (forces software GL). Use `chromium` directly, or point Playwright/chrome-launcher at the same binary via `executablePath`. For manual browsing of the site, `firefox` is also installed. |
 | Build toolchain | apt | gcc, make, pkg-config, cairo/pango/jpeg/gif dev libs (node-canvas compiles if needed). |
 
 ## Hard rules (permission walls)
@@ -29,7 +29,7 @@
 6. **Disk hygiene:** node_modules are fine; do not pull multi-GB Docker images without noting it in DECISIONS.md.
 
 ## Testing constraints
-- Headless smoke tests: prefer Vitest + jsdom for logic; use the installed Chromium (via Playwright with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` and `executablePath` pointed at system chromium, or chrome-launcher) for real rendering checks. Do not run `npx playwright install-deps` (needs sudo); system deps already exist.
+- Headless smoke tests: prefer Vitest + jsdom for logic; for real rendering checks use the Playwright-managed Chrome-for-Testing — either the `chromium` shim on PATH, or Playwright/chrome-launcher with `executablePath` pointed at the binary under `~/.cache/ms-playwright` (set `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` to reuse it rather than re-download). Do not run `npx playwright install-deps` (needs sudo); system deps already exist. To **watch** a run live, launch the same binary headed (omit `--headless`) — an X11 session is present.
 - node-canvas may be compiled (build deps present) but prefer browser-based rendering tests.
 
 ## Environment variables

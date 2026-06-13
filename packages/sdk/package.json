@@ -14,11 +14,14 @@
     "canvas",
     "browser-games"
   ],
-  "homepage": "https://github.com/gitcade-games",
+  "homepage": "https://github.com/mufon609/gitcade",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gitcade-games/gitcade.git",
+    "url": "git+https://github.com/mufon609/gitcade.git",
     "directory": "packages/sdk"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "exports": {
     ".": {

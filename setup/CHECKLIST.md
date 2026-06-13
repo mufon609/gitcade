@@ -56,9 +56,9 @@ Distinct from the OAuth App. Owns governance auto-commits + the one app-level we
 - [x] Permissions → Repository → **Contents: Read & write**.
 - [x] Subscribe to events → **Push**.
 - [x] Webhook: **Active**. URL = your smee.io URL from step 4 (do step 4 first or come back). Set a **Webhook secret** (any random string) → `GITHUB_WEBHOOK_SECRET`.
-- [ ] "Where can this app be installed?" → Only this account (fine for v1).
-- [ ] Create. Copy the **App ID** → `GITHUB_APP_ID`.
-- [ ] Scroll to **Private keys** → Generate a private key → downloads a `.pem`. Save it one of the two ways below.
+- [x] "Where can this app be installed?" → Only this account (fine for v1).
+- [x] Create. Copy the **App ID** → `GITHUB_APP_ID`.
+- [x] Scroll to **Private keys** → Generate a private key → downloads a `.pem`. Save it one of the two ways below.
 
 **Note — App name**
 
@@ -98,8 +98,8 @@ GitHub can't reach localhost; smee relays webhooks to your machine.
 
 ## 6. npm — publish access for `@gitcade` (no `.env` key; gate-time)
 Not needed to start; required at the Phase 1 and Phase 2B **publish gates**.
-- [ ] `npm login` (creates/uses your npmjs account).
-- [ ] Claim the scope: create an npm org/scope named `gitcade` (npmjs.com → add org), or confirm `@gitcade` is yours. Publishing `@gitcade/sdk` later needs this.
+- [x] `npm login` (creates/uses your npmjs account).
+- [x] Claim the scope: create an npm org/scope named `gitcade` (npmjs.com → add org), or confirm `@gitcade` is yours. Publishing `@gitcade/sdk` later needs this.
 
 ## 7. Anthropic API key → `ANTHROPIC_API_KEY` (optional)
 - [ ] Only if your Claude Code build sessions need a key here. Skip if Claude Code is already authenticated.

@@ -66,11 +66,11 @@ Must be **globally unique across all of GitHub** (not just your org), and it bec
 
 **Note — Saving the private key**
 
-Recommended (file path, no escaping): move the `.pem` into the repo's `secrets/` folder (already gitignored) and point `.env` at it, leaving the inline key blank:
+Recommended (file path, no escaping): move the `.pem` into the repo's `setup/secrets/` folder (already gitignored) and point `.env` at it, leaving the inline key blank:
 
 ```
 GITHUB_APP_PRIVATE_KEY=
-GITHUB_APP_PRIVATE_KEY_PATH=./secrets/<your-app>.private-key.pem
+GITHUB_APP_PRIVATE_KEY_PATH=./setup/secrets/<your-app>.private-key.pem
 ```
 
 Alternative (inline, for hosts that can't ship a file, e.g. Vercel): collapse the whole PEM onto ONE line, replacing each real line break with a literal `\n` (backslash + n, *not* an actual newline — the app converts them back at load):
@@ -79,7 +79,7 @@ Alternative (inline, for hosts that can't ship a file, e.g. Vercel): collapse th
 GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIB...\n...\n-----END RSA PRIVATE KEY-----\n"
 ```
 
-Never commit the `.pem` — the `*.pem` and `secrets/` rules in `.gitignore` already prevent it.
+Never commit the `.pem` — the `*.pem` and `setup/secrets/` rules in `.gitignore` already prevent it.
 
 ## 4. smee.io channel → `WEBHOOK_PROXY_URL`
 GitHub can't reach localhost; smee relays webhooks to your machine.

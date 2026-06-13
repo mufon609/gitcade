@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # ============================================================
 # GitCade — one-time environment prep for Kali Linux (rolling)
-# Run as your normal user: bash setup-kali.sh
+# Run as your normal user from the repo root: bash setup/setup-kali.sh
 # It will ask for sudo ONCE for system packages, then never again.
 # After this script, no AI session should ever need sudo.
 # ============================================================
 set -euo pipefail
 
 # REQUIRED up front — fail before any sudo work, not after
-: "${GIT_NAME:?Set GIT_NAME first, e.g.: GIT_NAME='Jane Doe' GIT_EMAIL='jane@x.com' bash setup-kali.sh}"
+: "${GIT_NAME:?Set GIT_NAME first, e.g.: GIT_NAME='Jane Doe' GIT_EMAIL='jane@x.com' bash setup/setup-kali.sh}"
 : "${GIT_EMAIL:?Set GIT_EMAIL first}"
 
 echo "==> [1/7] System packages (sudo required once)"

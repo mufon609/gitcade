@@ -95,7 +95,7 @@ gitcade/
 **Goal:** everything later prompts assume exists. This phase is mostly *you*, not the AI — accounts and credentials a one-shot prompt cannot create. Skipping this is the #1 way later phases stall.
 
 ### ☑ Manual checklist (do these yourself)
-1. **Run `setup-kali.sh` once** (the one-time machine prep: system packages, Docker, nvm/Node 22, gh auth, local Postgres + MinIO). Re-login afterward for the docker group. Then place **ENVIRONMENT.md** in the repo root — it is the machine contract every AI session reads first.
+1. **Run `setup/setup-kali.sh` once** (the one-time machine prep: system packages, Docker, nvm/Node 22, gh auth, local Postgres + MinIO). Re-login afterward for the docker group. Then place **ENVIRONMENT.md** in the repo root — it is the machine contract every AI session reads first.
 2. **GitHub org** created (e.g. `gitcade-games`) — seed games and forks live here.
 3. **GitHub OAuth App** registered (client ID/secret) for platform login + repo operations.
 4. **Postgres**: local dev DB already running via Docker from step 1; provision managed Postgres (Neon/Supabase/RDS) only when deploying.
@@ -116,7 +116,7 @@ the monorepo skeleton and environment plumbing only — no app code.
 1. Initialize the monorepo (npm workspaces) with the layout from
    MASTER-PLAN.md section 3, including empty packages/, games/,
    platform/, templates/ directories with placeholder READMEs.
-2. Create .env.example documenting every variable later phases
+2. Create setup/.env.example documenting every variable later phases
    need: DATABASE_URL, GITHUB_ORG, GITHUB_OAUTH_ID/SECRET,
    GITHUB_APP_ID/PRIVATE_KEY (governance auto-commits;
    installation IDs are per-Game DATABASE data, not env),
@@ -141,7 +141,7 @@ escalation protocol for any blocker.
 
 ### ✅ Definition of Done
 - Every item on the manual checklist exists and credentials are in a local `.env`
-- Monorepo skeleton committed; `.env.example` covers all variables
+- Monorepo skeleton committed; `setup/.env.example` covers all variables
 
 ### 🔗 Handoff to Phase 1
 The next prompt consumes: the monorepo skeleton and DECISIONS.md. All credentials exist but no later phase ever needs you to create an account mid-build.
@@ -894,7 +894,7 @@ Before starting each phase, manually verify the prior phase's Definition of Done
 
 | Gate | The one question to answer |
 |---|---|
-| After 0 | Do all credentials exist and does `.env.example` cover everything? |
+| After 0 | Do all credentials exist and does `setup/.env.example` cover everything? |
 | After 1 | Can Pong exist as pure JSON on the SDK? |
 | After 2A | Do the same 4 logic parts genuinely power 4 genres? |
 | After 2B | Does the re-skinned demo look coherent, with deterministic assets? |

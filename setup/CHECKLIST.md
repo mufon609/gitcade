@@ -6,7 +6,7 @@ external accounts a build session cannot create for you. Work top to bottom;
 each step ends with the `.env` key(s) it fills. When every key in `.env` is set,
 the box is build-ready.
 
-First: copy `.env.example` → `.env` with `cp .env.example .env`
+First, from the repo root: copy the template → `.env` with `cp setup/.env.example .env`
 
 ---
 

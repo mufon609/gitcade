@@ -33,7 +33,7 @@
 - node-canvas may be compiled (build deps present) but prefer browser-based rendering tests.
 
 ## Environment variables
-A populated `.env` exists in the repo root (gitignored). `.env.example` documents every key. If a key you need is missing from `.env`, treat it as a BLOCKED.md event — do not invent values for external services. Local Postgres/MinIO values may be used freely.
+A populated `.env` exists in the repo root (gitignored). `setup/.env.example` documents every key. If a key you need is missing from `.env`, treat it as a BLOCKED.md event — do not invent values for external services. Local Postgres/MinIO values may be used freely.
 
 ## Escalation protocol (two tiers)
 

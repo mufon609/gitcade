@@ -1,6 +1,6 @@
 .claude/settings.local.json
 
-# Secrets — never commit. .env.example is the safe template that IS committed.
+# Secrets — never commit. setup/.env.example is the safe template that IS committed.
 .env
 .env.local
 .env.*.local

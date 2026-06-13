@@ -6,3 +6,9 @@
 .env.*.local
 *.pem
 setup/secrets/
+
+# Node / build outputs (npm workspaces)
+node_modules/
+dist/
+.next/
+*.tsbuildinfo

@@ -1,0 +1,64 @@
+{
+  "name": "@gitcade/sdk",
+  "version": "0.1.0",
+  "description": "GitCade SDK — the frozen contract: schema, entity-component runtime, storage bridge, and validator CLI for AI-built, community-governed browser games.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "gitcade",
+    "game-engine",
+    "entity-component",
+    "canvas",
+    "browser-games"
+  ],
+  "homepage": "https://github.com/gitcade-games",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gitcade-games/gitcade.git",
+    "directory": "packages/sdk"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./validate": {
+      "types": "./dist/validate/index.d.ts",
+      "import": "./dist/validate/index.js",
+      "require": "./dist/validate/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "gitcade": "./bin/gitcade.mjs"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

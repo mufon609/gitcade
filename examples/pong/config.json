@@ -1,0 +1,14 @@
+{
+  "paddleSpeed": 380,
+  "aiPaddleSpeed": 320,
+  "aiDeadzone": 10,
+  "ballStartVx": 300,
+  "ballStartVy": 120,
+  "ballServeSpeed": 300,
+  "ballServeSpread": 220,
+  "ballSpeedup": 1.06,
+  "ballMaxSpeed": 680,
+  "ballEnglish": 200,
+  "wallRestitution": 1,
+  "winScore": 7
+}

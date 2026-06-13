@@ -1,0 +1,13 @@
+{
+  "name": "My GitCade Game",
+  "slug": "my-gitcade-game",
+  "description": "A new GitCade ecosystem game scaffolded from the template.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "you", "github": "your-handle" }],
+  "tier": "ecosystem"
+}

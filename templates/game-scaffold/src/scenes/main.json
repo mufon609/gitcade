@@ -1,0 +1,26 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "title",
+      "sprite": { "kind": "text", "text": "My GitCade Game", "font": "32px monospace", "color": "#e5e5e5", "align": "center" },
+      "position": { "x": 400, "y": 24 },
+      "layer": 5
+    },
+    {
+      "id": "ball",
+      "sprite": { "kind": "shape", "shape": "circle", "color": "#ffd166" },
+      "size": { "w": 24, "h": 24 },
+      "position": { "x": 388, "y": 288 },
+      "tags": ["ball"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "bounce-world-edges", "params": { "edges": ["top", "bottom", "left", "right"], "restitution": "$cfg.wallRestitution" } },
+        { "type": "velocity", "params": { "vx": "$cfg.ballSpeedX", "vy": "$cfg.ballSpeedY" } }
+      ]
+    }
+  ],
+  "systems": []
+}

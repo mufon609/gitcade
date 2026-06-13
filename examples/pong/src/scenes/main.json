@@ -1,0 +1,74 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "net",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#1d2433" },
+      "size": { "w": 4, "h": 600 },
+      "position": { "x": 398, "y": 0 },
+      "layer": 0
+    },
+    {
+      "id": "scoreLeft",
+      "sprite": { "kind": "text", "text": "0", "bind": "scoreLeft", "font": "56px monospace", "color": "#e5e5e5", "align": "right" },
+      "size": { "w": 0, "h": 0 },
+      "position": { "x": 360, "y": 32 },
+      "tags": ["hud"],
+      "layer": 5
+    },
+    {
+      "id": "scoreRight",
+      "sprite": { "kind": "text", "text": "0", "bind": "scoreRight", "font": "56px monospace", "color": "#e5e5e5", "align": "left" },
+      "size": { "w": 0, "h": 0 },
+      "position": { "x": 440, "y": 32 },
+      "tags": ["hud"],
+      "layer": 5
+    },
+    {
+      "id": "leftPaddle",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#7cd6ff" },
+      "size": { "w": 14, "h": 96 },
+      "position": { "x": 28, "y": 252 },
+      "tags": ["paddle", "player"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "keyboard-axis", "params": { "axis": "y", "neg": ["KeyW", "ArrowUp"], "pos": ["KeyS", "ArrowDown"], "speed": "$cfg.paddleSpeed" } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "axis": "y", "padding": 12 } }
+      ]
+    },
+    {
+      "id": "rightPaddle",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#ff8f8f" },
+      "size": { "w": 14, "h": 96 },
+      "position": { "x": 758, "y": 252 },
+      "tags": ["paddle", "ai"],
+      "layer": 1,
+      "behaviors": [
+        { "type": "follow-entity-axis", "params": { "targetTag": "ball", "axis": "y", "speed": "$cfg.aiPaddleSpeed", "deadzone": "$cfg.aiDeadzone" } },
+        { "type": "velocity", "params": {} },
+        { "type": "clamp-to-world", "params": { "axis": "y", "padding": 12 } }
+      ]
+    },
+    {
+      "id": "ball",
+      "sprite": { "kind": "shape", "shape": "circle", "color": "#ffd166" },
+      "size": { "w": 16, "h": 16 },
+      "position": { "x": 392, "y": 292 },
+      "tags": ["ball"],
+      "layer": 2,
+      "behaviors": [
+        { "type": "reflect-on-hit", "params": { "tag": "paddle", "axis": "x", "speedScale": "$cfg.ballSpeedup", "maxSpeed": "$cfg.ballMaxSpeed", "english": "$cfg.ballEnglish" } },
+        { "type": "bounce-world-edges", "params": { "edges": ["top", "bottom"], "restitution": "$cfg.wallRestitution" } },
+        { "type": "velocity", "params": { "vx": "$cfg.ballStartVx", "vy": "$cfg.ballStartVy" } },
+        { "type": "score-zone", "params": { "zones": [{ "edge": "left", "scoreKey": "scoreRight" }, { "edge": "right", "scoreKey": "scoreLeft" }], "resetTo": { "x": 392, "y": 292 }, "serveSpeed": "$cfg.ballServeSpeed", "serveSpread": "$cfg.ballServeSpread" } }
+      ]
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["ball", "paddle"]] } },
+    { "type": "win-condition", "params": { "conditions": [{ "key": "scoreLeft", "gte": "$cfg.winScore", "winner": "left" }, { "key": "scoreRight", "gte": "$cfg.winScore", "winner": "right" }], "sound": "win" } }
+  ]
+}

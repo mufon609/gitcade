@@ -11,11 +11,13 @@
     "packages/*",
     "games/*",
     "platform/*",
-    "templates/*"
+    "templates/*",
+    "examples/*"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present"
+    "lint": "npm run lint --workspaces --if-present",
+    "validate:pong": "gitcade validate examples/pong"
   }
 }

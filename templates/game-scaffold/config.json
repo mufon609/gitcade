@@ -1,0 +1,5 @@
+{
+  "ballSpeedX": 200,
+  "ballSpeedY": 150,
+  "wallRestitution": 1
+}

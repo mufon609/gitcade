@@ -249,6 +249,30 @@ export async function compareRefs(
   };
 }
 
+export interface DirEntry {
+  name: string;
+  path: string;
+  type: "file" | "dir";
+}
+
+/** List a directory's entries via the contents API. Returns [] if the path is
+ *  missing (404) so callers can fall back to a known entry point. */
+export async function listDir(
+  ref: RepoRef,
+  dirPath: string,
+  branch: string,
+  token?: string,
+): Promise<DirEntry[]> {
+  const res = await fetch(
+    `https://api.github.com/repos/${ref.owner}/${ref.repo}/contents/${dirPath}?ref=${encodeURIComponent(branch)}`,
+    { headers: ghHeaders(token), cache: "no-store" },
+  );
+  if (!res.ok) return [];
+  const body = (await res.json()) as Array<{ name: string; path: string; type: string }>;
+  if (!Array.isArray(body)) return [];
+  return body.map((e) => ({ name: e.name, path: e.path, type: e.type === "dir" ? "dir" : "file" }));
+}
+
 /** Read a file (decoded) plus its blob sha — the sha is required to PUT an update. */
 export async function getFileWithSha(
   ref: RepoRef,
@@ -295,6 +319,88 @@ export async function putFile(
   }
   const body = (await res.json()) as { commit?: { sha?: string } };
   return { ok: true, commit: body.commit?.sha };
+}
+
+export interface CommitFile {
+  path: string;
+  content: string;
+}
+
+/** Commit MULTIPLE file changes as ONE readable commit on `branch`, via the git
+ *  data API (get ref HEAD → base tree → create blobs → create tree → create commit
+ *  → fast-forward the branch ref). Phase 6 remixes touch scene + config + maybe a
+ *  vendored part in a single commit, so a one-file contents PUT (one commit each)
+ *  is insufficient. */
+export async function commitFiles(
+  ref: RepoRef,
+  branch: string,
+  files: CommitFile[],
+  message: string,
+  token: string,
+): Promise<{ ok: boolean; commit?: string; error?: string }> {
+  const base = `https://api.github.com/repos/${ref.owner}/${ref.repo}`;
+  const h = ghHeaders(token);
+
+  // 1. Current branch HEAD commit + its tree.
+  const refRes = await fetch(`${base}/git/ref/heads/${encodeURIComponent(branch)}`, { headers: h, cache: "no-store" });
+  if (!refRes.ok) return { ok: false, error: `git ref ${refRes.status}` };
+  const headSha = ((await refRes.json()) as { object?: { sha?: string } }).object?.sha;
+  if (!headSha) return { ok: false, error: "could not resolve branch HEAD" };
+
+  const commitRes = await fetch(`${base}/git/commits/${headSha}`, { headers: h, cache: "no-store" });
+  if (!commitRes.ok) return { ok: false, error: `git commit ${commitRes.status}` };
+  const baseTreeSha = ((await commitRes.json()) as { tree?: { sha?: string } }).tree?.sha;
+  if (!baseTreeSha) return { ok: false, error: "could not resolve base tree" };
+
+  // 2. Create blobs for each file.
+  const treeEntries: Array<{ path: string; mode: "100644"; type: "blob"; sha: string }> = [];
+  for (const f of files) {
+    const blobRes = await fetch(`${base}/git/blobs`, {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ content: Buffer.from(f.content, "utf8").toString("base64"), encoding: "base64" }),
+      cache: "no-store",
+    });
+    if (!blobRes.ok) return { ok: false, error: `git blob ${blobRes.status} for ${f.path}` };
+    const blobSha = ((await blobRes.json()) as { sha?: string }).sha;
+    if (!blobSha) return { ok: false, error: `blob sha missing for ${f.path}` };
+    treeEntries.push({ path: f.path.replace(/^\.?\//, ""), mode: "100644", type: "blob", sha: blobSha });
+  }
+
+  // 3. New tree on top of the base tree.
+  const treeRes = await fetch(`${base}/git/trees`, {
+    method: "POST",
+    headers: h,
+    body: JSON.stringify({ base_tree: baseTreeSha, tree: treeEntries }),
+    cache: "no-store",
+  });
+  if (!treeRes.ok) return { ok: false, error: `git tree ${treeRes.status}` };
+  const newTreeSha = ((await treeRes.json()) as { sha?: string }).sha;
+  if (!newTreeSha) return { ok: false, error: "new tree sha missing" };
+
+  // 4. New commit.
+  const newCommitRes = await fetch(`${base}/git/commits`, {
+    method: "POST",
+    headers: h,
+    body: JSON.stringify({ message, tree: newTreeSha, parents: [headSha] }),
+    cache: "no-store",
+  });
+  if (!newCommitRes.ok) return { ok: false, error: `git create-commit ${newCommitRes.status}` };
+  const newCommitSha = ((await newCommitRes.json()) as { sha?: string }).sha;
+  if (!newCommitSha) return { ok: false, error: "new commit sha missing" };
+
+  // 5. Fast-forward the branch ref.
+  const updateRes = await fetch(`${base}/git/refs/heads/${encodeURIComponent(branch)}`, {
+    method: "PATCH",
+    headers: h,
+    body: JSON.stringify({ sha: newCommitSha, force: false }),
+    cache: "no-store",
+  });
+  if (!updateRes.ok) {
+    const txt = await updateRes.text();
+    return { ok: false, error: `git update-ref ${updateRes.status}: ${txt.slice(0, 160)}` };
+  }
+  return { ok: true, commit: newCommitSha };
 }
 
 /** Create a new branch ref pointing at `fromSha`. Used to spin up a rebalance

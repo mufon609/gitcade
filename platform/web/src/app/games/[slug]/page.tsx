@@ -8,6 +8,8 @@ import { GamePlayer } from "./GamePlayer";
 import { ForkButton } from "./ForkButton";
 import { ForkTree } from "./ForkTree";
 import { JoinCommunity } from "./JoinCommunity";
+import { MadeFrom } from "./MadeFrom";
+import { RemixButton } from "./RemixButton";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ export default async function GamePage({ params }: { params: { slug: string } })
             source ↗
           </a>
           <ForkButton slug={game.slug} />
+          {game.tier === "ecosystem" && <RemixButton slug={game.slug} />}
         </div>
       </div>
 
@@ -106,7 +109,12 @@ export default async function GamePage({ params }: { params: { slug: string } })
         </div>
       </div>
 
-      {/* Phase 5: fork lineage. (Phase 6 "Made from" catalog panel mounts here too.) */}
+      {/* Phase 6: the catalog parts this ecosystem game is composed from. */}
+      <MadeFrom
+        game={{ id: game.id, repoUrl: game.repoUrl, branch: game.branch, manifest: game.manifest, tier: game.tier }}
+      />
+
+      {/* Phase 5: fork lineage. */}
       <ForkTree slug={game.slug} />
     </div>
   );

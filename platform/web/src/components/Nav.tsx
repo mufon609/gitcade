@@ -23,6 +23,12 @@ export function Nav() {
             Publish
           </Link>
           <Link
+            href="/parts"
+            className="text-sm text-arcade-mute no-underline hover:text-arcade-ink"
+          >
+            Marketplace
+          </Link>
+          <Link
             href="/compare"
             className="text-sm text-arcade-mute no-underline hover:text-arcade-ink"
           >

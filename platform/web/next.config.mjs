@@ -14,8 +14,10 @@ loadDotenv({ path: path.resolve(here, "..", "..", ".env") });
 const nextConfig = {
   reactStrictMode: true,
   // @gitcade/sdk is an ESM workspace package consumed server-side (manifest
-  // schema) and client-side (storage protocol). Transpile it so Next bundles it.
-  transpilePackages: ["@gitcade/sdk"],
+  // schema) and client-side (storage protocol). @gitcade/library is dynamic-imported
+  // client-side for the marketplace live previews (Web Audio SFX synth + behavior
+  // micro-scene). Transpile both so Next bundles them.
+  transpilePackages: ["@gitcade/sdk", "@gitcade/library"],
   eslint: { ignoreDuringBuilds: true },
 };
 

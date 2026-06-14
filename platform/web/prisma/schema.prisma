@@ -145,6 +145,8 @@ model User {
   games         Game[]               @relation("GameOwner")
   playSessions  PlaySession[]
   memberships   CommunityMembership[]
+  // Phase 6 marketplace: parts this user published (back-relation, no column).
+  parts         Part[]               @relation("PartAuthor")
   // Phase 7 extension points (placeholder relations).
   votes         Vote[]
   bugReports    BugReport[]
@@ -195,6 +197,10 @@ model Game {
   memberships  CommunityMembership[]
   proposals    Proposal[]
   bugReports   BugReport[]
+  // Phase 6 marketplace: the catalog parts this game composes (the "made from"
+  // index). Back-relation only — the FK lives on GamePart, so no column is added
+  // to the (Phase-4B, never-reshaped) Game table.
+  gameParts    GamePart[]
 
   @@index([tier, status])
   @@index([parentGameId])
@@ -268,5 +274,93 @@ model BugReport {
   reporter  User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
+  @@index([gameId])
+}
+
+// ───────────────────────── Phase 6 — Marketplace (ADDITIVE) ─────────────────────────
+// New tables only. Nothing here references or reshapes a 4A/4B/Phase-5 column;
+// `prisma db push` CREATES these and leaves every existing table byte-identical.
+
+/// Where a Part came from. `catalog` rows are ingested from
+/// packages/library/CATALOG.json (the library is the frozen source of truth — a
+/// queryable mirror, re-ingestable idempotently). `user` rows are owner-published
+/// custom parts (vendored into forks at remix time — there is NO private registry).
+enum PartSource {
+  catalog
+  user
+}
+
+/// One marketplace part: a row mirroring a CATALOG.json entry (source=catalog) or
+/// an owner-published custom behavior/entity (source=user). The DB is a query
+/// mirror; the catalog/JSON files remain authoritative for catalog parts.
+model Part {
+  id             String     @id @default(cuid())
+  /// The part identifier (== CATALOG id for catalog parts, e.g. "move-grid-step").
+  partId         String
+  version        String
+  /// behavior | system | entity | asset | ui | fx (the catalog `kind`).
+  kind           String
+  category       String
+  tags           String[]   @default([])
+  description    String     @db.Text
+  /// MIT (code) | CC-BY-4.0 (assets). MANDATORY at user upload.
+  license        String
+  source         PartSource @default(catalog)
+  /// For catalog parts: the @gitcade/library release the part@version resolves in.
+  libraryVersion String?
+  /// Part/SDK-builtin type ids this part composes with (from the catalog).
+  dependencies   String[]   @default([])
+  /// Per-parameter docs (catalog `params`), for the remix slider/form UI.
+  paramsDoc      Json?
+  /// The ready-to-use instance template (catalog `definition`): drives remix swaps
+  /// and the behavior micro-scene preview.
+  definition     Json?
+  /// A small descriptor the marketplace uses for a live preview:
+  ///   { kind: "sprite", src } | { kind: "sfx", key } | { kind: "behavior", type } | ...
+  preview        Json?
+
+  // ── user-published provenance (null for catalog parts) ──
+  ownerId        String?
+  owner          User?      @relation("PartAuthor", fields: [ownerId], references: [id], onDelete: SetNull)
+  /// The repo + path the custom part was published FROM (vendoring source).
+  sourceRepoUrl  String?
+  sourcePath     String?
+  /// Verbatim sandbox validation/test log from the upload (readable on failure).
+  sandboxLog     String?    @db.Text
+  /// The vendored source the remix flow drops into src/vendored-parts/.
+  sourceCode     String?    @db.Text
+
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  usages         GamePart[]
+
+  /// One row per (partId, version, source) — re-ingest UPSERTs in place (idempotent).
+  @@unique([partId, version, source])
+  @@index([kind, category])
+  @@index([source])
+}
+
+/// The "made from" index: a game ⇄ catalog part edge with an occurrence count.
+/// Populated by parsing a game's scene/entity JSON for `partId@version` provenance
+/// refs and resolving them against the catalog. Drives the game-page "Made from"
+/// panel and the part-page "used in N games" count.
+model GamePart {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  /// The catalog part id + version as referenced in the scene (e.g. "score", "1.0.0").
+  partId    String
+  version   String
+  /// Resolved Part row (nullable: a ref may not resolve in the catalog mirror, e.g.
+  /// a not-yet-ingested or removed part — we still record the raw ref).
+  partRef   String?
+  part      Part?    @relation(fields: [partRef], references: [id], onDelete: SetNull)
+  /// How many times this part is referenced across the game's scenes.
+  count     Int      @default(1)
+  indexedAt DateTime @default(now())
+
+  @@unique([gameId, partId, version])
+  @@index([partId])
   @@index([gameId])
 }

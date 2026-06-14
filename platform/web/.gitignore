@@ -4,6 +4,10 @@
 next-env.d.ts
 *.tsbuildinfo
 
+# Library sprites synced from @gitcade/library for marketplace previews
+# (canonical home is packages/library/assets; recreated by sync-library-assets).
+/public/library-assets/
+
 # Prisma CLI reads DATABASE_URL from this local-only file (mirrors worker/.env).
 # Secrets live in the repo-root .env (already gitignored); this is local DB only.
 .env

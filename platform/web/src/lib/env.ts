@@ -64,6 +64,19 @@ export const env = {
   /// 4A artifact server owns it (port 3001 locally / separate domain in prod).
   artifactBaseUrl: optional("ARTIFACT_BASE_URL", "http://localhost:3001"),
 
+  /// The 4A builder image (Node 22 + Chromium + build deps). Phase 6 part uploads
+  /// run schema validation + the part's unit test inside an ephemeral SIBLING
+  /// container built from this image — the SAME isolated builder path the worker
+  /// uses, never the web process. (We do NOT modify the frozen worker; we reuse its
+  /// image + the docker-sibling pattern.)
+  builderImage: optional("BUILDER_IMAGE", "gitcade-builder:local"),
+  /// Network for the part-sandbox install stage (empty = default bridge w/ internet,
+  /// like the worker's stage 1); the test stage always runs with --network none.
+  sandboxNetwork: optional("BUILD_NETWORK", ""),
+  sandboxCpuLimit: optional("BUILD_CPU_LIMIT", "2"),
+  sandboxMemoryLimit: optional("BUILD_MEMORY_LIMIT", "2g"),
+  sandboxTimeoutMs: Number(optional("PART_SANDBOX_TIMEOUT_MS", "300000")),
+
   /// The designated seed/admin user the seed script publishes the six games as.
   seedUserLogin: optional("SEED_USER_LOGIN", "gitcade-admin"),
   seedUserEmail: optional("SEED_USER_EMAIL", "admin@gitcade.local"),

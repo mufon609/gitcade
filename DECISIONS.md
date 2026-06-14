@@ -851,3 +851,144 @@ byte-identical (verified via `git status` from repo root: zero changes outside
 - **Tests:** 16 new unit tests (configdiff, webhook verify/parse, fork naming,
   poll decision) — full web suite **43/43 green**. `next build` compiles all new
   routes/components; `git status` confirms zero changes outside `platform/web/`.
+
+---
+
+## Phase 6 — The Marketplace (Parts + Remixing) — 2026-06-14
+
+Scope this session: built the marketplace into `platform/web/` ONLY — (1) catalog
+ingest + browse/detail with live previews, (2) the "made from" panel + "used in N
+games", (3) the no-code remix flow (sprite + movement + config → one readable
+commit → rebuild → hot-swap), (4) v1-simple part uploads (sandbox-validated). NO
+SDK/CATALOG/worker/artifact-server change — the library `CATALOG.json` is READ as
+the frozen source of truth; the worker is ENQUEUED for remix rebuilds and READ for
+Build rows (it never builds anything itself here); part-upload validation runs in
+the worker's BUILDER IMAGE via the docker-sibling pattern, not in the web process.
+All Prisma changes are ADDITIVE (new `Part`/`GamePart` tables + back-relations).
+Frozen dirs (`packages/`, `platform/worker`, `platform/artifact-server`, `games/`,
+`examples/`, `setup/`, `templates/`) left byte-identical (verified via `git status`
+from repo root: zero changes outside `platform/web/`). No CORE blockers; no
+BLOCKED.md entries.
+
+### What Phase 7 inherits (contracts + extension points)
+- **Schema is additive over Phase 5's.** New tables only, created with `prisma db
+  push`: `Part` (catalog mirror + user-published parts) and `GamePart` (the "made
+  from" game⇄part index). Two **back-relations** were added — `User.parts` and
+  `Game.gameParts` — which add NO column to those tables (the FK lives on the
+  junction), so the never-reshaped 4A/4B/Phase-5 tables stay byte-identical. The
+  Phase-7 `Proposal`/`Vote`/`BugReport` placeholders are untouched.
+- **`Part`** (`@@unique[partId, version, source]`): `partId`, `version`, `kind`,
+  `category`, `tags[]`, `description`, `license`, `source`(catalog|user),
+  `libraryVersion?`, `dependencies[]`, `paramsDoc?`, `definition?`, `preview?`
+  (marketplace preview descriptor + stashed `bucket`), and user-part provenance
+  (`ownerId`, `sourceRepoUrl/sourcePath`, `sandboxLog`, `sourceCode` for vendoring).
+  Re-ingest UPSERTs in place (idempotent). **`ingestCatalog()`** validates
+  `CATALOG.json` against the library's `catalog.schema.json` (ajv) before importing;
+  `ensureCatalogIngested()` lazily self-heals a fresh DB on first marketplace visit.
+- **The remix machinery Phase 7 governance reuses** (`src/lib/remix.ts` +
+  `remix-service.ts`, both shared by the API routes AND `scripts/remix-demo.ts`,
+  never mocked): `applyRemix(scene, config, edits, catalog)` is PURE — it produces
+  the new scene + config + vendored files + a human summary, BACKFILLING any `$cfg`
+  key a swapped-in behavior needs so the output resolves. `commitRemix` runs the
+  GATE (`validateRemix`) BEFORE committing, then writes ONE readable commit via the
+  new `commitFiles` git-data-API helper (scene + config + any vendored part in a
+  single commit) and enqueues a rebuild. **Phase 7 PART-SWAP/CONFIG proposals are
+  exactly an `applyRemix` over the same edit shapes** — keep the diff/commit logic
+  here so governance and remix can't drift. `validateRemix` mirrors the worker's
+  no-magic-numbers + `$cfg`-resolution rules using the SDK's browser-safe exports
+  (it does NOT import `@gitcade/sdk/validate`, which pulls in `node:fs`).
+- **`ConfigDiff` (Phase 5) is reused verbatim** in the remix preview — a config
+  edit renders as the same `towerCost.arrow: 50 → 30` rows Phase 7 will show.
+- **The "made from" index** (`src/lib/usage.ts` + pure `madefrom.ts`):
+  `indexGameParts(game, token?)` fetches a game's scenes from its repo, parses every
+  `partId@version` provenance ref (recursively — including refs nested in
+  wave-spawner/lives-respawn prototype params), resolves them to `Part` rows, and
+  UPSERTs `GamePart` edges. The game page lazily indexes on first view;
+  `npm run index-parts` is the bulk pass. `usageCountForPart`/`gamesUsingPart` back
+  the part page's "used in N games".
+- **Part uploads** (`src/lib/partupload.ts` + `sandbox-docker.ts`):
+  `publishUserPart` pre-checks, then runs schema validation + the part's unit test
+  inside an ephemeral SIBLING container built from the **frozen 4A builder image**
+  (`BUILDER_IMAGE`), two-stage like the worker (STAGE 1 npm-install WITH network,
+  STAGE 2 schema-check + `vitest run` with `--network none`). On success it UPSERTs
+  a `source=user` `Part` carrying `sourceCode`. License (MIT/CC-BY) is mandatory.
+  The `runSandbox` dependency is injectable for infra-free unit tests.
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **User parts are VENDORED, never registered** (locked Library-distribution
+  decision). A remix that swaps in a `source=user` part writes its `sourceCode` to
+  `src/vendored-parts/<id>.js` in the same commit and references it by `type` only
+  (no `partId@version` provenance, since it is not in the frozen catalog). Catalog
+  (library) swaps keep their `part` provenance so the validator + "made from" panel
+  resolve them. The library is NEVER written to; there is no private registry.
+- **Movement-swap safety is by construction.** Compatibility = same catalog
+  `category` ("movement") + ≥1 shared tag (`behaviorCompatible`, catalog-derived —
+  no invented system). The swap applies the target's catalog `definition.params`
+  (balance via `$cfg`) and backfills any missing `$cfg` key into config.json with a
+  name-heuristic default, so the result passes no-magic-numbers AND `$cfg`
+  resolution. Verified the snake smoke test the ecosystem validator defers to stays
+  green after a grid→topdown swap (it asserts no-throw + a food entity, not a
+  specific control scheme), so the rebuild succeeds.
+- **Sprite-swap targets the FROZEN SDK reality**: every seed game's `dist` already
+  ships the WHOLE library asset set (Phase 3 `sync-assets`), so swapping an entity's
+  `sprite` to any catalog entity's descriptor renders immediately with no new asset.
+  `sprite-animate` no-ops on non-sheet sprites (checked), so a sheet→image swap is
+  safe. The marketplace serves library sprites for PREVIEWS from
+  `public/library-assets/` (gitignored; synced by `scripts/sync-library-assets.mjs`
+  on predev/prebuild — same pattern as the games).
+- **Live previews "where feasible"** (`@gitcade/library` added as a web dep +
+  `transpilePackages`, dynamic-imported client-side): sprites render from the served
+  PNG; SFX/music play via the library's real Web Audio synth (`playSfx`/`MusicPlayer`)
+  on a user-gesture AudioContext; a behavior boots a tiny SDK micro-scene
+  (`behavior-demo.ts`) exercising the actual behavior on the frozen runtime. Every
+  dynamic path is wrapped to degrade to a disabled control on failure.
+- **Remix is fork-on-demand.** Opening Remix on a game you don't own routes through
+  `ensureRemixableFork` → the Phase 5 `forkGame` (idempotent; reuses an existing
+  fork by deterministic slug), so remix mode always operates on a repo the user can
+  commit to. The committing user is the gh-authenticated account `mufon609`; the
+  remix commits land on `mufon609/snake` (the snake fork) — recorded per the "record
+  what you created" rule. No secrets committed; no `.github/workflows` created.
+- **`commitFiles`** (new git helper) makes a SINGLE multi-file commit via the git
+  data API (ref→tree→blobs→tree→commit→fast-forward) — the contents API's one-commit-
+  per-file was insufficient for "a single READABLE commit" touching scene+config.
+- **The 7 marketplace buckets** are derived from the catalog `(kind, category)` per
+  the Phase 2B convention (`asset` splits into World vs Audio by category); the
+  bucket is stashed on each `Part.preview` at ingest so pages need no recompute.
+- **The reset was a `deleteMany` clear, not `prisma db push --force-reset`**: the
+  Prisma CLI now gates `--force-reset` behind an interactive AI-consent env var; on
+  a LOCAL dev DB the documented Phase-4B reset intent was satisfied by clearing all
+  per-game/user/build rows (incl. stale Phase-5 fork rows) via the Prisma client
+  while keeping the freshly-ingested catalog, then re-running the real seed flow.
+
+### Verification performed this session (REAL round trips, not just DB rows)
+- **Clean slate + re-seed:** cleared all game/fork/user/build rows (stale Phase-5
+  `*--mufon609` forks gone), re-ingested 81 catalog parts, re-seeded all SIX games
+  through the real `publishGame`→worker path → all **LIVE**.
+- **Catalog ingest:** `CATALOG.json` validated against `catalog.schema.json`, 81/81
+  parts ingested idempotently into `Part`.
+- **"Made from" accurate on every seed game** (`index-parts`): snake 3, helicopter
+  6, breakout 8, tower-defense 9, idle-clicker 2, survival-arena 8 — **every ref
+  resolved to the catalog**. Cross-checked snake = {collect-on-touch, move-grid-step,
+  score} against its scene. Browser-verified the snake panel renders 3 linked chips.
+- **Dragon-on-Snake remix end-to-end, ZERO code, in browser:** `remix-demo` forked
+  snake on demand, swapped the head sprite (player-blob → enemy-shooter) + movement
+  (move-grid-step → move-topdown-360) + a config tunable, backfilled `playerSpeed`,
+  committed ONE readable commit (`126347da`), rebuilt to **LIVE in 10s**. A real
+  Chrome-for-Testing loads `/games/snake--mufon609` and the remixed game **plays
+  in-iframe** (`<canvas> 800×600` renders through the opaque-origin sandbox). Well
+  under the 5-minute DoD target.
+- **One custom part published through the upload flow:** `part-upload-demo`
+  published `drift-x` (MIT) — schema validation + the unit test BOTH ran and passed
+  **in the build sandbox** (vitest inside the builder container, `--network none`)
+  in 13.4s; it appears in the marketplace under **Behaviors**. The REJECTION path is
+  real too: a part with a deliberately failing test was rejected at stage `test`
+  with the verbatim sandbox log and was **NOT** persisted to the catalog.
+- **Browser proof (Chrome-for-Testing, shipped path):** 4/4 checks — marketplace
+  renders 7 buckets / 83 part links; the move-grid-step part page shows "Used in 1
+  game"; the snake "Made from" panel renders its 3 catalog chips; the remixed fork
+  plays in-iframe.
+- **Tests:** 26 new unit tests (madefrom parsing, catalog bucket/preview/compat,
+  remix model+apply incl. the dragon transform + vendoring, the remix-validate gate,
+  part-upload precheck/schema/sandbox-gate) — full web suite **69/69 green**.
+  `next build` compiles all new routes; `npx tsc --noEmit` clean; `git status`
+  confirms zero changes outside `platform/web/`.

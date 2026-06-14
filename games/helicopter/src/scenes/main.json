@@ -1,0 +1,73 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "player",
+      "sprite": { "kind": "image", "src": "assets/sprites/player-ship.png" },
+      "size": { "w": 40, "h": 24 },
+      "position": { "x": 140, "y": 280 },
+      "tags": ["player"],
+      "layer": 5,
+      "behaviors": [
+        { "type": "thrust-lift", "params": { "thrustKeys": ["Space"], "thrust": "$cfg.thrust", "gravity": "$cfg.gravity", "maxUp": "$cfg.maxUp", "maxDown": "$cfg.maxDown" } },
+        { "type": "velocity", "params": {} },
+        { "type": "trail", "params": { "color": "#ffcd75" } }
+      ]
+    },
+    {
+      "id": "wall-top",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#1a1c2c" },
+      "size": { "w": 800, "h": 18 }, "position": { "x": 0, "y": 0 }, "tags": ["wall"], "layer": 6,
+      "behaviors": [{ "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } }]
+    },
+    {
+      "id": "wall-bottom",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#1a1c2c" },
+      "size": { "w": 800, "h": 18 }, "position": { "x": 0, "y": 582 }, "tags": ["wall"], "layer": 6,
+      "behaviors": [{ "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } }]
+    },
+    {
+      "id": "hud-score",
+      "sprite": { "kind": "text", "bind": "scoreDisplay", "text": "0", "font": "20px monospace", "color": "#f4f4f4", "align": "left" },
+      "size": { "w": 200, "h": 24 }, "position": { "x": 12, "y": 10 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["player", "wall"], ["player", "obstacle"]] } },
+    {
+      "type": "wave-spawner",
+      "part": "wave-spawner@1.0.0",
+      "params": {
+        "interval": "$cfg.spawnInterval",
+        "waveSize": "$cfg.waveSize",
+        "waveSizeGrowth": "$cfg.waveSizeGrowth",
+        "waveDelay": "$cfg.waveDelay",
+        "maxWaves": "$cfg.maxWaves",
+        "maxAlive": "$cfg.maxAlive",
+        "startDelay": "$cfg.startDelay",
+        "countTag": "obstacle",
+        "waveKey": "wave",
+        "advanceOnClear": false,
+        "spawnPoints": [{ "x": 820, "y": 30 }, { "x": 820, "y": 420 }, { "x": 820, "y": 220 }, { "x": 820, "y": 90 }, { "x": 820, "y": 360 }],
+        "prototype": {
+          "id": "obstacle",
+          "sprite": { "kind": "shape", "shape": "rect", "color": "#3b5dc9" },
+          "size": { "w": 54, "h": 150 },
+          "tags": ["obstacle"],
+          "layer": 3,
+          "behaviors": [
+            { "type": "auto-scroll", "part": "auto-scroll@1.0.0", "params": { "vx": "$cfg.scrollVx", "wrap": false } },
+            { "type": "velocity", "params": {} },
+            { "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } },
+            { "type": "health-and-death", "params": { "lifespan": "$cfg.obstacleLife", "deathSound": "" } }
+          ]
+        }
+      }
+    },
+    { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "score", "startAmount": "$cfg.startScore", "passiveIncome": "$cfg.pointsPerSec" } },
+    { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "highScore", "storageKey": "helicopterHigh", "persist": true } },
+    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "crash" } }
+  ]
+}

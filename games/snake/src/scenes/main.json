@@ -1,0 +1,67 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "head",
+      "sprite": { "kind": "sheet", "src": "assets/sprites/player-blob.png", "frameWidth": 32, "frameHeight": 32, "frameCount": 2, "fps": 4, "animations": { "idle": { "from": 0, "to": 1 } } },
+      "size": { "w": 20, "h": 20 },
+      "position": { "x": 400, "y": 300 },
+      "tags": ["head"],
+      "layer": 4,
+      "behaviors": [
+        { "type": "sprite-animate", "params": { "play": "idle" } },
+        { "type": "move-grid-step", "part": "move-grid-step@1.0.0", "params": { "tileSize": 20, "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true } }
+      ]
+    },
+    {
+      "id": "hud-score",
+      "sprite": { "kind": "text", "bind": "score", "text": "0", "font": "20px monospace", "color": "#f4f4f4", "align": "left" },
+      "size": { "w": 160, "h": 24 },
+      "position": { "x": 12, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    }
+  ],
+  "systems": [
+    { "type": "aabb-collision", "params": { "pairs": [["head", "food"]] } },
+    { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "highScore", "storageKey": "snakeHigh", "persist": true } },
+    {
+      "type": "snake-body",
+      "params": {
+        "headTag": "head",
+        "segmentTag": "snake-body",
+        "foodTag": "food",
+        "tileSize": 20,
+        "startLength": "$cfg.startLength",
+        "growBy": "$cfg.growBy",
+        "startDir": { "x": 1, "y": 0 },
+        "scoreKey": "score",
+        "foodValue": "$cfg.foodValue",
+        "gameOverEvent": "gameover",
+        "stateKey": "__snake",
+        "segmentPrototype": {
+          "id": "seg",
+          "sprite": { "kind": "image", "src": "assets/sprites/snake-segment.png" },
+          "size": { "w": 20, "h": 20 },
+          "tags": ["snake-body"],
+          "layer": 3,
+          "behaviors": []
+        },
+        "foodPrototype": {
+          "id": "food",
+          "sprite": { "kind": "sheet", "src": "assets/sprites/coin.png", "frameWidth": 16, "frameHeight": 16, "frameCount": 4, "fps": 8, "animations": { "spin": { "from": 0, "to": 3 } } },
+          "size": { "w": 20, "h": 20 },
+          "tags": ["food", "pickup"],
+          "layer": 2,
+          "behaviors": [
+            { "type": "sprite-animate", "params": { "play": "spin" } },
+            { "type": "collect-on-touch", "part": "collect-on-touch@1.0.0", "params": { "collectorTag": "head", "value": "$cfg.foodValue", "scoreKey": "score", "kind": "coin", "sound": "collect" } }
+          ]
+        }
+      }
+    }
+  ]
+}

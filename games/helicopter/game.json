@@ -1,0 +1,13 @@
+{
+  "name": "Helicopter",
+  "slug": "helicopter",
+  "description": "One button. Hold to rise, release to fall, thread the scrolling gaps — and chase the high score. A GitCade ecosystem seed game.",
+  "version": "1.0.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade", "github": "gitcade-games" }],
+  "tier": "ecosystem"
+}

@@ -1,0 +1,17 @@
+{
+  "thrust": 1500,
+  "gravity": 950,
+  "maxUp": 360,
+  "maxDown": 430,
+  "scrollVx": -230,
+  "obstacleLife": 6,
+  "spawnInterval": 0.5,
+  "waveSize": 1,
+  "waveSizeGrowth": 0,
+  "waveDelay": 1.15,
+  "maxWaves": 0,
+  "maxAlive": 14,
+  "startDelay": 1.2,
+  "startScore": 0,
+  "pointsPerSec": 12
+}

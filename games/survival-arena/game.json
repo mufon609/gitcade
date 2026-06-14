@@ -1,0 +1,13 @@
+{
+  "name": "Survival Arena",
+  "slug": "survival-arena",
+  "description": "A Vampire-Survivors-lite: auto-fire at escalating swarms and stay alive for 75 seconds. The FX showcase of the GitCade seed set.",
+  "version": "1.0.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.1.0",
+  "libraryVersion": "0.1.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade", "github": "gitcade-games" }],
+  "tier": "ecosystem"
+}

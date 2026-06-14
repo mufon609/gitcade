@@ -1,0 +1,27 @@
+{
+  "startCoins": 0,
+  "coinCap": 0,
+  "baseClickPower": 1,
+  "baseAutoRate": 0,
+
+  "bonusPeriod": 25,
+  "bonusAmount": 50,
+
+  "offlineCapSeconds": 28800,
+  "prestigeBonus": 0.25,
+
+  "upgradeClickCost": 25,
+  "upgradeClickAmount": 1,
+  "upgradeClickMax": 0,
+  "upgradeClickGrowth": 1.18,
+
+  "upgradeCursorCost": 50,
+  "upgradeCursorAmount": 1,
+  "upgradeCursorMax": 0,
+  "upgradeCursorGrowth": 1.2,
+
+  "upgradeFactoryCost": 400,
+  "upgradeFactoryAmount": 8,
+  "upgradeFactoryMax": 0,
+  "upgradeFactoryGrowth": 1.25
+}

@@ -341,3 +341,100 @@ entries this session.
 - **`tsx`/loaders avoided** — Node 22's built-in TypeScript stripping runs
   `gen-assets.ts` directly, so the library gains no new devDependency for the asset
   pipeline.
+
+---
+
+## Phase 3 — Seed Games — 2026-06-13
+
+Scope this session: built six complete, polished seed games in `games/` (snake,
+helicopter, breakout, tower-defense, idle-clicker, survival-arena), each composed
+ONLY from `@gitcade/sdk@0.1.0` + `@gitcade/library@0.1.0` parts (pinned, resolved
+from public npm — not workspace links), plus a minimal per-game custom part where a
+mechanic genuinely had no catalog equivalent. Published all six + the scaffold as
+standalone public repos in `gitcade-games`. SDK, library, examples, docs, and
+`setup/` were left untouched. No CORE blockers; no SDK/library bugs found, so no
+`[PUBLISH]` patch entries.
+
+### What Phase 4 inherits
+- **Six standalone public repos + a template repo** — URLs in `games/PUBLISHED.md`.
+  Each builds from a clean clone against the npm SDK/library and passes
+  `gitcade validate` (verified by copying each game outside the monorepo, `npm
+  install`, `npm run build`, `npx gitcade validate .` — all green). The 4A worker
+  reproduces exactly this path.
+- **`games/LIBRARY-GAPS.md`** — six generalization candidates from the custom parts.
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **One shared host shell, copied per game** (`src/host/shell.ts` `GameShell`). It
+  owns the title→playing⇄paused→game-over state machine, the HTML menu overlays,
+  the mobile pad, library audio + `ScreenEffects`, and a per-frame HUD-mirror hook.
+  It is HOST GLUE, not game logic and not a custom behavior — the validated game is
+  pure data + (optionally) one custom system. Each standalone repo carries its own
+  copy (no monorepo import). The shell runs its OWN fixed-step loop (calling
+  `game.update`/`game.render` directly, NOT `game.start()`) so pause freezes the
+  simulation while still rendering the frozen frame, and `beforeFrame` can mirror
+  e.g. player HP into a HUD key every frame.
+- **Mobile touch = synthesized `KeyboardEvent`s.** On-screen DOM buttons dispatch
+  real `keydown`/`keyup` (with `.code`) on `window`, which the SDK `Input` already
+  listens to. This drives EVERY key-reading part (move-grid-step, move-4dir,
+  move-platformer, shoot, the custom thrust) uniformly without touching the
+  validated scene or adding the in-scene `touch-dpad` part (which sets velocity
+  directly and would conflict with key movers). Tap-based games (tower-defense,
+  idle-clicker) use canvas pointer events instead.
+- **Storage adapter selection** (`src/host/storage.ts` `makeStorage`): `BridgeStorage`
+  when embedded (`window.parent !== window`), else `MemoryStorage` (the dev-shim).
+  ALL persistence (high scores via the library `score` system; idle offline progress
+  in `idle-clicker/src/main.ts`) goes through `world.storage` — so it satisfies the
+  no-raw-storage rule and works unchanged once Phase 4B implements the parent side
+  of the bridge. Standalone it uses the in-memory shim (resets across reloads, by
+  design); on the platform the bridge persists by `gameSlug + branch`.
+- **The validator's no-raw-storage scan is a literal regex over ALL `.ts`/`.js`
+  source — including comments.** The tokens `localStorage`/`sessionStorage`/
+  `indexedDB` must not appear anywhere in source (they may appear in `.md`, which is
+  not scanned). Host comments were worded to avoid them ("raw browser stores").
+- **`part` provenance refs (`partId@1.0.0`) ARE used** in the seed scenes (the path
+  DECISIONS reserved for "Phase 3 standalone-repo games"). The validator resolves
+  them only against `node_modules/@gitcade/library/CATALOG.json` **in the game's own
+  dir**, so the CLEAN CLONE (real npm install) is the authoritative validation gate.
+  For fast in-monorepo iteration a correct `games/<g>/node_modules/@gitcade` symlink
+  to `packages/{sdk,library}` is created by hand (npm hoists workspace links to the
+  root `node_modules`, which the validator does not walk up to). That symlink lives
+  under the gitignored `node_modules/` and is never committed.
+- **Library art is synced, never committed.** `scripts/sync-assets.mjs` copies
+  `node_modules/@gitcade/library/assets` → `public/assets` on `predev`/`prebuild`/
+  `pretest`; `public/assets` is gitignored in each game (the art's canonical home is
+  the pinned library). Vite copies `public/` into `dist/`, so the artifact ships the
+  sprites. Library entities keep their PNG-sprite `src` paths (`assets/sprites/…`);
+  Breakout's bricks use palette-coloured `shape` sprites (classic look, no asset
+  dependency) while still composing the `health-and-death` part.
+- **The validator deferral runs each game's `npm test`.** Because the seed scenes
+  use library/custom parts the default SDK registry lacks, the validator's fast-path
+  boot throws "unknown … type" and defers to `npm test` — so every game ships a
+  headless smoke test booting on `createLibraryRegistry()` (+ custom registration)
+  that exercises real gameplay deterministically.
+- **`Game.loadScene` does NOT reset `world.events` listeners** (only entities +
+  `world.state`). A custom system that re-attaches a listener on each run therefore
+  double-counts after "Play again". Resolved by: Snake/idle systems POLL (no
+  listener); tower-defense systems attach ONCE per `World` via a
+  `WeakMap<World,Set>` (the same pattern the library FX parts use) and read live
+  `world.state`. Recorded as a caveat for any LIBRARY-GAP promotion.
+- **Tower Defense + Idle Clicker are 100% config-driven** — zero balance literals in
+  any scene behavior/system params (validator-enforced by the no-magic-numbers rule,
+  plus an explicit audit script). Custom-system numeric params are all `$cfg`; only
+  structural keys (positions, sizes, layers, `tileSize`) are inline literals. Idle's
+  custom `click-to-earn`/`auto-income`/`interval-bonus` and TD's `tower-build`/
+  `creep-accounting` take every balance value from config.
+- **Per-game custom parts (logged in LIBRARY-GAPS.md):** snake `snake-body`;
+  helicopter `thrust-lift`; tower-defense `tower-build` + `creep-accounting`;
+  idle-clicker `click-to-earn` + `auto-income` + `interval-bonus`. Breakout and
+  Survival Arena needed NONE (pure library/SDK composition) — evidence the
+  action-game library is complete and the gaps are in economy/control.
+- **Game-over per game.** Most use `win-lose-conditions`/`timer-countdown`/
+  `lives-respawn` (which set `world.state.gameOver` + emit `gameover`). Helicopter
+  ends on a `trigger-zone` `crash` event (endless high-score game, no win). Idle
+  Clicker has no natural game-over, so **prestige** is its game-over→retry: it banks
+  the run, grants a permanent multiplier (persisted via the storage bridge), and
+  restarts — satisfying the title/pause/game-over checklist honestly.
+- **Repos published from clean clones**, not from inside the monorepo, so no nested
+  `.git` is created under `games/` and the monorepo keeps tracking the game files
+  normally. `.github/workflows` exist on none of the seven repos (locked: the
+  platform pipeline is the CI). Scaffold marked `isTemplate: true`.

@@ -1,0 +1,6 @@
+{
+  "stepInterval": 0.11,
+  "startLength": 3,
+  "growBy": 1,
+  "foodValue": 10
+}

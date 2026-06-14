@@ -1,0 +1,61 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "coin-button",
+      "sprite": { "kind": "sheet", "src": "assets/sprites/coin.png", "frameWidth": 16, "frameHeight": 16, "frameCount": 4, "fps": 8, "animations": { "spin": { "from": 0, "to": 3 } } },
+      "size": { "w": 150, "h": 150 },
+      "position": { "x": 325, "y": 235 },
+      "tags": ["coin-button"],
+      "layer": 5,
+      "behaviors": [{ "type": "sprite-animate", "params": { "play": "spin" } }]
+    },
+    {
+      "id": "hud-coins",
+      "sprite": { "kind": "text", "bind": "coinsDisplay", "text": "0", "font": "44px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 600, "h": 52 }, "position": { "x": 400, "y": 70 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "hud-rate",
+      "sprite": { "kind": "text", "bind": "rateDisplay", "text": "0/sec", "font": "22px monospace", "color": "#a7f070", "align": "center" },
+      "size": { "w": 600, "h": 26 }, "position": { "x": 400, "y": 130 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "hud-power",
+      "sprite": { "kind": "text", "bind": "powerDisplay", "text": "x1/click", "font": "20px monospace", "color": "#41a6f6", "align": "left" },
+      "size": { "w": 220, "h": 24 }, "position": { "x": 16, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "hud-bonus",
+      "sprite": { "kind": "text", "bind": "bonusDisplay", "text": "bonus soon", "font": "20px monospace", "color": "#ef7d57", "align": "right" },
+      "size": { "w": 280, "h": 24 }, "position": { "x": 784, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "hud-hint",
+      "sprite": { "kind": "text", "bind": "hint", "text": "Tap the coin!", "font": "20px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 600, "h": 24 }, "position": { "x": 400, "y": 430 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    }
+  ],
+  "systems": [
+    { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "coins", "startAmount": "$cfg.startCoins", "maxAmount": "$cfg.coinCap" } },
+    { "type": "click-to-earn", "params": { "coinsKey": "coins", "clicksKey": "clicks", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower" } },
+    { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate" } },
+    { "type": "interval-bonus", "params": { "coinsKey": "coins", "period": "$cfg.bonusPeriod", "amount": "$cfg.bonusAmount", "leftKey": "bonusLeft" } },
+    {
+      "type": "upgrade-tree",
+      "part": "upgrade-tree@1.0.0",
+      "params": {
+        "currencyKey": "coins",
+        "levelsKey": "upgrades",
+        "requestKey": "upgradeRequest",
+        "upgrades": [
+          { "id": "click", "cost": "$cfg.upgradeClickCost", "effectKey": "clickPower", "effectAmount": "$cfg.upgradeClickAmount", "maxLevel": "$cfg.upgradeClickMax", "costGrowth": "$cfg.upgradeClickGrowth" },
+          { "id": "cursor", "cost": "$cfg.upgradeCursorCost", "effectKey": "autoRate", "effectAmount": "$cfg.upgradeCursorAmount", "maxLevel": "$cfg.upgradeCursorMax", "costGrowth": "$cfg.upgradeCursorGrowth" },
+          { "id": "factory", "cost": "$cfg.upgradeFactoryCost", "effectKey": "autoRate", "effectAmount": "$cfg.upgradeFactoryAmount", "maxLevel": "$cfg.upgradeFactoryMax", "costGrowth": "$cfg.upgradeFactoryGrowth", "requires": "cursor" }
+        ]
+      }
+    }
+  ]
+}

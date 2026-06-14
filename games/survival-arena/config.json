@@ -1,0 +1,23 @@
+{
+  "playerSpeed": 230,
+  "playerHp": 100,
+  "deathsToLose": 1,
+  "surviveTime": 75,
+  "fireCooldown": 0.26,
+  "bulletSpeed": 480,
+  "bulletDamage": 34,
+  "bulletHp": 1,
+  "bulletLifespan": 1.1,
+  "killScore": 10,
+  "enemyHp": 100,
+  "enemySpeed": 95,
+  "enemyDamage": 9,
+  "damageCooldown": 0.6,
+  "spawnInterval": 0.7,
+  "waveSize": 4,
+  "waveSizeGrowth": 2,
+  "waveDelay": 3,
+  "maxWaves": 0,
+  "maxAlive": 40,
+  "startDelay": 1.0
+}

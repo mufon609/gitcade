@@ -700,3 +700,32 @@ From repo root, with Postgres + MinIO + the `gitcade-builder:local` image presen
   proxy, the bridge handshook (`● connected`) and a SAVE round-tripped — parent
   `localStorage` gained `gc⟨NUL⟩idle-clicker⟨NUL⟩main⟨NUL⟩idleSave` = the real save
   JSON. Without the fix the game's module script is CORS-blocked (the `[CRITICAL]`).
+
+---
+
+## Phase 4B addendum — Artifact-server CORS patch (PM, 2026-06-14)
+
+Applied the one-line fix the Phase 4B `[CRITICAL]` prescribed, clearing the only
+open blocker. This is a PM-applied patch *between* phases, not a phase build.
+
+- **`platform/artifact-server/src/headers.ts#artifactHeaders` now sends
+  `Access-Control-Allow-Origin: "*"`.** Games play in `sandbox="allow-scripts"`
+  iframes (opaque origin → `"null"`); ES `<script type="module">` is always fetched
+  in CORS mode, so a null-origin document loading its own Vite entry/chunks
+  cross-origin from the artifact origin was blocked without ACAO. `Cross-Origin-
+  Resource-Policy` governs embedding, not module CORS — both are needed. Safe:
+  artifacts are public, credential-free static bundles, and each game's CSP
+  (`connect-src 'none'`) still blocks exfiltration.
+- **No frozen contract changed** — CSP, content-types, cache policy, and the
+  `{slug}/{branch}` URL convention are byte-identical. Non-contract bug fix per the
+  patch-release protocol; the artifact server is a service (not a published npm
+  package), so there is no version bump or game repin — it takes effect on restart.
+- **Regression guard added** to `platform/artifact-server/tests/headers.test.ts`:
+  the pure `artifactHeaders` builder test and the served-JS-asset test both assert
+  ACAO `*`. Header suite green (8/8) against the real bucket.
+- **Verified on the REAL path** (not a proxy this time): after restarting the
+  artifact server, `idle-clicker/main/assets/index-BvhM1gEg.js` — the exact module
+  that errored in the blocker — returns `200` + `Access-Control-Allow-Origin: *` +
+  `Content-Type: text/javascript; charset=utf-8`. The Phase 4B "game playable
+  in-browser" DoD item is now green on the shipped path, and Phase 5 branch/compare
+  play is unblocked.

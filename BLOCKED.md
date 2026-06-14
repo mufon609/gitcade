@@ -7,13 +7,26 @@ they are cleared.
 
 ---
 
-## [CRITICAL] Artifact server is missing CORS for opaque-origin game iframes — raised 2026-06-13 (Phase 4B)
+## [RESOLVED 2026-06-14] Artifact server is missing CORS for opaque-origin game iframes — raised 2026-06-13 (Phase 4B)
 
-**Status:** OPEN. Needs a human to apply a one-line ADDITIVE fix to the frozen
-`platform/artifact-server` (I am instructed not to modify it; the auto-mode
-classifier also denied the edit). **This blocks the Phase 4B "game is playable
-in-browser + storage bridge round-trips a save" DoD item** — and it will block
-Phase 5 branch/compare play too, since every game plays through this path.
+**Status:** RESOLVED 2026-06-14 (PM patch). The one-line additive fix below was
+applied to `platform/artifact-server/src/headers.ts#artifactHeaders` —
+`"Access-Control-Allow-Origin": "*"`. Verified on the REAL path: the module
+script that errored (`idle-clicker/main/assets/index-BvhM1gEg.js`) now returns
+`200` + `Access-Control-Allow-Origin: *` + `Content-Type: text/javascript`. A
+regression assertion was added to `tests/headers.test.ts` (pure builder + served
+JS asset both assert ACAO `*`); the header suite is green (8/8). No frozen
+contract changed (CSP, content-types, cache, URL convention all identical) — a
+non-contract bug fix under the patch-release protocol; no npm repin needed (the
+artifact server is a service, not a published package), effective on restart.
+Phase 5 branch/compare play is now unblocked. *Original diagnosis kept below.*
+
+**Was — Status:** OPEN. Needed a human to apply a one-line ADDITIVE fix to the
+frozen `platform/artifact-server` (the build agent was instructed not to modify
+it; the auto-mode classifier also denied the edit). **This blocked the Phase 4B
+"game is playable in-browser + storage bridge round-trips a save" DoD item** —
+and it would have blocked Phase 5 branch/compare play too, since every game plays
+through this path.
 
 **What fails (reproduced in a real browser via Chrome-for-Testing):** loading a
 LIVE seed game (`/games/idle-clicker`) renders a BLANK iframe. The game's Vite

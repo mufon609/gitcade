@@ -73,5 +73,12 @@ export function artifactHeaders(file: string, platformOrigin: string): Record<st
     // Defense in depth alongside the CSP.
     "X-Content-Type-Options": "nosniff",
     "Cross-Origin-Resource-Policy": "cross-origin",
+    // Games play in sandbox="allow-scripts" iframes (opaque origin → "null").
+    // ES `<script type="module">` is ALWAYS fetched in CORS mode, so a null-origin
+    // document loading its own Vite entry/chunks cross-origin from this artifact
+    // server is blocked without ACAO. Safe: artifacts are public, credential-free
+    // static bundles, and each game's own CSP (`connect-src 'none'`) still blocks
+    // exfiltration. CORP governs embedding, not module-script CORS — both are needed.
+    "Access-Control-Allow-Origin": "*",
   };
 }

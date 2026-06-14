@@ -67,6 +67,9 @@ describe("pure header builders", () => {
     expect(h["Content-Type"]).toBe("text/javascript; charset=utf-8");
     expect(h["Content-Security-Policy"]).toContain("default-src 'none'");
     expect(h["X-Content-Type-Options"]).toBe("nosniff");
+    // Regression guard: opaque-origin iframes fetch module scripts in CORS mode,
+    // so artifacts MUST carry ACAO or in-iframe play breaks (see BLOCKED.md fix).
+    expect(h["Access-Control-Allow-Origin"]).toBe("*");
   });
 });
 
@@ -89,6 +92,8 @@ describe("served artifact responses", () => {
     expect(res.headers.get("content-type")).toBe("text/javascript; charset=utf-8");
     expect(res.headers.get("content-security-policy")).toContain("default-src 'none'");
     expect(res.headers.get("cache-control")).toContain("immutable");
+    // A null-origin (sandboxed) document must be allowed to load this module.
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 
   it("root of a branch serves index.html", async () => {

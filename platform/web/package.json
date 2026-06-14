@@ -12,6 +12,9 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "tsx scripts/seed.ts",
+    "fork-demo": "tsx scripts/fork-demo.ts",
+    "poll": "tsx scripts/poll-repos.ts",
+    "webhook:proxy": "tsx scripts/webhook-proxy.ts",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },

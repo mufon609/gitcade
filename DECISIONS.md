@@ -729,3 +729,125 @@ open blocker. This is a PM-applied patch *between* phases, not a phase build.
   `Content-Type: text/javascript; charset=utf-8`. The Phase 4B "game playable
   in-browser" DoD item is now green on the shipped path, and Phase 5 branch/compare
   play is unblocked.
+
+---
+
+## Phase 5 — The Fork Engine — 2026-06-14
+
+Scope this session: extended `platform/web/` ONLY with the five Phase 5 features
+(fork button, branch switcher, fork tree, compare-play, app-level webhook receiver)
+plus the reusable `ConfigDiff` component and a polling fallback. NO schema change
+(the 4B `Game.parentGameId` self-relation was the pre-wired extension point —
+forking is purely additive). Frozen dirs (`packages/`, `platform/worker`,
+`platform/artifact-server`, `games/`, `examples/`, `setup/`, `templates/`) left
+byte-identical (verified via `git status` from repo root: zero changes outside
+`platform/web/`). No CORE blockers; no BLOCKED.md entries.
+
+### The one load-bearing architecture decision (artifact-namespace collision)
+- **The fork flow REWRITES the fork's `game.json` slug + name at fork time.** The
+  FROZEN worker derives the artifact path from `manifest.slug` (`build.ts:170,197`
+  → `{slug}/{branch}`), NOT the job's `gameSlug`. A git fork of `snake` keeps
+  `slug:"snake"`, so without intervention its artifact would overwrite the parent's
+  at `snake/main`. So `forkGame` (`src/lib/fork.ts`) commits a one-line manifest
+  edit to the new fork — `slug → {original}--{username}`, `name → "Name (username's
+  fork)"` — BEFORE enqueueing. This is the locked fork-naming convention made real
+  (the SDK `SlugSchema` already allows `--` for exactly this), and it gives every
+  fork a collision-free `{forkSlug}/{branch}` artifact namespace. VERIFIED no
+  collision: after forking, parent `snake/main` still served 200 while the fork
+  built to `snake--mufon609/main`. This is an additive data edit to the user's own
+  repo (public_repo token), not a frozen-contract change.
+
+### What Phase 6 inherits (contracts + extension points)
+- **`forkGame(input)` (`src/lib/fork.ts`)** — the SHARED fork service (the `/api/fork`
+  route AND `scripts/fork-demo.ts` both call it; never mocked). Flow, in this exact
+  order: fork via the user's OAuth token → POLL the new repo until clonable
+  (`waitForRepoReady`, exponential backoff ~30s cap — the fork API is async/202) →
+  rewrite manifest slug+name → create the `Game` row (`parentGameId` set) → enqueue
+  the build → return `{slug, timings}`. `forkSlug`/`forkDisplayName` are exported
+  pure helpers (the naming convention, unit-tested). Phase 6's remix builds on this.
+- **`ConfigDiff` is the reusable governance-grade diff** — `src/lib/configdiff.ts`
+  is PURE (`diffConfigs(base, head)` → flattened dotted-leaf changes,
+  `formatChange` → `"towerCost.arrow: 50 → 30"`), framework-free, unit-tested; the
+  `src/components/ConfigDiff.tsx` React renderer takes either raw config blobs or a
+  precomputed change list. The fork tree and compare view both render it; Phase 7
+  governance turns a passed config proposal INTO exactly this diff. KEEP the logic
+  in the lib so the renderer and the governance engine cannot drift.
+- **Fork tree** — `src/lib/lineage.ts#getLineage(slug, token?)` walks `parentGameId`
+  up (cycle-guarded, depth cap 32) and direct forks down, annotating each fork edge
+  with `computeForkDiff` (GitHub compare API → changed-files count; if `config.json`
+  changed, fetch both and inline the value diffs). Served by
+  `GET /api/games/[slug]/lineage`; rendered client-side by `ForkTree.tsx`. Diffs are
+  LIVE GitHub calls (degrade gracefully) — reversible: Phase 6/7 may cache a config
+  snapshot on the `Game` row to avoid them.
+- **Branch switcher** — `src/lib/branches.ts#listGameBranches` derives playable
+  branches from `Build` rows (LIVE = SUCCESS at `{slug}/{branch}`; FAILED/BUILDING
+  shown disabled; `?repo=1` adds never-built repo branches via GitHub). Served by
+  `GET /api/games/[slug]/branches`; `GamePlayer.tsx` swaps the iframe artifact per
+  branch. Owners can build an unbuilt branch via `POST /api/games/[slug]/branches/build`.
+- **Compare-play** — `/compare?a=<slug>&ab=<branch>&b=<slug>&bb=<branch>` (URL-
+  shareable; `b=__parent__` resolves to A's parent). Two `PlayPane`s, each with its
+  OWN `ParentBridge` bound to its iframe.contentWindow — isolation is by source
+  identity (NOT origin) AND by `gameSlug+branch` namespace. `PlayPane.tsx` is the
+  extracted single-pane player (iframe + bridge + heartbeat) the game page and
+  compare both use (the old `GameFrame.tsx` was subsumed and deleted).
+- **App-level webhook** — `POST /api/webhooks/github` verifies `X-Hub-Signature-256`
+  (HMAC over the RAW body, `verifyGithubSignature`, fails closed on empty secret),
+  parses the push (`parsePushEvent`), maps repo→Game(s) by owner/repo identity, and
+  enqueues a rebuild of the PUSHED branch (`processPushEvent`). ONE endpoint, the
+  App owns it — NO per-repo hook, NO `admin:repo_hook` scope. `ping` → pong;
+  non-push/non-branch → ignored 200. Local dev: `npm run webhook:proxy`
+  (`scripts/webhook-proxy.ts`) forwards the smee.io channel (`WEBHOOK_PROXY_URL`) to
+  the route.
+- **Polling fallback** — `src/lib/poll.ts#pollTrackedRepos({token?})` compares each
+  tracked (game, branch)'s GitHub HEAD to the last built commit and enqueues on
+  drift (`shouldRebuild` is the pure, unit-tested decision). Covers open-tier repos
+  without the App + tunnel downtime. Runner: `npm run poll [--watch]`
+  (`scripts/poll-repos.ts`); a token is recommended (anonymous GitHub = 60 req/hr).
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **No new env keys required.** Added `githubWebhookSecret` + `webhookProxyUrl` to
+  `src/lib/env.ts` reading the EXISTING `.env` keys (`GITHUB_WEBHOOK_SECRET`,
+  `WEBHOOK_PROXY_URL`) as `optional("")` — an empty secret makes webhook verify fail
+  CLOSED (reject every delivery) rather than throwing app-wide at import.
+- **`artifact-url.ts` is a new client-safe pure URL builder** split out of
+  `artifact.ts` (which reads server-only env) so the branch switcher + compare panes
+  compute per-branch artifact URLs without dragging dotenv into the browser bundle.
+  `artifact.ts` now delegates to it (one URL convention, no drift).
+- **Fork is per-(repo,user) idempotent.** GitHub's fork endpoint returns the
+  existing fork on a re-fork; `forkGame` upserts the `Game` row by the deterministic
+  fork slug and skips the manifest commit when unchanged — re-forking is safe.
+- **Webhook rebuilds the PUSHED branch, not the game's tracked branch.** A push to
+  any branch of a tracked repo refreshes THAT branch's artifact (so branch-switcher
+  branches stay current). `enqueueBuild`'s per-(game,branch) dedup coalesces rapid
+  pushes — unchanged 4A/4B contract.
+- **`fork-demo.ts` / `td-compare-setup.ts` are server-side verification drivers**
+  (a script cannot do browser OAuth — same pattern as 4B's seed script): they read
+  `gh auth token`, upsert a `User`+github `Account` for the gh login, and drive the
+  REAL `forkGame` / GitHub-helper code paths. The created fork repos live under the
+  gh-authenticated account `mufon609` (`mufon609/{snake,idle-clicker,tower-defense}`)
+  — recorded here per the "record what you created" rule. No secrets were committed
+  to any repo; no `.github/workflows` created on any repo (locked).
+
+### Verification performed this session (REAL round trips, not just DB rows)
+- **Fork → playable under 10s (DoD):** `forkGame(snake)` as `mufon609` →
+  fork+ready+rewrite+enqueue in **~2.0s**; worker built `snake--mufon609@main`
+  SUCCESS (30 files) in **6s** → **~8s total click→playable**. Browser (Chrome-for-
+  Testing): `/games/snake--mufon609` renders the game `<canvas>` 800×600 IN-IFRAME
+  (the opaque-origin module executes via the CORS patch); `idle-clicker--mufon609`
+  additionally reached storage-bridge **● connected** (real handshake + `get(idleSave)`
+  round-trip on the fork). NO artifact collision: parent `snake/main` still 200.
+- **Compare two rebalanced Tower Defense branches, URL-shareable (DoD):** built
+  `tower-defense--mufon609` branches `cheap-towers` (towerCost 50→30, dmg 22→30) and
+  `dear-towers` (towerCost 50→90, dmg 22→14, startGold 220→300). `/compare?a=…&ab=cheap-towers&b=…&bb=dear-towers`
+  loads BOTH panes rendering their canvas, shows the `config.json` ConfigDiff
+  (`towerCost …`), and proved **save ISOLATION** (a save under `cheap-towers`'s
+  namespace is invisible under `dear-towers`'s).
+- **Push → auto-rebuild (DoD), BOTH paths:** (a) webhook — a real HMAC-signed push
+  to `/api/webhooks/github` matched `snake--mufon609`, enqueued a rebuild → SUCCESS;
+  a tampered signature → 401; ping → pong. (b) polling fallback — pushed a REAL
+  commit to `cheap-towers` (HEAD `49d6227→8fff850`); `npm run poll` detected the
+  drift among 11 targets, enqueued exactly 1 rebuild, which built SUCCESS at the new
+  commit `8fff850`.
+- **Tests:** 16 new unit tests (configdiff, webhook verify/parse, fork naming,
+  poll decision) — full web suite **43/43 green**. `next build` compiles all new
+  routes/components; `git status` confirms zero changes outside `platform/web/`.

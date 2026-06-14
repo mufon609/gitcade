@@ -4,20 +4,33 @@ import { useEffect, useRef, useState } from "react";
 import { ParentBridge, localStorageBridgeStore, bridgeKeyPrefix } from "@/lib/bridge";
 
 /**
- * The PLAYER. Loads the game's built artifact from the artifact origin in an
- * iframe with `sandbox="allow-scripts"` ONLY (opaque origin — NO allow-same-origin,
- * by design / Locked Decision). Implements the PARENT SIDE of the storage bridge
- * (identity + nonce handshake; never origin strings) and posts a play heartbeat
- * that creates/updates a PlaySession row.
+ * One sandboxed game player: an `allow-scripts`-only iframe (opaque origin, no
+ * same-origin — Locked Decision) loading a built artifact, wired to the PARENT side
+ * of the storage bridge and posting a play heartbeat. Extracted from GameFrame so
+ * the single-game player AND the /compare route (two panes side by side) share ONE
+ * implementation.
+ *
+ * ISOLATION (the compare-play guarantee): each pane constructs its own ParentBridge
+ * bound to its OWN iframe.contentWindow. Inbound messages are matched by
+ * `event.source === expectedSource` (identity, never origin — opaque iframes report
+ * "null"), so pane A never answers pane B's messages. Saves are additionally
+ * namespaced by gameSlug+branch, so even two branches of the same game cannot read
+ * each other's saves. Both panes sharing one parent window is exactly what the
+ * source-identity protocol exists for.
  */
-export function GameFrame({
+export function PlayPane({
   slug,
   branch,
   indexUrl,
+  heartbeat = true,
+  className = "block aspect-[4/3] w-full bg-black",
 }: {
   slug: string;
   branch: string;
   indexUrl: string;
+  /** Record a PlaySession heartbeat (default true; compare panes also count as plays). */
+  heartbeat?: boolean;
+  className?: string;
 }) {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [bridgeState, setBridgeState] = useState<"connecting" | "connected">("connecting");
@@ -28,8 +41,6 @@ export function GameFrame({
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
-    // The iframe's WindowProxy is stable across the artifact's own navigation, so
-    // capturing it once is a valid identity anchor for event.source checks.
     const target = iframe.contentWindow;
 
     const refreshSavedCount = () => {
@@ -69,6 +80,7 @@ export function GameFrame({
 
   // ── Play heartbeat → PlaySession ──
   useEffect(() => {
+    if (!heartbeat) return;
     const startedAt = Date.now();
     let playSessionId: string | null = null;
     let stopped = false;
@@ -88,7 +100,7 @@ export function GameFrame({
       }
     };
 
-    void beat(); // create the PlaySession immediately on play
+    void beat();
     const interval = setInterval(() => {
       if (!stopped) void beat();
     }, 10000);
@@ -97,7 +109,6 @@ export function GameFrame({
       if (!playSessionId) return;
       const durationSec = Math.floor((Date.now() - startedAt) / 1000);
       const payload = JSON.stringify({ slug, branch, playSessionId, durationSec });
-      // sendBeacon survives page unload.
       try {
         navigator.sendBeacon?.("/api/play/heartbeat", new Blob([payload], { type: "application/json" }));
       } catch {
@@ -112,7 +123,7 @@ export function GameFrame({
       flush();
       window.removeEventListener("pagehide", flush);
     };
-  }, [slug, branch]);
+  }, [slug, branch, heartbeat]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -120,23 +131,22 @@ export function GameFrame({
         <iframe
           ref={iframeRef}
           src={indexUrl}
-          title={slug}
+          title={`${slug} @ ${branch}`}
           // SECURITY: scripts only — opaque origin, no same-origin, no top-nav.
           sandbox="allow-scripts"
-          className="block aspect-[4/3] w-full bg-black"
+          className={className}
           allow="autoplay; gamepad"
         />
       </div>
       <div className="flex items-center justify-between text-xs text-arcade-mute">
         <span>
-          storage bridge:{" "}
+          bridge:{" "}
           <span className={bridgeState === "connected" ? "text-arcade-good" : "text-arcade-warn"}>
             {bridgeState === "connected" ? "● connected" : "◌ connecting"}
           </span>{" "}
-          · {savedKeys} saved key{savedKeys === 1 ? "" : "s"} (namespaced {slug}/{branch})
-          {lastOp ? ` · last: ${lastOp}` : ""}
+          · {savedKeys} saved key{savedKeys === 1 ? "" : "s"} ({slug}/{branch})
+          {lastOp ? ` · ${lastOp}` : ""}
         </span>
-        <span className="opacity-60">sandbox=allow-scripts · opaque origin</span>
       </div>
     </div>
   );

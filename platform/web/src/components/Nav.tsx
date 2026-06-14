@@ -22,6 +22,12 @@ export function Nav() {
           >
             Publish
           </Link>
+          <Link
+            href="/compare"
+            className="text-sm text-arcade-mute no-underline hover:text-arcade-ink"
+          >
+            Compare
+          </Link>
         </div>
         <div className="flex items-center gap-3">
           {status === "authenticated" && session?.user ? (

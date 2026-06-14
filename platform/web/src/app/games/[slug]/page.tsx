@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { env } from "@/lib/env";
 import { refreshGameStatus } from "@/lib/publish";
-import { artifactIndexUrl } from "@/lib/artifact";
-import { GameFrame } from "./GameFrame";
+import { listGameBranches } from "@/lib/branches";
+import { GamePlayer } from "./GamePlayer";
+import { ForkButton } from "./ForkButton";
+import { ForkTree } from "./ForkTree";
 import { JoinCommunity } from "./JoinCommunity";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +21,12 @@ export default async function GamePage({ params }: { params: { slug: string } })
   const manifest = (game.manifest ?? {}) as Record<string, unknown>;
   const playCount = await prisma.playSession.count({ where: { gameId: game.id } });
   const memberCount = await prisma.communityMembership.count({ where: { gameId: game.id } });
-
-  const indexUrl = artifactIndexUrl(game.slug, game.branch);
+  // Branch list for the switcher (DB-only — fast; the client refreshes + can add
+  // repo branches on demand).
+  const branches = await listGameBranches(game);
+  const parent = game.parentGameId
+    ? await prisma.game.findUnique({ where: { id: game.parentGameId }, select: { slug: true, name: true } })
+    : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -30,19 +37,34 @@ export default async function GamePage({ params }: { params: { slug: string } })
           </Link>
           <h1 className="text-2xl font-bold">{game.name}</h1>
           <p className="text-sm text-arcade-mute">{game.description}</p>
+          {parent && (
+            <p className="mt-1 text-xs text-arcade-mute">
+              ⑂ forked from{" "}
+              <Link href={`/games/${parent.slug}`} className="underline">
+                {parent.name}
+              </Link>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`gc-chip ${game.tier === "ecosystem" ? "gc-tier-ecosystem" : "gc-tier-open"}`}>
             {game.tier}
           </span>
-          <a className="gc-chip no-underline" href={game.repoUrl} target="_blank" rel="noreferrer">
+          <a className="gc-chip no-underline" href={game.repoUrl.replace(/\.git$/, "")} target="_blank" rel="noreferrer">
             source ↗
           </a>
+          <ForkButton slug={game.slug} />
         </div>
       </div>
 
       {status.state === "LIVE" ? (
-        <GameFrame slug={game.slug} branch={game.branch} indexUrl={indexUrl} />
+        <GamePlayer
+          slug={game.slug}
+          repoUrl={game.repoUrl}
+          artifactBase={env.artifactBaseUrl}
+          initialBranches={branches}
+          initialBranch={game.branch}
+        />
       ) : status.state === "BUILDING" ? (
         <div className="gc-panel p-8 text-center text-arcade-warn">
           ◌ This game is still building. <Link href="/publish">Watch publish status →</Link>
@@ -84,9 +106,8 @@ export default async function GamePage({ params }: { params: { slug: string } })
         </div>
       </div>
 
-      {/* ── Phase 5/6 extension points (intentionally inert in 4B) ──
-          - Fork button + branch switcher + fork tree mount here (Phase 5).
-          - "Made from" catalog-parts panel mounts here (Phase 6). */}
+      {/* Phase 5: fork lineage. (Phase 6 "Made from" catalog panel mounts here too.) */}
+      <ForkTree slug={game.slug} />
     </div>
   );
 }

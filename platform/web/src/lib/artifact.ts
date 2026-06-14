@@ -3,11 +3,11 @@
 // index.html lives at the branch root. The iframe loads this opaque cross-origin
 // URL with sandbox="allow-scripts" only (Locked Decision: game storage isolation).
 import { env } from "./env";
+import { buildArtifactIndexUrl } from "./artifact-url";
 
 /** URL of a game's built artifact entry (index.html) for a given branch. */
 export function artifactIndexUrl(gameSlug: string, branch = "main"): string {
-  const base = env.artifactBaseUrl.replace(/\/+$/, "");
-  return `${base}/artifacts/${encodeURIComponent(gameSlug)}/${encodeURIComponent(branch)}/index.html`;
+  return buildArtifactIndexUrl(env.artifactBaseUrl, gameSlug, branch);
 }
 
 /** The artifact origin (scheme + host) — used for nothing security-relevant on

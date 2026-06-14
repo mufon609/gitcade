@@ -11,5 +11,6 @@ The GitCade platform services. Built across Phases 4–8.
 Deployment topology (app vs. worker vs. storage) is documented in
 [`../infra/README.md`](../infra/README.md).
 
-> Placeholder — service directories are created by their respective phases.
-> See **MASTER-PLAN.md** for per-phase prompts and Definitions of Done.
+> `worker/` and `artifact-server/` exist as of Phase 4A (each with its own
+> README). `web/` arrives in Phase 4B. See **MASTER-PLAN.md** for per-phase
+> prompts and Definitions of Done.

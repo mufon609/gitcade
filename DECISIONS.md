@@ -438,3 +438,107 @@ standalone public repos in `gitcade-games`. SDK, library, examples, docs, and
   `.git` is created under `games/` and the monorepo keeps tracking the game files
   normally. `.github/workflows` exist on none of the seven repos (locked: the
   platform pipeline is the CI). Scaffold marked `isTemplate: true`.
+
+---
+
+## Phase 4A — The Build Worker + Artifact Server — 2026-06-13
+
+Scope this session: built two standalone services — `platform/worker/` (Postgres
+queue consumer → sibling-container builds → S3/MinIO artifacts → Build rows) and
+`platform/artifact-server/` (serves artifacts with the strict game CSP) — plus the
+dedicated **builder image**. No web UI. SDK, library, games, examples, docs, and
+`setup/` were left untouched. No CORE blockers; no BLOCKED.md entries. All six seed
+repos build green through the CLI, a broken repo is rejected readably, and a real
+browser plays a served game.
+
+### What Phase 4B inherits (contracts — additive, do NOT migrate these tables)
+- **Queue + Build schema** (`platform/worker/prisma/schema.prisma`): `BuildJob`
+  (`id, gameSlug, repoUrl, branch, commit?, status[PENDING|RUNNING|DONE], attempts,
+  claimedBy?, timestamps`) and `Build` (`id, jobId@unique, gameSlug, repoUrl,
+  branch, commit?, tier?, status[SUCCESS|FAILED], stage, logs@Text, artifactPath?,
+  fileCount?, timestamps`). Nothing references a 4B table, so 4B adds
+  User/Game/PlaySession/etc. purely additively (e.g. a nullable `Game` relation off
+  `BuildJob.gameSlug` later). Schema created with **`prisma db push`** (no migration
+  history) — 4B may introduce migrations or keep pushing.
+- **Enqueue contract**: `enqueueBuild({ repoUrl, branch?, commit?, gameSlug? })` in
+  `src/queue.ts` — 4B calls this to enqueue and reads `Build` rows; **it never
+  builds**. Per-(game,branch) DEDUP: a second active (PENDING/RUNNING) enqueue
+  coalesces onto the existing job.
+- **Artifact URL convention**: artifacts upload to bucket prefix
+  `{manifest.slug}/{branch}` and serve at
+  `{ARTIFACT_BASE_URL}/artifacts/{slug}/{branch}/{path}` (index.html at the root).
+- **Storage headers**: the strict game CSP + content-types + cache live in
+  `artifact-server/src/headers.ts` (single source of truth) — 4B's iframe must use
+  `sandbox="allow-scripts"` against this opaque origin.
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **Worker runs on the HOST for the CLI proof; ships ALSO as a container.** The
+  `docker run` sibling-launch code is identical either way (both drive the same host
+  daemon via the socket — that IS the "sibling" relationship, not DinD). Verified
+  BOTH: host-run via the CLI (reaches Postgres/MinIO at `localhost`) AND the
+  containerized topology (`docker-compose.yml`: attaches to `gitcade-infra_default`,
+  reaches `db:5432`/`minio:9000` by service name, mounts `/var/run/docker.sock`) —
+  the latter built `breakout` green. Networking is env-driven, so switching topology
+  is a `.env` change, not a code change.
+- **Two ephemeral sibling containers per build sharing ONE named volume**
+  (`gitcade-ws-<jobId>`). Stage 1 on the default bridge (internet for clone+npm);
+  Stage 2 with `--network none` (loopback only — which the OPEN-tier headless check
+  uses to serve `/dist` to its own Chromium). The volume is destroyed after upload;
+  containers are `--rm` and labeled `gitcade-build=<jobId>` (cleanup is asserted, not
+  assumed). Resource/time limits via `--cpus`/`--memory`/timeout from env
+  (defaults 2 CPU / 2g / 600s).
+- **`/dist` is exported via `docker create` + `docker cp`** (not tar piping) — works
+  identically whether the worker is a host process or a container (cp streams through
+  the CLI). The worker reads `commit.txt` + `game.json` from the volume via throwaway
+  `cat` containers.
+- **Tier + manifest validation is WORKER-SIDE using the frozen SDK schema**
+  (`GameManifestSchema` imported from `@gitcade/sdk`, the browser-safe entry). Gives
+  readable manifest/license errors before the build container even starts, and yields
+  the tier. The manifest `slug` is canonical for the artifact path (reconciled from
+  the repo-derived queue slug — they match for compliant repos). NOTE: the frozen
+  manifest schema requires `engine: "gitcade-sdk"` + an exact `sdkVersion` + an
+  `entryPoint` **even for open tier** — an inherited Phase 1 constraint, not relitigated
+  here; open games still skip `gitcade validate`/structure checks.
+- **The builder image (`platform/worker/builder/Dockerfile`) is ~2.06 GB** (Node 22 +
+  Debian `chromium` 149 + node-canvas build deps + global `puppeteer-core`). The
+  worker image is ~1.79 GB. **Logged per the disk-hygiene rule — expected, not a
+  blocker.** The verification tool image `minio/mc` (~30 MB) was also pulled.
+  `apt-get` inside these Dockerfiles is image-build time (root in the build context),
+  NOT the forbidden host `apt`.
+- **OPEN-tier headless check** (`builder/headless-check.mjs`): serves `/dist` over
+  loopback (works under `--network none`) and loads it in the bundled Chromium via
+  `puppeteer-core` (resolved through `createRequire` anchored at
+  `/usr/local/lib/node_modules` — ESM ignores the global path). Fails on any
+  `console.error`/`pageerror`/`requestfailed`. It (and the artifact server) answer
+  `/favicon.ico` with **204** so the browser's automatic favicon probe doesn't
+  spuriously fail an otherwise-clean game. Verified end-to-end with a minimal
+  open-tier game.
+- **Strict game CSP** (`headers.ts`): `default-src 'none'`; `script-src/style-src
+  'self' 'unsafe-inline'` (Vite emits an inline modulepreload polyfill — acceptable
+  inside an opaque-origin, `connect-src 'none'` sandbox); `img/media 'self' data:
+  blob:`; `connect-src 'none'`; `base-uri 'none'`; `form-action 'none'`;
+  `frame-ancestors 'self' <PLATFORM_ORIGIN>`. Hashed assets `immutable`; HTML
+  `no-cache`. Verified: a host-Chromium load of the served Snake renders the title +
+  plays into Game-Over with **zero non-2xx responses**.
+- **N-concurrency + dedup** (requirement 5): the poller (`worker start`) claims up to
+  `WORKER_CONCURRENCY` PENDING jobs per tick with `FOR UPDATE SKIP LOCKED` (no
+  double-claim across workers); the CLI `build` does a targeted atomic claim so a
+  running poller can't steal its job. Demonstrated 3 concurrent builds (inFlight=3)
+  and same-(game,branch) coalescing.
+- **Services run via `tsx`** (no compile step; bin shims spawn `node --import tsx`) —
+  they are internal, unpublished, and use the Prisma client + `@aws-sdk/client-s3`.
+  `platform/worker/.env` (gitignored) holds `DATABASE_URL` only so the Prisma CLI
+  (`db push`/`generate`) works without exporting it; the runtime loads the repo-root
+  `.env` via dotenv and passes the URL to PrismaClient explicitly.
+- **Broken-repo proof served LOCALLY, not published.** Creating a public GitHub repo
+  was (correctly) out of scope, so the deliberately-broken game (Snake with a
+  hardcoded `stepInterval: 9`, a no-magic-numbers violation) was served from a git
+  daemon running **in a container** on the docker network (host `git daemon` can't
+  bind a listening socket under the command sandbox). The worker did a real anonymous
+  shallow clone and produced a readable rejection:
+  `magic-number: numeric literal 9 under non-structural key "stepInterval" — move it
+  to config.json and reference it as "$cfg.<key>"`. Exit 1, no artifact, workspace
+  destroyed. The fixtures (git-server container, `/tmp/gitserve`) are not committed.
+- **Tests**: artifact-server header-assertion test (8 cases — pure builders + real
+  fetch of index.html + a JS asset through MinIO) and worker queue tests (slug
+  derivation + per-(game,branch) dedup against the real queue). Both green.

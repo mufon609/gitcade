@@ -1,0 +1,90 @@
+// GitCade — Phase 4A schema: the build job QUEUE and the Build RESULT only.
+//
+// The queue is a Postgres table (Locked Decision: there is no external queue
+// service). Phase 4B adds User/Game/PlaySession/etc. ADDITIVELY — it must be
+// able to add tables (and add nullable columns / relations referencing these)
+// WITHOUT migrating BuildJob or Build. Nothing here references a 4B table, so
+// 4B's additions are purely additive. `gameSlug` is a plain string (not yet a
+// FK to a Game row) precisely so this schema stands alone; 4B can introduce the
+// Game relation as a new nullable column later.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Lifecycle of a queued build job.
+enum JobStatus {
+  PENDING // waiting to be claimed
+  RUNNING // claimed by a worker, in flight
+  DONE // processed (see the related Build for SUCCESS/FAILED outcome)
+}
+
+/// Outcome of an executed build.
+enum BuildStatus {
+  SUCCESS
+  FAILED
+}
+
+/// A unit of work for the build worker: turn (repoUrl, branch) into a validated,
+/// stored, servable artifact. Enqueued by the CLI in 4A and by the web app in 4B
+/// (4B only enqueues + reads — it never builds).
+model BuildJob {
+  id        String    @id @default(uuid())
+  /// Game slug used for per-(game,branch) dedup and the artifact path prefix.
+  /// Derived from the repo at enqueue time; reconciled to the manifest slug once
+  /// cloned (they match for compliant repos).
+  gameSlug  String
+  repoUrl   String
+  branch    String    @default("main")
+  /// Optional exact commit to build; null = build the branch head.
+  commit    String?
+  status    JobStatus @default(PENDING)
+  /// How many times a worker has claimed this job (infra-retry visibility).
+  attempts  Int       @default(0)
+  /// Opaque worker id holding the claim (null when not RUNNING).
+  claimedBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  startedAt DateTime?
+  build     Build?
+
+  // Hot path: the poller claims the oldest PENDING jobs.
+  @@index([status, createdAt])
+  // Dedup lookup: is there already an active job for this game+branch?
+  @@index([gameSlug, branch, status])
+}
+
+/// The result of executing a BuildJob: status, verbatim logs, artifact location.
+/// One Build per job (created when the job is claimed, finalized at the end).
+model Build {
+  id        String      @id @default(uuid())
+  jobId     String      @unique
+  job       BuildJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  gameSlug  String
+  repoUrl   String
+  branch    String
+  /// Exact commit the artifact was built from (resolved during clone).
+  commit    String?
+  /// Detected from game.json; null if detection failed before tier was known.
+  tier      String?
+  status    BuildStatus
+  /// Pipeline stage reached when it finished/failed: clone | install | manifest
+  /// | validate | build | upload | done. Lets the UI point at the failure.
+  stage     String?
+  /// VERBATIM, readable combined logs — a failed build must explain itself.
+  logs      String      @db.Text
+  /// Bucket prefix the artifact server serves from: "{gameSlug}/{branch}".
+  /// Null on failure. Served at {ARTIFACT_BASE_URL}/artifacts/{gameSlug}/{branch}/...
+  artifactPath String?
+  /// Number of files uploaded (servable artifact size signal).
+  fileCount Int?
+  createdAt DateTime    @default(now())
+  finishedAt DateTime?
+
+  @@index([gameSlug, branch])
+}

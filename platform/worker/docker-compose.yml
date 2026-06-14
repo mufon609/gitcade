@@ -1,0 +1,44 @@
+# Containerized worker (production deployment topology). The worker attaches to
+# the infra compose network and addresses Postgres/MinIO BY SERVICE NAME
+# (db:5432, minio:9000) — inside a container `localhost` is NOT the host
+# (ENVIRONMENT.md). It mounts the host Docker socket to launch SIBLING build
+# containers (never Docker-in-Docker). Sibling build workspaces are NAMED
+# volumes (the worker's own filesystem is invisible to siblings).
+#
+# Locally the same code also runs on the host via the CLI (`npm run cli -- build
+# <repoUrl> <branch>`), which is how Phase 4A was verified; this compose proves
+# the identical pipeline under the real topology.
+#
+#   docker compose -f platform/worker/docker-compose.yml up --build
+services:
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gitcade-worker:local
+    environment:
+      # Service-name addressing on the infra network (NOT localhost).
+      DATABASE_URL: postgresql://gitcade:gitcade@db:5432/gitcade
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: gitcade-artifacts
+      S3_ACCESS_KEY_ID: gitcade
+      S3_SECRET_ACCESS_KEY: gitcade-secret
+      S3_FORCE_PATH_STYLE: "true"
+      BUILDER_IMAGE: gitcade-builder:local
+      ARTIFACT_BASE_URL: http://localhost:3001
+      WORKER_CONCURRENCY: "2"
+      # Stage-1 build containers attach to the default bridge (internet for
+      # clone+npm); they never need the infra network (only the worker does).
+      BUILD_NETWORK: ""
+    volumes:
+      # Sibling-container launch (NOT Docker-in-Docker).
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - infra
+    restart: unless-stopped
+
+networks:
+  infra:
+    # The running infra stack's network (Postgres + MinIO live here).
+    external: true
+    name: gitcade-infra_default

@@ -1,0 +1,64 @@
+// Centralized, server-only env access. The web app shares the repo-root .env with
+// the worker + artifact-server (one source of truth for secrets, per
+// ENVIRONMENT.md). We load it explicitly here — like the worker does — so server
+// code never depends on Next's cwd-based .env discovery. A MISSING core key
+// (DB / OAuth / artifact origin) is a [CRITICAL] condition: we throw loudly
+// rather than invent a value for an external service.
+//
+// NOTE: intentionally NOT `import "server-only"` — this module is also imported
+// by the standalone tsx seed script and by vitest, which run outside the Next
+// bundler. Keep it free of client-only/server-only guards; it is server logic by
+// placement and by the fact that it reads secrets.
+import { config as loadDotenv } from "dotenv";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+// src/lib -> platform/web -> platform -> repo root
+const repoRoot = path.resolve(here, "..", "..", "..", "..");
+loadDotenv({ path: path.join(repoRoot, ".env") });
+
+function required(key: string): string {
+  const v = process.env[key];
+  if (!v || v.trim() === "") {
+    throw new Error(
+      `[CRITICAL] Required env var ${key} is missing. Set it in ${path.join(
+        repoRoot,
+        ".env",
+      )} (see setup/.env.example). Never invent values for external services.`,
+    );
+  }
+  return v;
+}
+
+const optional = (key: string, fallback: string): string => {
+  const v = process.env[key];
+  return v && v.trim() !== "" ? v : fallback;
+};
+
+export const env = {
+  repoRoot,
+  databaseUrl: required("DATABASE_URL"),
+
+  githubOrg: optional("GITHUB_ORG", "gitcade-games"),
+  githubOAuthId: required("GITHUB_OAUTH_ID"),
+  githubOAuthSecret: required("GITHUB_OAUTH_SECRET"),
+  /// GitHub App slug/id — used to build the "Install the GitCade App" URL for the
+  /// ecosystem governance step. App id is numeric; the install URL uses the app's
+  /// public name, which we keep configurable.
+  githubAppId: optional("GITHUB_APP_ID", ""),
+  githubAppSlug: optional("GITHUB_APP_SLUG", "gitcade-governance"),
+
+  nextAuthUrl: optional("NEXTAUTH_URL", "http://localhost:3000"),
+  nextAuthSecret: required("NEXTAUTH_SECRET"),
+
+  /// The artifact origin the iframe loads games from (opaque-origin sandbox). The
+  /// 4A artifact server owns it (port 3001 locally / separate domain in prod).
+  artifactBaseUrl: optional("ARTIFACT_BASE_URL", "http://localhost:3001"),
+
+  /// The designated seed/admin user the seed script publishes the six games as.
+  seedUserLogin: optional("SEED_USER_LOGIN", "gitcade-admin"),
+  seedUserEmail: optional("SEED_USER_EMAIL", "admin@gitcade.local"),
+};
+
+export type Env = typeof env;

@@ -1,0 +1,41 @@
+{
+  "name": "@gitcade/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GitCade platform site — publish a game from a GitHub repo, play it in a sandboxed iframe, browse the grid. Enqueues 4A build jobs and reads Build rows; it NEVER builds.",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "seed": "tsx scripts/seed.ts",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@gitcade/sdk": "0.1.0",
+    "@next-auth/prisma-adapter": "^1.0.7",
+    "@prisma/client": "^6.1.0",
+    "dotenv": "^16.4.7",
+    "next": "14.2.33",
+    "next-auth": "^4.24.11",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "prisma": "^6.1.0",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

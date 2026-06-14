@@ -542,3 +542,161 @@ browser plays a served game.
 - **Tests**: artifact-server header-assertion test (8 cases — pure builders + real
   fetch of index.html + a JS asset through MinIO) and worker queue tests (slug
   derivation + per-(game,branch) dedup against the real queue). Both green.
+
+---
+
+## Phase 4B — Platform Site MVP (Publish + Play) — 2026-06-13
+
+Scope this session: built `platform/web/` — a Next.js (App Router) + TypeScript +
+Tailwind app with Prisma/Postgres + GitHub OAuth (NextAuth). Publish a public
+GitHub game repo → enqueue a 4A build → poll the Build → live (validator is the
+gate); play it in a sandboxed iframe implementing the PARENT side of the Phase 1
+storage bridge; record PlaySession heartbeats + CommunityMembership. All six seed
+games were published through the REAL flow and went LIVE; a broken game was
+rejected with the worker's verbatim logs in the UI; the storage bridge round-trips
+a save in a real browser. **One CORE blocker found in the frozen 4A artifact
+server — see the `[CRITICAL]` entry in BLOCKED.md.** Frozen dirs
+(`packages/`, `platform/worker`, `platform/artifact-server`, `games/`, `examples/`,
+`setup/`, `templates/`) were left byte-identical (verified via `git status`).
+
+### ⚠ CORE blocker raised (does NOT block the rest of 4B) — see BLOCKED.md `[CRITICAL]`
+- The frozen `platform/artifact-server` serves no `Access-Control-Allow-Origin`.
+  A game runs in `sandbox="allow-scripts"` (opaque origin → `origin: "null"`), and
+  a Vite `<script type="module">` is fetched in CORS mode, so a null-origin
+  document loading its module cross-origin from the artifact origin is BLOCKED.
+  `Cross-Origin-Resource-Policy` (which the server does send) governs embedding,
+  not module-script CORS, so it is insufficient. This is the FIRST time the locked
+  opaque-origin embedding ran end-to-end (4A only tested a top-level artifact load,
+  where scripts are same-origin). The one-line additive fix (`"Access-Control-
+  Allow-Origin": "*"` in `artifact-server/src/headers.ts#artifactHeaders`) changes
+  NO contract; I VERIFIED it is correct by serving the artifacts through a throwaway
+  proxy that injects the header (non-frozen) and confirming the game renders + the
+  storage bridge round-trips a save in a real browser. Filed CRITICAL (not
+  self-patched) because the package is explicitly frozen this phase.
+
+### What Phase 5 inherits (contracts + extension points)
+- **Schema is a SUPERSET of 4A's**, created with `prisma db push` from
+  `platform/web/prisma/schema.prisma`. It COPIES `BuildJob`/`Build`/enums VERBATIM
+  (so push is a no-op for them) and adds, purely additively: NextAuth
+  (`User`/`Account`/`Session`/`VerificationToken`), `Game`, `PlaySession`,
+  `CommunityMembership`, and EMPTY placeholder `Proposal`/`Vote`/`BugReport` (Phase
+  7 fills them). **No relation field was added onto `BuildJob`/`Build`** — `Game`
+  links to its build via a plain `lastJobId String?` (Build.jobId is @unique), so
+  the frozen tables stay untouched. Verified: BuildJob/Build columns byte-identical
+  before/after push.
+- **`Game`**: `slug @unique` (== manifest slug == artifact path prefix), `name`,
+  `description`, `repoUrl`, `branch` (default main), `ownerId→User`, `tier`,
+  `status` (BUILDING|LIVE|FAILED), `manifest` (Json snapshot), `tags String[]`,
+  `lastJobId`, `parentGameId` (self-relation `GameForks`, nullable — **Phase 5 fork
+  extension point**, already wired so forking is additive), `installationId`
+  (GitHub App install for governance — **Phase 7**).
+- **`PlaySession`** (userId nullable, gameId, branch, startedAt, durationSec) and
+  **`CommunityMembership`** (@@unique[userId,gameId]) are populated and ready for
+  Phase 7 anti-brigading (account-age + PlaySession + membership signals).
+- **The publish service `publishGame()`** (`src/lib/publish.ts`) is the SINGLE
+  shared code path — the `/api/publish` route AND the seed script both call it
+  (never mocked). `refreshGameStatus()` reconciles Game status from the build and is
+  the only place the LIVE/FAILED transition happens.
+- **Parent storage bridge** (`src/lib/bridge.ts`, `ParentBridge` + exported
+  `bridgeKeyPrefix`) implements the frozen Phase 1 protocol's parent half: matches
+  `event.source === iframe.contentWindow` (NEVER origin — opaque iframes report
+  "null"), completes the nonce handshake, replies with `targetOrigin "*"`, namespaces
+  saves by `gameSlug + branch` (NUL separator). Phase 5 compare-play routes two
+  channels by source identity using exactly this.
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **The generated Prisma client lives at the hoisted root `node_modules/@prisma/
+  client`** (npm workspaces). Running `prisma generate` from the web superset
+  schema overwrites it, but the superset is a STRICT superset of the worker schema
+  (BuildJob/Build/enums identical), so the frozen worker still resolves
+  `prisma.buildJob`/`prisma.build` with identical shapes — both services share one
+  client safely. If the worker's `prisma generate` is ever re-run it reverts to the
+  worker-only client (fine for the worker, breaks the web); regenerate from the web
+  schema (the superset) when in doubt. Reversible.
+- **`enqueueBuild` is MIRRORED, not imported** (`src/lib/queue.ts`) — same
+  `EnqueueInput`, same slug derivation, same per-(game,branch) dedup as
+  `platform/worker/src/queue.ts`, but against the web Prisma client. The real
+  interface between the services is the shared `BuildJob` table; the web writes
+  byte-identical rows. A cross-package tsx import into the Next bundler is fragile,
+  and the worker stays the ONLY builder. If the 4A enqueue contract ever changes,
+  that is a CORE blocker (HALT), not a web edit.
+- **`refreshGameStatus` gates on `BuildJob.status === "DONE"`, NOT the Build row's
+  status.** The worker creates the Build row UP FRONT with a placeholder
+  `status:"FAILED", stage:"queued"` and only finalizes it (and flips the job to
+  DONE) when the build ends. Reading Build.status directly reports FAILED mid-build.
+  **The integration test caught this** — fixed to read the job (include build) and
+  treat non-DONE as BUILDING. *Load-bearing; do not revert.*
+- **The manifest pre-check is an EARLY, cheap gate; the WORKER is the real gate.**
+  Publish fetches `game.json` from raw.githubusercontent, validates it against the
+  FROZEN `GameManifestSchema` (readable errors + the tier), enforces public-repos-
+  only via the GitHub API (`private` → reject), then enqueues. A Game reaches LIVE
+  only on Build SUCCESS — no manual override.
+- **Saves persist in the PARENT page's `localStorage`** namespaced by
+  `gameSlug + branch` (same-origin platform page; works for anonymous play).
+  `localStorageBridgeStore` is swappable for a server-backed per-user cloud-save
+  store WITHOUT touching the protocol — **extension point** noted in code.
+- **Auth: explicit scopes `read:user user:email public_repo`** (public_repo
+  REQUIRED now for Phase 5/6 token ops; never `admin:repo_hook`). NextAuth v4 +
+  PrismaAdapter + **database sessions** — the GitHub access token is stored on the
+  `Account` row by the adapter (`getUserGitHubToken(userId)` reads it). The GitHub
+  `login` is captured into `User.githubLogin` for Phase 5 fork-slug naming.
+- **Seed/admin user from env** (`SEED_USER_LOGIN`/`SEED_USER_EMAIL`, defaulted to
+  `gitcade-admin`/`admin@gitcade.local` — not in `.env`, so defaulted and logged).
+  The seed script (`scripts/seed.ts`) reads repo URLs from `games/PUBLISHED.md`
+  (excludes the scaffold) and publishes each via `publishGame`; it decorates Games
+  with demo `tags` (manifest has none) purely for the home-grid filter.
+- **GitHub App install callback** (`/api/github/app/callback`) captures
+  `installation_id` and attaches it to the Game via the `state=gameId` we pass in
+  the install URL. Skippable at publish; the UI surfaces that Phase 7 proposals are
+  disabled until installed.
+- **`.js`-less relative imports in the web app** — Next/webpack does not resolve
+  `./x.js` to `./x.ts`; intra-app relative imports are extensionless (unlike the
+  SDK/worker ESM packages). `@gitcade/sdk` is `transpilePackages`'d. The SDK's
+  guarded `FileStorage` dynamic import surfaces a harmless webpack "Critical
+  dependency" warning in the client bundle — expected (noted in Phase 1 DECISIONS).
+- **Env loading**: the web shares the repo-root `.env` (one secrets source).
+  `src/lib/env.ts` loads it via dotenv (works in tsx/vitest), and `next.config.mjs`
+  pre-loads it so the Next server process has it. A LOCAL `platform/web/.env` holds
+  only `DATABASE_URL` for the Prisma CLI (mirrors `platform/worker/.env`); gitignored.
+- **Next pinned to `14.2.33`** (patched; the initially-resolved 14.2.15 had a
+  published security advisory).
+
+### Tests (platform code is no longer exempt)
+- **Unit (`npm test`, infra-free, 20 tests):** manifest parsing + tier gating
+  (`manifest.test.ts`); publish service with GitHub+DB mocked — public-repo
+  enforcement, readable manifest rejection, enqueue, idempotent re-publish, slug
+  conflict (`publish.test.ts`); storage-bridge round-trip driving the REAL SDK
+  `BridgeStorage` ↔ `ParentBridge` — handshake, namespacing, cross-game isolation,
+  remove/clear scoping, source-identity rejection (`bridge.test.ts`).
+- **Integration (`npm run test:integration`):** enqueue → worker → live against a
+  LOCAL git-daemon fixture (a renamed copy of the snake game) — polls the real
+  Build to SUCCESS, asserts Game LIVE + artifact served 200. **Requires the worker
+  poller + artifact server running** (see below). This test caught the
+  `refreshGameStatus` placeholder-row bug.
+
+### How to run the services (for the integration test + manual verify)
+From repo root, with Postgres + MinIO + the `gitcade-builder:local` image present:
+1. Artifact server: `cd platform/artifact-server && npx tsx src/server.ts` (port 3001).
+2. Worker poller: `cd platform/worker && npx tsx src/cli.ts start`.
+3. Web: `npm --prefix platform/web run prisma:generate && npm --prefix platform/web run prisma:push`,
+   then `npm --prefix platform/web run build && npm --prefix platform/web run start` (port 3000).
+4. Seed the six games through the real flow: `npm --prefix platform/web run seed` (add `-- --wait` to block until built).
+
+### Verification performed this session (REAL output, not assumed)
+- **All six seed games published through the real `publishGame` → worker → LIVE**
+  (not hand-inserted): seed script enqueued 6 jobs; worker built all 6 SUCCESS
+  (30 files each, artifacts at `{slug}/main`); the build-status endpoint + Game rows
+  report LIVE for all six.
+- **Broken game rejected with the worker's readable errors in the UI**: a snake
+  copy with a `stepInterval: 9` magic-number violation, served from a local
+  git-daemon, enqueued through the real path → worker FAILED at `validate+build`;
+  `GET /api/games/broken-demo/build-status` and the SSR game page render the
+  verbatim log incl. `magic-number: numeric literal 9 under non-structural key
+  "stepInterval" …`, and NO playable iframe. (Public-repo creation was out of scope/
+  denied, so the broken fixture was local — same pattern as 4A's broken proof.)
+- **Play + bridge + PlaySession in a real browser** (Chrome-for-Testing via
+  puppeteer-core): loading `/games/idle-clicker` created a `PlaySession` row and
+  accumulated `durationSec`; with the prescribed CORS fix applied via the throwaway
+  proxy, the bridge handshook (`● connected`) and a SAVE round-tripped — parent
+  `localStorage` gained `gc⟨NUL⟩idle-clicker⟨NUL⟩main⟨NUL⟩idleSave` = the real save
+  JSON. Without the fix the game's module script is CORS-blocked (the `[CRITICAL]`).

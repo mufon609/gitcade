@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-arcade-bg text-arcade-ink;
+}
+
+a {
+  @apply text-arcade-accent;
+}
+
+/* Shared chrome used across server + client components. */
+.gc-panel {
+  @apply rounded-lg border border-arcade-edge bg-arcade-panel;
+}
+.gc-btn {
+  @apply inline-flex items-center justify-center rounded-md border border-arcade-edge bg-arcade-panel px-3 py-1.5 text-sm font-medium text-arcade-ink transition-colors hover:border-arcade-accent disabled:cursor-not-allowed disabled:opacity-50;
+}
+.gc-btn-primary {
+  @apply border-transparent bg-arcade-accent text-arcade-bg hover:opacity-90;
+}
+.gc-input {
+  @apply w-full rounded-md border border-arcade-edge bg-arcade-bg px-3 py-2 text-sm text-arcade-ink placeholder:text-arcade-mute focus:border-arcade-accent focus:outline-none;
+}
+.gc-chip {
+  @apply inline-flex items-center gap-1 rounded-full border border-arcade-edge px-2 py-0.5 text-xs text-arcade-mute;
+}
+.gc-tier-ecosystem {
+  @apply border-arcade-accent/40 text-arcade-accent;
+}
+.gc-tier-open {
+  @apply border-arcade-warn/40 text-arcade-warn;
+}

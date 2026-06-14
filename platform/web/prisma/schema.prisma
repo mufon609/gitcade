@@ -1,0 +1,272 @@
+// GitCade — Phase 4B schema. This is a SUPERSET of the frozen Phase 4A worker
+// schema (platform/worker/prisma/schema.prisma): the BuildJob/Build models and
+// their enums are copied here VERBATIM so that `prisma db push` from the web app
+// is a no-op for those existing tables and only CREATES the new 4B tables.
+//
+// HARD RULE (per the phase contract): extend ADDITIVELY. We never reshape or
+// migrate BuildJob/Build, and we add NO relation field onto them — the Game row
+// links to its build by storing the opaque `lastJobId` string (Build.jobId is
+// @unique), so the frozen tables stay byte-identical to what 4A created. The web
+// app ENQUEUES jobs (inserting BuildJob rows via the frozen contract) and READS
+// Build rows; it never builds.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────── FROZEN 4A TABLES (verbatim) ─────────────────────────
+
+/// Lifecycle of a queued build job.
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+}
+
+/// Outcome of an executed build.
+enum BuildStatus {
+  SUCCESS
+  FAILED
+}
+
+/// A unit of work for the build worker. Enqueued by the 4A CLI and by the 4B web
+/// app (the web app only enqueues + reads — it never builds).
+model BuildJob {
+  id        String    @id @default(uuid())
+  gameSlug  String
+  repoUrl   String
+  branch    String    @default("main")
+  commit    String?
+  status    JobStatus @default(PENDING)
+  attempts  Int       @default(0)
+  claimedBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  startedAt DateTime?
+  build     Build?
+
+  @@index([status, createdAt])
+  @@index([gameSlug, branch, status])
+}
+
+/// The result of executing a BuildJob: status, verbatim logs, artifact location.
+model Build {
+  id           String      @id @default(uuid())
+  jobId        String      @unique
+  job          BuildJob    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  gameSlug     String
+  repoUrl      String
+  branch       String
+  commit       String?
+  tier         String?
+  status       BuildStatus
+  stage        String?
+  logs         String      @db.Text
+  artifactPath String?
+  fileCount    Int?
+  createdAt    DateTime    @default(now())
+  finishedAt   DateTime?
+
+  @@index([gameSlug, branch])
+}
+
+// ───────────────────────── NextAuth (GitHub OAuth) ─────────────────────────
+// Standard NextAuth Prisma-adapter models. The GitHub access token (granted with
+// the explicit `read:user user:email public_repo` scopes) is stored on Account
+// so Phase 5 forks / Phase 6 remix commits can act as the user. See src/lib/auth.ts.
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ───────────────────────── 4B domain model ─────────────────────────
+
+/// Game lifecycle on the platform. THE VALIDATOR IS THE GATE: a Game only
+/// becomes LIVE when its build worker run returns SUCCESS.
+enum GameStatus {
+  BUILDING // job enqueued, waiting on the worker
+  LIVE     // latest build SUCCEEDED — playable
+  FAILED   // latest build FAILED — worker logs surfaced verbatim
+}
+
+enum GameTier {
+  ecosystem
+  open
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String?  @unique
+  emailVerified DateTime?
+  image         String?
+  /// GitHub login (handle). Used for fork slug naming in Phase 5.
+  githubLogin   String?
+  isSeed        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  accounts      Account[]
+  sessions      Session[]
+  games         Game[]               @relation("GameOwner")
+  playSessions  PlaySession[]
+  memberships   CommunityMembership[]
+  // Phase 7 extension points (placeholder relations).
+  votes         Vote[]
+  bugReports    BugReport[]
+  proposals     Proposal[]           @relation("ProposalAuthor")
+}
+
+model Game {
+  id           String     @id @default(cuid())
+  slug         String     @unique
+  name         String
+  description  String?
+  repoUrl      String
+  /// The branch the published Game tracks. Phase 5 adds per-branch play; for now
+  /// every Game tracks one branch (default "main").
+  branch       String     @default("main")
+  ownerId      String
+  owner        User       @relation("GameOwner", fields: [ownerId], references: [id])
+  tier         GameTier
+  status       GameStatus @default(BUILDING)
+  /// Snapshot of game.json at publish time (manifest shape is frozen in the SDK).
+  manifest     Json
+  /// Free-text tags for home-grid filtering (Phase 6 marketplace enriches these).
+  tags         String[]   @default([])
+
+  /// Opaque pointer to the latest enqueued BuildJob (BuildJob.id). NOT a relation
+  /// — deliberately a plain string so the frozen Build/BuildJob tables need no new
+  /// back-relation column. The publish service reads the Build via Build.jobId.
+  lastJobId    String?
+
+  // ── Phase 5 fork extension point ──
+  /// Null for original games; set to the parent Game for forks (Phase 5 wires the
+  /// GitHub fork API + the {slug}--{username} naming). The relation exists now so
+  /// Phase 5 is purely additive UI/flow.
+  parentGameId String?
+  parent       Game?      @relation("GameForks", fields: [parentGameId], references: [id])
+  forks        Game[]     @relation("GameForks")
+
+  // ── Phase 7 governance extension point ──
+  /// GitCade GitHub App installation id on this repo, captured during the
+  /// ecosystem publish "Enable community governance" step. Null = app not
+  /// installed → Phase 7 proposals are disabled for this game.
+  installationId String?
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  playSessions PlaySession[]
+  memberships  CommunityMembership[]
+  proposals    Proposal[]
+  bugReports   BugReport[]
+
+  @@index([tier, status])
+  @@index([parentGameId])
+}
+
+/// Recorded each time a game is played. HARD REQUIREMENT of Phase 7's
+/// anti-brigading rule (a recorded PlaySession is a voting-eligibility signal).
+/// userId is nullable — anonymous play is allowed and still recorded.
+model PlaySession {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  gameId      String
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  branch      String   @default("main")
+  startedAt   DateTime @default(now())
+  /// Updated by the player heartbeat; total seconds the session has been active.
+  durationSec Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@index([gameId, userId])
+  @@index([userId, gameId])
+}
+
+/// A user joining a game's community. HARD REQUIREMENT of Phase 7 (voting is
+/// restricted to members). No other community features in Phase 4B.
+model CommunityMembership {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId   String
+  game     Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@unique([userId, gameId])
+  @@index([gameId])
+}
+
+// ───────── Phase 7 placeholder tables (EMPTY in 4B — Phase 7 fills them) ─────────
+// These exist now only so the schema + relations are in place. Phase 4B writes
+// NOTHING to them and exposes no UI for them. Minimal columns; Phase 7 extends.
+
+model Proposal {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("ProposalAuthor", fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  votes     Vote[]
+
+  @@index([gameId])
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([proposalId, userId])
+}
+
+model BugReport {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter  User     @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([gameId])
+}

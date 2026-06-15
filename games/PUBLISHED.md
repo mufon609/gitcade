@@ -1,22 +1,22 @@
 # PUBLISHED.md — Phase 3 Seed Game Repos
 
-> **0.3.0 staging (2026-06-15) — all six repinned to `0.3.0`, local prep complete.**
+> **0.3.0 PUBLISHED (2026-06-15) — all six live on `0.3.0`.**
 > The input/focus/lifecycle/rendering/data work from the three audit batches (started by
-> the "Space scrolls the page" report) is staged as `@gitcade/sdk@0.3.0` +
+> the "Space scrolls the page" report) shipped as `@gitcade/sdk@0.3.0` +
 > `@gitcade/library@0.3.0` (a clean MINOR — additive `pause/resume/isPaused` + the
 > `controls` manifest field, no breaking changes). Every game was repinned `0.2.1 → 0.3.0`
 > (`game.json` + `package.json`), the library `CATALOG.json` regenerated to `0.3.0`, and
 > the whole set re-verified: SDK 59/59, library 95/95, root `npm run build`/`npm test`
-> green, all six `gitcade validate` PASS, both packages `npm pack --dry-run` clean. Full
-> detail + the gated checklist: [`../audit/RELEASE-0.3.0.md`](../audit/RELEASE-0.3.0.md);
-> per-issue outcomes: [`../audit/SHARED-ISSUES.md`](../audit/SHARED-ISSUES.md).
+> green, all six `gitcade validate` PASS. Full detail:
+> [`../audit/RELEASE-0.3.0.md`](../audit/RELEASE-0.3.0.md); per-issue outcomes:
+> [`../audit/SHARED-ISSUES.md`](../audit/SHARED-ISSUES.md).
 >
-> **STILL DEFERRED — the human `[PUBLISH]` gate (owner's discretion), not done here:**
-> (1) `npm publish @gitcade/sdk@0.3.0` then `@gitcade/library@0.3.0`; (2) push each game's
-> `0.3.0` source to its `gitcade-games/<slug>` GitHub repo; (3) a worker-faithful rebuild
-> (clone → `npm install` from public npm → build → upload) once the packages are on npm —
-> or the local bridge `node audit/harness/republish.mjs <slug…>`. Prior history (the 0.2.1
-> regression) is in [`../audit/REGRESSION.md`](../audit/REGRESSION.md).
+> **DONE — the `[PUBLISH]` external steps:** (1) `@gitcade/sdk@0.3.0` then
+> `@gitcade/library@0.3.0` published to npm; (2) each game's `0.3.0` source pushed to its
+> `gitcade-games/<slug>` GitHub repo (jumped `0.1.x → 0.3.0`), each re-verified from a clean
+> clone; (3) all six MinIO `<slug>/main/` artifacts republished from the fresh 0.3.0 `/dist`
+> (bundle hashes verified). Prior history (the 0.2.1 regression) is in
+> [`../audit/REGRESSION.md`](../audit/REGRESSION.md).
 
 ---
 

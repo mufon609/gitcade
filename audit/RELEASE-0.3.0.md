@@ -1,8 +1,9 @@
-# RELEASE-0.3.0.md — `@gitcade/sdk` + `@gitcade/library` 0.3.0 (staged)
+# RELEASE-0.3.0.md — `@gitcade/sdk` + `@gitcade/library` 0.3.0 (PUBLISHED)
 
-**Date:** 2026-06-15 · **Status:** LOCAL PREP COMPLETE — the irreversible external
-steps (`npm publish`, GitHub pushes, worker artifact rebuild) are GATED on a human
-`[PUBLISH]` decision and are NOT done here.
+**Date:** 2026-06-15 · **Status:** PUBLISHED — `npm publish` (both packages),
+the MinIO artifact republish (all six games), and the GitHub pushes (monorepo
+`release/0.3.0` + the six `gitcade-games/<slug>` source repos) are all DONE. See
+the "PUBLISHED — completed external steps" section below for the verified outcome.
 
 This release lands the input/focus/lifecycle/rendering/data fixes from the three audit
 batches that began with the "Space scrolls the page instead of playing" report. See
@@ -54,34 +55,30 @@ opt-in by repinning).
 
 ---
 
-## GATED — the human `[PUBLISH]` steps (NOT done)
+## PUBLISHED — completed external steps (2026-06-15)
 
-Run in this order (library's peer range needs the SDK on npm first; the game repos build
-from clean clones against public npm).
+Done in this order (library's peer range needs the SDK on npm first; the game repos build
+from clean clones against public npm):
 
-1. **Publish the SDK** — needs `npm login` + the `@gitcade` scope (see
-   `setup/CHECKLIST.md` §6):
-   ```
-   cd packages/sdk && npm publish      # publishConfig.access=public
-   ```
-2. **Publish the library** (its `prepublishOnly` re-runs `catalog` + `build`):
-   ```
-   cd packages/library && npm publish
-   ```
-3. **Push each game's source** to its `gitcade-games/<slug>` repo (six repos:
-   snake, helicopter, breakout, tower-defense, idle-clicker, survival-arena — URLs in
-   `games/PUBLISHED.md`). Each repo holds ONLY that game's tree, pinned to `0.3.0`.
-4. **Worker-faithful artifact rebuild** for each game (clone → `npm install` from public
-   npm → `npm run build` → upload `/dist` to MinIO `<slug>/main/`). This is what the
-   build worker does on a real publish.
-   - **Local bridge until then** (re-serve the already-built dist to MinIO, the same key
-     layout, no worker): `node audit/harness/republish.mjs snake helicopter breakout tower-defense idle-clicker survival-arena`
+1. **SDK published** — `@gitcade/sdk@0.3.0` live on npm (`npm view @gitcade/sdk version`
+   → `0.3.0`).
+2. **Library published** — `@gitcade/library@0.3.0` live on npm (its `prepublishOnly`
+   re-ran `catalog` + `build`).
+3. **Game source pushed** — all six `gitcade-games/<slug>` repos (snake, helicopter,
+   breakout, tower-defense, idle-clicker, survival-arena — URLs in `games/PUBLISHED.md`)
+   updated `0.1.x → 0.3.0`. Each repo holds ONLY that game's tree; each was re-verified
+   from a clean clone (`npm install` from public npm → `npm run build` → `npm test` →
+   `gitcade validate .` PASS) before push.
+4. **MinIO artifacts republished** — all six `<slug>/main/` prefixes serve the fresh 0.3.0
+   `/dist` (bundle hashes verified identical to the local 0.3.0 build). Done via the local
+   bridge (`node audit/harness/republish.mjs <slug…>`), same key layout the build worker
+   uses.
+5. **Monorepo pushed** — `release/0.3.0` pushed to `origin` and merged to `main`.
 
 ### Notes / cautions
-- **Order matters:** SDK before library before games. A game rebuilt from npm before the
-  packages are live will fail to resolve `0.3.0`.
+- **Order mattered:** SDK before library before games — a game rebuilt from npm before the
+  packages were live would fail to resolve `0.3.0`.
 - **Forks/older games on `0.2.1` are unaffected** — 0.3.0 is additive; they keep resolving
   `0.2.1` from npm.
-- `.env` / npm credentials are gitignored and owner-held; this machine must be `npm login`'d
-  as a `@gitcade` publisher for steps 1–2.
-- Nothing here has been pushed or published; `git status` shows the staged working tree only.
+- `.env` / npm credentials are gitignored and owner-held; this machine is `npm login`'d as a
+  `@gitcade` publisher.

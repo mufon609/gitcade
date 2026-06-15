@@ -6,11 +6,14 @@ import { getServerSession } from "next-auth";
 import { authOptions, getUserGitHubToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ensureRemixableFork } from "@/lib/remix-service";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   let username = (session?.user as { githubLogin?: string | null } | undefined)?.githubLogin ?? "";
+  const limited = await enforceRateLimit(req, RATE_LIMITS.remixStart, userId);
+  if (limited) return limited;
   if (!userId) return NextResponse.json({ ok: false, error: "Sign in with GitHub to remix." }, { status: 401 });
 
   let body: { slug?: string };

@@ -5,10 +5,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
+  const limited = await enforceRateLimit(req, RATE_LIMITS.communityJoin, userId);
+  if (limited) return limited;
   if (!userId) {
     return NextResponse.json({ ok: false, error: "Sign in to join a community." }, { status: 401 });
   }

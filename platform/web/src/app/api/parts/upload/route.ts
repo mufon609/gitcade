@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { publishUserPart, type PartUploadInput } from "@/lib/partupload";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 // Sandbox builds can take a couple minutes (npm install + vitest in a container).
 export const maxDuration = 300;
@@ -14,6 +15,8 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   const ownerLogin = (session?.user as { githubLogin?: string | null } | undefined)?.githubLogin ?? null;
+  const limited = await enforceRateLimit(req, RATE_LIMITS.partUpload, userId);
+  if (limited) return limited;
   if (!userId) return NextResponse.json({ ok: false, error: "Sign in to publish a part." }, { status: 401 });
 
   let body: Partial<PartUploadInput>;

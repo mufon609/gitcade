@@ -7,10 +7,13 @@ import { getServerSession } from "next-auth";
 import { authOptions, getUserGitHubToken } from "@/lib/auth";
 import { publishGame } from "@/lib/publish";
 import { appInstallUrl } from "@/lib/github";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
+  const limited = await enforceRateLimit(req, RATE_LIMITS.publish, userId);
+  if (limited) return limited;
   if (!userId) {
     return NextResponse.json({ ok: false, error: "Sign in with GitHub to publish." }, { status: 401 });
   }

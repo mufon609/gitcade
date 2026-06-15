@@ -6,8 +6,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
+  // Anonymous players are allowed (PlaySession is a Phase 7 eligibility signal), so
+  // throttle by IP — generous, since a beat fires only every ~10s per open pane.
+  const limited = await enforceRateLimit(req, RATE_LIMITS.heartbeat);
+  if (limited) return limited;
+
   let body: { slug?: string; branch?: string; playSessionId?: string; durationSec?: number };
   try {
     body = await req.json();

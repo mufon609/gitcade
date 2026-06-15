@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { createProposal, openProposal, proposalTally } from "@/lib/governance-service";
 import type { ProposalType } from "@prisma/client";
 import type { RemixEdits } from "@/lib/remix";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function GET(_req: NextRequest, { params }: { params: { slug: string } }) {
   const game = await prisma.game.findUnique({ where: { slug: params.slug } });
@@ -35,6 +36,8 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
 export async function POST(req: NextRequest, { params }: { params: { slug: string } }) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
+  const limited = await enforceRateLimit(req, RATE_LIMITS.proposalCreate, userId);
+  if (limited) return limited;
   if (!userId) return NextResponse.json({ ok: false, error: "Sign in to propose." }, { status: 401 });
 
   let body: {

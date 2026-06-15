@@ -480,3 +480,29 @@ model GamePart {
   @@index([partId])
   @@index([gameId])
 }
+
+// ───────────────────────── PHASE 8A — SECURITY (additive) ─────────────────────────
+
+/// Fixed-window rate-limit counter (Phase 8A hardening). One row per
+/// (bucket, identity, windowStart): `bucket` is the endpoint class (e.g. "publish"),
+/// `identity` is `user:<id>` (authenticated) or `ip:<addr>` (anonymous), and
+/// `windowStart` is the floored window boundary. The counter is incremented
+/// atomically via INSERT ... ON CONFLICT DO UPDATE (see src/lib/ratelimit.ts), so it
+/// is correct under concurrency and survives a process restart / multiple app
+/// instances (unlike an in-memory limiter). PURELY ADDITIVE — no existing table is
+/// touched; nothing references it. Old windows are harmless and can be GC'd by a
+/// periodic `DELETE WHERE "windowStart" < now() - interval`.
+model RateLimit {
+  id          String   @id @default(cuid())
+  /// Endpoint class being limited (e.g. "publish", "fork", "vote").
+  bucket      String
+  /// `user:<userId>` when authenticated, else `ip:<address>`.
+  identity    String
+  /// The floored start of the fixed window this counter covers.
+  windowStart DateTime
+  /// Requests seen in this window for this (bucket, identity).
+  count       Int      @default(0)
+
+  @@unique([bucket, identity, windowStart])
+  @@index([windowStart])
+}

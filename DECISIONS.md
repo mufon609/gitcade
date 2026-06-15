@@ -1227,3 +1227,105 @@ mirrored verbatim into the monorepo. Canonical commit `a113109`.
   passes through under `axis:"y"`; english 5000 capped to `vx=560`. Real browser
   (Chrome-for-Testing): renders + plays, **zero real console errors** (only the
   benign `/favicon.ico` probe, 204 in prod).
+
+---
+
+## Phase 8A — Security Pass — 2026-06-14
+
+Scope this session: the SECURITY PASS only (NOT 8B–8E performance/ops/onboarding/
+starter-kit). Hardening, no new features. All changes are confined to
+`platform/web/` (rate limiting + an additive `RateLimit` table + tests) plus two new
+docs (`platform/SECURITY.md`, this entry). The FROZEN services
+(`platform/worker`, `platform/artifact-server`, `packages/`, `games/`, `examples/`,
+`templates/`, `setup/`) were AUDITED and PROBED but **not modified** — verified via
+`git status` (zero changes outside `platform/web/` + the two docs). No frozen
+contract changed (SDK/library API + schema, queue/Build schema, artifact-URL
+convention, storage-bridge protocol, strict game CSP all byte-identical). No CORE
+blockers; no `[CRITICAL]`/`[PUBLISH]` filed this session. Full checklist with the
+probe per item lives in **`platform/SECURITY.md`** — this entry records the decisions.
+
+### What changed (all additive, all in platform/web)
+- **Rate limiting (the only real build).** New `src/lib/ratelimit.ts`: a Postgres-
+  backed **fixed-window** counter on a new additive `RateLimit` model
+  (`@@unique([bucket, identity, windowStart])`). The counter increments **atomically**
+  via `INSERT ... ON CONFLICT DO UPDATE` ($queryRaw) — correct under concurrency and
+  durable across restarts / multiple app instances (an in-memory map would not survive
+  the serverless/multi-instance topology; Redis was deliberately NOT introduced — the
+  queue is already a Postgres table by the same reasoning). Identity = `user:<id>`
+  (when authenticated) **and** `ip:<addr>` (always), so neither axis is evadable by
+  rotating the other. Exceed → `429` + `Retry-After` + `X-RateLimit-*`.
+- **The check runs BEFORE the route's auth/401 check** — so an anonymous flood is
+  throttled by IP too, and a 429 is demonstrable without a browser OAuth session
+  (the probe hammers an endpoint unauthenticated → 401 within budget, 429 past it).
+- **`RATE_LIMITS` is a single central registry** (limits + buckets) so SECURITY.md and
+  the code cannot drift; unique bucket per endpoint (unit-tested). Limits are generous
+  for real use but trivially exceeded by an abuse loop. 18 mutation routes instrumented
+  (the six named — publish/fork/vote/proposal-create/remix-commit/bug-report — plus
+  remix-start, part-upload, community-join, proposal open/approve/veto/fork-with-patch/
+  finalize, bug-convert, branch-build, notifications-read, play-heartbeat).
+- **`enforceRateLimit` FAILS OPEN on a DB error** (logs + returns null) — a throttle
+  must never take the whole API down. Acceptable: the limiter is a mitigation, not an
+  authz control.
+- **Webhook + OAuth-callback routes are intentionally left un-throttled** (HMAC-
+  verified GitHub delivery / GitHub redirects) — throttling them would drop legit
+  events. Recorded in SECURITY.md §3, not an omission.
+- **Schema change is purely additive:** `RateLimit` only; applied with `prisma db
+  push` (reported "in sync", no data-loss warning) — no existing table reshaped, the
+  never-migrate 4A/4B/5/6/7 tables untouched.
+
+### Audit findings on the FROZEN services (verified, NOT changed)
+- **iframe/CSP:** `PlayPane.tsx` uses `sandbox="allow-scripts"` only (opaque origin,
+  no `allow-same-origin`); artifacts load from `ARTIFACT_BASE_URL` (:3001), never the
+  platform origin; the strict CSP (`default-src 'none'`, `connect-src 'none'`,
+  `frame-ancestors 'self' <platform>`) is delivered + applied. The Phase-4B ACAO `"*"`
+  patch is scoped to static `GET /artifacts/...` reads only and grants no new
+  capability (server is read-only, no cookies/auth, games' own `connect-src 'none'`
+  blocks callbacks). Verified in Chrome-for-Testing.
+- **Build sandbox:** Stage 2 `--network none` (build.ts:178) is REAL — a network-
+  attempting Stage-2 container FAILS while the same call in Stage-1's config succeeds;
+  limits come from env; the named volume + sibling containers are destroyed in
+  `finalize`; the Docker socket is mounted to the worker ONLY (never into build
+  containers — confirmed no socket + no docker CLI inside the builder).
+- **Storage bridge:** parent authenticates by `event.source === iframe.contentWindow`
+  + nonce (never the "null" origin); saves namespaced `gc\0slug\0branch\0`; cross-game
+  isolation + source-identity rejection covered by `bridge.test.ts` (5/5).
+- **Governance credential:** `approveAndCommit` mints ONLY the App installation token
+  and returns `critical` (no OAuth fallback) on any failure; `getUserGitHubToken` is
+  never reachable from that path. The App private key is never logged (a missing key
+  throws `[CRITICAL]`).
+
+### Dependency audit decision (triage, logged not forced)
+- **worker + artifact-server: 0 PRODUCTION vulns** (`--omit=dev`); their reported
+  critical/high (`vitest` UI, `esbuild` dev-server, `tsup`) are dev/test-only and never
+  shipped. **web: 4 production vulns** (1 high `next`, 3 moderate
+  `next-auth`/`uuid`/`postcss`) with **NO non-breaking fix** — `npm audit fix` (no
+  `--force`) applies nothing; every remediation is SemVer-MAJOR (`next` 14→16,
+  `next-auth` 4→3). **DECISION: log, do not force-upgrade.** A framework-major bump is
+  out of scope for a no-new-features hardening pass and would risk the App-Router app;
+  the app uses no `next/image` and no i18n (which eliminates several of the `next`
+  advisories), and the rest are largely CDN/proxy-mitigated DoS/cache issues. Tracked
+  for a dedicated Next 16 upgrade. (Reversible: the upgrade can be done later as its
+  own focused change.)
+
+### Probe artifacts (not committed)
+- `/tmp/csp-sandbox-probe.mjs` — the puppeteer-core (Chrome-for-Testing) browser probe
+  for §1 (iframe sandbox + artifact origin + CSP delivery). Re-create from SECURITY.md
+  if needed; it reads from `node_modules/puppeteer-core` against the cached Chromium.
+- The build-isolation, header, rate-limit, secrets, and audit probes are plain
+  docker/curl/git/psql one-liners reproduced in SECURITY.md "How to re-run".
+
+### Verification performed this session (REAL output)
+- **Rate limit:** `POST /api/games/snake/bugs` ×13 → `401`×10 then **`429`** (Retry-
+  After 58, X-RateLimit-Remaining 0); `vote` stayed `401` (independent bucket);
+  `RateLimit` rows present in Postgres (`bug-report` count=14, `vote` count=1).
+- **Build sandbox:** Stage-2 `--network none` network call → exit 1 (BLOCKED);
+  Stage-1 config → exit 0 (status 200); no `docker.sock`/CLI inside the builder.
+- **CSP/sandbox (Chrome-for-Testing):** iframe `sandbox="allow-scripts"` (no same-
+  origin), src on `:3001`, strict CSP on index.html + JS chunk, game chunk 200, all
+  artifact requests <400.
+- **Bridge isolation:** `tests/unit/bridge.test.ts` 5/5 green.
+- **Secrets:** full MinIO bucket scan + `git ls-files` — no `.env`/`.pem`/`.key`/
+  secret in any artifact or tracked file; encoded path-traversal → 400.
+- **Tests + build:** web unit suite **105/105** green (incl. 7 new `ratelimit.test.ts`);
+  `next build` compiles all 18 instrumented routes; `tsc --noEmit` clean for app code
+  (the two PRE-EXISTING Phase-6 `remix.test.ts` type errors are unrelated, per Phase 7).

@@ -6,11 +6,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, getUserGitHubToken } from "@/lib/auth";
 import { forkWithPatch } from "@/lib/governance-service";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
-export async function POST(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as { id?: string } | undefined)?.id;
   const username = (session?.user as { githubLogin?: string | null } | undefined)?.githubLogin;
+  const limited = await enforceRateLimit(req, RATE_LIMITS.proposalForkPatch, userId);
+  if (limited) return limited;
   if (!userId) return NextResponse.json({ ok: false, error: "Sign in to fork." }, { status: 401 });
 
   const token = await getUserGitHubToken(userId);

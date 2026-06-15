@@ -50,7 +50,7 @@
         "countTag": "obstacle",
         "waveKey": "wave",
         "advanceOnClear": false,
-        "spawnPoints": [{ "x": 820, "y": 30 }, { "x": 820, "y": 420 }, { "x": 820, "y": 220 }, { "x": 820, "y": 90 }, { "x": 820, "y": 360 }],
+        "spawnPoints": [{ "x": 820, "y": 60 }, { "x": 820, "y": 420 }, { "x": 820, "y": 220 }, { "x": 820, "y": 90 }, { "x": 820, "y": 360 }],
         "prototype": {
           "id": "obstacle",
           "sprite": { "kind": "shape", "shape": "rect", "color": "#3b5dc9" },

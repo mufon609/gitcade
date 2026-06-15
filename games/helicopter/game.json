@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "0.1.0",
-  "libraryVersion": "0.1.0",
+  "libraryVersion": "0.1.1",
   "entryPoint": "src/scenes/main.json",
   "license": { "code": "MIT", "assets": "CC-BY-4.0" },
   "authors": [{ "name": "GitCade", "github": "gitcade-games" }],

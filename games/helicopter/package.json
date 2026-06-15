@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@gitcade/sdk": "0.1.0",
-    "@gitcade/library": "0.1.0"
+    "@gitcade/library": "0.1.1"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

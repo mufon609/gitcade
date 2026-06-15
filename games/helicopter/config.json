@@ -4,7 +4,7 @@
   "maxUp": 360,
   "maxDown": 430,
   "scrollVx": -230,
-  "obstacleLife": 6,
+  "obstacleLife": 4.2,
   "spawnInterval": 0.5,
   "waveSize": 1,
   "waveSizeGrowth": 0,

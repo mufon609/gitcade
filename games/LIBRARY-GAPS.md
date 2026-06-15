@@ -66,11 +66,16 @@ the only effect is an instant, harmless re-eat, so Snake accepts it. A future
 **From:** Helicopter (`games/helicopter/src/custom-behaviors/index.ts`, behavior `thrust-lift`)
 **Demand:** Helicopter; jetpack flyers, flappy clones, submarine/balloon games.
 
-Hold a key (or a `world.state` flag set by a touch button) to accelerate along one
-axis against a constant opposing acceleration, with speed clamps both ways. A clean
-companion to the existing `move-platformer` (which is impulse-jump, not hold-thrust).
-**Params already proven:** `thrustKeys`, `thrust`, `gravity`, `maxUp`, `maxDown`,
-`flagKey`.
+Hold a key to accelerate along one axis against a constant opposing acceleration,
+with speed clamps both ways. A clean companion to the existing `move-platformer`
+(which is impulse-jump, not hold-thrust). **Params already proven:** `thrustKeys`,
+`thrust`, `gravity`, `maxUp`, `maxDown`.
+
+> **0.2.0 update (Stage 4 — Helicopter):** the old `flagKey` param (a `world.state`
+> boolean touch fallback) was **dropped** — Helicopter's touch button synthesizes
+> the same `Space` keydown/keyup the key path already reads (host glue in
+> `main.ts`), so the second code path was dead. The behavior is otherwise unchanged
+> and still the cleanest extraction target for the flappy/jetpack genre.
 
 ## 4. `build-on-request` — tap/click-to-place build system
 **From:** Tower Defense (`games/tower-defense/src/custom-behaviors/index.ts`, system `tower-build`)
@@ -126,6 +131,24 @@ fatal predicate (out-of-bounds, a tag-occupied cell, a tilemap hazard flag) and 
 outcome event. **0.2.0 added no primitive for this** — it remains a frozen-tick-order
 workaround, so it's a genuine candidate. **Params proven:** `stateKey` (shared with
 the body system), `tileSize`, `gameOverEvent`.
+
+## 8. `scroll-ramp` — state-driven (ramping) auto-scroll
+**From:** Helicopter (`games/helicopter/src/custom-behaviors/index.ts`, behavior `scroll-ramp`)
+**Demand:** Helicopter; any endless auto-scroller whose world speed should climb
+with a difficulty level (runners, shmups, flappy clones).
+
+The library `auto-scroll` part forces a **static** `$cfg` velocity every tick — it
+cannot read a counter — and `wave-spawner` / `level-progression` resolve their
+`$cfg` params **once at scene load**. So 0.2.0 has *no* data path to make a single
+play scene scroll FASTER as its difficulty climbs. `scroll-ramp` closes exactly
+that: it sets `entity.vx = vx * (1 + (level-1) * perLevel)`, reading the `levelKey`
+counter the library `level-progression` (scoreGte) maintains, so the difficulty
+ramp stays data-driven (thresholds + per-level step all in `$cfg`) with one tiny
+behavior instead of discrete per-level scenes. It is `auto-scroll` + a live
+`world.state` multiplier; the obvious generalization is to add an optional
+`levelKey`/`perLevel` (or a general `scaleByStateKey`) to the existing `auto-scroll`
+part rather than ship a second part. **Params proven:** `vx`, `vy`, `levelKey`,
+`perLevel`.
 
 ---
 

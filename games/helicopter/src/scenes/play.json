@@ -1,5 +1,5 @@
 {
-  "id": "main",
+  "id": "play",
   "size": { "width": 800, "height": 600 },
   "background": "#0b0b16",
   "entities": [
@@ -32,6 +32,16 @@
       "id": "hud-score",
       "sprite": { "kind": "text", "bind": "scoreDisplay", "text": "0", "font": "20px monospace", "color": "#f4f4f4", "align": "left" },
       "size": { "w": 200, "h": 24 }, "position": { "x": 12, "y": 10 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "hud-level-label",
+      "sprite": { "kind": "text", "text": "LVL", "font": "13px monospace", "color": "#6a7196", "align": "left" },
+      "size": { "w": 36, "h": 16 }, "position": { "x": 632, "y": 14 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "hud-level",
+      "sprite": { "kind": "text", "bind": "level", "text": "1", "font": "20px monospace", "color": "#41a6f6", "align": "left" },
+      "size": { "w": 40, "h": 24 }, "position": { "x": 672, "y": 10 }, "tags": ["hud"], "layer": 100, "behaviors": []
     }
   ],
   "systems": [
@@ -58,7 +68,7 @@
           "tags": ["obstacle"],
           "layer": 3,
           "behaviors": [
-            { "type": "auto-scroll", "part": "auto-scroll@1.0.0", "params": { "vx": "$cfg.scrollVx", "wrap": false } },
+            { "type": "scroll-ramp", "params": { "vx": "$cfg.scrollVx", "levelKey": "level", "perLevel": "$cfg.speedRampPerLevel" } },
             { "type": "velocity", "params": {} },
             { "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } },
             { "type": "health-and-death", "params": { "lifespan": "$cfg.obstacleLife", "deathSound": "" } }
@@ -67,7 +77,25 @@
       }
     },
     { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "score", "startAmount": "$cfg.startScore", "passiveIncome": "$cfg.pointsPerSec" } },
-    { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "highScore", "storageKey": "helicopterHigh", "persist": true } },
-    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "crash" } }
-  ]
+    { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "best", "persist": false } },
+    {
+      "type": "level-progression",
+      "part": "level-progression@1.0.0",
+      "params": {
+        "levelKey": "level",
+        "mode": "scoreGte",
+        "scoreKey": "score",
+        "threshold": "$cfg.levelThreshold",
+        "thresholdGrowth": "$cfg.levelThresholdGrowth",
+        "maxLevel": "$cfg.maxLevel",
+        "event": "level-up"
+      }
+    },
+    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "crash" } },
+    { "type": "persistence", "params": {} }
+  ],
+  "flow": {
+    "on": { "crash": "over" },
+    "persist": ["score", "best", "scoreDisplay", "bestDisplay", "level"]
+  }
 }

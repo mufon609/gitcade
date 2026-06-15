@@ -1,0 +1,85 @@
+{
+  "id": "title",
+  "size": { "width": 800, "height": 600 },
+  "background": "#07060c",
+  "entities": [
+    {
+      "id": "title-text",
+      "sprite": { "kind": "text", "text": "HELICOPTER", "font": "60px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 600, "h": 60 },
+      "position": { "x": 400, "y": 130 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "tagline",
+      "sprite": { "kind": "text", "text": "Hold to rise. Release to fall. Don't crash.", "font": "18px monospace", "color": "#cfd2e6", "align": "center" },
+      "size": { "w": 700, "h": 22 },
+      "position": { "x": 400, "y": 210 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-1",
+      "sprite": { "kind": "text", "text": "Hold Space / tap-and-hold to rise against gravity", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 700, "h": 18 },
+      "position": { "x": 400, "y": 290 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-2",
+      "sprite": { "kind": "text", "text": "Release to drop — thread the scrolling pillars", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 700, "h": 18 },
+      "position": { "x": 400, "y": 316 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-3",
+      "sprite": { "kind": "text", "text": "Survive longer to score — it ramps up as you go", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 700, "h": 18 },
+      "position": { "x": 400, "y": 342 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-label",
+      "sprite": { "kind": "text", "text": "BEST", "font": "14px monospace", "color": "#6a7196", "align": "center" },
+      "size": { "w": 200, "h": 18 },
+      "position": { "x": 400, "y": 416 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-value",
+      "sprite": { "kind": "text", "bind": "bestDisplay", "text": "0", "font": "28px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 200, "h": 30 },
+      "position": { "x": 400, "y": 438 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "start-prompt",
+      "sprite": { "kind": "text", "text": "▶  TAP or press ENTER to fly", "font": "18px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 600, "h": 22 },
+      "position": { "x": 400, "y": 522 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "start-btn",
+      "sprite": { "kind": "none" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 0, "y": 0 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+    }
+  ],
+  "systems": [{ "type": "persistence", "params": {} }],
+  "flow": {
+    "on": { "start-pressed": "play" },
+    "persist": ["best"]
+  }
+}

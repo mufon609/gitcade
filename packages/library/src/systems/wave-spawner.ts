@@ -7,6 +7,11 @@ interface SpawnerState extends Record<string, unknown> {
   spawnTimer: number;
   waveTimer: number;
   spawnedThisWave: number;
+  // Cumulative spawn index across the WHOLE run (never reset per wave). The
+  // round-robin over `spawnPoints` keys on this, not on `spawnedThisWave`, so
+  // small per-wave counts (e.g. waveSize:1) still cycle through every spawn
+  // point over successive waves instead of pinning to spawnPoints[0]. (B-1)
+  spawnCursor: number;
   started: boolean;
   done: boolean;
   betweenWaves: boolean;
@@ -62,6 +67,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
     spawnTimer: 0,
     waveTimer: startDelay,
     spawnedThisWave: 0,
+    spawnCursor: 0,
     started: false,
     done: false,
     betweenWaves: true,
@@ -94,13 +100,15 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
   s.spawnTimer -= dt;
   if (s.spawnedThisWave < target && s.spawnTimer <= 0) {
     if (maxAlive === 0 || aliveOfTag < maxAlive) {
-      const pt = spawnPts.length ? spawnPts[s.spawnedThisWave % spawnPts.length] : undefined;
+      // Persistent cumulative cursor → spawn points cycle over the whole run. (B-1)
+      const pt = spawnPts.length ? spawnPts[s.spawnCursor % spawnPts.length] : undefined;
       const spawned = spawnFrom(world, params.prototype, {
         idPrefix: `${stateKey}.w${s.wave}`,
         position: pt,
       });
       if (spawned) {
         s.spawnedThisWave += 1;
+        s.spawnCursor += 1;
         s.spawnTimer = interval;
         world.events.emit("spawn", { wave: s.wave, id: spawned.id });
       }

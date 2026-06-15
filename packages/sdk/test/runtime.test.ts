@@ -64,15 +64,82 @@ describe("clamp-to-world behavior", () => {
 });
 
 describe("reflect-on-hit behavior", () => {
+  const reflect = (world: World) => world.registry.getBehavior("reflect-on-hit")!.fn;
+
   it("flips x velocity away from the obstacle on collision", () => {
     const world = makeWorld();
-    const fn = world.registry.getBehavior("reflect-on-hit")!.fn;
     const ball = new Entity({ id: "ball", x: 30, y: 0, w: 10, h: 10, layer: 0, tags: ["ball"], sprite: { kind: "none" } });
     const paddle = new Entity({ id: "pad", x: 36, y: 0, w: 10, h: 40, layer: 0, tags: ["paddle"], sprite: { kind: "none" } });
     ball.vx = 200; // moving right, into the paddle on its right
     ball.collisions = [paddle];
-    fn(ball, world, { tag: "paddle", axis: "x", speedScale: 1 }, 1 / 60);
+    reflect(world)(ball, world, { tag: "paddle", axis: "x", speedScale: 1 }, 1 / 60);
     expect(ball.vx).toBeLessThan(0); // reflected leftwards (away from paddle center)
+  });
+
+  // --- B-3: axis:"auto" picks the flip axis per-hit from the actual overlap ---
+  it('axis:"auto" reflects X on a side hit (no tunneling)', () => {
+    const world = makeWorld();
+    // Ball overlaps the brick more vertically than horizontally → a SIDE hit.
+    const ball = new Entity({ id: "ball", x: 30, y: 0, w: 10, h: 10, layer: 0, tags: ["ball"], sprite: { kind: "none" } });
+    const brick = new Entity({ id: "brk", x: 36, y: -20, w: 20, h: 50, layer: 0, tags: ["brick"], sprite: { kind: "none" } });
+    ball.vx = 200; // driving right INTO the brick's left face
+    ball.vy = 0;
+    ball.collisions = [brick];
+    reflect(world)(ball, world, { tag: "brick", axis: "auto", speedScale: 1 }, 1 / 60);
+    expect(ball.vx).toBeLessThan(0); // flipped on X — reflected, did NOT tunnel through
+    expect(ball.vy).toBe(0); // Y untouched on a side hit
+  });
+
+  it('axis:"auto" reflects Y on a top hit', () => {
+    const world = makeWorld();
+    // Ball overlaps the brick more horizontally than vertically → a TOP hit.
+    const ball = new Entity({ id: "ball", x: 30, y: 30, w: 10, h: 10, layer: 0, tags: ["ball"], sprite: { kind: "none" } });
+    const brick = new Entity({ id: "brk", x: 20, y: 36, w: 40, h: 20, layer: 0, tags: ["brick"], sprite: { kind: "none" } });
+    ball.vx = 0;
+    ball.vy = 200; // driving down INTO the brick's top face
+    ball.collisions = [brick];
+    reflect(world)(ball, world, { tag: "brick", axis: "auto", speedScale: 1 }, 1 / 60);
+    expect(ball.vy).toBeLessThan(0); // flipped on Y
+    expect(ball.vx).toBe(0); // X untouched on a top hit
+  });
+
+  it('axis:"x"/"y" remain a FIXED axis (byte-identical — Pong relies on this)', () => {
+    const world = makeWorld();
+    // Same geometry as the auto side-hit, but force axis:"y" → it must STILL flip
+    // Y (the legacy fixed behavior), proving "x"/"y" are unaffected by the auto path.
+    const ball = new Entity({ id: "ball", x: 30, y: 0, w: 10, h: 10, layer: 0, tags: ["ball"], sprite: { kind: "none" } });
+    const brick = new Entity({ id: "brk", x: 36, y: -20, w: 20, h: 50, layer: 0, tags: ["brick"], sprite: { kind: "none" } });
+    ball.vx = 200;
+    ball.vy = 120;
+    ball.collisions = [brick];
+    reflect(world)(ball, world, { tag: "brick", axis: "y", speedScale: 1 }, 1 / 60);
+    expect(ball.vx).toBe(200); // X never touched under fixed axis:"y"
+    // dir = sign(ball.cy - brick.cy) = sign(5 - 5) = 0 → fallback 1; v = |120| → +120
+    expect(ball.vy).toBe(120);
+  });
+
+  // --- B-4: english can no longer push the perpendicular axis past maxSpeed ---
+  it("clamps the english-modified axis to maxSpeed", () => {
+    const world = makeWorld();
+    const ball = new Entity({ id: "ball", x: 30, y: 35, w: 10, h: 10, layer: 0, tags: ["ball"], sprite: { kind: "none" } });
+    const paddle = new Entity({ id: "pad", x: 36, y: 0, w: 10, h: 40, layer: 0, tags: ["paddle"], sprite: { kind: "none" } });
+    ball.vx = 200;
+    ball.vy = 0; // offset = (40-20)/(40/2) = 1 → english would add +500
+    ball.collisions = [paddle];
+    reflect(world)(ball, world, { tag: "paddle", axis: "x", speedScale: 1, maxSpeed: 100, english: 500 }, 1 / 60);
+    expect(ball.vy).toBe(100); // capped (was 500 uncapped) — B-4
+    expect(Math.abs(ball.vx)).toBeLessThanOrEqual(100); // reflected axis still capped too
+  });
+
+  it("leaves english within maxSpeed untouched (no-op clamp — Pong feel preserved)", () => {
+    const world = makeWorld();
+    const ball = new Entity({ id: "ball", x: 30, y: 35, w: 10, h: 10, layer: 0, tags: ["ball"], sprite: { kind: "none" } });
+    const paddle = new Entity({ id: "pad", x: 36, y: 0, w: 10, h: 40, layer: 0, tags: ["paddle"], sprite: { kind: "none" } });
+    ball.vx = 200;
+    ball.vy = 0; // offset 1 → +50, well under the 680 cap
+    ball.collisions = [paddle];
+    reflect(world)(ball, world, { tag: "paddle", axis: "x", speedScale: 1, maxSpeed: 680, english: 50 }, 1 / 60);
+    expect(ball.vy).toBe(50); // english applied unchanged when under the cap
   });
 });
 

@@ -1113,3 +1113,74 @@ pattern as seed/fork/remix demos). Output captured live:
   the build). SSR-rendered the APPLIED + VETOED proposal pages and the Community tab on
   the running server (all 200, governance content present). `git status` confirms zero
   changes outside `platform/web/`.
+
+---
+
+## Patch-release batch — Bucket-B defects (SDK 0.1.1 + library 0.1.1) — 2026-06-14
+
+Scope this session: the PATCH-RELEASE agent fixed the four confirmed Bucket-B
+defects from `games/AUDIT-SUMMARY.md` §1 in the two FROZEN packages, under the
+patch-release protocol (MASTER-PLAN §3) — behaviour-only / additive, **no frozen
+contract changed**. Bumped both PATCH versions, regenerated the catalog, widened
+the library's SDK peer range, added unit+regression tests, ran `npm pack
+--dry-run` on both, and wrote a `[PUBLISH]` entry to BLOCKED.md. **Did NOT publish
+and did NOT repin any game** — both are the next (post-publish) pass. Only
+`packages/sdk` + `packages/library` were touched (verified via `git status`).
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **B-1 fix = a persistent cumulative cursor on `SpawnerState` (`spawnCursor`),
+  not the per-wave `spawnedThisWave`.** Internal `world.state` scratch — not a
+  public contract. The TSDoc already promised spawn points are "used round-robin";
+  the cursor makes that true across waves (helicopter `waveSize:1` now cycles all
+  5 heights instead of pinning index 0). Round-robin WITHIN a wave is unchanged.
+- **B-2 fix = guard the 180° reversal against the LAST COMMITTED step direction
+  (`entity.state.__gridStep`), not the live `__gridDir`.** `__gridStep` is seeded
+  from the initial `__gridDir` (so the existing single-tap 180° refusal is
+  preserved) and only updated when a step actually fires. This makes two sub-step
+  perpendicular taps (Up then Left) unable to sum into a self-reversing step, while
+  a legal perpendicular turn and a single 180° refusal both behave as before.
+  Internal scratch only.
+- **B-3 fix = an ADDITIVE `axis:"auto"` value** resolved per-hit via the existing
+  `overlapAxis()` (`packages/sdk/src/runtime/collision.ts`). `"x"`/`"y"` stay a
+  fixed axis and are byte-identical (the auto branch is unreachable for them), so
+  Pong (`axis:"x"`) is unaffected. `axis` is not enum-constrained in the schema, so
+  accepting a new value is additive — patch-eligible by the same reasoning
+  DECISIONS already applies to new sprite kinds / whitelist keys. **Changing
+  `"x"`/`"y"` semantics would have been contract-breaking → would HALT; it was not
+  done.**
+- **B-4 fix = clamp the `english`-modified (perpendicular) axis to `maxSpeed`** via
+  a small local `clamp()` helper (no-op when `maxSpeed` is `Infinity`/unset). The
+  reflected axis was already capped; now both are. TSDoc updated from "cap on that
+  axis" to "cap on the resulting speed of each affected axis". Behaviour-only.
+  Pong's `english`/`maxSpeed` values keep its smoke invariants (suite green), so
+  its tested behaviour is unchanged; long-rally feel may differ slightly per the
+  audit, which sanctioned this.
+- **Part versions stay at `1.0.0`; only `libraryVersion` is the opt-in lever.**
+  Confirmed against the validator (`packages/sdk/src/validate/rules.ts`): part refs
+  resolve as `partId@<part.version>` against the catalog, and the catalog's
+  top-level `version` must equal the game's pinned `libraryVersion`. So bumping
+  CATALOG `version` → 0.1.1 (via `npm run catalog`, never hand-edited) while keeping
+  `wave-spawner@1.0.0`/`move-grid-step@1.0.0` means a game opts into the fixes by
+  bumping `libraryVersion 0.1.0 → 0.1.1` alone — its `partId@1.0.0` refs still
+  resolve.
+- **Library SDK peer range widened `0.1.0` → `0.1.x`** (devDependency bumped to
+  `0.1.1`). A packaging-compatibility fix (non-contract): once the SDK is 0.1.1, a
+  game on `sdk@0.1.1 + library@0.1.x` would otherwise hit an exact-pin peer
+  conflict on install. Logged in the `[PUBLISH]` entry.
+- **No game edited, nothing published.** Games resolve from public npm and 0.1.1
+  is not published yet; repinning (incl. breakout's `axis:"auto"` scene edit) is a
+  separate pass the human triggers after publishing. Publish order: `sdk@0.1.1`
+  first, then `library@0.1.1`. Full repin list is in the BLOCKED.md `[PUBLISH]`
+  entry.
+- **B-5 deferred, B-6 no-action** — left exactly as the audit recommends (B-5
+  needs a coordinated UI change; B-6 is a cosmetic map micro-leak). Neither
+  implemented.
+
+### Verification (real output)
+- Test suites green: SDK **37/37** (+5 reflect tests), library **76/76** (+2
+  wave-spawner, +2 move-grid-step), pong **3/3**, scaffold **1/1**, reuse-proofs
+  **16/16**. Instrumented proofs with real game configs confirmed each bug gone
+  (helicopter 5 distinct spawn heights; snake two-tap no self-fold + single 180°
+  refused; breakout `auto` reflects without tunneling + english capped). Both
+  `npm pack --dry-run`s clean (`sdk@0.1.1` 21 files; `library@0.1.1` 120 files
+  incl. 27 PNGs + CATALOG@0.1.1).

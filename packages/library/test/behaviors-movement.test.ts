@@ -63,6 +63,43 @@ describe("move-grid-step", () => {
     const dir = e.state.__gridDir as { x: number; y: number };
     expect(dir).toEqual({ x: 1, y: 0 }); // reversal rejected
   });
+
+  // --- B-2: a fast two-tap (Up then Left in ONE step window) must not self-reverse ---
+  it("does not fold into its own neck on a fast perpendicular two-tap (B-2)", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "snake", x: 0, y: 0, state: { __gridDir: { x: 1, y: 0 } } });
+    const params = { tileSize: 20, stepInterval: 0.1, continuous: true, up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };
+    const setKey = (code: string | null) =>
+      ((world.input as unknown as { anyDown: (c: string[]) => boolean }).anyDown = (codes) => code !== null && codes.includes(code));
+
+    // Two sub-step taps inside one window: Up (legal turn), then Left.
+    // Left reverses the COMMITTED heading (Right) → it must be rejected, even though
+    // it does not reverse the just-accepted intermediate Up.
+    setKey("ArrowUp");
+    moveGridStep(e, world, params, 0.03);
+    setKey("ArrowLeft");
+    moveGridStep(e, world, params, 0.03);
+    // Cross the interval and actually step.
+    setKey(null);
+    moveGridStep(e, world, params, 0.05);
+
+    const dir = e.state.__gridDir as { x: number; y: number };
+    expect(dir).toEqual({ x: 0, y: -1 }); // Left rejected; heading is Up
+    expect(e.y).toBe(-20); // stepped UP …
+    expect(e.x).toBe(0); // … NOT left into its neck (pre-fix this stepped to x=-20)
+  });
+
+  // --- B-2 regression: a legal perpendicular turn across windows still applies ---
+  it("still accepts a legal perpendicular turn (B-2 regression)", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "snake", x: 0, y: 0, state: { __gridDir: { x: 1, y: 0 } } });
+    const params = { tileSize: 20, stepInterval: 0.1, continuous: true, up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };
+    (world.input as unknown as { anyDown: (c: string[]) => boolean }).anyDown = (codes) => codes.includes("ArrowUp");
+    moveGridStep(e, world, params, 0.11); // turn Up and step
+    expect(e.y).toBe(-20);
+    expect(e.x).toBe(0);
+    expect(e.state.__gridDir).toEqual({ x: 0, y: -1 });
+  });
 });
 
 describe("move-platformer", () => {

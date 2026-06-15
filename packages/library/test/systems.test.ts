@@ -84,6 +84,47 @@ describe("wave-spawner", () => {
     expect(started).toBe(2);
     expect(world.state.wave).toBe(2);
   });
+
+  // --- B-1: the spawn-point cursor is cumulative across waves, not per-wave ---
+  it("cycles spawn points across waves with a persistent cursor at waveSize:1 (B-1)", () => {
+    const world = makeWorld();
+    const params = {
+      interval: 0.01,
+      waveSize: 1, // one spawn per wave — the pathological helicopter case
+      waveSizeGrowth: 0,
+      waveDelay: 0,
+      maxWaves: 3,
+      advanceOnClear: false, // advance by the (zero) delay, enemies persist for counting
+      countTag: "enemy",
+      spawnPoints: [{ x: 0, y: 10 }, { x: 0, y: 20 }, { x: 0, y: 30 }],
+      prototype: { id: "enemy", tags: ["enemy"], size: { w: 10, h: 10 }, position: { x: 0, y: 0 }, layer: 0, sprite: { kind: "none" }, behaviors: [] },
+    };
+    for (let i = 0; i < 50; i++) waveSpawner(world, params, DT);
+    const ys = world.query("enemy").map((e) => e.y).sort((a, b) => a - b);
+    expect(world.state.wave).toBe(3);
+    // Pre-fix this would be [10, 10, 10] (pinned to spawnPoints[0]); now all three.
+    expect(ys).toEqual([10, 20, 30]);
+    expect(new Set(ys).size).toBe(3); // multiple DISTINCT spawn-Y values across waves
+  });
+
+  // --- B-1 regression: round-robin WITHIN a wave is unchanged ---
+  it("still distributes spawn points round-robin within a single large wave (B-1 regression)", () => {
+    const world = makeWorld();
+    const params = {
+      interval: 0.01,
+      waveSize: 4, // more spawns than points → wraps within the wave
+      waveSizeGrowth: 0,
+      waveDelay: 0,
+      maxWaves: 1,
+      advanceOnClear: false,
+      countTag: "enemy",
+      spawnPoints: [{ x: 0, y: 10 }, { x: 0, y: 20 }, { x: 0, y: 30 }],
+      prototype: { id: "enemy", tags: ["enemy"], size: { w: 10, h: 10 }, position: { x: 0, y: 0 }, layer: 0, sprite: { kind: "none" }, behaviors: [] },
+    };
+    for (let i = 0; i < 50; i++) waveSpawner(world, params, DT);
+    const ys = world.query("enemy").map((e) => e.y).sort((a, b) => a - b);
+    expect(ys).toEqual([10, 10, 20, 30]); // cursor 0,1,2,0 → all three points used, first reused
+  });
 });
 
 describe("lives-respawn", () => {

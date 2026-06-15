@@ -7,6 +7,92 @@ they are cleared.
 
 ---
 
+## [PUBLISH] Bucket-B patch batch — `@gitcade/sdk` 0.1.1 + `@gitcade/library` 0.1.1 — 2026-06-14
+
+**Status:** OPEN — awaiting the human publish gate. Both packages are fixed,
+version-bumped, tested, and pack-clean **in the monorepo**; nothing is published
+to npm yet and **no game has been repinned** (the repin pass runs AFTER publish —
+list at the bottom). All fixes are behaviour-only / additive — **no frozen
+contract changed** (no schema shape, exported type, public API, function
+signature, or param SHAPE). Verified per the patch-release protocol (MASTER-PLAN
+§3). Source of truth for what was fixed: `games/AUDIT-SUMMARY.md` §1/§3a.
+
+### Publish order (do NOT reverse — library peer-depends on the SDK)
+1. `npm publish` **`@gitcade/sdk@0.1.1`** first.
+2. then `npm publish` **`@gitcade/library@0.1.1`**.
+
+### `@gitcade/sdk` 0.1.0 → 0.1.1  (file: `src/runtime/behaviors/reflect-on-hit.ts`)
+- **B-3** — added an **additive** `axis:"auto"` value: it picks the flip axis
+  per-hit via the existing `overlapAxis()` (`runtime/collision.ts:26`), so a ball
+  hitting a brick's *side* reflects on X instead of tunnelling. **`"x"`/`"y"`
+  behaviour is byte-identical** (the auto branch is never taken for them) — Pong
+  (`axis:"x"`) is unaffected. Additive value → patch-eligible (same reasoning
+  DECISIONS applies to new sprite kinds / whitelist keys).
+- **B-4** — `english` now clamps the perpendicular (english-modified) axis to
+  `maxSpeed` too (previously only the reflected axis was capped → unbounded
+  cross-axis acceleration). Behaviour-only. *Pong note:* its `english`(200) at
+  `ballMaxSpeed`(680) stays under the cap in its asserted invariants — the pong
+  smoke suite is green (3/3), so the clamp is a no-op for Pong's tested behaviour.
+- No contract change: `axis` was never enum-constrained in the schema; the param
+  shape, signature, and exported types are identical.
+
+### `@gitcade/library` 0.1.0 → 0.1.1
+- **B-1** (`src/systems/wave-spawner.ts`) — spawn-point round-robin now keys on a
+  **persistent cumulative cursor** (`SpawnerState.spawnCursor`, internal
+  `world.state` scratch) instead of per-wave `spawnedThisWave`, so points cycle
+  across the whole run. Fixes helicopter (`waveSize:1`) pinning every obstacle to
+  `spawnPoints[0]`. No schema/param/signature change.
+- **B-2** (`src/behaviors/move-grid-step.ts`) — the 180°-reversal guard now
+  compares `want` against the **last committed step direction**
+  (`entity.state.__gridStep`, set only when a step fires) instead of the live,
+  already-mutated `__gridDir`. Kills snake's fast two-tap self-fold; a single-key
+  180° is still refused. Internal scratch only — no contract change.
+- **CATALOG.json `version` → 0.1.1** (regenerated via `npm run catalog`, tracks
+  the package version; the ONLY content change). **Part versions are UNCHANGED**
+  (`wave-spawner@1.0.0`, `move-grid-step@1.0.0`, …) — the validator resolves
+  `partId@version` against each part's own `version` in the catalog, while it
+  separately requires `catalog.version === game.json libraryVersion`. So games
+  keep their `partId@1.0.0` refs and opt in purely by bumping `libraryVersion`.
+- **PEER-DEP WIDEN (packaging-compatibility fix, non-contract):** the SDK peer
+  range went `"@gitcade/sdk":"0.1.0"` → **`"0.1.x"`** and the matching
+  devDependency `"0.1.0"` → `"0.1.1"`. Without this, a game on `sdk@0.1.1` +
+  `library@0.1.x` would hit a peer conflict on install. Required for the repins
+  below to install cleanly.
+
+### Verification done in-monorepo (workspace links; real configs)
+- Unit + regression tests added and green: SDK 37/37 (5 new reflect tests),
+  library 76/76 (2 wave-spawner + 2 move-grid-step). Full suites green: pong 3/3,
+  scaffold 1/1, reuse-proofs 16/16 (snake-threat/creep-wave/arena-mobs/
+  invaders-descent/arena-reskin).
+- Instrumented proofs with the seed games' REAL params: helicopter now spawns at
+  **5 distinct heights** `[30,90,220,360,420]` (was `[30]`); TD (1 point) inert &
+  correct; survival reaches all distinct heights (no regression). Snake two-tap
+  Up→Left steps **up** (no self-fold), single 180° refused. Breakout side hit with
+  `axis:"auto"` reflects (vx flips, no tunnel) vs `axis:"y"` which tunnels; top
+  hit flips vy; english 5000 capped to 560.
+- `npm pack --dry-run` clean: `@gitcade/sdk@0.1.1` (21 files, 377 kB);
+  `@gitcade/library@0.1.1` (120 files incl. 27 PNGs + CATALOG.json@0.1.1, 200 kB).
+
+### REPIN LIST — the NEXT pass runs this AFTER 0.1.1 is live on npm (NOT this session)
+Per AUDIT-SUMMARY §3a/§3b. Each game's `game.json` pin (+ the one breakout scene edit):
+- **breakout** → `sdkVersion 0.1.0 → 0.1.1` **and** `libraryVersion 0.1.0 → 0.1.1`;
+  also set `axis:"auto"` on its `breakable` reflect-on-hit (scene `main.json`, the
+  two `"tag":"breakable"` reflects) so B-3/B-4 actually take effect.
+- **helicopter** → `libraryVersion 0.1.0 → 0.1.1` (B-1; obstacle heights then vary).
+- **snake** → `libraryVersion 0.1.0 → 0.1.1` (B-2).
+- **survival-arena** → `libraryVersion 0.1.0 → 0.1.1` (B-1 mild; version hygiene).
+- **tower-defense** → `libraryVersion 0.1.0 → 0.1.1` (hygiene; wave-spawner inert
+  at 1 spawn point → no behaviour change).
+- **idle-clicker** → **unchanged on 0.1.0** (uses neither patched part; B-5 deferred).
+- Re-run `gitcade validate` on each repinned game from a clean clone after publish
+  (the `catalog.version === libraryVersion` check requires library@0.1.1 installed).
+
+**Deferred / no-action (NOT in this batch):** B-5 `upgrade-tree` scalar-request
+queue (needs a coordinated UI change); B-6 `contact-damage` `__dmgCd` map
+(cosmetic micro-leak, no patch).
+
+---
+
 ## [RESOLVED 2026-06-14] Artifact server is missing CORS for opaque-origin game iframes — raised 2026-06-13 (Phase 4B)
 
 **Status:** RESOLVED 2026-06-14 (PM patch). The one-line additive fix below was

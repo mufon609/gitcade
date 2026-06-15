@@ -35,6 +35,13 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
   const right = orDefault(strArray(params, "right"), ["ArrowRight", "KeyD"]);
 
   const dir = (entity.state.__gridDir ??= { x: 0, y: 0 }) as Dir;
+  // The reversal guard must compare against the LAST COMMITTED step direction, not
+  // the live `dir`. `dir` is mutated the instant a non-reversing turn is accepted,
+  // so two perpendicular taps inside one step window each pass the guard against the
+  // other's intermediate value and sum to a self-reversing step (the snake folds
+  // into its neck). `__gridStep` is the heading actually stepped last; it only
+  // changes when a step fires, so only the committed heading counts. (B-2)
+  const stepped = (entity.state.__gridStep ??= { x: dir.x, y: dir.y }) as Dir;
 
   // Read intent; reject reversals in continuous mode (can't fold the snake back).
   let want: Dir | null = null;
@@ -44,9 +51,8 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
   else if (world.input.anyDown(right)) want = { x: 1, y: 0 };
 
   if (want) {
-    const reverses = want.x === -dir.x && want.y === -dir.y && (dir.x !== 0 || dir.y !== 0);
-    const moving = dir.x !== 0 || dir.y !== 0;
-    if (!(continuous && reverses && moving)) {
+    const reverses = want.x === -stepped.x && want.y === -stepped.y && (stepped.x !== 0 || stepped.y !== 0);
+    if (!(continuous && reverses)) {
       dir.x = want.x;
       dir.y = want.y;
     }
@@ -61,6 +67,11 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
 
   const stepping = continuous ? dir.x !== 0 || dir.y !== 0 : !!want;
   if (!stepping) return;
+
+  // Record the heading we actually step in — this is what the next window's
+  // reversal guard compares against. (B-2)
+  stepped.x = dir.x;
+  stepped.y = dir.y;
 
   entity.x += dir.x * tile;
   entity.y += dir.y * tile;

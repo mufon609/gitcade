@@ -1,7 +1,7 @@
 {
   "startGold": 220,
   "goldPerSec": 0,
-  "towerCost": 50,
+  "towerCost": 40,
   "creepBounty": 8,
 
   "towerBaseRange": 135,

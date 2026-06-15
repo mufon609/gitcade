@@ -12,7 +12,8 @@
       "layer": 4,
       "behaviors": [
         { "type": "sprite-animate", "params": { "play": "idle" } },
-        { "type": "move-grid-step", "part": "move-grid-step@1.0.0", "params": { "tileSize": 20, "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true } }
+        { "type": "move-grid-step", "part": "move-grid-step@1.0.0", "params": { "tileSize": 20, "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true } },
+        { "type": "snake-guard", "params": { "stateKey": "__snake", "tileSize": 20, "gameOverEvent": "gameover" } }
       ]
     },
     {

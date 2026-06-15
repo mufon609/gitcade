@@ -1,50 +1,117 @@
 # CLAUDE.md — GitCade Operating Contract
 
-You are building **GitCade**: a platform where AI-built, open-source browser games are published, played, forked, remixed, and governed by community vote. This file is loaded every session. It tells you *how to operate* — it does not restate what the other docs own. Read it, read the docs it points to, then act.
+You are working on **GitCade**: a platform where AI-built, open-source browser
+games are published, played, forked, remixed, and governed by community vote.
+The v1 build is complete — this file tells you *how to operate* on the existing
+codebase. Read it, read [README.md](./README.md) for what the system is, then
+act.
+
+> The original phase-by-phase build plan, the full decision log, the machine
+> contract, and the blocker log are archived under
+> [`setup/archive/`](./setup/archive/) (`MASTER-PLAN.md`, `DECISIONS.md`,
+> `ENVIRONMENT.md`, `BLOCKED.md`). They are history, not active instructions —
+> consult them to understand *why* something is the way it is, but the codebase
+> is the source of truth now.
 
 ---
 
-## Read order (every session, before any work)
-1. **This file** — how to operate.
-2. **MASTER-PLAN.md** — *what to build*: the locked decisions (§2), build order + monorepo layout (§3), the phase you're on (its prompt, Definition of Done, handoff contract), and the validation gates (§4).
-3. **ENVIRONMENT.md** — *the machine*: what's installed, the no-sudo rule, ports, container/networking traps, and the full escalation protocol.
-4. **DECISIONS.md** — assumptions inherited from prior phases. Append to it; never contradict it. *(Created in Phase 0; may not exist yet on a fresh box.)*
-5. **BLOCKED.md** — open blockers. If a `[CRITICAL]` or `[PUBLISH]` entry is unresolved and your phase depends on it, stop and say so. *(Created on first blocker; may not exist yet.)*
+## The machine (read before running anything)
 
-**Precedence when they conflict:** ENVIRONMENT.md (machine reality) > Locked Decisions (MASTER-PLAN §2) > phase prompt > this file's guidance. A locked decision is never overridden by convenience.
+This is a single-user Kali Linux dev box, **no GPU**. The full machine contract
+lives in [`setup/archive/ENVIRONMENT.md`](./setup/archive/ENVIRONMENT.md); the
+rules that still bite:
 
-Authoritative homes — do not duplicate these here:
-- **Locked product/security rules** (the "never" rules: config-as-data, the storage bridge, no GitHub Actions on game repos, artifact-server-only serving, public-repos-only, etc.) → **MASTER-PLAN.md §2**.
-- **Machine facts** (Node/npm, no-sudo, Postgres/MinIO URLs + keys, ports, S3 path-style, container traps) → **ENVIRONMENT.md**.
-- **Conventions** (monorepo layout, the two game tiers, npm publishing + version pinning, TypeScript/Vitest) → **MASTER-PLAN.md §2–§3**.
-
----
-
-## The one rule that matters most
-**One phase per session. Do not cross phase boundaries.** Build exactly the phase you're given, to its Definition of Done — no more (don't pull work forward from later phases) and no less (don't declare done with DoD items failing). Each phase ends at a handoff contract the next session depends on; honoring that boundary is what makes this project work.
-
-## The second rule: respect frozen contracts
-Once a phase freezes something (the SDK schema, a published package's public API), its **shape and contracts are immutable**. Bug fixes are still allowed via the **patch-release protocol** — fix without changing any contract, bump PATCH, write a `[PUBLISH]` entry to BLOCKED.md, repin affected consumers. A fix that *requires* a contract change is not a patch — it HALTS for a human decision. Full protocol in **MASTER-PLAN.md §3**.
-
----
-
-## Escalation — when you hit a wall
-Two tiers (full detail in **ENVIRONMENT.md**):
-- **CORE blocker** (database, build pipeline, artifact storage/serving, auth, SDK/schema contract — anything a later phase inherits frozen) → **HALT.** Write a `[CRITICAL]` entry at the top of BLOCKED.md, print it as your final output, end the session. **Never mock or stub the foundation.**
-- **PERIPHERAL blocker** (optional tool, nice-to-have) → log it in BLOCKED.md and route around. Stubs allowed ONLY behind an interface, marked `// STUB:`, and listed in BLOCKED.md.
-- **Ambiguous whether it's core?** → it's core. Halt.
-- **Ambiguous about a requirement** (not a blocker)? → choose the most reversible option, record it in DECISIONS.md, continue.
-
-Halting is cheap; lying with stubs is never worth it.
+1. **Never run `sudo` or `apt`.** Everything system-level is pre-installed
+   (Node 22 via nvm, Docker, `gh` already authenticated, build toolchain). If
+   something system-level is genuinely missing, stop and say so — do not try to
+   install it.
+2. **Postgres and MinIO are always-on Docker containers**, loopback-bound:
+   `postgresql://gitcade:gitcade@localhost:5432/gitcade` and
+   `http://localhost:9000` (keys `gitcade` / `gitcade-secret`). Use them freely.
+3. **No GPU.** Headless browser work uses the Playwright-managed
+   Chrome-for-Testing exposed as `chromium` on PATH (the shim forces software
+   GL). The Kali `chromium` apt package is uninstallable here — don't try.
+4. **Ports:** 3000 web, 3001 artifact server, 5432 Postgres, 9000/9001 MinIO.
+   Bind new dev services to loopback on 3002+; check before binding.
+5. **S3 client must honor `S3_FORCE_PATH_STYLE`** — `true` for MinIO, `false`
+   for real S3. Hardcoding either breaks the other.
+6. **The build worker runs builds as SIBLING containers** (mounts the host
+   Docker socket), never Docker-in-Docker. Two traps inside containers:
+   `localhost` is not the host (address infra by service name on the compose
+   network, or `--network host`), and `-v` paths resolve on the *host* (share
+   build workspaces via named volumes). See ENVIRONMENT.md before touching the
+   worker's container plumbing.
+7. **`.env`, `*.pem`, and `setup/secrets/` are secret and gitignored.** Never
+   commit them; never invent values for external services — if an env key is
+   missing, surface it rather than guessing.
 
 ---
 
-## Definition of done discipline
-A phase is done when **every** DoD item in MASTER-PLAN passes — verified, not assumed. Before declaring done:
-1. Run the phase's tests and the relevant `gitcade validate` checks; paste real output, don't claim green.
-2. Confirm the handoff artifacts exist and are named exactly as the next phase expects.
-3. Append this session's assumptions to DECISIONS.md.
-4. If anything is incomplete, say so plainly and list what remains — a half-done phase honestly reported beats a "done" that the next session discovers is hollow.
+## Frozen contracts — the rule that still matters most
 
-## Working style for this project
-Bias to action within the current phase; ask nothing about requirements (make the reversible choice and log it). Keep changes scoped — don't refactor neighboring phases' code. Comment the non-obvious, especially anything touching a frozen contract. When you finish, your last message is a short status: what's done, DoD verification, what the next session inherits.
+`@gitcade/sdk` and `@gitcade/library` are **published packages with frozen
+public contracts**. The SDK schema (the `game.json` / `config.json` / scene /
+entity / behavior / system shapes), the published exported API, the storage-
+bridge postMessage protocol, the validator's rules, and the artifact-server's
+URL convention + headers are all load-bearing — six standalone game repos, every
+user fork, and the build worker depend on them being stable.
+
+**Frozen ≠ unfixable — the patch-release protocol:**
+- A bug fix that changes **no contract** (no schema shape, exported type,
+  function signature, param shape, message protocol, or header convention) →
+  fix it, bump the **PATCH** version, run `npm pack --dry-run`, and note that a
+  republish + consumer repin is needed. This is exactly how `sdk@0.1.1` /
+  `library@0.1.1` shipped.
+- A fix that **requires** a contract change → **STOP** and get a human decision.
+  Do not quietly reshape a frozen contract; you will silently break published
+  games that pin the old version.
+- The Phase 4A queue schema (`BuildJob` / `Build` in `platform/worker`) is
+  likewise frozen — `platform/web` extends the database **additively** and never
+  reshapes those tables.
+
+When in doubt about whether something is a contract: treat it as one.
+
+---
+
+## How to run and verify
+
+- **Build everything:** `npm run build` (runs `build` in every workspace).
+- **Test everything:** `npm test` (every workspace's Vitest suite). Run the
+  suite for the package you touched, not just the root, and paste real output —
+  don't claim green you didn't see.
+- **Validate a game:** `gitcade validate <dir>` (or `npm run validate:pong`,
+  `npm run validate:proofs`). Exit 0 = publishable. This is the same gate the
+  platform enforces; if a game change passes locally it'll pass on publish.
+- **Run the platform:** see README.md → Quick start. Web on :3000, artifact
+  server on :3001, worker consuming the Postgres queue. `platform/web` has demo
+  scripts (`npm run fork-demo`, `remix-demo`, `governance-demo`,
+  `part-upload-demo`) that exercise the major flows end-to-end without the UI.
+- **See a change in the real browser:** use the `chromium` shim (headless, or
+  headed to watch — an X11 session is present). For UI/play verification this
+  beats asserting from code.
+
+A change is done when its tests pass, the relevant `gitcade validate` /
+Lighthouse / header checks pass, and you've verified the behavior — not assumed
+it. If something is incomplete, say so plainly and list what remains.
+
+---
+
+## Working style
+
+- **Keep changes scoped.** This is a layered system; don't refactor a
+  neighboring service while fixing one. A platform bug is fixed in `platform/`;
+  an SDK bug follows the patch-release protocol.
+- **Games are data.** Balance numbers belong in `config.json` (referenced as
+  `$cfg.key`), never hardcoded — the validator enforces this and most governance
+  depends on it. Parts are referenced as `partId@version`.
+- **Comment the non-obvious**, especially anything touching a frozen contract,
+  the storage bridge, or the build worker's container plumbing.
+- **Match the surrounding code** — its naming, structure, and comment density.
+- **On a wall:** core-path blockers (database, build/validation pipeline,
+  artifact storage/serving, auth, a frozen SDK/queue contract) halt loudly with
+  the exact failure and the precise human action needed — never mock the
+  foundation. Peripheral blockers are routed around behind a marked interface.
+  Halting is cheap; a fake foundation is never worth it.
+- **Confirm anything hard to reverse or outward-facing** (publishing a package,
+  pushing to a game repo, a takedown, a destructive migration) before doing it;
+  approval in one context doesn't carry to the next.

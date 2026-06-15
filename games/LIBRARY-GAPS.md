@@ -11,6 +11,13 @@ library are frozen, and nothing here changes a frozen contract. Each entry notes
 the game(s) that would benefit, so a future maintainer can see real demand before
 generalizing.
 
+> **0.2.0 update (Stage 4 — Snake):** candidate **#2 shipped** as the library
+> `place-on-free-cell` system (gap G4). Snake's Stage-4 repin adopted it and
+> **deleted** its ~60-line hand-rolled free-cell `spawnFood`. The one residual edge
+> that part does *not* cover is logged inline under #2. Candidate #1
+> (`trailing-body`) is now slimmed to the body follower; the post-step death/clamp
+> guard is added as **#7**.
+
 Four of the six games needed zero custom code (Breakout and Survival Arena are
 pure library/SDK composition; Snake/Helicopter need one custom part each; the two
 governance flagships need two/three small economy systems). That ratio is itself a
@@ -25,22 +32,35 @@ control** corners are the gaps.
 
 A system that records a lead entity's cell/position history and keeps N follower
 segments trailing it, growing/shrinking on demand, with self-collision detection.
-Snake's version also folds in wall-collision and "keep one pickup on a free cell"
-(see #2). Generalization: split body-follow from the pickup logic; parameterize the
-spacing (grid step vs. continuous distance), the grow trigger (score delta, event,
-or call), and the collision outcome (event vs. destroy).
+Generalization: parameterize the spacing (grid step vs. continuous distance), the
+grow trigger (score delta, event, or call), and the collision outcome (event vs.
+destroy). **As of 0.2.0** Snake's `snake-body` is *just* the follower + collision —
+the food placement it used to own is delegated to the library `place-on-free-cell`
+(see #2), so this is a cleaner extraction target than it was.
 **Params already proven:** `headTag`, `segmentTag`, `tileSize`, `startLength`,
 `growBy`, `startDir`, `segmentPrototype`, `scoreKey`/`foodValue` (poll-based growth,
-restart-safe — no event listener).
+restart-safe — no event listener); plus `placeEvent` (emitted when the board is
+empty, consumed by `place-on-free-cell`).
 
-## 2. `respawn-pickup-on-free-cell`
-**From:** Snake (folded into `snake-body`)
+## 2. `respawn-pickup-on-free-cell` — ✅ SHIPPED in 0.2.0 (`place-on-free-cell`, G4)
+**From:** Snake — was folded into `snake-body`, **now adopted** as a library part.
 **Demand:** Snake, any collectathon needing "always exactly one (or N) pickups on
 unoccupied cells".
 
-Maintain a target count of a pickup tag, spawning replacements at random grid cells
-not occupied by a given set (the snake body). Currently entangled with `snake-body`;
-worth extracting as a small spawner sibling to `wave-spawner`.
+The library `place-on-free-cell` system spawns a prototype on a verified-free,
+in-bounds grid cell (via `randomFreeCell` + `world.rng`) whenever a `trigger` event
+fires. Snake wires it to a `place-food` event its `snake-body` emits when the board
+is empty, and tags the head + segments with a shared `snake-cell` so the helper
+excludes the whole snake. The "first food on the wall" / stacked-spawn symptoms are
+impossible by construction. **Snake's ~60-line `spawnFood` is deleted.**
+
+**Residual edge (not covered, logged for a future bump):** `place-on-free-cell`
+excludes only cells occupied by *live* `occupiedTag` entities at placement time. It
+cannot exclude a **predicted/imminent cell** — the single cell the head will step
+into next tick — which Snake's old `spawnFood` excluded (the S2 fix). At a 40×30
+grid (~1198 free cells) the odds of a coin landing on that one cell are ~0.08% and
+the only effect is an instant, harmless re-eat, so Snake accepts it. A future
+`place-on-free-cell` could take an `excludeCells`/`excludeTags[]` param to close it.
 
 ## 3. `thrust-lift` — one-axis thrust / flappy control
 **From:** Helicopter (`games/helicopter/src/custom-behaviors/index.ts`, behavior `thrust-lift`)
@@ -90,6 +110,22 @@ These three + the library `currency` + `upgrade-tree` are a complete idle kit.
 Offline progress itself stays host-side (it needs `Date.now()` and the storage
 bridge), but a library helper that computes `cappedOfflineGain(rate, lastSeen, cap)`
 would remove the last bit of boilerplate.
+
+## 7. `post-step-death-guard` — same-tick fatal-move detection + on-screen clamp
+**From:** Snake (`games/snake/src/custom-behaviors/index.ts`, behavior `snake-guard`)
+**Demand:** Snake; any grid mover that must die the instant a step lands on a fatal
+cell (wall / its own body / a hazard) without the body visibly leaving the field.
+
+A behavior placed AFTER the mover (`move-grid-step`) in the entity's behavior array
+so it observes the freshly-stepped, post-turn position in the SAME tick. A system
+runs *before* behaviors (frozen tick order), so a system-level check necessarily
+acts one step stale — the head visibly slides off-field for a frame before dying.
+This guard reads the post-step cell, ends the run on a wall/self hit, and clamps the
+entity back to its last committed on-screen cell. Generalization: parameterize the
+fatal predicate (out-of-bounds, a tag-occupied cell, a tilemap hazard flag) and the
+outcome event. **0.2.0 added no primitive for this** — it remains a frozen-tick-order
+workaround, so it's a genuine candidate. **Params proven:** `stateKey` (shared with
+the body system), `tileSize`, `gameOverEvent`.
 
 ---
 

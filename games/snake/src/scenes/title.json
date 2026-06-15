@@ -1,0 +1,85 @@
+{
+  "id": "title",
+  "size": { "width": 800, "height": 600 },
+  "background": "#07060c",
+  "entities": [
+    {
+      "id": "title-text",
+      "sprite": { "kind": "text", "text": "SNAKE", "font": "64px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 400, "h": 64 },
+      "position": { "x": 400, "y": 130 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "tagline",
+      "sprite": { "kind": "text", "text": "Eat. Grow. Don't bite yourself.", "font": "18px monospace", "color": "#cfd2e6", "align": "center" },
+      "size": { "w": 600, "h": 22 },
+      "position": { "x": 400, "y": 220 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-1",
+      "sprite": { "kind": "text", "text": "Arrows / WASD or the on-screen d-pad to turn", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 600, "h": 18 },
+      "position": { "x": 400, "y": 300 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-2",
+      "sprite": { "kind": "text", "text": "Eat the spinning coins to grow and score", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 600, "h": 18 },
+      "position": { "x": 400, "y": 326 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-3",
+      "sprite": { "kind": "text", "text": "Avoid the walls and your own tail", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 600, "h": 18 },
+      "position": { "x": 400, "y": 352 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-label",
+      "sprite": { "kind": "text", "text": "BEST", "font": "14px monospace", "color": "#6a7196", "align": "center" },
+      "size": { "w": 200, "h": 18 },
+      "position": { "x": 400, "y": 424 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-value",
+      "sprite": { "kind": "text", "bind": "best", "text": "0", "font": "28px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 200, "h": 30 },
+      "position": { "x": 400, "y": 446 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "start-prompt",
+      "sprite": { "kind": "text", "text": "▶  TAP or press ENTER to play", "font": "18px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 600, "h": 22 },
+      "position": { "x": 400, "y": 522 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "start-btn",
+      "sprite": { "kind": "none" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 0, "y": 0 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+    }
+  ],
+  "systems": [{ "type": "persistence", "params": {} }],
+  "flow": {
+    "on": { "start-pressed": "play" },
+    "persist": ["best"]
+  }
+}

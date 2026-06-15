@@ -4,26 +4,32 @@ import { num, str } from "@gitcade/sdk";
 /**
  * `snake-body` — the one mechanic Snake needs that no @gitcade/library part
  * provides: a trailing body that follows the head's path cell-by-cell, grows when
- * food is eaten, ends the run on a self- or wall-collision, and keeps exactly one
- * food pickup on a free cell. It is written param-driven (all balance via `$cfg`,
- * all geometry structural) and is logged in games/LIBRARY-GAPS.md as a
- * generalization candidate ("path-history follower / trailing body" +
- * "respawn-pickup-on-free-cell").
+ * food is eaten, and ends the run on a self- or wall-collision. It is written
+ * param-driven (all balance via `$cfg`, all geometry structural) and is logged in
+ * games/LIBRARY-GAPS.md as a generalization candidate ("path-history follower /
+ * trailing body").
  *
  * It is a SYSTEM (not a per-entity behavior) because it owns several entities at
- * once — the body segments and the food — and the head's grid stepping
- * (`move-grid-step`) emits no position it can hang a single behavior off of.
+ * once — the body segments — and the head's grid stepping (`move-grid-step`) emits
+ * no position it can hang a single behavior off of.
+ *
+ * 0.2.0: the ~60-line hand-rolled free-cell food placement this system used to own
+ * (the `spawnFood` helper + occupancy-set + retry + fallback) is GONE. Placement is
+ * delegated to the library `place-on-free-cell` system (G4): this system only keeps
+ * the "exactly one food on the board" invariant, emitting `placeEvent` whenever the
+ * board has no food (covers both the first food and every respawn after an eat).
+ * The shared `snake-cell` tag on the head + segments is what `place-on-free-cell`
+ * excludes, so food never lands on the snake.
  *
  * Params:
  *  - `headTag` / `segmentTag` / `foodTag`: entity tags (structural ids)
+ *  - `placeEvent`: event emitted to request a food placement (default "place-food")
  *  - `tileSize`: cell size in px (structural; must match the head's move-grid-step)
  *  - `startLength`: initial body segment count (balance → `$cfg`)
  *  - `growBy`: segments added per food eaten (balance → `$cfg`)
  *  - `startDir`: `{ x, y }` initial heading (structural)
- *  - `eatEvent`: event emitted by the food's collect-on-touch (default "collect")
  *  - `gameOverEvent`: event emitted on death (default "gameover")
  *  - `segmentPrototype`: entity-definition cloned for each body segment (structural)
- *  - `foodPrototype`: entity-definition cloned when respawning food (structural)
  */
 interface SnakeScratch {
   init: boolean;
@@ -51,7 +57,8 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
   const head = world.query(headTag)[0];
   if (!head) return;
 
-  // One-time init: seed heading + the first food.
+  // One-time init: seed heading. The first food is requested by the "keep exactly
+  // one food" check below (board starts empty), so init no longer places it.
   if (!s.init) {
     s.init = true;
     const dir = (params.startDir ?? { x: 1, y: 0 }) as { x: number; y: number };
@@ -61,7 +68,6 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
     s.cells = [{ x: head.x, y: head.y }];
     s.lastCell = { x: head.x, y: head.y };
     s.lastScore = (world.state[str(params, "scoreKey", "score")] as number) ?? 0;
-    spawnFood(world, params, foodTag, tile, s);
   }
 
   // Poll-based growth: each food eaten raises the score by `foodValue`; grow one
@@ -98,8 +104,14 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
     syncSegments(world, params, segmentTag, s);
   }
 
-  // Keep exactly one food on the board.
-  if (world.query(foodTag).length === 0) spawnFood(world, params, foodTag, tile, s);
+  // Keep exactly one food on the board. Placement geometry is delegated to the
+  // library `place-on-free-cell` system (G4) — we only request a drop when the
+  // board is empty (the first food, and each respawn after an eat). The handler
+  // excludes every live `snake-cell` (head + segments) by construction, so food
+  // never lands on the snake; see games/LIBRARY-GAPS.md for the one residual edge.
+  if (world.query(foodTag).length === 0) {
+    world.events.emit(str(params, "placeEvent", "place-food"));
+  }
 };
 
 /**
@@ -208,68 +220,6 @@ function syncSegments(world: World, params: Record<string, unknown>, segmentTag:
       e.y = bodyCells[i]!.y;
     }
   }
-}
-
-/** Spawn one food pickup on a random cell not currently occupied by the snake. */
-function spawnFood(
-  world: World,
-  params: Record<string, unknown>,
-  foodTag: string,
-  tile: number,
-  s: SnakeScratch,
-): void {
-  const cols = Math.floor(world.bounds.width / tile);
-  const rows = Math.floor(world.bounds.height / tile);
-  const occupied = new Set(s.cells.map((c) => `${c.x},${c.y}`));
-
-  // S2: also exclude the cell the head is about to enter THIS step. `move-grid-step`
-  // (the head's behavior) runs AFTER this system in the frozen tick order
-  // (systems → behaviors), so the head entity is up to one cell ahead of
-  // `s.cells[0]`. Food dropped on that imminent cell would be eaten next tick for an
-  // unearned point plus a one-frame flicker.
-  const head = world.query(str(params, "headTag", "head"))[0];
-  if (head) {
-    const dir = (head.state.__gridDir ?? { x: 0, y: 0 }) as { x: number; y: number };
-    const hx = Math.round(head.x / tile) * tile;
-    const hy = Math.round(head.y / tile) * tile;
-    occupied.add(`${hx + (dir.x ?? 0) * tile},${hy + (dir.y ?? 0) * tile}`);
-  }
-
-  let x = 0;
-  let y = 0;
-  let placed = false;
-  for (let tries = 0; tries < 64; tries++) {
-    x = Math.floor(world.rng() * cols) * tile;
-    y = Math.floor(world.rng() * rows) * tile;
-    if (!occupied.has(`${x},${y}`)) {
-      placed = true;
-      break;
-    }
-  }
-  // S4: random retries exhausted (near-full board) — scan deterministically for the
-  // first free cell rather than risk placing food on the snake. Unreachable at normal
-  // length (40×30 = 1200 cells), but makes the fallback correct instead of "give up".
-  if (!placed) {
-    for (let gy = 0; gy < rows && !placed; gy++) {
-      for (let gx = 0; gx < cols && !placed; gx++) {
-        const cx = gx * tile;
-        const cy = gy * tile;
-        if (!occupied.has(`${cx},${cy}`)) {
-          x = cx;
-          y = cy;
-          placed = true;
-        }
-      }
-    }
-  }
-  // If `placed` is still false the board is genuinely full (a win far beyond normal
-  // play); fall through with the last random pick.
-
-  const proto = clone(params.foodPrototype) as Record<string, unknown>;
-  proto.id = `food.${s.seq++}`;
-  proto.position = { x, y };
-  proto.tags = uniqueTags(proto.tags, foodTag);
-  world.spawn(proto as never);
 }
 
 function uniqueTags(existing: unknown, required: string): string[] {

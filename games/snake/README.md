@@ -7,7 +7,7 @@ with all balance in `config.json` — the way every GitCade game is meant to be.
 ## Play
 
 ```bash
-npm install      # pulls @gitcade/sdk@0.1.0 + @gitcade/library@0.1.0 from npm
+npm install      # pulls @gitcade/sdk@0.2.0 + @gitcade/library@0.2.0 from npm
 npm run dev      # play standalone (in-memory save shim)
 npm run build    # static /dist the GitCade build worker serves
 npm run validate # the publish gate: schema + no-magic-numbers + storage + smoke
@@ -25,22 +25,40 @@ or an SDK built-in — no engine code:
 |---|---|---|
 | `move-grid-step@1.0.0` | library behavior | the head's continuous grid turning (no 180° reversals) |
 | `collect-on-touch@1.0.0` | library behavior | coins award score + emit `collect` on pickup |
-| `score@1.0.0` | library system | live score + high score persisted via the SDK storage bridge |
+| `place-on-free-cell` | library system | drops each coin on a verified-free, in-bounds grid cell (0.2.0, G4) |
+| `score@1.0.0` | library system | live score + the running `best` (max) |
+| `persistence` | library system | round-trips `best` through the SDK storage bridge across reloads (0.2.0, G6) |
+| `tap-emit` | library behavior | the canvas title/game-over buttons emit a flow event on tap (0.2.0) |
 | `sprite-animate` | SDK built-in | the head's idle wobble + the coin's spin |
 | `aabb-collision` | SDK built-in | pairs the head with food so pickups register |
 
-### The one custom part
+### Flow is data (0.2.0)
 
-Snake's trailing body is the single mechanic no library part covers, so it lives
-in [`src/custom-behaviors/`](src/custom-behaviors/index.ts) as the **`snake-body`**
-system (param-driven, all balance via `$cfg`). It follows the head's path
-cell-by-cell, grows on each `collect` event, ends the run on a wall/self hit, and
-keeps one food on a free cell. It is logged in
-[`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as a generalization candidate.
+The **title → play → game-over** screens are three JSON scenes
+([`src/scenes/`](src/scenes/)) wired by per-scene `flow.on` edges:
+`start-pressed → play`, `snake-dead → over`, `retry → play`. The buttons are
+`tap-emit` entities; the run's `score` hands off to the game-over card and `best`
+survives a reload — all declared as data, no host screen code. The 305-line
+`GameShell` screen-state machine + HTML menu overlays that 0.1.x needed are **gone**.
 
-The title/pause/game-over screens, the mobile pad, SFX, particles and screen-shake
-are the shared **GameShell** host glue in [`src/host/`](src/host/) — chrome, not
-game logic. The validated game is pure data + the one custom system.
+### The custom parts
+
+Two mechanics no library part covers live in
+[`src/custom-behaviors/`](src/custom-behaviors/index.ts), param-driven with all
+balance via `$cfg`:
+
+- **`snake-body`** (system) — the trailing body that follows the head's path
+  cell-by-cell, grows on each coin, and ends the run on a wall/self hit. Food
+  *placement* is now delegated to the library `place-on-free-cell`; this system
+  only keeps the "exactly one food" invariant.
+- **`snake-guard`** (behavior) — ends the run the instant a step carries the head
+  into a wall/its own body and clamps it back on-screen (exploits the frozen tick
+  order; runs after `move-grid-step`).
+
+Both are logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as generalization
+candidates. The remaining host glue in [`src/main.ts`](src/main.ts) is only what
+has no data primitive: audio, screen juice (flash/shake), the mobile d-pad (which
+synthesizes the arrow keys the parts read), and a pause toggle.
 
 ## Rebalance it (the governance demo)
 

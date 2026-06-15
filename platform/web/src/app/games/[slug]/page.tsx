@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { refreshGameStatus } from "@/lib/publish";
@@ -10,12 +12,17 @@ import { ForkTree } from "./ForkTree";
 import { JoinCommunity } from "./JoinCommunity";
 import { MadeFrom } from "./MadeFrom";
 import { RemixButton } from "./RemixButton";
+import { CommunityPanel } from "./CommunityPanel";
 
 export const dynamic = "force-dynamic";
 
 export default async function GamePage({ params }: { params: { slug: string } }) {
   const game = await prisma.game.findUnique({ where: { slug: params.slug } });
   if (!game) notFound();
+
+  const session = await getServerSession(authOptions);
+  const viewerId = (session?.user as { id?: string } | undefined)?.id;
+  const isOwner = !!viewerId && viewerId === game.ownerId;
 
   // THE VALIDATOR IS THE GATE: reconcile from the latest Build before deciding
   // whether the game is playable.
@@ -101,9 +108,16 @@ export default async function GamePage({ params }: { params: { slug: string } })
           <JoinCommunity slug={game.slug} />
           {game.tier === "ecosystem" && (
             <p className="text-xs text-arcade-mute">
-              {game.installationId
-                ? "✓ Governance app installed — proposals enabled in Phase 7."
-                : "Governance app not installed — Phase 7 proposals disabled."}
+              {game.installationId ? (
+                <>
+                  ✓ Governance enabled —{" "}
+                  <Link href="#community" className="underline">
+                    open proposals & vote ↓
+                  </Link>
+                </>
+              ) : (
+                "Governance app not installed — proposals disabled."
+              )}
             </p>
           )}
         </div>
@@ -113,6 +127,9 @@ export default async function GamePage({ params }: { params: { slug: string } })
       <MadeFrom
         game={{ id: game.id, repoUrl: game.repoUrl, branch: game.branch, manifest: game.manifest, tier: game.tier }}
       />
+
+      {/* Phase 7: community governance (proposals, votes, bugs). */}
+      <CommunityPanel slug={game.slug} governanceEnabled={!!game.installationId} isOwner={isOwner} />
 
       {/* Phase 5: fork lineage. */}
       <ForkTree slug={game.slug} />

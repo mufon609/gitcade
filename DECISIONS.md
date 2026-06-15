@@ -992,3 +992,124 @@ BLOCKED.md entries.
   part-upload precheck/schema/sandbox-gate) — full web suite **69/69 green**.
   `next build` compiles all new routes; `npx tsc --noEmit` clean; `git status`
   confirms zero changes outside `platform/web/`.
+
+---
+
+## Phase 7 — Governance (Votes That Become Diffs) — 2026-06-14
+
+Scope this session: built community governance into `platform/web/` ONLY —
+(1) Proposals typed config-change / part-swap / feature-request (the proposal IS a
+diff, reusing applyRemix + ConfigDiff), (2) trust-critical voting with anti-brigading
+eligibility + 70%/quorum/window tally (pure + unit-tested), (3) owner veto with a
+required public reason + the one-click fork-with-patch exit door, (4) bug reports +
+bug→proposal conversion, (5) a Community tab with live tallies + history + bug list,
+(6) in-app notifications. The AUTO-COMMIT on a passed+approved config/part proposal
+uses the **GitHub App installation token** (never the owner's OAuth token — locked
+decision). All Prisma changes are ADDITIVE: the placeholder Proposal/Vote/BugReport
+tables were FILLED and a Notification table added; no 4A/4B/5/6 table was reshaped.
+Frozen dirs (`packages/`, `platform/worker`, `platform/artifact-server`, `games/`,
+`examples/`, `setup/`, `templates/`) left byte-identical (verified via `git status`:
+zero changes outside `platform/web/`). No CORE blockers; no BLOCKED.md entries.
+
+### What Phase 8 inherits (contracts + extension points)
+- **Schema is additive over Phase 6's.** The three Phase-4B placeholders are now real:
+  `Proposal` (type, status, title/body, `edits` Json = the RemixEdits, `baseConfig`/
+  `headConfig`/`changeSummary` snapshots for a stable ConfigDiff, `thresholdPct`/
+  `quorum`/`windowDays`, `openedAt`/`closesAt`/`decidedAt`, `vetoedAt`/`vetoReason`,
+  `appliedCommit`/`appliedJobId`); `Vote` (+`choice` YES/NO, `@@unique[proposalId,
+  userId]`); `BugReport` (+title/body/commit/buildId/status + `proposalId` link). New
+  `Notification` table + `User.notifications` back-relation (no column added to User).
+  New enums: ProposalType, ProposalStatus, VoteChoice, BugStatus, NotificationType.
+  Created with `prisma db push` (the placeholders were empty, so this only ALTERs
+  Phase-7-owned tables + CREATEs Notification — frozen tables untouched).
+- **The trust-critical math is PURE + unit-tested, in two modules** (29 tests):
+  `governance-tally.ts` — `tally()` (70% of votes CAST, ≥ boundary inclusive, integer-
+  percent-safe at the 0.70 float edge), `windowState()` (half-open [open,close); the
+  close tick counts as CLOSED), `computeClosesAt()` (1–14 day clamp), `decideOutcome()`
+  (null while open; passed/failed once closed). `governance-eligibility.ts` —
+  `checkEligibility()`: member AND account age **> 7 days (STRICT)** AND (PlaySession on
+  this game OR prior contribution). Keep the rule here as the single source of truth —
+  the UI `AntiBrigadingNotice` documents exactly this.
+- **The governance service** (`governance-service.ts`, shared by routes + the
+  verification driver, never mocked): `createProposal` (materialises + VALIDATES the
+  edit at draft time via the same `validateRemix` gate — an invalid proposal can't be
+  drafted), `openProposal`, `castVote` (eligibility-gated, window-gated), `finalizeProposal`
+  (idempotent OPEN→PASSED/FAILED/HELP_WANTED on window close; lazily callable on page
+  view or by a cron), `approveAndCommit` (owner-only APP auto-commit), `vetoProposal`
+  (owner-only, required reason), `forkWithPatch` (the exit door). `voterEligibility`
+  gathers the DB signals → the pure rule.
+- **App-token minting** (`github-app.ts`, SERVER-ONLY): `mintAppJwt` (RS256 via Node's
+  built-in `crypto` — ZERO new dependency), `getInstallationToken` (POST
+  /app/installations/{id}/access_tokens), `getRepoInstallationId` (GET
+  /repos/{owner}/{repo}/installation, used to BACKFILL). The key loads from
+  `GITHUB_APP_PRIVATE_KEY` (inline, `\n`-unescaped) or `GITHUB_APP_PRIVATE_KEY_PATH`
+  (the PEM at setup/secrets/…). A missing key throws `[CRITICAL]` — never invented.
+- **Routes** (`/api/games/[slug]/proposals` GET/POST, `/propose-model`, `/bugs`;
+  `/api/proposals/[id]/{open,vote,finalize,approve,veto,fork-with-patch,tally}`;
+  `/api/bugs/[id]/convert`; `/api/notifications` + `/read`). Voting returns 403 + the
+  specific anti-brigading reasons when blocked; approve returns 502 on a critical
+  credential/commit failure (we NEVER fall back to OAuth).
+
+### Decisions / assumptions made this session (reversible unless noted)
+- **Governance is per-game and requires the App installed.** `createProposal` refuses
+  a game with `installationId == null`. Backfilled `installationId` on the six org
+  games from the LIVE API (`GET /repos/gitcade-games/{slug}/installation` → 140333240,
+  matching the prerequisite) via `npm run backfill-installations` — verified-not-
+  hardcoded. Forks under user accounts (where the App isn't installed) stay null →
+  governance disabled there (correct — `tower-defense--mufon609` was skipped).
+- **The auto-commit re-applies the proposal's edits against CURRENT main at approve
+  time** (not the draft snapshot), then re-runs `validateRemix` BEFORE committing — so
+  a proposal tracks intervening pushes and a passed proposal can never land an invalid
+  game on main. The draft-time `baseConfig`/`headConfig` snapshots are for the stable
+  page ConfigDiff only.
+- **App-authored commit, confirmed.** The git-data-API commit made with the
+  INSTALLATION token is attributed to **`gitcade-governance[bot]`** as author and is
+  **GPG-verified `valid`** by GitHub (committer `web-flow`). This is the locked
+  "auto-commit uses the App installation, never the owner's OAuth token" made real and
+  checked on the wire.
+- **`forkWithPatch` reuses the Phase 6 remix machinery verbatim** — `ensureRemixableFork`
+  (idempotent Phase-5 `forkGame`) then `commitRemix` (validated, one readable commit,
+  rebuild). So the exit door for config/part proposals is literally "replay applyRemix
+  on a fork", acting as the USER's OAuth token + their fork (NOT the app). Feature
+  requests have no auto-edits, so the button is config/part-only.
+- **Window elapse is simulated in the demo by backdating `closesAt`** (real proposals
+  wait the real 1–14 day window — we can't in a single session). This is the ONLY
+  governance-state affordance; votes, eligibility, the commit, and the rebuild are all
+  real. Backdated **community-member voter accounts** (real User + CommunityMembership
+  + PlaySession rows, createdAt > 7 days) are seeded by `governance-demo.ts` because the
+  live demo accounts (gitcade-admin, mufon609) are < 7 days old and would themselves be
+  ineligible by the anti-brigading age rule — which is the rule working, not a bug.
+- **Notifications are in-app only (v1)** — `notifyMembers` fans a row out to every
+  community member of a game on proposal opened/passed/failed/vetoed/applied; the Nav
+  `NotificationsBell` polls `/api/notifications` (20s) with an unread badge.
+- **The Community tab `CommunityPanel` is a client component** that polls the proposals
+  + bugs APIs (15s) for live tallies; the proposal page `ProposalView` polls `/tally`
+  (8s) until decided. SSR provides the initial state so the page is correct without JS.
+
+### Verification performed this session (REAL round trips, not just DB rows)
+Driver: `npm run governance-demo` (server-side; a browser can't script OAuth — same
+pattern as seed/fork/remix demos). Output captured live:
+- **DoD 1 — passed config-change auto-commits with no human touching git:** proposal
+  "towerCost 50 → 40" on `tower-defense`: DRAFT → OPEN → 10 YES / 1 NO (90.9%, quorum
+  11 ≥ 10) → finalize PASSED → owner approve → **app-authored commit `28b6cd7d` on
+  gitcade-games/tower-defense** (author `gitcade-governance[bot]`, verification `valid`,
+  only `config.json`) → worker rebuild **LIVE in 9s**. Confirmed via the non-cached
+  contents API: `main` HEAD = `28b6cd7d`, `config.json.towerCost = 40` (the raw-CDN read
+  lagged ~5 min — a caching artifact, not a miss).
+- **DoD 2 — vetoed proposal forked-with-patch in one click, immediately playable:**
+  proposal "startGold 220 → 300" passed → owner **VETOED** with the required public
+  reason → `forkWithPatch` as `mufon609` forked `tower-defense--mufon609`, applied the
+  edit (commit `c2559215`), rebuilt **LIVE in 6s**; the fork's `config.json.startGold =
+  300` and its artifact serves `200`. The proposal page permanently shows PASSED ·
+  VETOED + reason + the prominent exit-door button.
+- **DoD 3 — anti-brigading enforced + visible:** three foils BLOCKED with specific
+  reasons — `td-newbie` (account < 7 days), `td-lurker` (not a member), `td-tourist`
+  (never played); an eligible voter passes the same check. The reasons surface in the
+  vote API (403) and the proposal UI.
+- **Tests:** 29 new trust-critical unit tests (tally threshold/quorum/window edges;
+  eligibility age/membership/playsession) — full web suite **98/98 green**. `next build`
+  compiles all new routes/pages; `npx tsc --noEmit` clean for app code (two PRE-EXISTING
+  Phase-6 `remix.test.ts` type-narrowing errors are unrelated and don't affect vitest or
+  the build). SSR-rendered the APPLIED + VETOED proposal pages and the Community tab on
+  the running server (all 200, governance content present). `git status` confirms zero
+  changes outside `platform/web/`.

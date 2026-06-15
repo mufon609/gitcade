@@ -20,7 +20,10 @@
     "spawnPoints": { "type": "array", "balance": false, "description": "Array of { x, y } spawn positions, round-robin (structural)." },
     "advanceOnClear": { "type": "boolean", "balance": false, "description": "Start the next wave when all countTag are gone." },
     "stateKey": { "type": "string", "balance": false, "description": "world.state scratch key for this spawner." },
-    "waveKey": { "type": "string", "balance": false, "description": "world.state key exposing the current wave number." }
+    "waveKey": { "type": "string", "balance": false, "description": "world.state key exposing the current wave number." },
+    "placement": { "type": "string", "balance": false, "description": "literal (default; spawnPoints/prototype pos) or free-cell (scatter across free grid cells)." },
+    "tileSize": { "type": "number", "balance": false, "description": "Grid cell size in px for free-cell placement (structural)." },
+    "occupiedTag": { "type": "string", "balance": false, "description": "Tag marking occupied cells for free-cell placement (default = countTag)." }
   },
   "definition": {
     "type": "wave-spawner",

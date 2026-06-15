@@ -1,6 +1,6 @@
 import type { SystemFn } from "@gitcade/sdk";
 import { num, str, bool } from "@gitcade/sdk";
-import { points, spawnFrom, systemState } from "../util.js";
+import { points, spawnFrom, systemState, randomFreeCell, type Vec2 } from "../util.js";
 
 interface SpawnerState extends Record<string, unknown> {
   wave: number;
@@ -58,9 +58,16 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
   const stateKey = str(params, "stateKey", "__waveSpawner");
   const waveKey = str(params, "waveKey", "wave");
 
-  const proto = params.prototype as { tags?: string[] } | undefined;
+  const proto = params.prototype as { tags?: string[]; size?: { w?: number; h?: number } } | undefined;
   const countTag = str(params, "countTag", "") || proto?.tags?.[0] || "";
   const spawnPts = points(params, "spawnPoints");
+
+  // 0.2.0 (G4): scatter spawns across free grid cells instead of the literal
+  // prototype position. Additive — `placement` defaults to "literal", which is the
+  // exact 0.1.x behavior (round-robin spawnPoints or the prototype's own position).
+  const placement = str(params, "placement", "literal");
+  const tileSize = num(params, "tileSize", 0);
+  const occupiedTag = str(params, "occupiedTag", "") || countTag;
 
   const s = systemState<SpawnerState>(world, stateKey, {
     wave: 0,
@@ -100,8 +107,20 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
   s.spawnTimer -= dt;
   if (s.spawnedThisWave < target && s.spawnTimer <= 0) {
     if (maxAlive === 0 || aliveOfTag < maxAlive) {
-      // Persistent cumulative cursor → spawn points cycle over the whole run. (B-1)
-      const pt = spawnPts.length ? spawnPts[s.spawnCursor % spawnPts.length] : undefined;
+      // Resolve the spawn position. "free-cell" picks a verified-free grid cell
+      // (deterministic via world.rng) and centers the prototype on it; "literal"
+      // uses the round-robin spawnPoints cursor (B-1) or the prototype's position.
+      let pt: Vec2 | undefined;
+      if (placement === "free-cell" && tileSize > 0) {
+        const cell = randomFreeCell(world, { tileSize, occupiedTag });
+        if (!cell) return; // grid full this tick — try again next interval
+        const w = proto?.size?.w ?? 16;
+        const h = proto?.size?.h ?? 16;
+        pt = { x: cell.x - w / 2, y: cell.y - h / 2 }; // top-left so center sits on the cell
+      } else {
+        // Persistent cumulative cursor → spawn points cycle over the whole run. (B-1)
+        pt = spawnPts.length ? spawnPts[s.spawnCursor % spawnPts.length] : undefined;
+      }
       const spawned = spawnFrom(world, params.prototype, {
         idPrefix: `${stateKey}.w${s.wave}`,
         position: pt,

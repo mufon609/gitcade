@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "generatedFrom": "parts/",
   "parts": [
     {
@@ -1406,6 +1406,111 @@
       }
     },
     {
+      "id": "persistence",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "economy",
+      "tags": [
+        "persistence",
+        "save",
+        "storage",
+        "idle",
+        "high-score"
+      ],
+      "description": "Declarative cross-run save/load. Round-trips named world.state keys through the existing storage bridge (no host JS, no wire-protocol change): restores declared keys on boot (live value wins) and writes on change or interval. Keys/slot/cadence come from manifest.persist, overridable per-instance.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "keys": {
+          "type": "array",
+          "balance": false,
+          "description": "world.state keys to persist (defaults to manifest.persist.keys)."
+        },
+        "slot": {
+          "type": "string",
+          "balance": false,
+          "description": "Storage slot/namespace suffix for the save blob."
+        },
+        "everySeconds": {
+          "type": "number",
+          "balance": false,
+          "description": "Autosave cadence in seconds (0 = save on change only)."
+        }
+      },
+      "definition": {
+        "type": "persistence",
+        "params": {}
+      }
+    },
+    {
+      "id": "place-on-free-cell",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "spawning",
+      "tags": [
+        "spawning",
+        "grid",
+        "placement",
+        "snake",
+        "free-cell"
+      ],
+      "description": "On a trigger event, spawn a prototype at a verified-free grid cell (centered, deterministic via world.rng, honoring the scene tilemap when present). The data replacement for hand-rolled free-cell food/pickup placement — no stacking, no out-of-bounds.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "prototype": {
+          "type": "object",
+          "balance": false,
+          "description": "Entity-definition to spawn (required)."
+        },
+        "trigger": {
+          "type": "string",
+          "balance": false,
+          "description": "Event that triggers a placement."
+        },
+        "tileSize": {
+          "type": "number",
+          "balance": false,
+          "description": "Grid cell size in px (structural)."
+        },
+        "occupiedTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag whose live entities mark a cell occupied."
+        },
+        "require": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional tilemap gate: walkable | buildable."
+        }
+      },
+      "definition": {
+        "type": "place-on-free-cell",
+        "params": {
+          "trigger": "eat",
+          "tileSize": 20,
+          "occupiedTag": "snake-body",
+          "prototype": {
+            "id": "food",
+            "sprite": {
+              "kind": "shape",
+              "shape": "rect",
+              "color": "#9ece6a"
+            },
+            "size": {
+              "w": 16,
+              "h": 16
+            },
+            "tags": [
+              "food"
+            ],
+            "layer": 1,
+            "behaviors": []
+          }
+        }
+      }
+    },
+    {
       "id": "score",
       "kind": "system",
       "version": "1.0.0",
@@ -1537,6 +1642,60 @@
           "duration": "$cfg.roundTime",
           "timeKey": "timeLeft",
           "onExpire": "lose"
+        }
+      }
+    },
+    {
+      "id": "transaction",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "economy",
+      "tags": [
+        "economy",
+        "currency",
+        "purchase",
+        "tower-defense",
+        "shop"
+      ],
+      "description": "Generic afford → deduct → emit economy transaction. A part/UI sets a { id, cost } purchase request; the system spends from a currency balance and emits purchased or purchase-denied (insufficient-funds). The buy-and-place primitive currency and upgrade-tree don't cover.",
+      "license": "MIT",
+      "dependencies": [
+        "currency"
+      ],
+      "params": {
+        "currencyKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state balance key to spend from."
+        },
+        "requestKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding the pending { id, cost } request."
+        },
+        "onOk": {
+          "type": "string",
+          "balance": false,
+          "description": "Event emitted on a successful purchase."
+        },
+        "onDenied": {
+          "type": "string",
+          "balance": false,
+          "description": "Event emitted when the purchase is denied."
+        },
+        "costs": {
+          "type": "object",
+          "balance": false,
+          "description": "Optional id → cost map for fixed-price catalogs (structural)."
+        }
+      },
+      "definition": {
+        "type": "transaction",
+        "params": {
+          "currencyKey": "gold",
+          "requestKey": "purchaseRequest",
+          "onOk": "purchased",
+          "onDenied": "purchase-denied"
         }
       }
     },
@@ -1680,6 +1839,21 @@
           "type": "string",
           "balance": false,
           "description": "world.state key exposing the current wave number."
+        },
+        "placement": {
+          "type": "string",
+          "balance": false,
+          "description": "literal (default; spawnPoints/prototype pos) or free-cell (scatter across free grid cells)."
+        },
+        "tileSize": {
+          "type": "number",
+          "balance": false,
+          "description": "Grid cell size in px for free-cell placement (structural)."
+        },
+        "occupiedTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag marking occupied cells for free-cell placement (default = countTag)."
         }
       },
       "definition": {
@@ -3841,6 +4015,28 @@
               "layer": 100
             }
           ]
+        }
+      }
+    },
+    {
+      "id": "tap-emit",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "button",
+        "input",
+        "flow",
+        "menu"
+      ],
+      "description": "A per-entity behavior that emits a game event when the entity is clicked/tapped (reads the SDK click edge and the topmost entity pick). Turns a button into a pure-data scene-flow edge: wire emitOnTap to a scene.flow.on transition for title→play→over with no host code.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "tap-emit",
+        "params": {
+          "emitOnTap": "start-pressed"
         }
       }
     },

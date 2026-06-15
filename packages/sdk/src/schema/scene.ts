@@ -2,6 +2,20 @@ import { z } from "zod";
 import { EntityDefSchema } from "./entity.js";
 import { SystemDefSchema } from "./system.js";
 
+/**
+ * Per-tile-INDEX property flags (0.2.0 additive, G3). Open-ended: the three named
+ * flags are conveniences; `catchall` keeps it usable for game-specific markers
+ * (e.g. `{ "1": { lane: true, walkable: true, buildable: false } }`). Presentational/
+ * structural data, so exempt from the magic-number rule like the rest of the tilemap.
+ */
+export const TilePropsSchema = z
+  .object({
+    buildable: z.boolean().optional(),
+    walkable: z.boolean().optional(),
+    lane: z.boolean().optional(),
+  })
+  .catchall(z.union([z.boolean(), z.number(), z.string()]));
+
 /** Optional tilemap for grid-based scenes. Minimal in v1; Phase 2 supplies tilesets. */
 export const TilemapSchema = z.object({
   tileSize: z.number().positive(),
@@ -11,6 +25,26 @@ export const TilemapSchema = z.object({
   tiles: z.array(z.number().int()),
   /** Asset path of the tileset image/sheet. */
   tileset: z.string().optional(),
+  /**
+   * Map of tile INDEX (stringified) → property flags (0.2.0 additive, G3). An
+   * index that is absent / -1 (empty) has no props. Powers `world.isBuildable`
+   * etc. without re-encoding the map as entities.
+   */
+  properties: z.record(z.string(), TilePropsSchema).optional(),
+});
+
+/**
+ * Per-scene flow contract (0.2.0 additive, G1 keystone). Lets a scene own its
+ * outgoing transitions AS DATA: when this scene emits an event named in `on`, the
+ * host transitions to the mapped scene id; `persist` names the `world.state` keys
+ * carried across that transition (the in-session hand-off set). Absent ⇒ today's
+ * full-wipe `loadScene` behavior, so 0.1.x scenes are byte-identical.
+ */
+export const SceneFlowSchema = z.object({
+  /** Event → target scene id. When this scene emits the event, the host transitions. */
+  on: z.record(z.string(), z.string()).default({}),
+  /** `world.state` keys preserved when LEAVING this scene. */
+  persist: z.array(z.string()).default([]),
 });
 
 /** Scene background: a solid CSS color or a layered descriptor (parallax in 2B). */
@@ -43,8 +77,12 @@ export const SceneSchema = z.object({
     width: 800,
     height: 600,
   }),
+  /** Data-driven scene transitions + in-session state hand-off (0.2.0 additive, G1). */
+  flow: SceneFlowSchema.optional(),
 });
 
 export type Scene = z.infer<typeof SceneSchema>;
 export type Tilemap = z.infer<typeof TilemapSchema>;
+export type TileProps = z.infer<typeof TilePropsSchema>;
+export type SceneFlow = z.infer<typeof SceneFlowSchema>;
 export type Background = z.infer<typeof BackgroundSchema>;

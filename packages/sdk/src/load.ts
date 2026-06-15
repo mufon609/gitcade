@@ -51,7 +51,10 @@ export function createGame(raw: RawGameSources, opts: CreateGameOptions = {}): G
   // entryPoint is a path like "src/scenes/main.json"; match its basename (sans
   // extension) to a scene id when possible, else fall back to the first scene.
   const entryId = resolveEntrySceneId(manifest, scenes);
-  return new Game({ ...opts, scenes, config, registry, entrySceneId: entryId });
+  // Surface the manifest's cross-run persistence binding on the world (G6); an
+  // explicit opts.persist still wins (lets a host override without a manifest).
+  const persist = opts.persist ?? manifest.persist;
+  return new Game({ ...opts, scenes, config, registry, entrySceneId: entryId, persist });
 }
 
 function resolveEntrySceneId(manifest: GameManifest, scenes: Scene[]): string | undefined {

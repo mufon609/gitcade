@@ -1,5 +1,6 @@
 import type { Config } from "../schema/config.js";
 import type { Scene } from "../schema/scene.js";
+import type { PersistConfig } from "../schema/manifest.js";
 import { World } from "./world.js";
 import { Registry } from "./registry.js";
 import { Input } from "./input.js";
@@ -37,6 +38,8 @@ export interface GameOptions {
   fixedDt?: number;
   /** Attach DOM input listeners on start (default: true when a canvas is present). */
   attachInput?: boolean;
+  /** Cross-run persistence binding (from `manifest.persist`); surfaced on `world.persist` (G6). */
+  persist?: PersistConfig;
 }
 
 interface SystemInstance {
@@ -73,6 +76,8 @@ export class Game {
   private lastTime = 0;
   private running = false;
   private rafId: number | null = null;
+  /** Unsubscribers for the active scene's `flow.on` event edges, torn down on scene change (G1). */
+  private flowUnsubs: Array<() => void> = [];
 
   constructor(opts: GameOptions) {
     if (opts.scenes.length === 0) throw new Error("Game requires at least one scene");
@@ -96,6 +101,7 @@ export class Game {
       audio: opts.audio,
       storage: opts.storage ?? new MemoryStorage(),
       rng: opts.rng,
+      persist: opts.persist,
     });
 
     const ctx = this.canvas ? this.canvas.getContext("2d") : null;
@@ -108,15 +114,39 @@ export class Game {
     this.loadScene(this.scene.id);
   }
 
-  /** Build the world for a scene id (entities + resolved systems). */
-  loadScene(sceneId: string): void {
+  /**
+   * Build the world for a scene id (entities + resolved systems).
+   *
+   * 0.2.0 (G1): preserves an explicit `persist` set across the transition instead
+   * of always wiping `world.state`. The preserved keys are the LEAVING scene's
+   * `flow.persist` plus any `opts.keepExtra` (the per-hop `requestScene({ keep })`
+   * set). With neither — exactly the 0.1.x case, since old scenes have no `flow`
+   * and host callers pass no `keepExtra` — the keep set is empty and this is a
+   * byte-identical full wipe.
+   */
+  loadScene(sceneId: string, opts?: { keepExtra?: string[] }): void {
     const scene = this.scenes.get(sceneId);
     if (!scene) throw new Error(`scene "${sceneId}" not found`);
+
+    // Carry the kept slice of state across the transition (G1). prevPersist comes
+    // from the scene we are LEAVING; keepExtra from the requesting part.
+    const prevPersist = this.scene?.flow?.persist ?? [];
+    const keep = new Set([...prevPersist, ...(opts?.keepExtra ?? [])]);
+    const carried: Record<string, unknown> = {};
+    for (const k of keep) if (k in this.world.state) carried[k] = this.world.state[k];
+
     this.scene = scene;
 
-    // Reset world contents.
+    // Tear down the previous scene's flow edges before installing this scene's, so
+    // re-entering a scene never accumulates duplicate listeners on the shared bus.
+    for (const off of this.flowUnsubs) off();
+    this.flowUnsubs = [];
+
+    // Reset world contents, then restore the kept slice.
     this.world.entities = [];
     for (const key of Object.keys(this.world.state)) delete this.world.state[key];
+    Object.assign(this.world.state, carried);
+    this.world.tilemap = scene.tilemap;
     this.world.frame = 0;
     this.world.time = 0;
     this.accumulator = 0;
@@ -134,6 +164,12 @@ export class Game {
         params: resolveParams(s.params, this.world.config),
       };
     });
+
+    // Install the data-driven flow edges: emitting `evt` queues a transition to
+    // `target` (drained between ticks, like any requestScene). No host JS needed.
+    for (const [evt, target] of Object.entries(scene.flow?.on ?? {})) {
+      this.flowUnsubs.push(this.world.events.on(evt, () => this.world.requestScene(target)));
+    }
   }
 
   /** Run exactly one fixed-update step. */
@@ -155,6 +191,16 @@ export class Game {
 
     this.world.prune();
     this.world.events.clear();
+    // Clear the one-frame pointer edge buffers (G2) — an edge lives exactly one tick.
+    this.world.input.endFrame();
+
+    // Drain a queued scene change AFTER the tick (G1, OQ-5). Doing it here — not in
+    // start()'s rAF loop — means every caller (rAF, stepFrames, the harness/validator
+    // driving update() directly) observes transitions, and the switch never happens
+    // mid-tick, so the frozen in-tick order is untouched. A transition takes effect
+    // on the NEXT update (deterministic).
+    const req = this.world.takePendingScene();
+    if (req) this.loadScene(req.to, { keepExtra: req.keep });
   }
 
   /** Run `n` fixed-update steps with no rendering (headless tests / validator boot). */

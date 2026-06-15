@@ -6,6 +6,17 @@ export interface Pointer {
   down: boolean;
 }
 
+/**
+ * A one-frame pointer EDGE in world coordinates: a pointer that went down
+ * (`justPressed`) or up (`justReleased`) during the frame just simulated. Distinct
+ * from the held {@link Pointer} set — a Tap exists for exactly one fixed tick.
+ */
+export interface Tap {
+  id: number;
+  x: number;
+  y: number;
+}
+
 /** Minimal DOM surface so Input is testable and degrades cleanly when absent. */
 interface InputTarget {
   addEventListener(type: string, listener: (ev: any) => void, opts?: any): void;
@@ -25,6 +36,14 @@ export class Input {
   private detachers: Array<() => void> = [];
   /** Bounds used to clamp/scale pointer coordinates into world space. */
   private world = { width: 0, height: 0 };
+
+  // One-frame pointer edge buffers (G2). Real pointer events arrive asynchronously
+  // BETWEEN fixed ticks; they are captured here and exposed for exactly the next
+  // tick, then cleared by endFrame() at tick end — so a behavior/system sees a
+  // deterministic, reproducible click edge (the same model the harness drives with
+  // { click, holdFrames }). These never change the held-pointer contract above.
+  private pressedThisFrame: Tap[] = [];
+  private releasedThisFrame: Tap[] = [];
 
   /** True while the given `KeyboardEvent.code` is held. */
   isDown(code: string): boolean {
@@ -50,6 +69,35 @@ export class Input {
   /** Active pointers (touches / mouse-down), in world coordinates. */
   activePointers(): Pointer[] {
     return [...this.pointers.values()].filter((p) => p.down);
+  }
+
+  /** Pointers that went DOWN during the frame just simulated. Cleared each tick by endFrame(). */
+  justPressed(): Tap[] {
+    return this.pressedThisFrame;
+  }
+
+  /** Pointers that went UP during the frame just simulated (the click EDGE). Cleared each tick. */
+  justReleased(): Tap[] {
+    return this.releasedThisFrame;
+  }
+
+  /** The completed click edges this frame — alias of {@link justReleased}. */
+  taps(): Tap[] {
+    return this.releasedThisFrame;
+  }
+
+  /** Convenience: true if any pointer went down this frame. */
+  clicked(): boolean {
+    return this.pressedThisFrame.length > 0;
+  }
+
+  /**
+   * Host-only: clear the per-frame edge buffers. Called by {@link Game.update} at
+   * tick end (next to `events.clear()`), so an edge lives exactly one fixed tick.
+   */
+  endFrame(): void {
+    this.pressedThisFrame.length = 0;
+    this.releasedThisFrame.length = 0;
   }
 
   setWorldSize(width: number, height: number): void {
@@ -90,11 +138,20 @@ export class Input {
         const { x, y } = toWorld(e.clientX, e.clientY);
         this.pointers.set(e.pointerId, { id: e.pointerId, x, y, down });
       };
-      const onPDown = (e: PointerEvent) => upsert(e, true);
+      const onPDown = (e: PointerEvent) => {
+        upsert(e, true);
+        // Record the press EDGE (held-set upsert above is unchanged).
+        const p = this.pointers.get(e.pointerId);
+        if (p) this.pressedThisFrame.push({ id: p.id, x: p.x, y: p.y });
+      };
       const onPMove = (e: PointerEvent) => {
         if (this.pointers.has(e.pointerId)) upsert(e, this.pointers.get(e.pointerId)!.down);
       };
       const onPUp = (e: PointerEvent) => {
+        // Record the release EDGE BEFORE deleting from the held map (the :delete
+        // below is the unchanged held-set contract — we only add the edge record).
+        const p = this.pointers.get(e.pointerId) ?? { id: e.pointerId, ...toWorld(e.clientX, e.clientY) };
+        this.releasedThisFrame.push({ id: p.id, x: p.x, y: p.y });
         this.pointers.delete(e.pointerId);
       };
       pointerTarget.addEventListener("pointerdown", onPDown);
@@ -115,5 +172,7 @@ export class Input {
     this.detachers = [];
     this.down.clear();
     this.pointers.clear();
+    this.pressedThisFrame.length = 0;
+    this.releasedThisFrame.length = 0;
   }
 }

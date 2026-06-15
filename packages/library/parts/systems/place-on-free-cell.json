@@ -1,0 +1,33 @@
+{
+  "id": "place-on-free-cell",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "spawning",
+  "tags": ["spawning", "grid", "placement", "snake", "free-cell"],
+  "license": "MIT",
+  "description": "On a trigger event, spawn a prototype at a verified-free grid cell (centered, deterministic via world.rng, honoring the scene tilemap when present). The data replacement for hand-rolled free-cell food/pickup placement — no stacking, no out-of-bounds.",
+  "dependencies": [],
+  "params": {
+    "prototype": { "type": "object", "balance": false, "description": "Entity-definition to spawn (required)." },
+    "trigger": { "type": "string", "balance": false, "description": "Event that triggers a placement." },
+    "tileSize": { "type": "number", "balance": false, "description": "Grid cell size in px (structural)." },
+    "occupiedTag": { "type": "string", "balance": false, "description": "Tag whose live entities mark a cell occupied." },
+    "require": { "type": "string", "balance": false, "description": "Optional tilemap gate: walkable | buildable." }
+  },
+  "definition": {
+    "type": "place-on-free-cell",
+    "params": {
+      "trigger": "eat",
+      "tileSize": 20,
+      "occupiedTag": "snake-body",
+      "prototype": {
+        "id": "food",
+        "sprite": { "kind": "shape", "shape": "rect", "color": "#9ece6a" },
+        "size": { "w": 16, "h": 16 },
+        "tags": ["food"],
+        "layer": 1,
+        "behaviors": []
+      }
+    }
+  }
+}

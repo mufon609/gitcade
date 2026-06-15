@@ -32,6 +32,24 @@ export const AuthorSchema = z.union([
 export type Author = z.infer<typeof AuthorSchema>;
 
 /**
+ * Cross-RUN persistence binding (0.2.0 additive, G6). Declares which
+ * `world.state` keys survive a reload, the storage slot they round-trip through
+ * (the bridge already namespaces by `gameSlug + branch`), and an autosave cadence.
+ * Consumed by the library `persistence` system; absent ⇒ no persistence (0.1.x
+ * behavior unchanged). The cross-SCENE/in-session hand-off set lives separately on
+ * `scene.flow.persist` (OQ-6 split).
+ */
+export const PersistSchema = z.object({
+  /** `world.state` keys persisted across runs (saved on change/interval, loaded on boot). */
+  keys: z.array(z.string()).default([]),
+  /** Storage key/namespace suffix for the save blob. */
+  slot: z.string().default("save"),
+  /** Autosave cadence in seconds (0 = save only on change / scene change / explicit emit). */
+  everySeconds: z.number().nonnegative().default(0),
+});
+export type PersistConfig = z.infer<typeof PersistSchema>;
+
+/**
  * `game.json` — the manifest every GitCade game ships. This is the ROOT of the
  * frozen contract: the platform, build worker, validator, marketplace and
  * governance all read it.
@@ -61,6 +79,8 @@ export const GameManifestSchema = z
     license: LicenseSchema.default("MIT"),
     authors: z.array(AuthorSchema).default([]),
     tier: TierSchema,
+    /** Cross-run persistence binding (0.2.0 additive, G6); absent ⇒ no persistence. */
+    persist: PersistSchema.optional(),
   })
   .superRefine((m, ctx) => {
     if (m.tier === "ecosystem" && !m.libraryVersion) {

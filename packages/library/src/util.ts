@@ -111,6 +111,88 @@ function nextSpawnSeq(world: World): number {
   return n;
 }
 
+/** Snap a world point to the CENTER of the grid cell that contains it (G4). */
+export function snapToGrid(x: number, y: number, tileSize: number): Vec2 {
+  const col = Math.floor(x / tileSize);
+  const row = Math.floor(y / tileSize);
+  return { x: col * tileSize + tileSize / 2, y: row * tileSize + tileSize / 2 };
+}
+
+/** Rectangle in world space (placement bounds). */
+export interface CellBounds {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export interface RandomFreeCellOpts {
+  /** Grid cell size in px. */
+  tileSize: number;
+  /** Tag whose live entities mark a cell occupied (by their CENTER). */
+  occupiedTag: string;
+  /** Placement region (defaults to the whole world). */
+  bounds?: CellBounds;
+  /** Optional tilemap gate — only cells whose tile is buildable/walkable qualify. */
+  require?: "walkable" | "buildable";
+}
+
+/**
+ * A uniformly-random FREE grid cell center within `bounds` (default: the whole
+ * world), excluding every cell already occupied by a live `occupiedTag` entity and
+ * — when `require` is set and the scene has a tilemap — every cell failing the
+ * tilemap gate. Uses `world.rng` for deterministic replay, never `Math.random`.
+ * Returns the cell's center point, or `null` if no cell is free (G4).
+ *
+ * This is the one-line replacement for the ~60 lines of occupancy-set + retry +
+ * fallback that games hand-rolled (e.g. Snake food); "first food on the wall" and
+ * stacked spawns are impossible by construction (out-of-bounds and occupied cells
+ * are excluded up front).
+ */
+export function randomFreeCell(world: World, opts: RandomFreeCellOpts): Vec2 | null {
+  const ts = opts.tileSize;
+  const b = opts.bounds ?? { x: 0, y: 0, w: world.bounds.width, h: world.bounds.height };
+  const cols = Math.floor(b.w / ts);
+  const rows = Math.floor(b.h / ts);
+  if (cols <= 0 || rows <= 0) return null;
+
+  // Mark cells occupied by any live entity carrying occupiedTag (keyed on center).
+  const occupied = new Set<number>();
+  for (const e of world.query(opts.occupiedTag)) {
+    const col = Math.floor((e.cx - b.x) / ts);
+    const row = Math.floor((e.cy - b.y) / ts);
+    if (col >= 0 && row >= 0 && col < cols && row < rows) occupied.add(row * cols + col);
+  }
+
+  // Collect free + gate-passing cells, then pick one uniformly with world.rng.
+  const free: number[] = [];
+  for (let i = 0; i < cols * rows; i++) {
+    if (occupied.has(i)) continue;
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx = b.x + col * ts + ts / 2;
+    const cy = b.y + row * ts + ts / 2;
+    if (opts.require && !passesRequire(world, cx, cy, opts.require)) continue;
+    free.push(i);
+  }
+  if (free.length === 0) return null;
+
+  const pick = free[Math.floor(world.rng() * free.length)] ?? free[0];
+  const col = pick % cols;
+  const row = Math.floor(pick / cols);
+  return { x: b.x + col * ts + ts / 2, y: b.y + row * ts + ts / 2 };
+}
+
+/** Tilemap gate for {@link randomFreeCell}; permissive when the scene has no tilemap. */
+function passesRequire(world: World, cx: number, cy: number, require: "walkable" | "buildable"): boolean {
+  if (!world.tilemap) return true;
+  if (require === "buildable") return world.isBuildable(cx, cy);
+  // walkable: empty/out-of-bounds fails; a decorated tile defaults permissive.
+  const idx = world.tileAt(cx, cy);
+  if (idx < 0) return false;
+  return world.tilemap.properties?.[String(idx)]?.walkable ?? true;
+}
+
 /** Read/create a namespaced scratch object on `world.state` for stateful systems. */
 export function systemState<T extends Record<string, unknown>>(world: World, key: string, init: T): T {
   const existing = world.state[key];

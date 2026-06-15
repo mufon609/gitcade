@@ -9,6 +9,9 @@ import { winLoseConditions } from "./win-lose-conditions.js";
 import { simpleInventory } from "./simple-inventory.js";
 import { currency } from "./currency.js";
 import { upgradeTree } from "./upgrade-tree.js";
+import { transaction } from "./transaction.js";
+import { persistence } from "./persistence.js";
+import { placeOnFreeCell } from "./place-on-free-cell.js";
 
 /**
  * Every library system, keyed by the exact `type` string a scene uses. As with
@@ -25,6 +28,9 @@ export const LIBRARY_SYSTEMS = {
   "simple-inventory": simpleInventory,
   currency: currency,
   "upgrade-tree": upgradeTree,
+  transaction: transaction,
+  persistence: persistence,
+  "place-on-free-cell": placeOnFreeCell,
 } as const;
 
 /** The library system type ids (for tests / introspection). */
@@ -47,4 +53,7 @@ export {
   simpleInventory,
   currency,
   upgradeTree,
+  transaction,
+  persistence,
+  placeOnFreeCell,
 };

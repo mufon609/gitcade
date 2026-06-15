@@ -1,0 +1,21 @@
+{
+  "id": "transaction",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "economy",
+  "tags": ["economy", "currency", "purchase", "tower-defense", "shop"],
+  "license": "MIT",
+  "description": "Generic afford → deduct → emit economy transaction. A part/UI sets a { id, cost } purchase request; the system spends from a currency balance and emits purchased or purchase-denied (insufficient-funds). The buy-and-place primitive currency and upgrade-tree don't cover.",
+  "dependencies": ["currency"],
+  "params": {
+    "currencyKey": { "type": "string", "balance": false, "description": "world.state balance key to spend from." },
+    "requestKey": { "type": "string", "balance": false, "description": "world.state key holding the pending { id, cost } request." },
+    "onOk": { "type": "string", "balance": false, "description": "Event emitted on a successful purchase." },
+    "onDenied": { "type": "string", "balance": false, "description": "Event emitted when the purchase is denied." },
+    "costs": { "type": "object", "balance": false, "description": "Optional id → cost map for fixed-price catalogs (structural)." }
+  },
+  "definition": {
+    "type": "transaction",
+    "params": { "currencyKey": "gold", "requestKey": "purchaseRequest", "onOk": "purchased", "onDenied": "purchase-denied" }
+  }
+}

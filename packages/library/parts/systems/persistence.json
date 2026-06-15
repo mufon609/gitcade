@@ -1,0 +1,19 @@
+{
+  "id": "persistence",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "economy",
+  "tags": ["persistence", "save", "storage", "idle", "high-score"],
+  "license": "MIT",
+  "description": "Declarative cross-run save/load. Round-trips named world.state keys through the existing storage bridge (no host JS, no wire-protocol change): restores declared keys on boot (live value wins) and writes on change or interval. Keys/slot/cadence come from manifest.persist, overridable per-instance.",
+  "dependencies": [],
+  "params": {
+    "keys": { "type": "array", "balance": false, "description": "world.state keys to persist (defaults to manifest.persist.keys)." },
+    "slot": { "type": "string", "balance": false, "description": "Storage slot/namespace suffix for the save blob." },
+    "everySeconds": { "type": "number", "balance": false, "description": "Autosave cadence in seconds (0 = save on change only)." }
+  },
+  "definition": {
+    "type": "persistence",
+    "params": {}
+  }
+}

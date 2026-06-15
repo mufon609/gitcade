@@ -5,9 +5,10 @@ import { LIBRARY_BEHAVIOR_TYPES } from "../src/behaviors/index.js";
 import { LIBRARY_SYSTEM_TYPES } from "../src/systems/index.js";
 
 describe("library registration", () => {
-  it("registers all 18 behaviors and 9 systems as new TYPES", () => {
+  it("registers all 18 behaviors and 12 systems as new TYPES", () => {
     expect(LIBRARY_BEHAVIOR_TYPES).toHaveLength(18);
-    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(9);
+    // 9 (0.1.x) + 3 new 0.2.0 economy/spawning systems: transaction, persistence, place-on-free-cell.
+    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(12);
 
     const registry = createDefaultRegistry();
     registerLibrary(registry);

@@ -6,6 +6,9 @@ import type { ShapeSprite, SheetSprite, TextSprite } from "../schema/sprite.js";
 /** A minimal 2D context surface (subset we use), so types don't require lib.dom everywhere. */
 type Ctx = CanvasRenderingContext2D;
 
+/** Muted fallback fills for tilemap indices when no tileset image is available. */
+const TILE_FALLBACK_COLORS = ["#2a2f3a", "#3a3030", "#30343a", "#2f3a30", "#3a3a2f", "#352f3a"];
+
 /**
  * Canvas 2D renderer (the "sprite renderer" primitive: static shapes, images,
  * sheet-animation frames, and bound text). Entirely OPTIONAL: constructed with a
@@ -27,12 +30,45 @@ export class Renderer {
     const { width, height } = world.bounds;
 
     this.drawBackground(ctx, background, width, height);
+    this.drawTilemap(ctx, world);
 
     const drawList = world.entities
       .filter((e) => e.alive && e.sprite.kind !== "none")
       .sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
 
     for (const e of drawList) this.drawEntity(ctx, e, world);
+  }
+
+  /**
+   * Draw the active scene's tilemap (0.2.0, OQ-3) UNDER the entities, so a scene's
+   * road/lanes are one data tilemap — drawn AND queried (`world.isBuildable`) with
+   * no entity/tilemap double-encoding. No-op when the scene has no tilemap, so a
+   * 0.1.x scene renders exactly as before. When a `tileset` image is supplied each
+   * non-empty index is blitted from the sheet; without one (or before it loads)
+   * non-empty tiles fall back to a flat per-index color so the map is still visible.
+   */
+  private drawTilemap(ctx: Ctx, world: World): void {
+    const t = world.tilemap;
+    if (!t) return;
+    const sheet = t.tileset ? this.loadImage(t.tileset) : null;
+    const sheetReady = !!sheet && sheet.complete && sheet.naturalWidth > 0;
+    const sheetCols = sheetReady ? Math.max(1, Math.floor(sheet!.naturalWidth / t.tileSize)) : 1;
+    for (let row = 0; row < t.rows; row++) {
+      for (let col = 0; col < t.cols; col++) {
+        const idx = t.tiles[row * t.cols + col] ?? -1;
+        if (idx < 0) continue; // empty cell
+        const x = col * t.tileSize;
+        const y = row * t.tileSize;
+        if (sheetReady) {
+          const sx = (idx % sheetCols) * t.tileSize;
+          const sy = Math.floor(idx / sheetCols) * t.tileSize;
+          ctx.drawImage(sheet!, sx, sy, t.tileSize, t.tileSize, x, y, t.tileSize, t.tileSize);
+        } else {
+          ctx.fillStyle = TILE_FALLBACK_COLORS[idx % TILE_FALLBACK_COLORS.length];
+          ctx.fillRect(x, y, t.tileSize, t.tileSize);
+        }
+      }
+    }
   }
 
   private drawBackground(ctx: Ctx, bg: Background | undefined, w: number, h: number): void {

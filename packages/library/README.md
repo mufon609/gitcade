@@ -37,12 +37,35 @@ that already has a game's `custom-behaviors/`).
 **Systems**
 - *progression* — `score` (storage-persisted high score), `lives-respawn`,
   `timer-countdown`, `level-progression`
-- *spawning* — `wave-spawner`
+- *spawning* — `wave-spawner` (0.2.0: optional `placement: "free-cell"` scatter),
+  `place-on-free-cell` *(0.2.0)*
 - *rules* — `win-lose-conditions`
-- *economy* — `simple-inventory`, `currency`, `upgrade-tree`
+- *economy* — `simple-inventory`, `currency`, `upgrade-tree`, `transaction` *(0.2.0)*
+- *persistence* — `persistence` *(0.2.0)* — declarative cross-run save/load
 
 Each part ships: an implementation (`src/`), a JSON definition + metadata
 (`parts/`), and a unit test (`test/`).
+
+### New in 0.2.0
+
+Built on the SDK 0.2.0 primitives (additive — existing games bump
+`libraryVersion` to opt in):
+
+- **`transaction`** *(system)* — generic afford → deduct → emit, backed by the SDK
+  `world.canAfford`/`world.spend` assist. The buy-and-place economy `currency` and
+  `upgrade-tree` don't cover.
+- **`persistence`** *(system)* — round-trips `manifest.persist.keys` through the
+  `world.storage` bridge: restores on boot (live value wins), saves on
+  change/interval. No host JS, no wire-protocol change.
+- **`place-on-free-cell`** *(system)* — on a trigger event, spawns a prototype at a
+  verified-free grid cell (`world.rng`-deterministic, tilemap-aware). Replaces
+  hand-rolled free-cell food/pickup placement.
+- **`wave-spawner` `placement: "free-cell"`** — optional scatter across free grid
+  cells; default `"literal"` is the exact 0.1.x behavior.
+- **`tap-emit`** *(ui)* — emits a game event when an entity is clicked (reads the
+  SDK click edge + topmost pick), so a button becomes a pure-data `scene.flow.on`
+  edge: title → play → game-over with no host code.
+- Helpers `snapToGrid` / `randomFreeCell` are exported for custom placement logic.
 
 ## The composition contract (inherited from the SDK)
 

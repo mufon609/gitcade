@@ -9,7 +9,7 @@ export { World, type WorldOptions } from "./world.js";
 export { Entity, type BehaviorInstance, type AnimationState } from "./entity.js";
 export { Registry, type BehaviorRegistration, type SystemRegistration } from "./registry.js";
 export { EventBus, type GameEvent } from "./eventbus.js";
-export { Input, type Pointer } from "./input.js";
+export { Input, type Pointer, type Tap } from "./input.js";
 export { AudioPlayer } from "./audio.js";
 export { Renderer } from "./renderer.js";
 export { buildEntity } from "./entity-factory.js";

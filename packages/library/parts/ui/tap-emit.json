@@ -1,0 +1,14 @@
+{
+  "id": "tap-emit",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "button", "input", "flow", "menu"],
+  "license": "MIT",
+  "description": "A per-entity behavior that emits a game event when the entity is clicked/tapped (reads the SDK click edge and the topmost entity pick). Turns a button into a pure-data scene-flow edge: wire emitOnTap to a scene.flow.on transition for title→play→over with no host code.",
+  "dependencies": [],
+  "definition": {
+    "type": "tap-emit",
+    "params": { "emitOnTap": "start-pressed" }
+  }
+}

@@ -1,0 +1,206 @@
+{
+  "id": "win",
+  "size": {
+    "width": 800,
+    "height": 600
+  },
+  "background": "#07060c",
+  "entities": [
+    {
+      "id": "win-text",
+      "sprite": {
+        "kind": "text",
+        "text": "YOU WIN!",
+        "font": "56px monospace",
+        "color": "#a7f070",
+        "align": "center"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 400,
+        "y": 160
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "win-sub",
+      "sprite": {
+        "kind": "text",
+        "text": "All three levels cleared 🎉",
+        "font": "18px monospace",
+        "color": "#cfd2e6",
+        "align": "center"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 400,
+        "y": 230
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "score-label",
+      "sprite": {
+        "kind": "text",
+        "text": "SCORE",
+        "font": "16px monospace",
+        "color": "#6a7196",
+        "align": "center"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 280,
+        "y": 300
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "score-value",
+      "sprite": {
+        "kind": "text",
+        "text": "0",
+        "font": "40px monospace",
+        "color": "#f4f4f4",
+        "align": "center",
+        "bind": "score"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 280,
+        "y": 330
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "best-label",
+      "sprite": {
+        "kind": "text",
+        "text": "BEST",
+        "font": "16px monospace",
+        "color": "#6a7196",
+        "align": "center"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 520,
+        "y": 300
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "best-value",
+      "sprite": {
+        "kind": "text",
+        "text": "0",
+        "font": "40px monospace",
+        "color": "#ffcd75",
+        "align": "center",
+        "bind": "best"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 520,
+        "y": 330
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "retry-prompt",
+      "sprite": {
+        "kind": "text",
+        "text": "↻  TAP or press ENTER to play again",
+        "font": "18px monospace",
+        "color": "#f4f4f4",
+        "align": "center"
+      },
+      "size": {
+        "w": 700,
+        "h": 64
+      },
+      "position": {
+        "x": 400,
+        "y": 450
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 10
+    },
+    {
+      "id": "retry-btn",
+      "sprite": {
+        "kind": "none"
+      },
+      "size": {
+        "w": 800,
+        "h": 600
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "ui"
+      ],
+      "layer": 999,
+      "behaviors": [
+        {
+          "type": "tap-emit",
+          "params": {
+            "emitOnTap": "retry"
+          }
+        }
+      ]
+    }
+  ],
+  "systems": [
+    {
+      "type": "persistence",
+      "params": {}
+    }
+  ],
+  "flow": {
+    "on": {
+      "retry": "level-1"
+    },
+    "persist": [
+      "best"
+    ]
+  }
+}

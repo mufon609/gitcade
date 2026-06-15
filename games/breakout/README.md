@@ -1,13 +1,16 @@
 # Breakout — a GitCade ecosystem game
 
-Bounce the ball off your paddle to smash a wall of 50 bricks. Three lives, rising
-score, paddle-edge spin. Built **100% from SDK built-ins + @gitcade/library
-parts** — zero custom game code — with all balance in `config.json`.
+Bounce the ball off your paddle to clear **three levels** of bricks (a solid wall,
+a hollow box, then a diamond). Three lives, rising score, paddle-edge spin, a
+persistent high score. Built **100% from SDK built-ins + @gitcade/library parts**
+— zero custom game code — with all balance in `config.json` and the **whole screen
+flow + level progression expressed as data** (scene `flow` edges, `tap-emit`
+buttons, declarative `persist`) on `@gitcade/sdk@0.2.0`.
 
 ## Play
 
 ```bash
-npm install      # pulls @gitcade/sdk@0.1.1 + @gitcade/library@0.1.1 from npm
+npm install      # @gitcade/sdk@0.2.0 + @gitcade/library@0.2.0 (workspace-linked locally)
 npm run dev
 npm run build
 npm run validate
@@ -27,15 +30,31 @@ No engine code — every entity and rule is a catalog part or SDK built-in:
 | `contact-damage@1.0.0` | library behavior | the ball damaging bricks on contact |
 | `trigger-zone@1.0.0` | library behavior | the bottom kill-line that loses the ball |
 | `lives-respawn@1.0.0` | library system | three lives, respawn the ball, end the game when they run out |
-| `level-progression@1.0.0` | library system | fires the win the moment the **breakable** tag is fully cleared — a single-screen "clear the wall" win (there is no second brick layout) |
-| `win-lose-conditions@1.0.0` | library system | win when the wall is cleared (`level` reaches `winLevel`) |
-| `score@1.0.0` | library system | score + high score persisted via the SDK storage bridge |
+| `level-progression@1.0.0` | library system | emits `level-cleared` the moment the **breakable** tag is fully cleared; the scene's `flow.on` edge turns that into the next-level (or win) transition |
+| `tap-emit` | library UI part | the full-canvas title / win / over buttons emit the flow events (`start-pressed`, `retry`) — no host menu code |
+| `persistence` | library system | round-trips the high score (`best`) through the SDK storage bridge from the manifest `persist` block (G6) |
+| `score@1.0.0` | library system | running score + `best` (the running max) |
 | `reflect-on-hit`, `bounce-world-edges`, `clamp-to-world`, `velocity`, `aabb-collision` | SDK built-ins | the ball physics + paddle clamping |
 
-The title/pause/game-over screens, the mobile pad, SFX, particles and screen-shake
-are shared **GameShell** host glue in [`src/host/`](src/host/) — chrome, not game
-logic. [`src/custom-behaviors/`](src/custom-behaviors/index.ts) is intentionally
-empty: Breakout proves the library composes a full arcade game with no new code.
+### Levels & screen flow are DATA
+
+The run is six JSON scenes wired by per-scene `flow.on` edges (G1) — there is no
+host screen-state machine:
+
+```
+title --start-pressed--> level-1 --level-cleared--> level-2 --level-cleared--> level-3 --level-cleared--> win
+   ^                        |  \__ gameover __\           |  \__ gameover __\        |  \__ gameover __\    |
+   |                        v                              v                          v                     |
+   +----------- retry ----- over <------------------------+--------------------------+      retry ---------+
+```
+
+Each `level-N.json` differs only in its brick layout; `score` / `best` / `lives`
+carry across the transition via `flow.persist`, and `best` survives a reload via the
+manifest `persist` block. The mobile pad, SFX, particles and screen-shake, pause,
+and the Enter/Space → flow-event bridge are the only host glue left in
+[`src/main.ts`](src/main.ts) — the ~305-line **GameShell** is gone.
+[`src/custom-behaviors/`](src/custom-behaviors/index.ts) is intentionally empty:
+Breakout proves the library composes a full multi-level arcade game with no new code.
 
 ## Rebalance it (the governance demo)
 

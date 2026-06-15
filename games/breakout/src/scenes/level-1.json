@@ -1,5 +1,5 @@
 {
-  "id": "main",
+  "id": "level-1",
   "size": {
     "width": 800,
     "height": 600
@@ -71,10 +71,6 @@
         "w": 14,
         "h": 14
       },
-      "position": {
-        "x": 393,
-        "y": 400
-      },
       "tags": [
         "ball"
       ],
@@ -124,7 +120,11 @@
             "vy": "$cfg.ballSpeedY"
           }
         }
-      ]
+      ],
+      "position": {
+        "x": 393,
+        "y": 400
+      }
     },
     {
       "id": "killzone",
@@ -1517,346 +1517,6 @@
       ]
     },
     {
-      "id": "brick-r4c0",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 4,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c1",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 84,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c2",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 164,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c3",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 244,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c4",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 324,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c5",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 404,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c6",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 484,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c7",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 564,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c8",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 644,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "brick-r4c9",
-      "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#41a6f6"
-      },
-      "size": {
-        "w": 72,
-        "h": 22
-      },
-      "position": {
-        "x": 724,
-        "y": 190
-      },
-      "tags": [
-        "breakable",
-        "solid"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": {
-            "hp": "$cfg.blockHp",
-            "tallyKey": "score",
-            "tallyAmount": "$cfg.blockScore",
-            "deathEvent": "block-broken",
-            "deathSound": "hit"
-          }
-        }
-      ]
-    },
-    {
       "id": "hud-score",
       "sprite": {
         "kind": "text",
@@ -1877,8 +1537,29 @@
       "tags": [
         "hud"
       ],
-      "layer": 100,
-      "behaviors": []
+      "layer": 100
+    },
+    {
+      "id": "hud-level",
+      "sprite": {
+        "kind": "text",
+        "text": "LEVEL 1",
+        "font": "20px monospace",
+        "color": "#73eff7",
+        "align": "center"
+      },
+      "size": {
+        "w": 160,
+        "h": 24
+      },
+      "position": {
+        "x": 320,
+        "y": 10
+      },
+      "tags": [
+        "hud"
+      ],
+      "layer": 100
     },
     {
       "id": "hud-lives",
@@ -1901,8 +1582,7 @@
       "tags": [
         "hud"
       ],
-      "layer": 100,
-      "behaviors": []
+      "layer": 100
     }
   ],
   "systems": [
@@ -1930,33 +1610,8 @@
       "part": "score@1.0.0",
       "params": {
         "scoreKey": "score",
-        "highKey": "highScore",
-        "storageKey": "breakoutHigh",
-        "persist": true
-      }
-    },
-    {
-      "type": "level-progression",
-      "part": "level-progression@1.0.0",
-      "params": {
-        "levelKey": "level",
-        "mode": "clearTag",
-        "clearTag": "breakable"
-      }
-    },
-    {
-      "type": "win-lose-conditions",
-      "part": "win-lose-conditions@1.0.0",
-      "params": {
-        "conditions": [
-          {
-            "key": "level",
-            "cmp": "gte",
-            "value": "$cfg.winLevel",
-            "outcome": "win",
-            "winner": "player"
-          }
-        ]
+        "highKey": "best",
+        "persist": false
       }
     },
     {
@@ -2033,6 +1688,31 @@
           ]
         }
       }
+    },
+    {
+      "type": "level-progression",
+      "part": "level-progression@1.0.0",
+      "params": {
+        "levelKey": "level",
+        "mode": "clearTag",
+        "clearTag": "breakable",
+        "event": "level-cleared"
+      }
+    },
+    {
+      "type": "persistence",
+      "params": {}
     }
-  ]
+  ],
+  "flow": {
+    "on": {
+      "level-cleared": "level-2",
+      "gameover": "over"
+    },
+    "persist": [
+      "score",
+      "best",
+      "lives"
+    ]
+  }
 }

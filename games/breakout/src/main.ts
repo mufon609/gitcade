@@ -1,15 +1,31 @@
 /**
- * Breakout bootstrap (host glue). The GAME is data — game.json + config.json +
- * src/scenes/main.json composing only SDK built-ins + @gitcade/library parts (no
- * custom code). This file wires the data to the runtime and the shared GameShell.
+ * Breakout bootstrap (host glue). The GAME is data — game.json + config.json + the
+ * six JSON scenes (title → level-1 → level-2 → level-3 → win / over) wired by
+ * `flow.on` edges, composing only @gitcade/library + SDK parts (no custom code).
+ *
+ * 0.2.0 made the screen flow AND the level progression expressible as DATA (scene
+ * `flow`, `tap-emit`, declarative `persist`), so the old ~305-line GameShell
+ * screen-state machine and its HTML menu overlays are GONE. The level-to-level
+ * advance is a `flow.on` edge per level scene (`level-cleared → level-2`, etc.),
+ * driven by the library `level-progression` system — not host code.
+ *
+ * This file keeps ONLY host concerns that have no data primitive: the library
+ * audio, screen juice (flash/shake), the mobile touch pad (which synthesizes the
+ * arrow keys the `move-4dir` paddle already reads), a pause toggle (freezing the
+ * sim is a host-loop concern), and an Enter/Space bridge that mirrors the
+ * on-screen flow buttons for keyboard players. No balance or game logic lives here.
  */
 import { createGame } from "@gitcade/sdk";
-import { createLibraryRegistry, LibraryAudioPlayer } from "@gitcade/library";
+import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
-import main from "./scenes/main.json";
+import title from "./scenes/title.json";
+import level1 from "./scenes/level-1.json";
+import level2 from "./scenes/level-2.json";
+import level3 from "./scenes/level-3.json";
+import win from "./scenes/win.json";
+import over from "./scenes/over.json";
 import { registerCustomBehaviors } from "./custom-behaviors/index.js";
-import { GameShell } from "./host/shell.js";
 import { makeStorage } from "./host/storage.js";
 
 const registry = createLibraryRegistry();
@@ -18,43 +34,123 @@ registerCustomBehaviors(registry);
 const audio = new LibraryAudioPlayer();
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
-  { manifest, config, scenes: [main] },
+  { manifest, config, scenes: [title, level1, level2, level3, win, over] },
   { canvas, registry, audio, storage: makeStorage(manifest.slug) },
 );
 
-new GameShell({
-  game,
-  audio,
-  music: "action",
-  title: "BREAKOUT",
-  tagline: "Smash every brick. Don't drop the ball.",
-  howto: [
-    "Arrows / A·D or the ◀ ▶ pad to move the paddle",
-    "Clear all the bricks to win — you have 3 lives",
-    "Hit the ball with the paddle edge for spin",
-  ],
-  gameOverEvent: "gameover",
-  outcomeText: (w) => {
-    const won = w.state.outcome === "win";
-    return `${won ? "You cleared the wall! 🎉" : "Out of lives"}  •  Score ${num(w.state.score)}`;
+// --- screen juice (presentation only) ---------------------------------------
+// Bind gameplay events → flash/shake. These are the same events the scene parts
+// emit (block-broken from health-and-death, ball-lost from trigger-zone,
+// level-cleared from level-progression, gameover from lives-respawn).
+const fx = new ScreenEffects();
+fx.bindToEvents(game.world, {
+  "block-broken": (f) => f.shake(4, 0.12, 50),
+  "ball-lost": (f) => {
+    f.shake(10, 0.35, 34);
+    f.flash("#b13e53", 0.25);
   },
-  screenFx: {
-    "block-broken": (fx) => fx.shake(4, 0.12, 50),
-    "ball-lost": (fx) => {
-      fx.shake(10, 0.35, 34);
-      fx.flash("#b13e53", 0.25);
-    },
-    gameover: (fx) => fx.shake(12, 0.45, 36),
-  },
-  onEnterPlay: (w) => {
-    w.state.score = 0;
-  },
-  touch: [
-    { code: "ArrowLeft", label: "◀", cell: "2 / 1" },
-    { code: "ArrowRight", label: "▶", cell: "2 / 3" },
-  ],
+  "level-cleared": (f) => f.flash("#a7f070", 0.18),
+  gameover: (f) => f.shake(12, 0.45, 36),
+});
+// `attachScreenEffects` types the overlay as `{ style: Record<string,string> }`; a
+// DOM element's CSSStyleDeclaration is structurally compatible at runtime but not
+// to TS, so narrow it explicitly.
+const fxOverlay = document.getElementById("fx-overlay") as unknown as { style: Record<string, string> } | null;
+attachScreenEffects(fx, canvas, fxOverlay);
+
+// --- audio (needs a user gesture before the browser will play sound) ---------
+let musicStarted = false;
+function resumeAudio(): void {
+  audio.resume();
+  if (!musicStarted) {
+    audio.startMusic("action");
+    musicStarted = true;
+  }
+}
+window.addEventListener("pointerdown", resumeAudio);
+window.addEventListener("keydown", resumeAudio);
+
+// --- keyboard bridge to the data-driven flow edges ---------------------------
+// On-screen buttons emit their flow event via the `tap-emit` data part; this only
+// mirrors that for Enter/Space so the title/win/over screens stay keyboard-
+// accessible. It emits the SAME events — it implements no screen state itself.
+const isPlay = (id: string): boolean => id.startsWith("level-");
+window.addEventListener("keydown", (e) => {
+  if (e.code !== "Enter" && e.code !== "Space") return;
+  if (game.scene.id === "title") {
+    e.preventDefault();
+    game.world.events.emit("start-pressed");
+  } else if (game.scene.id === "win" || game.scene.id === "over") {
+    e.preventDefault();
+    game.world.events.emit("retry");
+  }
 });
 
-function num(v: unknown): number {
-  return typeof v === "number" ? Math.round(v) : 0;
+// --- pause (a host-loop concern: no data primitive freezes the world) --------
+let paused = false;
+const pauseOverlay = document.getElementById("pause-overlay");
+function setPaused(next: boolean): void {
+  if (!isPlay(game.scene.id) && !paused) return; // only pause during a level
+  paused = next;
+  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
+  if (paused) game.stop();
+  else game.start();
 }
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Escape" || e.code === "KeyP") {
+    e.preventDefault();
+    setPaused(!paused);
+  }
+});
+const pauseBtn = document.getElementById("pause-btn");
+if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+
+// --- mobile touch pad (synthesizes the arrow keys move-4dir reads) -----------
+interface TouchControl {
+  code: string;
+  label: string;
+  cell: string;
+}
+const TOUCH: TouchControl[] = [
+  { code: "ArrowLeft", label: "◀", cell: "2 / 1" },
+  { code: "ArrowRight", label: "▶", cell: "2 / 3" },
+];
+const held = new Set<string>();
+function synthKey(type: "keydown" | "keyup", code: string): void {
+  if (type === "keydown") {
+    if (held.has(code)) return;
+    held.add(code);
+  } else {
+    held.delete(code);
+  }
+  window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true }));
+}
+const pad = document.getElementById("touch");
+if (pad) {
+  for (const t of TOUCH) {
+    const b = document.createElement("button");
+    b.className = "tbtn";
+    b.textContent = t.label;
+    b.style.gridArea = t.cell;
+    const down = (ev: Event): void => {
+      ev.preventDefault();
+      resumeAudio();
+      synthKey("keydown", t.code);
+    };
+    const up = (ev: Event): void => {
+      ev.preventDefault();
+      synthKey("keyup", t.code);
+    };
+    b.addEventListener("pointerdown", down);
+    b.addEventListener("pointerup", up);
+    b.addEventListener("pointercancel", up);
+    b.addEventListener("pointerleave", up);
+    pad.appendChild(b);
+  }
+}
+
+// Observation hook for the Stage-4 playthrough harness (audit/harness/breakout) —
+// read-only; harmless in production.
+(window as unknown as { __game?: unknown }).__game = game;
+
+game.start();

@@ -8,7 +8,7 @@ import { refreshGameStatus } from "@/lib/publish";
 import { listGameBranches } from "@/lib/branches";
 import { GamePlayer } from "./GamePlayer";
 import { ForkButton } from "./ForkButton";
-import { ForkTree } from "./ForkTree";
+import { Versions } from "./Versions";
 import { JoinCommunity } from "./JoinCommunity";
 import { MadeFrom } from "./MadeFrom";
 import { RemixButton } from "./RemixButton";
@@ -142,8 +142,8 @@ export default async function GamePage({ params }: { params: { slug: string } })
       {/* Phase 7: community governance (proposals, votes, bugs). */}
       <CommunityPanel slug={game.slug} governanceEnabled={!!game.installationId} isOwner={isOwner} />
 
-      {/* Phase 5: fork lineage. */}
-      <ForkTree slug={game.slug} />
+      {/* Phase 5 lineage, re-presented: current version + a forks-as-versions dropdown. */}
+      <Versions slug={game.slug} />
     </div>
   );
 }

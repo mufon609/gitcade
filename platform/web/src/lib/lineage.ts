@@ -30,6 +30,8 @@ export interface LineageNode {
   name: string;
   tier: string;
   status: string;
+  /** Source repo (the Versions dropdown links each fork to its GitHub repo). */
+  repoUrl: string;
   /** Diff of THIS node against its parent (null for the root / non-forks). */
   diffVsParent?: ForkDiff | null;
 }
@@ -117,11 +119,11 @@ export async function getLineage(slug: string, token?: string): Promise<Lineage 
   }
   ancestors.reverse(); // root → immediate parent
 
-  // Direct forks of current.
+  // Direct forks of current — NEWEST FIRST (the Versions dropdown lists them so).
   const forkRows = (await prisma.game.findMany({
     where: { parentGameId: current.id },
     select: SELECT,
-    orderBy: { createdAt: "asc" },
+    orderBy: { createdAt: "desc" },
   })) as GameRow[];
 
   const toNode = (g: GameRow, diff?: ForkDiff | null): LineageNode => ({
@@ -129,6 +131,7 @@ export async function getLineage(slug: string, token?: string): Promise<Lineage 
     name: g.name,
     tier: g.tier,
     status: g.status,
+    repoUrl: g.repoUrl,
     diffVsParent: diff ?? null,
   });
 

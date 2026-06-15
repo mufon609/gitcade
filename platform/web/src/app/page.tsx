@@ -6,10 +6,15 @@ import type { GameCardData } from "@/components/GameCard";
 // Home: the arcade grid. Server component reads Games directly. Newest first,
 // live games are what players want — but we show building/failed with a badge too
 // so an owner can watch their publish land.
+//
+// ONE CARD PER ROOT GAME: forks (parentGameId != null) never surface here — they
+// live under their parent's "Versions" dropdown on the game page. Search/filter
+// below therefore operate over roots only.
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const games = await prisma.game.findMany({
+    where: { parentGameId: null },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     select: {
       slug: true,

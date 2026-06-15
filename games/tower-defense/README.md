@@ -15,10 +15,11 @@ npm run build
 npm run validate   # also proves the no-magic-numbers rule: zero balance literals
 ```
 
-- **Tap / click the map** to build a turret (50 gold).
+- **Click open ground** to build a turret (60 gold). You **cannot** build on the
+  road — the path is a data tilemap flagged un-buildable, so a tower on the lane is
+  impossible by construction.
 - Each kill pays a **bounty**; spend it on the **Range / Fire rate / Bounty** bar.
 - Let **15** creeps leak and you lose; clear all **10** waves to win.
-- **Esc / P** to pause.
 
 ## What it's composed of
 
@@ -29,6 +30,7 @@ npm run validate   # also proves the no-magic-numbers rule: zero balance literal
 | `ai-aim-and-fire@1.0.0` | library behavior | turrets acquiring + firing at creeps in range |
 | `contact-damage` + `health-and-death` | library behaviors | turret bullets damaging creeps; creep HP + death |
 | `currency@1.0.0` | library system | the gold economy |
+| `transaction@1.0.0` | library system | the buy-a-turret purchase (afford → deduct → place) |
 | `upgrade-tree@1.0.0` | library system | the Range / Fire-rate / Bounty upgrades (cost growth + max levels, all `$cfg`) |
 | `win-lose-conditions@1.0.0` | library system | win on all creeps resolved, lose on too many leaks |
 | `trigger-zone@1.0.0` | library behavior | the exit that leaks (and removes) a creep |
@@ -38,7 +40,8 @@ npm run validate   # also proves the no-magic-numbers rule: zero balance literal
 
 Placement and the objective economy are the only mechanics outside the library, in
 [`src/custom-behaviors/`](src/custom-behaviors/index.ts) — **`tower-build`** (turns
-a map tap into an affordability-checked, grid-snapped, upgrade-stamped turret) and
+a map click into a buildable-tile-checked, grid-snapped, upgrade-stamped turret,
+reading the SDK click edge and routing the cost through `transaction`) and
 **`creep-accounting`** (bounty + win/lose counters on each kill/leak). Both are
 fully param-driven (every number a `$cfg`) and restart-safe, and are logged in
 [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as generalization candidates.
@@ -54,8 +57,8 @@ The canonical governance demo — cut the tower price so defenses come up faster
 
 ```diff
 // config.json
--  "towerCost": 50,
-+  "towerCost": 30
+-  "towerCost": 60,
++  "towerCost": 40
 ```
 
 Re-run `npm run validate` → still publishable. That one-line diff is exactly what a

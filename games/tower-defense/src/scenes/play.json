@@ -1,0 +1,229 @@
+{
+  "id": "play",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "music": "action",
+  "tilemap": {
+    "tileSize": 40,
+    "cols": 20,
+    "rows": 15,
+    "tiles": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    "properties": {
+      "0": { "buildable": true },
+      "1": { "lane": true, "walkable": true, "buildable": false }
+    }
+  },
+  "entities": [
+    {
+      "id": "exit",
+      "sprite": { "kind": "none" },
+      "size": { "w": 60, "h": 80 },
+      "position": { "x": 790, "y": 460 },
+      "tags": ["exit"],
+      "layer": 0,
+      "behaviors": [
+        {
+          "type": "trigger-zone",
+          "part": "trigger-zone@1.0.0",
+          "params": { "tag": "creep", "kill": true, "enterEvent": "creep-leaked", "sound": "lose" }
+        }
+      ]
+    },
+    {
+      "id": "hud-gold",
+      "sprite": { "kind": "text", "bind": "goldHud", "text": "Gold 0", "font": "20px monospace", "color": "#ffcd75", "align": "left" },
+      "size": { "w": 220, "h": 24 },
+      "position": { "x": 12, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    },
+    {
+      "id": "hud-wave",
+      "sprite": { "kind": "text", "bind": "waveHud", "text": "Wave 0/10", "font": "20px monospace", "color": "#41a6f6", "align": "center" },
+      "size": { "w": 200, "h": 24 },
+      "position": { "x": 400, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    },
+    {
+      "id": "hud-leak",
+      "sprite": { "kind": "text", "bind": "leakHud", "text": "Leaked 0/15", "font": "20px monospace", "color": "#ff6b6b", "align": "right" },
+      "size": { "w": 220, "h": 24 },
+      "position": { "x": 568, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    },
+    {
+      "id": "hud-buildhint",
+      "sprite": { "kind": "text", "bind": "buildHint", "text": "", "font": "16px monospace", "color": "#a7f070", "align": "center" },
+      "size": { "w": 760, "h": 22 },
+      "position": { "x": 400, "y": 566 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    }
+  ],
+  "systems": [
+    { "type": "persistence", "params": {} },
+    { "type": "aabb-collision", "params": { "pairs": [["creep", "tower-bullet"], ["creep", "exit"]] } },
+    {
+      "type": "currency",
+      "part": "currency@1.0.0",
+      "params": { "currencyKey": "gold", "startAmount": "$cfg.startGold", "passiveIncome": "$cfg.goldPerSec" }
+    },
+    {
+      "type": "transaction",
+      "part": "transaction@1.0.0",
+      "params": {
+        "currencyKey": "gold",
+        "requestKey": "buyRequest",
+        "onOk": "tower-bought",
+        "onDenied": "build-denied",
+        "costs": { "tower": "$cfg.towerCost" }
+      }
+    },
+    {
+      "type": "tower-build",
+      "params": {
+        "currencyKey": "gold",
+        "towerCost": "$cfg.towerCost",
+        "buyRequestKey": "buyRequest",
+        "boughtEvent": "tower-bought",
+        "tileSize": 40,
+        "rangeKey": "towerRange",
+        "cooldownKey": "towerCooldown",
+        "bountyBonusKey": "bountyBonus",
+        "baseRange": "$cfg.towerBaseRange",
+        "baseCooldown": "$cfg.towerBaseCooldown",
+        "minCooldown": "$cfg.towerMinCooldown",
+        "towerTag": "tower",
+        "prototype": {
+          "id": "tower",
+          "sprite": { "kind": "image", "src": "assets/sprites/enemy-shooter.png" },
+          "size": { "w": 32, "h": 32 },
+          "tags": ["tower"],
+          "layer": 4,
+          "behaviors": [
+            {
+              "type": "ai-aim-and-fire",
+              "part": "ai-aim-and-fire@1.0.0",
+              "params": {
+                "targetTag": "creep",
+                "range": "$cfg.towerBaseRange",
+                "cooldown": "$cfg.towerBaseCooldown",
+                "projectileSpeed": "$cfg.towerBulletSpeed",
+                "sound": "shoot",
+                "projectile": {
+                  "id": "tower-bullet",
+                  "sprite": { "kind": "image", "src": "assets/sprites/bullet.png" },
+                  "size": { "w": 10, "h": 10 },
+                  "tags": ["tower-bullet"],
+                  "layer": 3,
+                  "behaviors": [
+                    { "type": "velocity", "params": {} },
+                    { "type": "contact-damage", "params": { "targetTag": "creep", "damage": "$cfg.towerDamage", "selfDestruct": true } },
+                    { "type": "health-and-death", "params": { "hp": "$cfg.bulletHp", "lifespan": "$cfg.bulletLifespan", "deathSound": "" } }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "creep-accounting",
+      "params": {
+        "currencyKey": "gold",
+        "bounty": "$cfg.creepBounty",
+        "bountyBonusKey": "bountyBonus",
+        "resolvedKey": "resolved",
+        "leakedKey": "leaked",
+        "killEvent": "creep-killed",
+        "leakEvent": "creep-leaked",
+        "creepTag": "creep",
+        "waveKey": "wave",
+        "clearedKey": "clearedWaves",
+        "wavesCompleteEvent": "waves-complete",
+        "bestWaveKey": "bestWave"
+      }
+    },
+    {
+      "type": "upgrade-tree",
+      "part": "upgrade-tree@1.0.0",
+      "params": {
+        "currencyKey": "gold",
+        "levelsKey": "upgrades",
+        "requestKey": "upgradeRequest",
+        "upgrades": [
+          { "id": "range", "cost": "$cfg.upgradeRangeCost", "effectKey": "towerRange", "effectAmount": "$cfg.upgradeRangeAmount", "maxLevel": "$cfg.upgradeRangeMax", "costGrowth": "$cfg.upgradeRangeGrowth" },
+          { "id": "firerate", "cost": "$cfg.upgradeFirerateCost", "effectKey": "towerCooldown", "effectAmount": "$cfg.upgradeFirerateAmount", "maxLevel": "$cfg.upgradeFirerateMax", "costGrowth": "$cfg.upgradeFirerateGrowth" },
+          { "id": "bounty", "cost": "$cfg.upgradeBountyCost", "effectKey": "bountyBonus", "effectAmount": "$cfg.upgradeBountyAmount", "maxLevel": "$cfg.upgradeBountyMax", "costGrowth": "$cfg.upgradeBountyGrowth" }
+        ]
+      }
+    },
+    {
+      "type": "wave-spawner",
+      "part": "wave-spawner@1.0.0",
+      "params": {
+        "interval": "$cfg.spawnInterval",
+        "waveSize": "$cfg.waveSize",
+        "waveSizeGrowth": "$cfg.waveSizeGrowth",
+        "waveDelay": "$cfg.waveDelay",
+        "maxWaves": "$cfg.maxWaves",
+        "maxAlive": "$cfg.maxAlive",
+        "startDelay": "$cfg.startDelay",
+        "countTag": "creep",
+        "waveKey": "wave",
+        "advanceOnClear": true,
+        "spawnPoints": [{ "x": -42, "y": 140 }],
+        "prototype": {
+          "id": "creep",
+          "sprite": { "kind": "image", "src": "assets/sprites/enemy-swarm.png" },
+          "size": { "w": 24, "h": 24 },
+          "tags": ["creep"],
+          "layer": 3,
+          "behaviors": [
+            {
+              "type": "follow-path",
+              "part": "follow-path@1.0.0",
+              "params": {
+                "points": [
+                  { "x": -40, "y": 140 },
+                  { "x": 220, "y": 140 },
+                  { "x": 220, "y": 340 },
+                  { "x": 580, "y": 340 },
+                  { "x": 580, "y": 500 },
+                  { "x": 840, "y": 500 }
+                ],
+                "speed": "$cfg.creepSpeed",
+                "arriveRadius": "$cfg.arriveRadius",
+                "loop": false
+              }
+            },
+            { "type": "velocity", "params": {} },
+            { "type": "health-and-death", "part": "health-and-death@1.0.0", "params": { "hp": "$cfg.creepHp", "deathEvent": "creep-killed", "deathSound": "explode" } }
+          ]
+        }
+      }
+    },
+    {
+      "type": "win-lose-conditions",
+      "part": "win-lose-conditions@1.0.0",
+      "params": {
+        "conditions": [
+          { "key": "leaked", "cmp": "gte", "value": "$cfg.maxLeak", "outcome": "lose", "winner": "creeps" },
+          { "key": "clearedWaves", "cmp": "gte", "value": "$cfg.maxWaves", "outcome": "win", "winner": "player" }
+        ]
+      }
+    },
+    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "creep-killed" } }
+  ],
+  "flow": {
+    "on": { "gameover": "over" },
+    "persist": ["bestWave", "outcome", "winner", "wave", "leaked", "resolved", "clearedWaves"]
+  }
+}

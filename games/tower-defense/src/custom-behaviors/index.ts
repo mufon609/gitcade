@@ -2,12 +2,41 @@ import type { Registry, SystemFn, World } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
 
 /**
+ * G4 grid-snap: the CENTER of the grid cell containing `(x,y)`. Identical math to
+ * the library's `snapToGrid` (packages/library/src/util.ts), inlined here only
+ * because that helper isn't re-exported from the frozen `@gitcade/library` index
+ * (filed in games/LIBRARY-GAPS.md). Tower-build owns the snap so the placement pick
+ * lands on a cell center, matching the tilemap the renderer draws.
+ */
+function snapToGrid(x: number, y: number, tileSize: number): { x: number; y: number } {
+  const col = Math.floor(x / tileSize);
+  const row = Math.floor(y / tileSize);
+  return { x: col * tileSize + tileSize / 2, y: row * tileSize + tileSize / 2 };
+}
+
+/**
  * Tower Defense's two custom systems. Both are written param-driven — every
  * balance value arrives via `$cfg` from config.json, none is hardcoded here — so
  * Tower Defense keeps 100% of its balance in config.json (the governance-flagship
  * requirement). Logged in games/LIBRARY-GAPS.md as generalization candidates
- * ("tap/click-to-place build system" and "event-driven economy/objective
- * counters").
+ * ("click-to-place build system" and "event-driven economy/objective counters").
+ *
+ * 0.2.0 ADOPTION (the heaviest game exercises every new primitive):
+ *   • G3 tilemap: the road is now ONE data tilemap (drawn by the renderer, queried
+ *     via `world.isBuildable`). `tower-build` REFUSES to place on a non-buildable
+ *     (road/lane) tile — the headline "towers on the road" fix. No more rectangle
+ *     `path` entities + tower-vs-tower-only occupancy.
+ *   • G2 click-to-place: the host `canvas.addEventListener("pointerdown" → state.
+ *     placeRequest)` is GONE. `tower-build` reads the SDK click EDGE
+ *     (`world.input.justReleased()` + a buildable-tile / occupancy pick) directly.
+ *   • G4 grid-snap: the tap is snapped to a cell center via the library `snapToGrid`.
+ *   • G5 transaction: placement cost is no longer an inline afford/deduct. The
+ *     build first sets a `buyRequest` the library `transaction` system audits
+ *     (afford → `world.spend` → emit `tower-bought`); the tower is spawned on that
+ *     event. One audited part owns the money; this system owns the geometry.
+ *   • G1 flow: title/play/over are data scenes (`flow.on` + `tap-emit`); the host
+ *     GameShell is deleted and the game runs the real `game.start()` loop (so the
+ *     click edge clears every frame — the Idle Clicker lesson).
  *
  * RESTART SAFETY: `loadScene` clears `world.state` and entities but NOT the event
  * bus, so a listener re-attached on every run would double-fire. Both systems
@@ -51,21 +80,33 @@ function restampTowers(world: World, towerTag: string, range: number, cooldown: 
   }
 }
 
+/** Is `(gx,gy)` already occupied by a live tower at that grid cell? */
+function cellOccupied(world: World, towerTag: string, gx: number, gy: number, tile: number): boolean {
+  return world
+    .query(towerTag)
+    .some((t) => Math.abs(t.cx - gx) < tile * 0.5 && Math.abs(t.cy - gy) < tile * 0.5);
+}
+
 /**
- * `tower-build` — consume a placement request (set by a map tap), validate funds
- * and the grid cell, and spawn an upgraded tower. Seeds the upgrade-affected
- * stats (`rangeKey`/`cooldownKey`/`bountyBonusKey`) from their `$cfg` base on the
- * first tick so the `upgrade-tree` can raise them.
+ * `tower-build` — the geometry half of placement. Reads the SDK click EDGE (G2),
+ * grid-snaps the tap (G4), validates the TILE is buildable (G3 — refuses the road)
+ * and the cell is free, then routes the COST through the library `transaction`
+ * system (G5) by setting `buyRequestKey`; the tower is spawned when `transaction`
+ * emits the `boughtEvent` (one audited part owns the money). Seeds the
+ * upgrade-affected stats (`rangeKey`/`cooldownKey`/`bountyBonusKey`) from their
+ * `$cfg` base on the first tick so the `upgrade-tree` can raise them.
  *
- * Params: `requestKey`, `currencyKey`, `towerCost` ($cfg), `tileSize` (structural),
- * `rangeKey`/`cooldownKey`/`bountyBonusKey`, `baseRange`/`baseCooldown` ($cfg),
- * `minCooldown` ($cfg), `towerTag`, `prototype` (tower entity-def), `stateKey`.
+ * Params: `currencyKey`, `towerCost` ($cfg), `buyRequestKey`, `boughtEvent`,
+ * `tileSize` (structural), `rangeKey`/`cooldownKey`/`bountyBonusKey`,
+ * `baseRange`/`baseCooldown` ($cfg), `minCooldown` ($cfg), `towerTag`,
+ * `prototype` (tower entity-def), `stateKey`.
  */
 export const towerBuild: SystemFn = (world, params) => {
-  const reqKey = str(params, "requestKey", "placeRequest");
   const currencyKey = str(params, "currencyKey", "gold");
   const cost = num(params, "towerCost", 0);
-  const tile = num(params, "tileSize", 48);
+  const buyRequestKey = str(params, "buyRequestKey", "buyRequest");
+  const boughtEvent = str(params, "boughtEvent", "tower-bought");
+  const tile = num(params, "tileSize", 40);
   const rangeKey = str(params, "rangeKey", "towerRange");
   const cooldownKey = str(params, "cooldownKey", "towerCooldown");
   const bountyBonusKey = str(params, "bountyBonusKey", "bountyBonus");
@@ -74,86 +115,92 @@ export const towerBuild: SystemFn = (world, params) => {
   const stateKey = str(params, "stateKey", "__towerBuild");
 
   // Seed upgrade-affected stats once per run (idempotent; survives restart).
-  const s = (world.state[stateKey] ??= { seeded: false }) as { seeded: boolean };
+  const s = (world.state[stateKey] ??= { seeded: false, pending: null }) as {
+    seeded: boolean;
+    pending: { x: number; y: number } | null;
+  };
   if (!s.seeded) {
     s.seeded = true;
     if (typeof world.state[rangeKey] !== "number") world.state[rangeKey] = num(params, "baseRange", 0);
     if (typeof world.state[cooldownKey] !== "number") world.state[cooldownKey] = num(params, "baseCooldown", 0);
     if (typeof world.state[bountyBonusKey] !== "number") world.state[bountyBonusKey] = 0;
   }
-  // Make upgrades global: re-stamp all towers when one is purchased (attach once).
-  attachOnce(world, "upgrade-restamp", () => {
+
+  // Attach once: re-stamp all towers when an upgrade is purchased (global upgrades),
+  // AND spawn the tower when the `transaction` system confirms the purchase.
+  attachOnce(world, "tower-build-listeners", () => {
     world.events.on("upgrade-purchased", () => {
       const range = (world.state[rangeKey] as number) ?? 0;
       const cd = Math.max(minCooldown, (world.state[cooldownKey] as number) ?? 0);
       restampTowers(world, towerTag, range, cd);
     });
+    // The money side (afford → deduct) lives in `transaction`; on its OK event we
+    // place the tower at the snapped cell we stashed when we issued the request.
+    world.events.on(boughtEvent, (data) => {
+      const id = (data as { id?: string } | undefined)?.id;
+      if (id !== "tower") return;
+      const at = s.pending;
+      s.pending = null;
+      if (!at) return;
+      const def = clone(params.prototype) as Record<string, unknown>;
+      const size = (def.size ?? {}) as { w?: number; h?: number };
+      const w = size.w ?? tile;
+      const h = size.h ?? tile;
+      def.position = { x: at.x - w / 2, y: at.y - h / 2 };
+      stampDef(def, (world.state[rangeKey] as number) ?? 0, Math.max(minCooldown, (world.state[cooldownKey] as number) ?? 0));
+      const tower = world.spawn(def as never);
+      world.events.emit("tower-placed", { id: tower.id, x: at.x, y: at.y });
+    });
   });
 
-  const req = world.state[reqKey] as { x: number; y: number } | null | undefined;
-  if (!req || typeof req.x !== "number") return;
-  world.state[reqKey] = null;
+  // G2: consume this frame's click-release edge. The host placeRequest path is gone.
+  for (const tap of world.input.justReleased()) {
+    // G4 grid-snap to the cell center the player clicked.
+    const cell = snapToGrid(tap.x, tap.y, tile);
 
-  const gold = (world.state[currencyKey] as number) ?? 0;
-  if (gold < cost) {
-    world.audio.play("lose");
-    world.events.emit("build-denied", { reason: "funds" });
-    return;
+    // G3: the headline fix — refuse a tower on a road/lane (non-buildable) tile.
+    if (!world.isBuildable(cell.x, cell.y)) {
+      world.audio.play("lose");
+      world.events.emit("build-denied", { reason: "road", x: cell.x, y: cell.y });
+      continue;
+    }
+    if (cellOccupied(world, towerTag, cell.x, cell.y, tile)) {
+      world.events.emit("build-denied", { reason: "occupied", x: cell.x, y: cell.y });
+      continue;
+    }
+    // Pre-flight affordability so a denied (too-poor) click still cues, but the
+    // authoritative deduct happens in `transaction`.
+    if (((world.state[currencyKey] as number) ?? 0) < cost) {
+      world.audio.play("lose");
+      world.events.emit("build-denied", { reason: "funds", x: cell.x, y: cell.y });
+      continue;
+    }
+    // Stash the target cell and let `transaction` (G5) audit + deduct the cost;
+    // we spawn on its `boughtEvent`. One click → one buy request.
+    s.pending = { x: cell.x, y: cell.y };
+    world.state[buyRequestKey] = { id: "tower", cost };
+    break; // one build attempt per frame
   }
-
-  // Snap the tap to the centre of a grid cell.
-  const gx = Math.floor(req.x / tile) * tile + tile / 2;
-  const gy = Math.floor(req.y / tile) * tile + tile / 2;
-  const occupied = world
-    .query(towerTag)
-    .some((t) => Math.abs(t.cx - gx) < tile * 0.5 && Math.abs(t.cy - gy) < tile * 0.5);
-  if (occupied) {
-    world.events.emit("build-denied", { reason: "occupied" });
-    return;
-  }
-
-  const def = clone(params.prototype) as Record<string, unknown>;
-  const size = (def.size ?? {}) as { w?: number; h?: number };
-  const w = size.w ?? tile;
-  const h = size.h ?? tile;
-  def.position = { x: gx - w / 2, y: gy - h / 2 };
-  stampDef(def, (world.state[rangeKey] as number) ?? 0, Math.max(minCooldown, (world.state[cooldownKey] as number) ?? 0));
-
-  world.state[currencyKey] = gold - cost;
-  const tower = world.spawn(def as never);
-  world.audio.play("collect");
-  world.events.emit("tower-placed", { id: tower.id, x: gx, y: gy });
 };
 
 /**
  * `creep-accounting` — the objective economy AND the self-consistent win signal.
  * Attaches once per World and, on each creep death/leak, awards the bounty
  * (+ the `bountyBonus` upgrade) and ratchets the `resolved`/`leaked` counters that
- * `win-lose-conditions` reads.
+ * `win-lose-conditions` reads. Also tracks the best wave reached (`bestWaveKey`)
+ * for the persisted high-water mark (G6).
  *
- * TD2 — WIN is derived, never hand-computed. The old design won on
- * `resolved >= totalCreeps`, where `totalCreeps` was a standalone constant in
- * config.json that duplicated Σ waveSizeFor(1..maxWaves). That constant was
- * DECOUPLED from the spawner: any community rebalance of `waveSize` /
- * `waveSizeGrowth` / `maxWaves` that forgot to recompute it would either win early
- * or — if the true spawn count dropped below the constant — cap `resolved` under
- * the threshold so NEITHER win nor lose ever fired (a softlock bricking the
- * governance flagship). The fix removes the duplicate and drives the win off the
- * spawner's OWN signal:
- *   - the `wave-spawner` emits `waves-complete` exactly once, after the FINAL wave
- *     is fully spawned and the field is cleared — it cannot desync from
- *     waveSize/waveSizeGrowth/maxWaves because the same spawner computes both;
- *   - we additionally require the LIVE creep count to be 0 (the structural truth
- *     "no creeps remain alive") and that the player has not already lost.
- * When all three hold we publish the number of waves actually cleared into
- * `clearedKey`; `win-lose-conditions` then wins on `clearedWaves >= $cfg.maxWaves`.
- * Both sides reference the SAME spawner config, so no config edit can decouple the
- * win from the wave math. This preserves the original semantics exactly (survive
- * every wave, with leaks under `maxLeak`, to win) without any duplicated total.
+ * TD2 — WIN is derived, never hand-computed. The `wave-spawner` emits
+ * `waves-complete` exactly once after the FINAL wave is fully spawned and the field
+ * is cleared; we additionally require the LIVE creep count to be 0 and that the
+ * player has not already lost. When all three hold we publish the number of waves
+ * actually cleared into `clearedKey`; `win-lose-conditions` then wins on
+ * `clearedWaves >= $cfg.maxWaves`. Both sides reference the SAME spawner config, so
+ * no config edit can decouple the win from the wave math.
  *
  * Params: `currencyKey`, `bounty` ($cfg), `bountyBonusKey`, `resolvedKey`,
  * `leakedKey`, `killEvent`, `leakEvent`, `creepTag`, `waveKey`, `clearedKey`,
- * `wavesCompleteEvent`, `stateKey`.
+ * `wavesCompleteEvent`, `bestWaveKey`, `stateKey`.
  */
 export const creepAccounting: SystemFn = (world, params) => {
   const currencyKey = str(params, "currencyKey", "gold");
@@ -163,13 +210,11 @@ export const creepAccounting: SystemFn = (world, params) => {
   const leakedKey = str(params, "leakedKey", "leaked");
   const killEvent = str(params, "killEvent", "creep-killed");
   const leakEvent = str(params, "leakEvent", "creep-leaked");
-  // Win-derivation wiring (TD2). All strings — no balance literals here.
   const creepTag = str(params, "creepTag", "creep");
   const waveKey = str(params, "waveKey", "wave");
   const clearedKey = str(params, "clearedKey", "clearedWaves");
   const wavesCompleteEvent = str(params, "wavesCompleteEvent", "waves-complete");
-  // Private scratch flag on world.state, so a `loadScene` ("Play again") clears it
-  // and the restarted spawner re-emits `waves-complete` for the new run.
+  const bestWaveKey = str(params, "bestWaveKey", "bestWave");
   const completeFlagKey = "__wavesComplete";
 
   attachOnce(world, "creep-accounting", () => {
@@ -184,16 +229,17 @@ export const creepAccounting: SystemFn = (world, params) => {
       bump(leakedKey, 1);
       bump(resolvedKey, 1);
     });
-    // The spawner's authoritative "every wave has now been spawned" signal.
     world.events.on(wavesCompleteEvent, () => {
       world.state[completeFlagKey] = true;
     });
   });
 
-  // Self-consistent win: all waves spawned AND the field is empty AND not already
-  // lost. `win-lose-conditions` (which runs after this system) reads `clearedKey`.
-  // Guarded by `gameOver` so a leak that reached `maxLeak` (checked there, ordered
-  // before the win condition) takes precedence and this never overrides a loss.
+  // Track the best wave reached this and across runs (persisted via manifest.persist).
+  const wave = (world.state[waveKey] as number) ?? 0;
+  const best = (world.state[bestWaveKey] as number) ?? 0;
+  if (wave > best) world.state[bestWaveKey] = wave;
+
+  // Self-consistent win: all waves spawned AND the field is empty AND not already lost.
   if (
     !world.state.gameOver &&
     world.state[completeFlagKey] === true &&

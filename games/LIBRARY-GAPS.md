@@ -89,6 +89,27 @@ and `upgrade-tree`. Restart-safe (listeners attached once per `World` via a
 `rangeKey`/`cooldownKey`/`bountyBonusKey`, `baseRange`/`baseCooldown`/`minCooldown`,
 `prototype`.
 
+> **0.2.0 update (Stage 4 — Tower Defense, game #6).** `tower-build` was rewritten
+> to adopt every relevant 0.2.0 primitive, which sharpens what a library
+> `build-on-request` should be: (a) it now reads the **G2 click EDGE directly**
+> (`world.input.justReleased()`) — the host `canvas.addEventListener("pointerdown",
+> … state.placeRequest)` is **deleted**, so placement is pure data; (b) it gates on
+> the **G3 tilemap** (`world.isBuildable(x,y)`) — the headline "towers on the road"
+> bug is fixed by refusing a non-buildable tile, with the road moved from rectangle
+> `path` entities to ONE data tilemap (drawn by the renderer + queried), no
+> double-encoding; (c) the cost is no longer an inline afford/deduct — it sets a
+> `buyRequest` the library **`transaction`** system (G5) audits, and the tower is
+> spawned on its `tower-bought` OK event (one audited part owns the money). A library
+> `build-on-request` should take `tileSize`/`towerTag`/`prototype` + a `buildable`
+> require flag and emit a `transaction` request rather than spending inline.
+> **Real friction filed:** the library's **`snapToGrid`** (G4,
+> `packages/library/src/util.ts`) is **NOT re-exported** from the `@gitcade/library`
+> package index (`src/index.ts` re-exports the registries + UI helpers but not the
+> grid utils), so a game that wants grid-snap must inline the 3-line formula (Tower
+> Defense did, with a comment). A one-line additive re-export of `snapToGrid` /
+> `randomFreeCell` / `snapRectToGrid` from the library index would close it. (Not
+> fixed here — library source is frozen/out of scope this session.)
+
 ## 5. `event-counters` — event-driven economy & objective tallies
 **From:** Tower Defense (`creep-accounting`)
 **Demand:** Tower Defense; any game turning events into currency + win/lose counters.

@@ -1,0 +1,59 @@
+{
+  "id": "title",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "music": "action",
+  "entities": [
+    {
+      "id": "start-target",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 400, "y": 300 },
+      "tags": ["ui"],
+      "layer": 1,
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+    },
+    {
+      "id": "title-heading",
+      "sprite": { "kind": "text", "text": "TOWER DEFENSE", "font": "48px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 760, "h": 56 }, "position": { "x": 400, "y": 150 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-tag",
+      "sprite": { "kind": "text", "text": "Hold the line for 10 waves.", "font": "20px monospace", "color": "#41a6f6", "align": "center" },
+      "size": { "w": 760, "h": 24 }, "position": { "x": 400, "y": 200 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-how1",
+      "sprite": { "kind": "text", "text": "Click open ground to build a turret — NOT the road", "font": "16px monospace", "color": "#cfcfe6", "align": "center" },
+      "size": { "w": 760, "h": 22 }, "position": { "x": 400, "y": 280 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-how2",
+      "sprite": { "kind": "text", "text": "Each kill pays gold — spend it on the upgrade bar", "font": "16px monospace", "color": "#cfcfe6", "align": "center" },
+      "size": { "w": 760, "h": 22 }, "position": { "x": 400, "y": 310 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-how3",
+      "sprite": { "kind": "text", "text": "Let 15 creeps leak and you lose; clear all 10 waves to win", "font": "16px monospace", "color": "#cfcfe6", "align": "center" },
+      "size": { "w": 760, "h": 22 }, "position": { "x": 400, "y": 340 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-best",
+      "sprite": { "kind": "text", "bind": "bestWaveHud", "text": "", "font": "16px monospace", "color": "#a7f070", "align": "center" },
+      "size": { "w": 760, "h": 22 }, "position": { "x": 400, "y": 400 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-start",
+      "sprite": { "kind": "text", "text": "▶  Tap anywhere to start", "font": "24px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 760, "h": 28 }, "position": { "x": 400, "y": 470 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    }
+  ],
+  "systems": [
+    { "type": "persistence", "params": {} }
+  ],
+  "flow": {
+    "on": { "start-pressed": "play" },
+    "persist": ["bestWave"]
+  }
+}

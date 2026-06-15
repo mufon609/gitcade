@@ -40,9 +40,9 @@
   ],
   "systems": [
     { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "coins", "startAmount": "$cfg.startCoins", "maxAmount": "$cfg.coinCap" } },
-    { "type": "click-to-earn", "params": { "coinsKey": "coins", "clicksKey": "clicks", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower" } },
-    { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate" } },
-    { "type": "interval-bonus", "params": { "coinsKey": "coins", "period": "$cfg.bonusPeriod", "amount": "$cfg.bonusAmount", "leftKey": "bonusLeft" } },
+    { "type": "click-to-earn", "params": { "coinsKey": "coins", "clicksKey": "clicks", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower", "multKey": "prestigeMult" } },
+    { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate", "multKey": "prestigeMult" } },
+    { "type": "interval-bonus", "params": { "coinsKey": "coins", "period": "$cfg.bonusPeriod", "amount": "$cfg.bonusAmount", "multKey": "prestigeMult", "leftKey": "bonusLeft" } },
     {
       "type": "upgrade-tree",
       "part": "upgrade-tree@1.0.0",

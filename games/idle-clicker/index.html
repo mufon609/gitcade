@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <title>Idle Clicker — GitCade</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23ffcd75'/%3E%3C/svg%3E" />
     <style>
       :root { --bg: #07060c; --ink: #f4f4f4; --accent: #ffcd75; --indigo: #3b5dc9; }
       * { box-sizing: border-box; }
@@ -11,31 +12,18 @@
       #stage { position: relative; width: 800px; height: 600px; max-width: 100vw; max-height: 100vh; aspect-ratio: 4 / 3; }
       #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; touch-action: none; background: #0b0b16; will-change: transform; cursor: pointer; }
       #fx-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
-      #pause-btn { position: absolute; top: 8px; right: 8px; z-index: 5; width: 40px; height: 40px; border: 0; border-radius: 8px; background: rgba(59,93,201,.55); color: var(--ink); font-size: 18px; cursor: pointer; touch-action: manipulation; }
-      /* Shop bar — upgrades + prestige; sits below the menu overlay. */
+      /* Shop bar — upgrades + prestige; the only HTML chrome (rich cost labels). */
       #idlebar { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; display: flex; gap: 6px; padding: 8px; background: linear-gradient(transparent, rgba(7,6,12,.85)); pointer-events: none; }
       #idlebar button { pointer-events: auto; flex: 1; min-height: 56px; border: 0; border-radius: 10px; background: #2a2f50; color: var(--ink); font: inherit; font-size: 13px; cursor: pointer; touch-action: manipulation; line-height: 1.3; }
       #idlebar button b { display: block; color: var(--accent); font-size: 15px; }
       #idlebar button#prestige-btn { background: #5a2f50; flex: 0 0 90px; }
       #idlebar button#prestige-btn b { color: #ef7d57; }
-      #menu { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(7,6,12,.72); backdrop-filter: blur(2px); text-align: center; }
-      #menu .card { background: #14162a; border: 2px solid var(--indigo); border-radius: 14px; padding: 28px 32px; max-width: 86%; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
-      #menu h1 { margin: 0 0 6px; font-size: 40px; color: var(--accent); letter-spacing: 2px; }
-      #menu .tag { margin: 0 0 14px; opacity: .8; }
-      #menu .outcome { font-size: 20px; margin: 4px 0 18px; }
-      #menu ul.howto { text-align: left; margin: 0 auto 18px; padding-left: 20px; max-width: 340px; opacity: .85; line-height: 1.5; }
-      #menu .hint { margin-top: 14px; font-size: 12px; opacity: .55; }
-      #menu button { display: block; width: 100%; margin: 8px 0 0; padding: 12px 18px; font: inherit; font-size: 18px; border: 0; border-radius: 10px; background: #2a2f50; color: var(--ink); cursor: pointer; touch-action: manipulation; }
-      #menu button.primary { background: var(--accent); color: #1a1320; font-weight: 700; }
-      #touch { display: none; }
     </style>
   </head>
   <body>
     <div id="stage">
       <canvas id="game" width="800" height="600"></canvas>
       <div id="fx-overlay"></div>
-      <button id="pause-btn" aria-label="Pause">II</button>
-      <div id="touch"></div>
       <div id="idlebar">
         <!-- Cost labels are filled from config.json at runtime (see updateShop in main.ts) — no hardcoded prices. -->
         <button data-up="click"><b>Stronger tap</b>…</button>
@@ -43,7 +31,6 @@
         <button data-up="factory"><b>Factory</b>…</button>
         <button id="prestige-btn"><b>Prestige</b>reset</button>
       </div>
-      <div id="menu"></div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

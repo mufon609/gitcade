@@ -116,6 +116,36 @@ Offline progress itself stays host-side (it needs `Date.now()` and the storage
 bridge), but a library helper that computes `cappedOfflineGain(rate, lastSeen, cap)`
 would remove the last bit of boilerplate.
 
+> **0.2.0 update (Stage 4 — Idle Clicker):** the trio survived the repin with two
+> changes worth promoting. (a) **`click-to-earn` now reads the G2 click EDGE
+> directly** (`world.input.justReleased()` + `world.entityAt(x,y)` filtered to a
+> `targetTag`), so the host `pointerdown` listener that used to increment a `clicks`
+> key is **gone** — the click is pure data. A library `click-to-earn` should take
+> `targetTag`/`basePower`/`multKey` and read the edge itself. (b) A small **`prestige`**
+> system was added (request-flag driven, like `upgrade-tree`): bank current coins,
+> bump a permanent `multKey` by `$cfg.bonus`, reset coins/power/rate/upgrades, emit
+> `prestige`. It's the idle-genre counterpart to `upgrade-tree` and a clean
+> generalization candidate. **Params proven:** click-to-earn `coinsKey`,`targetTag`,
+> `powerKey`,`basePower`,`multKey`,`tapEvent`; prestige `requestKey`,`coinsKey`,
+> `multKey`,`bonus`,`powerKey`,`basePower`,`rateKey`,`baseRate`,`levelsKey`,`bankKey`.
+
+> **0.2.0 update — persistence vs. system-seeding RACE (G6, real friction).** The
+> library `persistence` system restores a saved key only if it is **absent** from
+> `world.state` ("live value wins"). But `currency` (and the custom seed-once
+> economy systems) seed `coins`/`clickPower`/`autoRate` **synchronously on tick 1**,
+> while `persistence` issues an **async** `storage.get` that resolves a microtask
+> later — so on a scene where those systems run, the save is always clobbered before
+> it loads (verified: a reboot showed `coins: 0` instead of the saved `12345`).
+> Idle Clicker's fix is a **scene-flow workaround**, no engine change: run
+> `persistence` on the **title** scene (which seeds none of the economy keys), let
+> the async restore land during the title dwell, then carry the restored keys into
+> `play` via the title's `flow.persist`. By the time `play` loads, `coins` is already
+> present, so `currency` skips its seed. This works but is non-obvious; a robust G6
+> would either (i) load persistence **before** the first system tick (a synchronous
+> "hydrate on scene load, then build systems" step), or (ii) give `persistence` a
+> "restore wins over seed for these keys" mode. Until then, the title-load-then-carry
+> pattern is the documented recipe for any game that persists a system-seeded key.
+
 ## 7. `post-step-death-guard` — same-tick fatal-move detection + on-screen clamp
 **From:** Snake (`games/snake/src/custom-behaviors/index.ts`, behavior `snake-guard`)
 **Demand:** Snake; any grid mover that must die the instant a step lands on a fatal

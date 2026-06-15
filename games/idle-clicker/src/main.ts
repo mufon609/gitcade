@@ -1,106 +1,74 @@
 /**
  * Idle Clicker bootstrap (host glue). The GAME is data — game.json + config.json +
- * src/scenes/main.json composing the library `currency` + `upgrade-tree` with three
- * custom economy systems. 100% of the balance is in config.json. This file wires
- * input/UI and — the headline feature — OFFLINE PROGRESS through the SDK storage
- * bridge (`world.storage`), never raw browser storage:
- *   - on resume it loads the save and credits coins earned while away (capped),
- *   - it autosaves on an interval and when the tab is hidden/closed.
+ * src/scenes/{title,play}.json composing the library `currency` + `upgrade-tree`
+ * (G5 economy) with four small custom economy systems (`click-to-earn`,
+ * `auto-income`, `interval-bonus`, `prestige` — the idle loop the action library
+ * doesn't cover; logged in LIBRARY-GAPS.md). 100% of the balance is in config.json.
+ *
+ * 0.2.0 ADOPTION — what used to be host TypeScript is now DATA:
+ *   • G2 click-to-earn: the canvas `pointerdown` listener that incremented
+ *     `world.state.clicks` is GONE. The `click-to-earn` system reads the SDK click
+ *     EDGE (`input.justReleased()` + `entityAt`) on the coin directly.
+ *   • G6 persistence: the host save/load/autosave (snapshot/setInterval/visibility/
+ *     pagehide) is GONE. `manifest.persist` + the library `persistence` system
+ *     round-trip coins/clickPower/autoRate/upgrades/prestigeMult/lastSeen through
+ *     the SDK storage bridge.
+ *   • G5 purchases & prestige: buying routes through `upgrade-tree`; prestige
+ *     economics (bank + multiplier + reset) moved to the data `prestige` system.
+ *     The GameShell screen-state machine is GONE — flow is `title → play` data.
+ *
+ * What REMAINS host (no data primitive covers it):
+ *   • the HTML shop bar (rich cost labels + affordability dimming) — it only SETS
+ *     the data request flags (`upgradeRequest` / `prestigeRequest`);
+ *   • presentation HUD mirrors (formatted coins/rate/power readouts);
+ *   • a tiny screen-FX juice bind (flash on click/bonus/denied);
+ *   • the OFFLINE-CREDIT shim (OQ-4, out of 0.2.0 scope): a timestamp + a credit
+ *     formula on top of G6's value persistence — see `applyOfflineCredit` below.
  */
 import { createGame } from "@gitcade/sdk";
 import type { World } from "@gitcade/sdk";
-import { createLibraryRegistry, LibraryAudioPlayer } from "@gitcade/library";
+import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
-import main from "./scenes/main.json";
+import title from "./scenes/title.json";
+import play from "./scenes/play.json";
 import { registerCustomBehaviors } from "./custom-behaviors/index.js";
-import { GameShell } from "./host/shell.js";
 import { makeStorage } from "./host/storage.js";
 
 const cfg = config as Record<string, number>;
-const SAVE_KEY = "idleSave";
-
-interface Save {
-  coins: number;
-  clickPower: number;
-  autoRate: number;
-  upgrades: Record<string, number>;
-  prestigeMult: number;
-  lastSeen: number;
-}
 
 const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
 
 const audio = new LibraryAudioPlayer();
 const canvas = document.getElementById("game") as HTMLCanvasElement;
-const menu = document.getElementById("menu") as HTMLElement;
 const storage = makeStorage(manifest.slug);
-const game = createGame({ manifest, config, scenes: [main] }, { canvas, registry, audio, storage });
+const game = createGame({ manifest, config, scenes: [title, play] }, { canvas, registry, audio, storage });
 const world = game.world;
-const playing = () => menu.style.display === "none";
+const playing = () => game.scene.id === "play";
 
-let saved: Save | null = null;
-let prestigeMult = 1;
-
-// Load the persisted save up front (async; ready by the time Play is tapped).
-void (async () => {
-  try {
-    const s = await storage.get<Save>(SAVE_KEY);
-    if (s && typeof s === "object") {
-      saved = s;
-      prestigeMult = s.prestigeMult ?? 1;
-    }
-  } catch {
-    /* no save yet */
-  }
-})();
-
-function snapshot(): Save {
-  return {
-    coins: (world.state.coins as number) ?? 0,
-    clickPower: (world.state.clickPower as number) ?? cfg.baseClickPower,
-    autoRate: (world.state.autoRate as number) ?? 0,
-    upgrades: (world.state.upgrades as Record<string, number>) ?? {},
-    prestigeMult,
-    lastSeen: Date.now(),
-  };
-}
-function save(): void {
-  saved = snapshot();
-  void storage.set(SAVE_KEY, saved);
-}
-// Autosave through the SDK storage bridge — never raw browser storage.
-setInterval(() => {
-  if (playing()) save();
-}, 5000);
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden && playing()) save();
-});
-window.addEventListener("pagehide", () => {
-  if (playing()) save();
-});
-
-// Tap anywhere on the coin field to earn; light it up.
-canvas.addEventListener("pointerdown", () => {
-  if (!playing()) return;
-  world.state.clicks = ((world.state.clicks as number) ?? 0) + 1;
-  audio.play("collect");
-  world.events.emit("click", {});
-});
-
-// Shop bar → upgrade-tree requests; prestige resets for a permanent multiplier.
+// --- shop bar → data request flags (HTML chrome; the economy is data) ---------
+// The bottom shop bar stays HTML host UI (rich cost labels + affordability dimming
+// the canvas renderer can't do), but it only SETS the request flags the data
+// `upgrade-tree` / `prestige` systems consume — no economy logic lives here.
 document.querySelectorAll<HTMLButtonElement>("#idlebar button[data-up]").forEach((b) => {
   b.addEventListener("pointerdown", (e) => {
     e.preventDefault();
     if (playing()) world.state.upgradeRequest = b.dataset.up!;
   });
 });
+const prestigeBtn = document.getElementById("prestige-btn");
+if (prestigeBtn) {
+  prestigeBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    if (playing()) world.state.prestigeRequest = true; // the data `prestige` system does the rest
+  });
+}
 
 // IC-2: bind the shop-bar cost labels to config.json + the live growth-scaled cost
 // (mirrors upgrade-tree's `Math.round(cost * growth^owned)`), so the "100% config-
-// driven" claim holds for the UI and the price tracks purchases instead of a stale
-// literal. Each label also shows the owned level and dims when unaffordable / maxed.
+// driven" claim holds for the UI and the price tracks purchases. Each label shows
+// the owned level and dims when unaffordable / maxed.
 const shopDefs = [
   { up: "click", label: "Stronger tap", cost: cfg.upgradeClickCost, growth: cfg.upgradeClickGrowth, max: cfg.upgradeClickMax },
   { up: "cursor", label: "Cursor", cost: cfg.upgradeCursorCost, growth: cfg.upgradeCursorGrowth, max: cfg.upgradeCursorMax },
@@ -132,86 +100,110 @@ function updateShop(w: World): void {
     if (btn.style.opacity !== op) btn.style.opacity = op;
   }
 }
-const prestigeBtn = document.getElementById("prestige-btn");
-if (prestigeBtn) {
-  prestigeBtn.addEventListener("pointerdown", (e) => {
-    e.preventDefault();
-    if (!playing()) return;
-    world.state.lastBank = Math.floor((world.state.coins as number) ?? 0);
-    prestigeMult = Math.round((prestigeMult + cfg.prestigeBonus) * 100) / 100;
-    // IC-1: clickPower stays the raw base; prestige is now applied to ALL income
-    // via the `prestigeMult` state key the economy systems read each tick.
-    saved = { coins: 0, clickPower: cfg.baseClickPower, autoRate: cfg.baseAutoRate, upgrades: {}, prestigeMult, lastSeen: Date.now() };
-    void storage.set(SAVE_KEY, saved);
-    world.events.emit("prestige", {});
-  });
-}
 
-new GameShell({
-  game,
-  audio,
-  music: "menu",
-  title: "IDLE CLICKER",
-  tagline: "Tap. Automate. Profit — even while away.",
-  howto: [
-    "Tap the coin (or anywhere) to earn",
-    "Buy cursors and factories to earn while idle — and while away",
-    "Prestige to reset for a permanent multiplier",
-  ],
-  gameOverEvent: "prestige",
-  outcomeText: (w) => `Banked ${num(w.state.lastBank)} coins  •  Prestige multiplier now x${prestigeMult}`,
-  screenFx: {
-    click: (fx) => fx.flash("#ffcd75", 0.06),
-    bonus: (fx) => fx.flash("#a7f070", 0.18),
-    // IC-3: a "can't afford" (or otherwise rejected) buy now gets a cue instead
-    // of silently no-op'ing — a brief red flash + a soft negative thunk.
-    "upgrade-denied": (fx) => {
-      fx.flash("#ef7d57", 0.12);
-      audio.play("hit");
-    },
-  },
-  onEnterPlay: (w) => {
-    w.state.clicks = 0;
-    // IC-1: the prestige multiplier is now a first-class income multiplier the
-    // economy systems read every tick (click-to-earn / auto-income / interval-bonus).
-    w.state.prestigeMult = prestigeMult;
-    if (saved) {
-      w.state.coins = saved.coins ?? 0;
-      w.state.clickPower = saved.clickPower ?? cfg.baseClickPower;
-      w.state.autoRate = saved.autoRate ?? cfg.baseAutoRate;
-      w.state.upgrades = saved.upgrades ?? {};
-      const elapsed = Math.min((Date.now() - (saved.lastSeen ?? Date.now())) / 1000, cfg.offlineCapSeconds);
-      // Offline credit also benefits from prestige, mirroring live auto-income.
-      const gain = Math.floor((saved.autoRate ?? 0) * elapsed * prestigeMult);
-      if (gain > 0) {
-        w.state.coins = (w.state.coins as number) + gain;
-        w.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
-      } else {
-        w.state.hint = "Tap the coin to earn!";
-      }
-    } else {
-      w.state.coins = cfg.startCoins;
-      w.state.clickPower = cfg.baseClickPower;
-      w.state.autoRate = cfg.baseAutoRate;
-      w.state.upgrades = {};
-      w.state.hint = "Tap the coin to earn!";
+// --- OFFLINE-CREDIT shim (OQ-4 — OUT of 0.2.0 scope, deliberately tiny) --------
+// Computing earnings-while-away needs a saved wall-clock timestamp + a game-specific
+// credit formula — NOT a generic engine primitive. G6 persistence handles the VALUE
+// round-trip (incl. `lastSeen`); this shim does only the two things G6 can't:
+//   1. on resume, read the saved `lastSeen` and credit `autoRate × elapsed × mult`
+//      (capped at `offlineCapSeconds`) — once;
+//   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now"
+//      as the away-point (started AFTER step 1 so it can't clobber the read).
+// All through `world.storage` (the SDK bridge), never raw browser storage.
+const SLOT = manifest.persist.slot;
+let offlineApplied = false;
+
+async function applyOfflineCredit(): Promise<void> {
+  let saved: { autoRate?: number; prestigeMult?: number; lastSeen?: number } | null = null;
+  try {
+    saved = await storage.get<typeof saved>(SLOT);
+  } catch {
+    /* no save / storage unavailable — first run */
+  }
+  const rate = saved?.autoRate ?? 0;
+  const mult = saved?.prestigeMult ?? 1;
+  const lastSeen = saved?.lastSeen;
+  if (typeof lastSeen === "number" && rate > 0) {
+    const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
+    const gain = Math.floor(rate * elapsed * mult);
+    if (gain > 0) {
+      // Apply once the persistence load has restored coins into the live run.
+      const credit = () => {
+        world.state.coins = ((world.state.coins as number) ?? 0) + gain;
+        world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
+      };
+      // The persistence system restores asynchronously; wait a couple ticks for the
+      // restored coins to land, then add the offline gain on top.
+      setTimeout(credit, 60);
     }
-  },
-  beforeFrame: (w) => {
-    // HUD shows the EFFECTIVE per-click / per-second income (prestige-scaled), so
-    // the prestige multiplier is visible in the readouts that drive it (IC-1).
+  }
+  offlineApplied = true;
+}
+void applyOfflineCredit();
+
+// --- HUD mirrors + lastSeen heartbeat (presentation + the offline timestamp) ---
+function mirror(): void {
+  const w = world;
+  if (playing()) {
     const mult = (w.state.prestigeMult as number) ?? 1;
     w.state.coinsDisplay = fmt(w.state.coins);
     w.state.rateDisplay = `${fmt(((w.state.autoRate as number) ?? 0) * mult)}/sec`;
     w.state.powerDisplay = `x${fmt(((w.state.clickPower as number) ?? cfg.baseClickPower) * mult)} / click`;
+    w.state.prestigeDisplay = mult > 1 ? `prestige x${mult}` : "";
     w.state.bonusDisplay = `bonus in ${Math.max(0, Math.ceil((w.state.bonusLeft as number) ?? cfg.bonusPeriod))}s`;
+    if (typeof w.state.hint !== "string") w.state.hint = "Tap the coin to earn!";
+    // Heartbeat the away-timestamp (only after the offline read, so it can't clobber it).
+    if (offlineApplied) w.state.lastSeen = Date.now();
     updateShop(w);
+  }
+  requestAnimationFrame(mirror);
+}
+requestAnimationFrame(mirror);
+
+// --- screen-FX juice (presentation only) --------------------------------------
+const fx = new ScreenEffects();
+fx.bindToEvents(world, {
+  click: (f) => f.flash("#ffcd75", 0.06),
+  bonus: (f) => f.flash("#a7f070", 0.18),
+  prestige: (f) => {
+    f.flash("#ef7d57", 0.3);
+    f.shake(8, 0.3, 36);
+  },
+  // IC-3: a rejected buy gets a cue instead of silently no-op'ing.
+  "upgrade-denied": (f) => {
+    f.flash("#ef7d57", 0.12);
+    audio.play("hit");
   },
 });
+attachScreenEffects(fx, canvas, document.getElementById("fx-overlay"));
+
+// --- audio (needs a user gesture before the browser will play sound) ----------
+let musicStarted = false;
+function resumeAudio(): void {
+  audio.resume();
+  if (!musicStarted) {
+    audio.startMusic("menu");
+    musicStarted = true;
+  }
+}
+window.addEventListener("pointerdown", resumeAudio);
+window.addEventListener("keydown", resumeAudio);
+
+// --- keyboard bridge to the data-driven title flow edge -----------------------
+// The title's full-canvas `tap-emit` covers pointer/touch; this keeps Space/Enter
+// starting the game for keyboard players. Scene-guarded so PLAY is untouched.
+window.addEventListener("keydown", (e) => {
+  if ((e.code === "Space" || e.code === "Enter") && game.scene.id === "title") {
+    e.preventDefault();
+    world.events.emit("start-pressed");
+  }
+});
+
+// Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
+(window as unknown as { __game?: unknown }).__game = game;
+
+game.start();
 
 function fmt(v: unknown): string {
   return (typeof v === "number" ? Math.floor(v) : 0).toLocaleString();
-}
-function num(v: unknown): number {
-  return typeof v === "number" ? Math.round(v) : 0;
 }

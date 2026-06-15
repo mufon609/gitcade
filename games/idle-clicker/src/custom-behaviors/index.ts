@@ -3,40 +3,53 @@ import { num, str } from "@gitcade/sdk";
 
 /**
  * Idle Clicker's custom economy. The action-game library doesn't cover the idle
- * loop, so these three small systems do — each fully param-driven (every balance
- * value a `$cfg` from config.json, so the game keeps 100% of its balance in
- * config.json) and each poll/tick-based with NO event listeners, so a restart
- * (which clears `world.state` but not the event bus) can never double-count.
+ * loop, so these small systems do — each fully param-driven (every balance value a
+ * `$cfg` from config.json, so the game keeps 100% of its balance in config.json)
+ * and each poll/tick-based with NO event listeners, so a restart (which clears
+ * `world.state` but not the event bus) can never double-count.
  * Logged in games/LIBRARY-GAPS.md as generalization candidates.
+ *
+ * 0.2.0 ADOPTION: `click-to-earn` now reads the SDK's G2 pointer-click EDGE
+ * (`world.input.justReleased()` + `world.entityAt`) directly, so the host
+ * `pointerdown` listener that used to increment `world.state.clicks` is GONE — the
+ * click is data. Purchases route through the library `upgrade-tree` (the G5 fixed-
+ * catalog economy primitive: afford → deduct → effect). Value persistence is
+ * declarative (`manifest.persist` + the library `persistence` system). The only
+ * thing still custom is this idle-economy trio + a tiny `prestige` reset system.
  */
 
 /**
- * `click-to-earn` — award coins for each registered click. The host increments
- * `clicksKey` on every tap; this polls the delta and pays `clickPower` per click,
- * scaled by the prestige multiplier (`multKey`, default 1) so prestige raises ALL
- * income — not just the base click value (IC-1).
- * Params: `coinsKey`, `clicksKey`, `powerKey`, `basePower` ($cfg), `multKey`, `stateKey`.
+ * `click-to-earn` — award coins for each tap on the coin button. Polls the SDK's
+ * one-frame click EDGE (`world.input.justReleased()`, G2) and pays `clickPower`
+ * per tap that lands on an entity tagged `targetTag` (`world.entityAt`, G2), scaled
+ * by the prestige multiplier (`multKey`, default 1) so prestige raises ALL income
+ * (IC-1). No host listener, no `clicks` counter — the click is pure data now.
+ * Params: `coinsKey`, `targetTag`, `powerKey`, `basePower` ($cfg), `multKey`, `tapEvent`.
  */
 export const clickToEarn: SystemFn = (world, params) => {
   const coinsKey = str(params, "coinsKey", "coins");
-  const clicksKey = str(params, "clicksKey", "clicks");
+  const targetTag = str(params, "targetTag", "coin-button");
   const powerKey = str(params, "powerKey", "clickPower");
   const multKey = str(params, "multKey", "prestigeMult");
-  const stateKey = str(params, "stateKey", "__clicker");
+  const tapEvent = str(params, "tapEvent", "click");
 
-  const s = (world.state[stateKey] ??= { last: 0, seeded: false }) as { last: number; seeded: boolean };
-  if (!s.seeded) {
-    s.seeded = true;
-    if (typeof world.state[powerKey] !== "number") world.state[powerKey] = num(params, "basePower", 1);
-    s.last = (world.state[clicksKey] as number) ?? 0;
+  // Seed the per-click power once (so prestige/reset restores a clean base).
+  if (typeof world.state[powerKey] !== "number") world.state[powerKey] = num(params, "basePower", 1);
+
+  // Count taps this frame that landed on the coin (topmost pick).
+  let taps = 0;
+  for (const t of world.input.justReleased()) {
+    const hit = world.entityAt(t.x, t.y);
+    if (hit && hit.hasTag(targetTag)) taps++;
   }
-  const clicks = (world.state[clicksKey] as number) ?? 0;
-  if (clicks > s.last) {
-    const per = (world.state[powerKey] as number) ?? 1;
-    const mult = (world.state[multKey] as number) ?? 1;
-    world.state[coinsKey] = ((world.state[coinsKey] as number) ?? 0) + (clicks - s.last) * per * mult;
-    s.last = clicks;
-  }
+  if (taps === 0) return;
+
+  const per = (world.state[powerKey] as number) ?? 1;
+  const mult = (world.state[multKey] as number) ?? 1;
+  world.state[coinsKey] = ((world.state[coinsKey] as number) ?? 0) + taps * per * mult;
+  // Feedback (sound + a screen-juice event the host flashes on).
+  world.audio.play("collect");
+  if (tapEvent) world.events.emit(tapEvent, { taps });
 };
 
 /**
@@ -83,8 +96,49 @@ export const intervalBonus: SystemFn = (world, params, dt) => {
   world.state[leftKey] = s.left;
 };
 
+/**
+ * `prestige` — data-driven reset-for-a-permanent-multiplier. Polls `requestKey`
+ * (set true by the shop's Prestige button, like upgrade-tree's request flag); on a
+ * request it banks the current coins (`bankKey`, for the "Banked N" readout), bumps
+ * the permanent multiplier (`multKey`) by `bonus` ($cfg), and RESETS the run's
+ * progress (coins→0, clickPower→base, autoRate→base, upgrades→{}) so prestige is a
+ * fresh, faster run. Emits `prestige`. This replaces the host prestige-button
+ * economics (the multiplier + reset used to live in main.ts) — only the button
+ * wiring (set the flag) stays host UI. Balance ($cfg): `bonus`, `baseClickPower`,
+ * `baseAutoRate`.
+ * Params: `requestKey`, `coinsKey`, `multKey`, `bonus` ($cfg), `powerKey`,
+ *         `basePower` ($cfg), `rateKey`, `baseRate` ($cfg), `levelsKey`, `bankKey`.
+ */
+export const prestige: SystemFn = (world, params) => {
+  const requestKey = str(params, "requestKey", "prestigeRequest");
+  if (world.state[requestKey] !== true) return;
+  world.state[requestKey] = false; // consume once per click
+
+  const coinsKey = str(params, "coinsKey", "coins");
+  const multKey = str(params, "multKey", "prestigeMult");
+  const powerKey = str(params, "powerKey", "clickPower");
+  const rateKey = str(params, "rateKey", "autoRate");
+  const levelsKey = str(params, "levelsKey", "upgrades");
+  const bankKey = str(params, "bankKey", "lastBank");
+  const bonus = num(params, "bonus", 0);
+  const basePower = num(params, "basePower", 1);
+  const baseRate = num(params, "baseRate", 0);
+
+  world.state[bankKey] = Math.floor((world.state[coinsKey] as number) ?? 0);
+  const mult = (world.state[multKey] as number) ?? 1;
+  // Round to 2dp so the multiplier reads cleanly (x1.25, x1.5, …).
+  world.state[multKey] = Math.round((mult + bonus) * 100) / 100;
+  world.state[coinsKey] = 0;
+  world.state[powerKey] = basePower;
+  world.state[rateKey] = baseRate;
+  world.state[levelsKey] = {};
+  world.audio.play("collect");
+  world.events.emit("prestige", { mult: world.state[multKey] });
+};
+
 export function registerCustomBehaviors(registry: Registry): void {
   registry.registerSystem("click-to-earn", clickToEarn);
   registry.registerSystem("auto-income", autoIncome);
   registry.registerSystem("interval-bonus", intervalBonus);
+  registry.registerSystem("prestige", prestige);
 }

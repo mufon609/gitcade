@@ -1,0 +1,47 @@
+{
+  "id": "title",
+  "size": { "width": 800, "height": 600 },
+  "background": "#0b0b16",
+  "entities": [
+    {
+      "id": "start-target",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 400, "y": 300 },
+      "tags": ["ui"],
+      "layer": 1,
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+    },
+    {
+      "id": "title-coin",
+      "sprite": { "kind": "sheet", "src": "assets/sprites/coin.png", "frameWidth": 16, "frameHeight": 16, "frameCount": 4, "fps": 8, "animations": { "spin": { "from": 0, "to": 3 } } },
+      "size": { "w": 120, "h": 120 },
+      "position": { "x": 340, "y": 170 },
+      "tags": ["ui"],
+      "layer": 5,
+      "behaviors": [{ "type": "sprite-animate", "params": { "play": "spin" } }]
+    },
+    {
+      "id": "title-heading",
+      "sprite": { "kind": "text", "text": "IDLE CLICKER", "font": "48px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 700, "h": 56 }, "position": { "x": 400, "y": 330 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-tag",
+      "sprite": { "kind": "text", "text": "Tap. Automate. Profit — even while away.", "font": "20px monospace", "color": "#a7f070", "align": "center" },
+      "size": { "w": 700, "h": 24 }, "position": { "x": 400, "y": 380 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    },
+    {
+      "id": "title-start",
+      "sprite": { "kind": "text", "text": "▶  Tap anywhere to start", "font": "24px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 700, "h": 28 }, "position": { "x": 400, "y": 460 }, "tags": ["ui"], "layer": 100, "behaviors": []
+    }
+  ],
+  "systems": [
+    { "type": "persistence", "params": {} }
+  ],
+  "flow": {
+    "on": { "start-pressed": "play" },
+    "persist": ["coins", "clickPower", "autoRate", "upgrades", "prestigeMult", "lastSeen"]
+  }
+}

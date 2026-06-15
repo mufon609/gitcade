@@ -1,8 +1,17 @@
 {
-  "id": "main",
+  "id": "play",
   "size": { "width": 800, "height": 600 },
   "background": "#0b0b16",
   "entities": [
+    {
+      "id": "tap-field",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 400, "y": 300 },
+      "tags": ["coin-button"],
+      "layer": 0,
+      "behaviors": []
+    },
     {
       "id": "coin-button",
       "sprite": { "kind": "sheet", "src": "assets/sprites/coin.png", "frameWidth": 16, "frameHeight": 16, "frameCount": 4, "fps": 8, "animations": { "spin": { "from": 0, "to": 3 } } },
@@ -28,6 +37,11 @@
       "size": { "w": 220, "h": 24 }, "position": { "x": 16, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
     },
     {
+      "id": "hud-prestige",
+      "sprite": { "kind": "text", "bind": "prestigeDisplay", "text": "", "font": "20px monospace", "color": "#ef7d57", "align": "left" },
+      "size": { "w": 220, "h": 24 }, "position": { "x": 16, "y": 44 }, "tags": ["hud"], "layer": 100, "behaviors": []
+    },
+    {
       "id": "hud-bonus",
       "sprite": { "kind": "text", "bind": "bonusDisplay", "text": "bonus soon", "font": "20px monospace", "color": "#ef7d57", "align": "right" },
       "size": { "w": 280, "h": 24 }, "position": { "x": 784, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
@@ -40,7 +54,7 @@
   ],
   "systems": [
     { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "coins", "startAmount": "$cfg.startCoins", "maxAmount": "$cfg.coinCap" } },
-    { "type": "click-to-earn", "params": { "coinsKey": "coins", "clicksKey": "clicks", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower", "multKey": "prestigeMult" } },
+    { "type": "click-to-earn", "params": { "coinsKey": "coins", "targetTag": "coin-button", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower", "multKey": "prestigeMult", "tapEvent": "click" } },
     { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate", "multKey": "prestigeMult" } },
     { "type": "interval-bonus", "params": { "coinsKey": "coins", "period": "$cfg.bonusPeriod", "amount": "$cfg.bonusAmount", "multKey": "prestigeMult", "leftKey": "bonusLeft" } },
     {
@@ -56,6 +70,25 @@
           { "id": "factory", "cost": "$cfg.upgradeFactoryCost", "effectKey": "autoRate", "effectAmount": "$cfg.upgradeFactoryAmount", "maxLevel": "$cfg.upgradeFactoryMax", "costGrowth": "$cfg.upgradeFactoryGrowth", "requires": "cursor" }
         ]
       }
-    }
-  ]
+    },
+    {
+      "type": "prestige",
+      "params": {
+        "requestKey": "prestigeRequest",
+        "coinsKey": "coins",
+        "multKey": "prestigeMult",
+        "bonus": "$cfg.prestigeBonus",
+        "powerKey": "clickPower",
+        "basePower": "$cfg.baseClickPower",
+        "rateKey": "autoRate",
+        "baseRate": "$cfg.baseAutoRate",
+        "levelsKey": "upgrades",
+        "bankKey": "lastBank"
+      }
+    },
+    { "type": "persistence", "params": {} }
+  ],
+  "flow": {
+    "persist": ["coins", "clickPower", "autoRate", "upgrades", "prestigeMult", "lastSeen"]
+  }
 }

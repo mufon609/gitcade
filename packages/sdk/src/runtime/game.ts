@@ -75,7 +75,12 @@ export class Game {
   private accumulator = 0;
   private lastTime = 0;
   private running = false;
+  private paused = false;
+  /** True while a tab-hidden auto-pause is in effect and we should auto-resume on return. */
+  private resumeAfterHide = false;
   private rafId: number | null = null;
+  /** Teardown for the visibilitychange listener installed by start(). */
+  private detachLifecycle: (() => void) | null = null;
   /** Unsubscribers for the active scene's `flow.on` event edges, torn down on scene change (G1). */
   private flowUnsubs: Array<() => void> = [];
 
@@ -106,8 +111,19 @@ export class Game {
 
     const ctx = this.canvas ? this.canvas.getContext("2d") : null;
     if (this.canvas) {
-      this.canvas.width = this.scene.size.width;
-      this.canvas.height = this.scene.size.height;
+      // Render at DEVICE resolution. The canvas is CSS-scaled to fill its stage, so a
+      // backing store fixed at the logical scene size is an upsampled low-res bitmap —
+      // blurry shapes and text on any HiDPI (retina) display. Size the backing store by
+      // devicePixelRatio and scale the context once, so all drawing (which stays in
+      // LOGICAL world coordinates, including the renderer's per-frame background fill)
+      // maps logical→device px. CSS display size is left to the page (`#game{width:100%}`),
+      // so this changes sharpness only — not layout — and the rect-based pointer→world
+      // mapping in Input is unaffected. NOTE: assigning canvas.width resets the context
+      // transform, so the scale() MUST come after.
+      const dpr = typeof window !== "undefined" && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+      this.canvas.width = Math.round(this.scene.size.width * dpr);
+      this.canvas.height = Math.round(this.scene.size.height * dpr);
+      if (ctx && typeof ctx.scale === "function") ctx.scale(dpr, dpr);
     }
     this.renderer = new Renderer(ctx);
 
@@ -232,9 +248,34 @@ export class Game {
       });
     }
 
+    // Pause the SIMULATION (not the loop) when the tab is hidden. The browser
+    // already throttles/stops rAF while hidden; without this, the first frame on
+    // return would replay the whole idle gap (clamped to MAX_FRAME_SECONDS) as a
+    // ~15-tick catch-up burst, teleporting the player into an unfair death. We
+    // only auto-resume if the player had not already paused by hand.
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      const onVisibility = (): void => {
+        if (document.hidden) {
+          this.resumeAfterHide = !this.paused;
+          this.pause();
+        } else if (this.resumeAfterHide) {
+          this.resumeAfterHide = false;
+          this.resume();
+        }
+      };
+      document.addEventListener("visibilitychange", onVisibility);
+      this.detachLifecycle = () => document.removeEventListener("visibilitychange", onVisibility);
+    }
+
     this.lastTime = now();
     const loop = (): void => {
       if (!this.running) return;
+      if (this.paused) {
+        // Keep the clock current so unpausing doesn't replay the paused span.
+        this.lastTime = now();
+        this.rafId = requestAnimationFrame(loop);
+        return;
+      }
       const current = now();
       const elapsed = Math.min((current - this.lastTime) / 1000, MAX_FRAME_SECONDS);
       this.lastTime = current;
@@ -249,9 +290,39 @@ export class Game {
     this.rafId = requestAnimationFrame(loop);
   }
 
+  /**
+   * Freeze the simulation WITHOUT detaching input (unlike {@link stop}, which
+   * tears down listeners and clears the held-key set — so a key held across a
+   * stop()/start() pause goes dead until re-pressed). The rAF loop keeps running
+   * so the last frame stays on screen behind any pause overlay; only update() is
+   * gated. Idempotent.
+   */
+  pause(): void {
+    this.paused = true;
+  }
+
+  /** Resume from {@link pause}, discarding the paused span so there's no catch-up burst. */
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    this.lastTime = now();
+    this.accumulator = 0;
+  }
+
+  /** True while the simulation is frozen by {@link pause} (or a tab-hidden auto-pause). */
+  isPaused(): boolean {
+    return this.paused;
+  }
+
   /** Stop the loop and detach input. */
   stop(): void {
     this.running = false;
+    this.paused = false;
+    this.resumeAfterHide = false;
+    if (this.detachLifecycle) {
+      this.detachLifecycle();
+      this.detachLifecycle = null;
+    }
     if (this.rafId != null && typeof cancelAnimationFrame === "function") {
       cancelAnimationFrame(this.rafId);
     }

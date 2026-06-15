@@ -148,11 +148,15 @@ export function attachScreenEffects(
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     const f = fx.update(dt);
-    canvas.style.transform = `translate(${f.dx.toFixed(2)}px, ${f.dy.toFixed(2)}px)`;
+    const transform = `translate(${f.dx.toFixed(2)}px, ${f.dy.toFixed(2)}px)`;
+    canvas.style.transform = transform;
     if (overlay) {
       // Flash takes visual priority over a resting fade level.
       overlay.style.background = f.flashAlpha > 0 ? f.flashColor : f.fadeColor;
       overlay.style.opacity = String(Math.max(f.flashAlpha, f.fadeAlpha));
+      // Shake the overlay WITH the canvas, so a flash/fade stays locked to the
+      // play-field instead of visibly sliding off it during a shake.
+      overlay.style.transform = transform;
     }
     raf = requestAnimationFrame(loop);
   };

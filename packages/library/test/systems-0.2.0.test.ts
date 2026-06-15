@@ -263,6 +263,97 @@ describe("persistence vs currency seeding race (0.2.1, G6)", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Idle Clicker offline-credit ordering (Batch 3.2): a HOST-SIDE writer that
+// adds earnings-while-away must defer on the SAME persist claim the seed systems
+// use, so it lands AFTER the async restore — never racing a fixed timer that the
+// restore can overwrite (the old `setTimeout(credit, 60)` silently lost coins
+// whenever the bridge round-trip took longer than 60ms).
+// ---------------------------------------------------------------------------
+describe("offline-credit ordering vs the persistence restore (3.2)", () => {
+  const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+  const scene: Scene = {
+    id: "play",
+    size: { width: 100, height: 100 },
+    entities: [],
+    systems: [
+      { type: "persistence", params: {} },
+      { type: "currency", params: { currencyKey: "coins", startAmount: 0 } },
+    ],
+  } as unknown as Scene;
+  const persist = { keys: ["coins", "autoRate", "lastSeen"], slot: "save", everySeconds: 0 };
+
+  const NOW = 1_000_000_000_000;
+  const SAVED_COINS = 500;
+  const RATE = 10;
+  const CAP = 7200;
+  const lastSeen = NOW - 3_600_000; // 1h ago
+  const gain = Math.floor(RATE * Math.min((NOW - lastSeen) / 1000, CAP)); // 10 * 3600 = 36000
+
+  // Seed a storage that already holds a save with autoRate + an away timestamp.
+  async function savedStorage() {
+    const seed = new Game({ scenes: [scene], config: {}, canvas: null, persist, registry: createLibraryRegistry() });
+    seed.stepFrames(1);
+    await flush();
+    seed.world.state.coins = SAVED_COINS;
+    seed.world.state.autoRate = RATE;
+    seed.world.state.lastSeen = lastSeen;
+    seed.stepFrames(1);
+    await Promise.resolve();
+    return seed.world.storage;
+  }
+
+  // The exact host poll from idle-clicker main.ts (tryApplyOfflineCredit).
+  function makePoll(world: import("@gitcade/sdk").World) {
+    let applied = false, sawClaim = false;
+    return () => {
+      if (applied) return;
+      if (world.isPersistPending("coins")) { sawClaim = true; return; }
+      if (!sawClaim) return;
+      applied = true;
+      const rate = (world.state.autoRate as number) ?? 0;
+      const ls = world.state.lastSeen;
+      if (typeof ls === "number" && rate > 0) {
+        const g = Math.floor(rate * Math.min((NOW - ls) / 1000, CAP));
+        if (g > 0) world.state.coins = ((world.state.coins as number) ?? 0) + g;
+      }
+    };
+  }
+
+  it("credits on TOP of the restored balance, even when the restore lands late", async () => {
+    const storage = await savedStorage();
+    const g = new Game({ scenes: [scene], config: {}, canvas: null, persist, storage, registry: createLibraryRegistry() });
+    const poll = makePoll(g.world);
+
+    // Frame 1: persistence claims `coins`; the poll sees it pending and DEFERS.
+    g.stepFrames(1);
+    poll();
+    expect(g.world.isPersistPending("coins")).toBe(true);
+    expect("coins" in g.world.state).toBe(false); // not credited pre-restore
+
+    // The restore lands (late).
+    await flush();
+    expect(g.world.state.coins).toBe(SAVED_COINS); // authoritative restore
+    expect(g.world.isPersistPending("coins")).toBe(false);
+
+    // Next frame: poll now applies the away-gain ON TOP of the restored balance.
+    g.stepFrames(1);
+    poll();
+    expect(g.world.state.coins).toBe(SAVED_COINS + gain); // 500 + 36000, nothing lost
+  });
+
+  it("CONTRAST: applying BEFORE the restore (the old timer bug) loses the credit", async () => {
+    const storage = await savedStorage();
+    const g = new Game({ scenes: [scene], config: {}, canvas: null, persist, storage, registry: createLibraryRegistry() });
+    // Simulate the old setTimeout firing early — credit while the restore is still pending.
+    g.stepFrames(1);
+    g.world.state.coins = ((g.world.state.coins as number) ?? 0) + gain;
+    // The async restore then lands and overwrites `coins` — the gain is gone.
+    await flush();
+    expect(g.world.state.coins).toBe(SAVED_COINS); // clobbered: gain silently lost
+  });
+});
+
+// ---------------------------------------------------------------------------
 // #8 (0.2.1) — scale-by-state: ramp a live field by a world.state level counter.
 //   Generalizes Helicopter `scroll-ramp` (set velocity) and Survival Arena
 //   `swarm-scale` (multiply velocity + one-time hp bump).

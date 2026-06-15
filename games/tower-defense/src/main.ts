@@ -39,6 +39,8 @@ const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
 
 const audio = new LibraryAudioPlayer();
+// Audio level is data: $cfg.volume (default 0.6), so it's governance-tunable like any balance value.
+audio.setVolume(typeof cfg.volume === "number" ? cfg.volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
   { manifest, config, scenes: [title, play, over] },
@@ -129,7 +131,11 @@ fx.bindToEvents(world, {
   "tower-placed": (f) => f.flash("#a7f070", 0.08),
   gameover: (f) => f.shake(12, 0.45, 36),
 });
-attachScreenEffects(fx, canvas, document.getElementById("fx-overlay"));
+// `attachScreenEffects` types the overlay structurally; a DOM element's
+// CSSStyleDeclaration is runtime-compatible (the fx loop only assigns style props)
+// but not to TS, so narrow it explicitly (matches the other games).
+const fxOverlay = document.getElementById("fx-overlay") as unknown as { style: Record<string, string> } | null;
+attachScreenEffects(fx, canvas, fxOverlay);
 
 // --- audio (needs a user gesture before the browser will play sound) -----------
 let musicStarted = false;
@@ -142,6 +148,33 @@ function resumeAudio(): void {
 }
 window.addEventListener("pointerdown", resumeAudio);
 window.addEventListener("keydown", resumeAudio);
+
+// --- mute (centralized audio gate) -------------------------------------------
+// Audio is OFF when the player muted, the sim is paused (manual OR the SDK's tab-hide
+// auto-pause, via game.isPaused()), or the tab is hidden — one source of truth so those
+// concerns can't fight over the gain. setMuted(true) stops the loop, so re-gate restarts it.
+let userMuted = false;
+const muteBtn = document.getElementById("mute-btn");
+function renderMute(): void {
+  if (muteBtn) muteBtn.textContent = userMuted ? "🔇" : "🔊";
+}
+function syncAudio(): void {
+  const off = userMuted || game.isPaused() || document.hidden;
+  audio.setMuted(off);
+  if (!off && musicStarted) audio.startMusic("action");
+}
+function toggleMute(): void {
+  userMuted = !userMuted;
+  renderMute();
+  syncAudio();
+}
+if (muteBtn) muteBtn.onclick = toggleMute;
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyM") {
+    e.preventDefault();
+    toggleMute();
+  }
+});
 
 // --- keyboard bridge to the data-driven flow edges -----------------------------
 // The title/over full-canvas `tap-emit` covers pointer/touch; this keeps
@@ -157,6 +190,31 @@ window.addEventListener("keydown", (e) => {
     world.events.emit("retry");
   }
 });
+
+// --- pause (real-time game: freeze the sim with pause()/resume() so a held input
+// survives, and mute music while paused) -------------------------------------------
+let paused = false;
+const pauseOverlay = document.getElementById("pause-overlay");
+function setPaused(next: boolean): void {
+  if (!playing() && !paused) return; // only pause during play
+  paused = next;
+  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
+  if (paused) game.pause();
+  else game.resume();
+  syncAudio();
+}
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Escape" || e.code === "KeyP") {
+    e.preventDefault();
+    setPaused(!paused);
+  }
+});
+const pauseBtn = document.getElementById("pause-btn");
+if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+
+// The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
+// to an empty room (and comes back on return, unless muted/paused).
+document.addEventListener("visibilitychange", syncAudio);
 
 // Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
 (window as unknown as { __game?: unknown }).__game = game;

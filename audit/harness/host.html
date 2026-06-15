@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>GitCade engine-audit harness host</title>
+    <style>
+      html, body { margin: 0; background: #111; }
+      /* The canvas is sized to the scene bounds by the SDK at boot. We render it
+         1:1 (no CSS scaling) so pointer client coords map directly to world
+         coords — the driver clicks at world (x,y) by clicking client (x,y). */
+      #game { display: block; image-rendering: pixelated; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <script src="./dist/gitcade-bundle.js"></script>
+  </body>
+</html>

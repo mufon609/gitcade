@@ -13,7 +13,8 @@
         font-family: ui-monospace, "SF Mono", Menlo, monospace;
         display: grid; place-items: center; overflow: hidden;
       }
-      #stage { position: relative; width: 800px; height: 600px; max-width: 100vw; max-height: 100vh; aspect-ratio: 4 / 3; }
+      /* overflow:hidden clips the canvas overhang during screen-shake; the matching bg makes the thin exposed gap blend in. */
+      #stage { position: relative; width: 800px; height: 600px; max-width: 100vw; max-height: 100vh; aspect-ratio: 4 / 3; overflow: hidden; background: #0b0b16; }
       #game { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; touch-action: none; background: #0b0b16; will-change: transform; }
       #fx-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
       /* Upgrade bar — host chrome shown during the play scene (toggled from main.ts). */
@@ -28,14 +29,44 @@
         touch-action: manipulation; line-height: 1.3;
       }
       #tdbar button b { display: block; color: var(--accent); font-size: 15px; }
-      #touch { display: none; }
+      /* Pause button, always available during play. */
+      #pause-btn {
+        position: absolute; top: 8px; right: 8px; z-index: 5;
+        width: 40px; height: 40px; border: 0; border-radius: 8px;
+        background: rgba(59,93,201,.55); color: var(--ink); font-size: 18px;
+        cursor: pointer; touch-action: manipulation;
+      }
+      #pause-overlay {
+        position: absolute; inset: 0; z-index: 10; display: none; place-items: center;
+        background: rgba(7,6,12,.72); backdrop-filter: blur(2px); text-align: center;
+      }
+      #pause-overlay .card {
+        background: #14162a; border: 2px solid var(--indigo); border-radius: 14px;
+        padding: 24px 32px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+      }
+      #pause-overlay h1 { margin: 0 0 8px; font-size: 36px; color: var(--accent); letter-spacing: 2px; }
+      #pause-overlay p { margin: 0; font-size: 13px; opacity: .6; }
+      /* Mute toggle (top-left, mirrors the pause button; also the M key). */
+      #mute-btn {
+        position: absolute; top: 8px; left: 8px; z-index: 5;
+        width: 40px; height: 40px; border: 0; border-radius: 8px;
+        background: rgba(59,93,201,.55); color: var(--ink); font-size: 18px;
+        cursor: pointer; touch-action: manipulation;
+      }
     </style>
   </head>
   <body>
     <div id="stage">
       <canvas id="game" width="800" height="600"></canvas>
       <div id="fx-overlay"></div>
-      <div id="touch"></div>
+      <button id="pause-btn" aria-label="Pause">II</button>
+      <button id="mute-btn" aria-label="Mute audio">🔊</button>
+      <div id="pause-overlay">
+        <div class="card">
+          <h1>Paused</h1>
+          <p>Press P or Esc to resume</p>
+        </div>
+      </div>
       <div id="tdbar" style="display:none">
         <button data-up="range"><b>Range +</b>75g</button>
         <button data-up="firerate"><b>Fire rate +</b>90g</button>

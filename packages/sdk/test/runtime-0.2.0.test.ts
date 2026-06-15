@@ -48,6 +48,104 @@ describe("G2 — Input click edge buffers", () => {
     listeners.pointerup({ pointerId: 1, clientX: 10, clientY: 10 });
     expect(input.activePointers()).toHaveLength(0);
   });
+
+  it("captures the pointer on down so a drag releasing off-canvas still delivers up", () => {
+    const input = new Input();
+    const listeners: Record<string, (e: any) => void> = {};
+    const captured: number[] = [];
+    input.attach({
+      pointerTarget: {
+        addEventListener: (t: string, fn: (e: any) => void) => (listeners[t] = fn),
+        removeEventListener: () => {},
+        setPointerCapture: (id: number) => captured.push(id),
+      } as never,
+    });
+    listeners.pointerdown({ pointerId: 7, clientX: 10, clientY: 10 });
+    // Capture requested → the canvas keeps receiving this pointer's events even
+    // off-element, so the eventual pointerup clears the held pointer (no stuck drag).
+    expect(captured).toEqual([7]);
+    listeners.pointerup({ pointerId: 7, clientX: 9999, clientY: 9999 }); // released far off-canvas
+    expect(input.activePointers()).toHaveLength(0);
+  });
+});
+
+describe("keydown preventDefault — page-scroll suppression", () => {
+  function attachKeys(): { listeners: Record<string, (e: any) => void>; input: Input } {
+    const input = new Input();
+    const listeners: Record<string, (e: any) => void> = {};
+    input.attach({
+      keyTarget: {
+        addEventListener: (t: string, fn: (e: any) => void) => (listeners[t] = fn),
+        removeEventListener: () => {},
+      } as never,
+    });
+    return { listeners, input };
+  }
+
+  function fakeKey(code: string, extra: Partial<Record<string, unknown>> = {}) {
+    let prevented = false;
+    return {
+      code,
+      cancelable: true,
+      ctrlKey: false,
+      metaKey: false,
+      altKey: false,
+      ...extra,
+      preventDefault: () => {
+        prevented = true;
+      },
+      get prevented() {
+        return prevented;
+      },
+    };
+  }
+
+  it("prevents the browser default for scroll-causing game keys, and still tracks them as down", () => {
+    const { listeners, input } = attachKeys();
+    for (const code of ["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "PageUp", "PageDown", "Home", "End"]) {
+      const ev = fakeKey(code);
+      listeners.keydown(ev);
+      expect(ev.prevented, `${code} should preventDefault`).toBe(true);
+      expect(input.isDown(code)).toBe(true);
+    }
+  });
+
+  it("leaves non-scroll keys (and their default action) alone, but still tracks them", () => {
+    const { listeners, input } = attachKeys();
+    const ev = fakeKey("KeyW");
+    listeners.keydown(ev);
+    expect(ev.prevented).toBe(false);
+    expect(input.isDown("KeyW")).toBe(true);
+  });
+
+  it("never swallows modified key combos (browser/OS shortcuts pass through)", () => {
+    const { listeners } = attachKeys();
+    for (const mod of ["ctrlKey", "metaKey", "altKey"] as const) {
+      const ev = fakeKey("Space", { [mod]: true });
+      listeners.keydown(ev);
+      expect(ev.prevented, `Space+${mod} must not be prevented`).toBe(false);
+    }
+  });
+
+  it("respects non-cancelable events", () => {
+    const { listeners } = attachKeys();
+    const ev = fakeKey("Space", { cancelable: false });
+    listeners.keydown(ev);
+    expect(ev.prevented).toBe(false);
+  });
+
+  it("clears all held keys on blur (no stuck keys when focus leaves the game)", () => {
+    const { listeners, input } = attachKeys();
+    listeners.keydown(fakeKey("Space"));
+    listeners.keydown(fakeKey("ArrowLeft"));
+    expect(input.isDown("Space")).toBe(true);
+    expect(input.isDown("ArrowLeft")).toBe(true);
+    // Focus leaves (Alt-Tab / click outside the iframe): the matching keyups never
+    // arrive, so the blur handler must drop the held set or the keys stick forever.
+    listeners.blur();
+    expect(input.isDown("Space")).toBe(false);
+    expect(input.isDown("ArrowLeft")).toBe(false);
+  });
 });
 
 describe("G2 — World.entityAt / pick", () => {

@@ -24,6 +24,26 @@ interface InputTarget {
 }
 
 /**
+ * `KeyboardEvent.code` values whose browser default is to SCROLL the page
+ * (or, for Space, scroll AND activate a focused control). When the key target
+ * is `window` these otherwise fire the page's native scroll while you play —
+ * Space-to-flap games (helicopter) become unplayable. We `preventDefault()`
+ * exactly these, and only when no modifier is held, so OS/browser shortcuts
+ * (Ctrl+R, Cmd+L, Alt+Tab) and Tab focus traversal are untouched.
+ */
+const SCROLL_KEYS = new Set<string>([
+  "Space",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
+
+/**
  * Unified keyboard + touch/pointer input. In headless/jsdom contexts (no DOM
  * target) it simply reports nothing down and no pointers, so simulation runs
  * idle — exactly what the 60-frame smoke test needs.
@@ -56,8 +76,9 @@ export class Input {
   }
 
   /**
-   * A -1/0/+1 axis from two key groups. Both held cancels to 0. Also folds in
-   * touch zones if provided (a pointer in `negZone`/`posZone` rectangles counts).
+   * A -1/0/+1 axis from two key groups (keyboard only). Both held cancels to 0.
+   * (Touch control is done by synthesizing key events into this set — see the games'
+   * `#touch` pads — not by passing pointer zones here.)
    */
   axis(negCodes: string[], posCodes: string[]): number {
     let v = 0;
@@ -108,21 +129,37 @@ export class Input {
    * Attach DOM listeners. `keyTarget` is usually `window`; `pointerTarget` the
    * canvas element. No-op-safe: pass nothing in headless tests.
    */
-  attach(opts: { keyTarget?: InputTarget | null; pointerTarget?: (InputTarget & { getBoundingClientRect?: () => { left: number; top: number; width: number; height: number } }) | null }): void {
+  attach(opts: { keyTarget?: InputTarget | null; pointerTarget?: (InputTarget & { getBoundingClientRect?: () => { left: number; top: number; width: number; height: number }; setPointerCapture?: (pointerId: number) => void }) | null }): void {
     const { keyTarget, pointerTarget } = opts;
 
     if (keyTarget) {
       const onDown = (e: KeyboardEvent) => {
         this.down.add(e.code);
+        // Suppress the browser's native scroll for game-control keys so the page
+        // doesn't scroll out from under the player. Guarded on `cancelable` and on
+        // the absence of modifiers so browser/OS shortcuts still pass through.
+        if (e.cancelable && !e.ctrlKey && !e.metaKey && !e.altKey && SCROLL_KEYS.has(e.code)) {
+          e.preventDefault();
+        }
       };
       const onUp = (e: KeyboardEvent) => {
         this.down.delete(e.code);
       };
+      // Focus left the game (Alt-Tab, click outside the iframe, OS notification,
+      // tab switch). The browser delivers the keydown but the matching keyup is
+      // lost, so a held control would stick "down" forever (helicopter rising,
+      // snake mis-steering). Drop all held keys/pointers when focus is lost.
+      const onBlur = () => {
+        this.down.clear();
+        this.pointers.clear();
+      };
       keyTarget.addEventListener("keydown", onDown);
       keyTarget.addEventListener("keyup", onUp);
+      keyTarget.addEventListener("blur", onBlur);
       this.detachers.push(() => {
         keyTarget.removeEventListener("keydown", onDown);
         keyTarget.removeEventListener("keyup", onUp);
+        keyTarget.removeEventListener("blur", onBlur);
       });
     }
 
@@ -140,6 +177,17 @@ export class Input {
       };
       const onPDown = (e: PointerEvent) => {
         upsert(e, true);
+        // Capture the pointer so its move/up events keep coming to the canvas even
+        // after the pointer is dragged OFF it. Without this, a drag that releases
+        // outside the canvas fires `pointerup` on some other element, so the held
+        // pointer is never deleted — leaving e.g. survival-arena's pointer-follow
+        // walking toward the last point forever. Guarded: jsdom/test fakes and old
+        // engines may lack the method; capture is a best-effort enhancement.
+        try {
+          pointerTarget.setPointerCapture?.(e.pointerId);
+        } catch {
+          /* setPointerCapture can throw if the pointer is already gone — ignore */
+        }
         // Record the press EDGE (held-set upsert above is unchanged).
         const p = this.pointers.get(e.pointerId);
         if (p) this.pressedThisFrame.push({ id: p.id, x: p.x, y: p.y });

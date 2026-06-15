@@ -136,6 +136,13 @@ export function PlayPane({
           sandbox="allow-scripts"
           className={className}
           allow="autoplay; gamepad"
+          // Move keyboard focus INTO the game so key presses reach it instead of
+          // the parent page (where Space/arrows scroll the document and the game
+          // never sees the input). `preventScroll` stops the focus call itself from
+          // jumping the page. onMouseEnter re-focuses on hover so the /compare panes
+          // each grab keys when pointed at, and play resumes after clicking the page.
+          onLoad={() => iframeRef.current?.focus({ preventScroll: true })}
+          onMouseEnter={() => iframeRef.current?.focus({ preventScroll: true })}
         />
       </div>
       <div className="flex items-center justify-between text-xs text-arcade-mute">

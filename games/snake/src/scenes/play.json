@@ -12,8 +12,8 @@
       "layer": 4,
       "behaviors": [
         { "type": "sprite-animate", "params": { "play": "idle" } },
-        { "type": "move-grid-step", "part": "move-grid-step@1.0.0", "params": { "tileSize": 20, "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true } },
-        { "type": "snake-guard", "params": { "stateKey": "__snake", "tileSize": 20, "gameOverEvent": "snake-dead" } }
+        { "type": "move-grid-step", "part": "move-grid-step@1.0.0", "params": { "tileSize": "$cfg.tileSize", "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true } },
+        { "type": "snake-guard", "params": { "stateKey": "__snake", "tileSize": "$cfg.tileSize", "gameOverEvent": "snake-dead" } }
       ]
     },
     {
@@ -32,7 +32,7 @@
       "type": "place-on-free-cell",
       "params": {
         "trigger": "place-food",
-        "tileSize": 20,
+        "tileSize": "$cfg.tileSize",
         "occupiedTag": "snake-cell",
         "excludeTags": ["imminent"],
         "prototype": {
@@ -56,7 +56,7 @@
         "segmentTag": "snake-body",
         "foodTag": "food",
         "placeEvent": "place-food",
-        "tileSize": 20,
+        "tileSize": "$cfg.tileSize",
         "startLength": "$cfg.startLength",
         "growBy": "$cfg.growBy",
         "startDir": { "x": 1, "y": 0 },

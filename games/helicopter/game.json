@@ -4,11 +4,12 @@
   "description": "One button. Hold to rise, release to fall, thread the scrolling gaps — and chase the high score. A GitCade ecosystem seed game.",
   "version": "1.0.0",
   "engine": "gitcade-sdk",
-  "sdkVersion": "0.2.1",
-  "libraryVersion": "0.2.1",
+  "sdkVersion": "0.3.0",
+  "libraryVersion": "0.3.0",
   "entryPoint": "src/scenes/title.json",
   "license": { "code": "MIT", "assets": "CC-BY-4.0" },
   "authors": [{ "name": "GitCade", "github": "gitcade-games" }],
   "tier": "ecosystem",
-  "persist": { "keys": ["best"], "slot": "helicopter" }
+  "persist": { "keys": ["best"], "slot": "helicopter" },
+  "controls": [{ "input": "Hold Space / Tap", "action": "Rise (release to fall)" }]
 }

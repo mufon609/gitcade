@@ -1,4 +1,5 @@
 {
+  "volume": 0.6,
   "paddleSpeed": 520,
   "ballSpeedX": 180,
   "ballSpeedY": -300,

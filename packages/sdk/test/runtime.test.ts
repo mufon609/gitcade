@@ -186,6 +186,19 @@ describe("Game headless loop", () => {
     expect(ball.y).toBeGreaterThanOrEqual(0);
     expect(ball.y).toBeLessThanOrEqual(200);
   });
+
+  it("pause()/resume() toggle the paused flag and are idempotent", () => {
+    const game = new Game({ scenes: [scene], config: { vx: 300, vy: 220 }, canvas: null });
+    expect(game.isPaused()).toBe(false);
+    game.pause();
+    expect(game.isPaused()).toBe(true);
+    game.pause(); // idempotent
+    expect(game.isPaused()).toBe(true);
+    game.resume();
+    expect(game.isPaused()).toBe(false);
+    game.resume(); // idempotent, no-op when already running
+    expect(game.isPaused()).toBe(false);
+  });
 });
 
 describe("entity spawn/destroy", () => {

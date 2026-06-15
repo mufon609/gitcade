@@ -41,6 +41,8 @@ const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
 
 const audio = new LibraryAudioPlayer();
+// Audio level is data: $cfg.volume (default 0.6), so it's governance-tunable like any balance value.
+audio.setVolume(typeof cfg.volume === "number" ? cfg.volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const storage = makeStorage(manifest.slug);
 const game = createGame({ manifest, config, scenes: [title, play] }, { canvas, registry, audio, storage });
@@ -103,48 +105,58 @@ function updateShop(w: World): void {
 
 // --- OFFLINE-CREDIT shim (OQ-4 — OUT of 0.2.0 scope, deliberately tiny) --------
 // Computing earnings-while-away needs a saved wall-clock timestamp + a game-specific
-// credit formula — NOT a generic engine primitive. G6 persistence handles the VALUE
-// round-trip (incl. `lastSeen`); this shim does only the two things G6 can't:
-//   1. on resume, read the saved `lastSeen` and credit `autoRate × elapsed × mult`
-//      (capped at `offlineCapSeconds`) — once;
-//   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now"
-//      as the away-point (started AFTER step 1 so it can't clobber the read).
-// All through `world.storage` (the SDK bridge), never raw browser storage.
-const SLOT = manifest.persist.slot;
+// credit formula — NOT a generic engine primitive, and crucially it needs `Date.now()`,
+// which must stay OUT of the deterministic sim (so it's host-side, never a system). G6
+// persistence handles the VALUE round-trip (incl. `lastSeen`); this shim does only the
+// two things G6 can't:
+//   1. on resume, credit `autoRate × elapsed × mult` (capped at `offlineCapSeconds`) once;
+//   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now" as the
+//      away-point (started AFTER step 1 so it can't clobber the read).
+//
+// ORDERING (the fix): the old code read the save in a SECOND storage.get and applied the
+// gain on a fixed `setTimeout(credit, 60)`. That raced the play-scene `persistence` restore
+// (also async, a postMessage round-trip): whenever the restore landed after 60 ms it
+// overwrote `coins` with the saved value, silently DROPPING the credited earnings. Now we
+// piggyback on the restore instead of racing it. `coins` is a claimed persist key, so
+// `world.isPersistPending("coins")` is true while the restore is in flight (the same claim
+// the seed systems defer on) and false once it lands. We wait until we've seen it pending
+// and then resolved, then add the gain on TOP of the just-restored `coins` — reading the
+// restored `autoRate`/`prestigeMult`/`lastSeen` straight from `world.state` (no second read).
 let offlineApplied = false;
+let sawRestoreClaim = false;
 
-async function applyOfflineCredit(): Promise<void> {
-  let saved: { autoRate?: number; prestigeMult?: number; lastSeen?: number } | null = null;
-  try {
-    saved = await storage.get<typeof saved>(SLOT);
-  } catch {
-    /* no save / storage unavailable — first run */
+function tryApplyOfflineCredit(): void {
+  if (offlineApplied || !playing()) return;
+  if (world.isPersistPending("coins")) {
+    sawRestoreClaim = true; // restore is in flight — its claim is up
+    return;
   }
-  const rate = saved?.autoRate ?? 0;
-  const mult = saved?.prestigeMult ?? 1;
-  const lastSeen = saved?.lastSeen;
+  // Not pending. If we never saw the claim, the play-scene persistence system hasn't
+  // restored yet (claim is placed on its first tick, released when the read lands) —
+  // wait, so we don't credit a pre-restore (empty) state and then get clobbered.
+  if (!sawRestoreClaim) return;
+
+  offlineApplied = true;
+  const rate = (world.state.autoRate as number) ?? 0;
+  const mult = (world.state.prestigeMult as number) ?? 1;
+  const lastSeen = world.state.lastSeen;
   if (typeof lastSeen === "number" && rate > 0) {
     const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
     const gain = Math.floor(rate * elapsed * mult);
     if (gain > 0) {
-      // Apply once the persistence load has restored coins into the live run.
-      const credit = () => {
-        world.state.coins = ((world.state.coins as number) ?? 0) + gain;
-        world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
-      };
-      // The persistence system restores asynchronously; wait a couple ticks for the
-      // restored coins to land, then add the offline gain on top.
-      setTimeout(credit, 60);
+      world.state.coins = ((world.state.coins as number) ?? 0) + gain;
+      world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
     }
   }
-  offlineApplied = true;
 }
-void applyOfflineCredit();
 
 // --- HUD mirrors + lastSeen heartbeat (presentation + the offline timestamp) ---
 function mirror(): void {
   const w = world;
   if (playing()) {
+    // Credit offline earnings once the persistence restore has landed (before the
+    // heartbeat below overwrites the saved `lastSeen` we read from).
+    tryApplyOfflineCredit();
     const mult = (w.state.prestigeMult as number) ?? 1;
     w.state.coinsDisplay = fmt(w.state.coins);
     w.state.rateDisplay = `${fmt(((w.state.autoRate as number) ?? 0) * mult)}/sec`;
@@ -175,7 +187,11 @@ fx.bindToEvents(world, {
     audio.play("hit");
   },
 });
-attachScreenEffects(fx, canvas, document.getElementById("fx-overlay"));
+// `attachScreenEffects` types the overlay structurally; a DOM element's
+// CSSStyleDeclaration is runtime-compatible (the fx loop only assigns style props)
+// but not to TS, so narrow it explicitly (matches the other games).
+const fxOverlay = document.getElementById("fx-overlay") as unknown as { style: Record<string, string> } | null;
+attachScreenEffects(fx, canvas, fxOverlay);
 
 // --- audio (needs a user gesture before the browser will play sound) ----------
 let musicStarted = false;
@@ -188,6 +204,34 @@ function resumeAudio(): void {
 }
 window.addEventListener("pointerdown", resumeAudio);
 window.addEventListener("keydown", resumeAudio);
+
+// --- mute (centralized audio gate) -------------------------------------------
+// Audio is OFF when the player muted or the tab is hidden (idle-clicker has no pause).
+// One source of truth so the mute button and tab-hide can't fight over the gain.
+let userMuted = false;
+const muteBtn = document.getElementById("mute-btn");
+function renderMute(): void {
+  if (muteBtn) muteBtn.textContent = userMuted ? "🔇" : "🔊";
+}
+function syncAudio(): void {
+  const off = userMuted || game.isPaused() || document.hidden;
+  audio.setMuted(off);
+  if (!off && musicStarted) audio.startMusic("menu");
+}
+function toggleMute(): void {
+  userMuted = !userMuted;
+  renderMute();
+  syncAudio();
+}
+if (muteBtn) muteBtn.onclick = toggleMute;
+window.addEventListener("keydown", (e) => {
+  if (e.code === "KeyM") {
+    e.preventDefault();
+    toggleMute();
+  }
+});
+// Mute while the tab is backgrounded (the music loop shouldn't play to an empty room).
+document.addEventListener("visibilitychange", syncAudio);
 
 // --- keyboard bridge to the data-driven title flow edge -----------------------
 // The title's full-canvas `tap-emit` covers pointer/touch; this keeps Space/Enter

@@ -44,4 +44,24 @@ describe("0.2.0 schema additivity", () => {
     const withPersist = GameManifestSchema.parse({ ...base, persist: { keys: ["best"] } });
     expect(withPersist.persist).toEqual({ keys: ["best"], slot: "save", everySeconds: 0 });
   });
+
+  it("a manifest without `controls` parses unchanged; `controls` parses when present (additive)", () => {
+    const base = {
+      name: "G",
+      slug: "g",
+      version: "1.0.0",
+      engine: "gitcade-sdk",
+      sdkVersion: "0.2.2",
+      entryPoint: "main.json",
+      tier: "open",
+    };
+    expect(GameManifestSchema.parse(base).controls).toBeUndefined();
+    const withControls = GameManifestSchema.parse({
+      ...base,
+      controls: [{ input: "Space", action: "Rise" }],
+    });
+    expect(withControls.controls).toEqual([{ input: "Space", action: "Rise" }]);
+    // Each entry requires both fields.
+    expect(GameManifestSchema.safeParse({ ...base, controls: [{ input: "Space" }] }).success).toBe(false);
+  });
 });

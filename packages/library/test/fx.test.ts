@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { makeWorld, makeEntity } from "./helpers.js";
-import { spawnBurst, ScreenEffects } from "../src/fx/index.js";
+import { spawnBurst, ScreenEffects, attachScreenEffects } from "../src/fx/index.js";
 
 describe("fx/particle — spawnBurst", () => {
   it("spawns the requested count of fx particles with the particle behavior", () => {
@@ -101,5 +101,38 @@ describe("fx/screen-effects — deterministic host controller", () => {
     world.events.emit("player-died", {});
     const f = fx.update(0.4);
     expect(f.fadeAlpha).toBeCloseTo(1, 5);
+  });
+
+  it("attachScreenEffects shakes the overlay WITH the canvas (no flash slide-off)", () => {
+    // Stub the animation clock so the rAF loop runs deterministically under node.
+    const origRaf = globalThis.requestAnimationFrame;
+    const origCancel = globalThis.cancelAnimationFrame;
+    const origNow = performance.now;
+    let loop: ((t: number) => void) | null = null;
+    globalThis.requestAnimationFrame = ((cb: (t: number) => void) => {
+      loop = cb;
+      return 1;
+    }) as never;
+    globalThis.cancelAnimationFrame = (() => {}) as never;
+    performance.now = () => 0; // initial `last` = 0 so the first dt is well-defined
+    try {
+      const fx = new ScreenEffects();
+      const canvas = { style: { transform: "" } };
+      const overlay = { style: {} as Record<string, string> };
+      const stop = attachScreenEffects(fx, canvas, overlay);
+      fx.shake(12, 0.4, 40);
+      loop!(0); // t0 — primes `last`
+      loop!(100); // ~100ms later → a non-zero shake offset this frame
+      // Both the canvas and the flash/fade overlay carry the SAME translate, so the
+      // overlay can't slide off the shaking play-field.
+      expect(canvas.style.transform).toMatch(/^translate\(/);
+      expect(overlay.style.transform).toBe(canvas.style.transform);
+      expect(canvas.style.transform).not.toBe("translate(0.00px, 0.00px)");
+      stop();
+    } finally {
+      globalThis.requestAnimationFrame = origRaf;
+      globalThis.cancelAnimationFrame = origCancel;
+      performance.now = origNow;
+    }
   });
 });

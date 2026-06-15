@@ -1184,3 +1184,46 @@ and did NOT repin any game** — both are the next (post-publish) pass. Only
   refused; breakout `auto` reflects without tunneling + english capped). Both
   `npm pack --dry-run`s clean (`sdk@0.1.1` 21 files; `library@0.1.1` 120 files
   incl. 27 PNGs + CATALOG@0.1.1).
+
+---
+
+## Phase 7+ patch — breakout repin to 0.1.1 + ISOLATED Bucket-A — 2026-06-14
+
+Per-game fix pass for **breakout** (one of the post-publish repins from the
+BLOCKED.md `[PUBLISH]` list / AUDIT-SUMMARY §3b). Built on the canonical
+`gitcade-games/breakout` HEAD (no governance divergence — single seed commit);
+mirrored verbatim into the monorepo. Canonical commit `a113109`.
+
+- **Repin sdk+library 0.1.0 → 0.1.1** (`game.json` + `package.json`), and set
+  `axis:"auto"` on BOTH `"tag":"breakable"` reflect-on-hit instances (ball entity
+  + lives-respawn prototype) so SDK 0.1.1 **B-3** (min-translation auto axis) and
+  **B-4** (english clamped to `maxSpeed`) take effect. Paddle reflects stay
+  `axis:"y"` (single-faced — correct). F1 (side-hit tunneling) and F3 (speed cap)
+  are the B-3/B-4 roots → resolved by the repin, NOT hand-fixed.
+- **F5 (ISOLATED polish):** paddle behavior order is now
+  `move-4dir → velocity → clamp-to-world` (was `… clamp-to-world → velocity`), so
+  the position-correcting clamp runs after integration — kills the one-frame wall
+  overshoot. (Not the velocity-*setting* ordering rule, which is unaffected.)
+- **F2 (ISOLATED major) — DECISION: option (a), honest single-screen win.**
+  Breakout ships exactly one brick layout and wins the instant the wall is cleared;
+  it never loaded a "next level". Chosen the **most reversible** option per the
+  CLAUDE.md ambiguity rule: reframed the claim honestly (dropped "across rising
+  difficulty" from the manifest description; README states it is a single-screen
+  clear-the-wall win, no second layout) and left the verified-working win mechanism
+  (`level-progression` clearTag → `win-lose` `level≥winLevel`) intact. Real
+  multi-level (option b — new layout scenes + host glue loading on `level-up`) is
+  the invasive, less-reversible path and is **deferred** to a future enhancement.
+- **F6 (ISOLATED polish, optional) — deliberately SKIPPED.** Serve-from-paddle /
+  launch-angle variety / paddle-relative respawn all require either a custom game
+  behavior or magic-number literals, which would violate breakout's
+  validator-enforced **zero-custom-code** (empty `custom-behaviors/`) and
+  **no-magic-numbers** invariants. The fixed-point respawn is playable. Skipped to
+  preserve the invariants (Locked Decisions > phase prompt).
+- **Verified from a clean /tmp clone** (worker's path): `npm install` resolved
+  sdk/library/CATALOG all **0.1.1** from public npm, `npm run build` clean,
+  `npx gitcade validate .` → **PASS (exit 0)**, unit smoke **1/1**. Instrumented
+  (real `createGame` + library registry): isolated single-brick side hit flips
+  `vx +220 → -220` (reflects, no tunnel) under `axis:"auto"` vs stays `+220` and
+  passes through under `axis:"y"`; english 5000 capped to `vx=560`. Real browser
+  (Chrome-for-Testing): renders + plays, **zero real console errors** (only the
+  benign `/favicon.ico` probe, 204 in prod).

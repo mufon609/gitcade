@@ -48,15 +48,15 @@
           }
         },
         {
+          "type": "velocity",
+          "params": {}
+        },
+        {
           "type": "clamp-to-world",
           "params": {
             "axis": "x",
             "padding": 8
           }
-        },
-        {
-          "type": "velocity",
-          "params": {}
         }
       ]
     },
@@ -105,7 +105,7 @@
           "type": "reflect-on-hit",
           "params": {
             "tag": "breakable",
-            "axis": "y"
+            "axis": "auto"
           }
         },
         {
@@ -2011,7 +2011,7 @@
               "type": "reflect-on-hit",
               "params": {
                 "tag": "breakable",
-                "axis": "y"
+                "axis": "auto"
               }
             },
             {

@@ -7,7 +7,7 @@ parts** — zero custom game code — with all balance in `config.json`.
 ## Play
 
 ```bash
-npm install      # pulls @gitcade/sdk@0.1.0 + @gitcade/library@0.1.0 from npm
+npm install      # pulls @gitcade/sdk@0.1.1 + @gitcade/library@0.1.1 from npm
 npm run dev
 npm run build
 npm run validate
@@ -27,8 +27,8 @@ No engine code — every entity and rule is a catalog part or SDK built-in:
 | `contact-damage@1.0.0` | library behavior | the ball damaging bricks on contact |
 | `trigger-zone@1.0.0` | library behavior | the bottom kill-line that loses the ball |
 | `lives-respawn@1.0.0` | library system | three lives, respawn the ball, end the game when they run out |
-| `level-progression@1.0.0` | library system | advances the level when the **breakable** tag is fully cleared (→ win) |
-| `win-lose-conditions@1.0.0` | library system | win when `level` reaches `winLevel` |
+| `level-progression@1.0.0` | library system | fires the win the moment the **breakable** tag is fully cleared — a single-screen "clear the wall" win (there is no second brick layout) |
+| `win-lose-conditions@1.0.0` | library system | win when the wall is cleared (`level` reaches `winLevel`) |
 | `score@1.0.0` | library system | score + high score persisted via the SDK storage bridge |
 | `reflect-on-hit`, `bounce-world-edges`, `clamp-to-world`, `velocity`, `aabb-collision` | SDK built-ins | the ball physics + paddle clamping |
 

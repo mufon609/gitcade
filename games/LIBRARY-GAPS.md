@@ -132,23 +132,36 @@ outcome event. **0.2.0 added no primitive for this** — it remains a frozen-tic
 workaround, so it's a genuine candidate. **Params proven:** `stateKey` (shared with
 the body system), `tileSize`, `gameOverEvent`.
 
-## 8. `scroll-ramp` — state-driven (ramping) auto-scroll
-**From:** Helicopter (`games/helicopter/src/custom-behaviors/index.ts`, behavior `scroll-ramp`)
-**Demand:** Helicopter; any endless auto-scroller whose world speed should climb
-with a difficulty level (runners, shmups, flappy clones).
+## 8. State-driven (ramping) difficulty — scale a LIVE value by a level counter
+**From:** Helicopter (`scroll-ramp`); **Survival Arena** (`swarm-scale`)
+**Demand:** Helicopter (scroll speed); Survival Arena (enemy toughness/speed); any
+endless game whose world speed / enemy stats should climb with a difficulty level
+(runners, shmups, flappy clones, arena survival, horde modes).
 
 The library `auto-scroll` part forces a **static** `$cfg` velocity every tick — it
 cannot read a counter — and `wave-spawner` / `level-progression` resolve their
 `$cfg` params **once at scene load**. So 0.2.0 has *no* data path to make a single
-play scene scroll FASTER as its difficulty climbs. `scroll-ramp` closes exactly
-that: it sets `entity.vx = vx * (1 + (level-1) * perLevel)`, reading the `levelKey`
-counter the library `level-progression` (scoreGte) maintains, so the difficulty
-ramp stays data-driven (thresholds + per-level step all in `$cfg`) with one tiny
-behavior instead of discrete per-level scenes. It is `auto-scroll` + a live
-`world.state` multiplier; the obvious generalization is to add an optional
-`levelKey`/`perLevel` (or a general `scaleByStateKey`) to the existing `auto-scroll`
-part rather than ship a second part. **Params proven:** `vx`, `vy`, `levelKey`,
-`perLevel`.
+play scene scroll FASTER (or its enemies tougher) as its difficulty climbs.
+Helicopter's `scroll-ramp` closes that for scroll speed: it sets `entity.vx = vx *
+(1 + (level-1) * perLevel)`, reading the `levelKey` counter the library
+`level-progression` (scoreGte) maintains, so the ramp stays data-driven (thresholds
++ per-level step all in `$cfg`) with one tiny behavior instead of discrete per-level
+scenes. **Params proven:** `vx`, `vy`, `levelKey`, `perLevel`.
+
+> **0.2.0 update (Stage 4 — Survival Arena):** the SAME gap surfaced a second time,
+> for *enemy toughness/speed* instead of scroll speed. `wave-spawner` scales the
+> swarm COUNT as data (`waveSizeGrowth`), but because it bakes the `prototype`'s
+> `$cfg` refs in once at scene load, `ai-chase` speed and `health-and-death` hp
+> cannot follow the live `level`. Survival Arena adds a tiny per-enemy `swarm-scale`
+> behavior (ordered after `ai-chase`/`velocity`): a one-time hp bump at spawn by
+> `hpPerLevel` and a per-tick velocity rescale by `speedPerLevel`, both reading the
+> `levelKey` counter — the exact `scroll-ramp` shape applied to a swarm (level 1→8
+> took enemy speed 95→188 and hp 80→203 in the verified run). **Params proven:**
+> `levelKey`, `speedPerLevel`, `hpPerLevel`, `baseHp`. With TWO games now demanding
+> it, the clean generalization is an optional `levelKey`+`perLevel` (or a general
+> `scaleByStateKey`) on the existing `auto-scroll`/`ai-chase`/`health-and-death`
+> params, or a `level`-aware mode on `wave-spawner` that re-resolves a small set of
+> prototype `$cfg` multipliers per wave — rather than shipping bespoke parts.
 
 ---
 

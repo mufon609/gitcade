@@ -1,0 +1,85 @@
+{
+  "id": "title",
+  "size": { "width": 800, "height": 600 },
+  "background": "#07060c",
+  "entities": [
+    {
+      "id": "title-text",
+      "sprite": { "kind": "text", "text": "SURVIVAL ARENA", "font": "54px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 760, "h": 56 },
+      "position": { "x": 400, "y": 120 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "tagline",
+      "sprite": { "kind": "text", "text": "Outlast the swarm. Survive 75 seconds.", "font": "18px monospace", "color": "#cfd2e6", "align": "center" },
+      "size": { "w": 700, "h": 22 },
+      "position": { "x": 400, "y": 196 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-1",
+      "sprite": { "kind": "text", "text": "Arrows / WASD to move — or drag toward where you want to go", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 720, "h": 18 },
+      "position": { "x": 400, "y": 272 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-2",
+      "sprite": { "kind": "text", "text": "You auto-fire at the nearest enemy — keep moving", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 720, "h": 18 },
+      "position": { "x": 400, "y": 298 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "howto-3",
+      "sprite": { "kind": "text", "text": "Waves grow and enemies get tougher as the level climbs", "font": "14px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 720, "h": 18 },
+      "position": { "x": 400, "y": 324 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-label",
+      "sprite": { "kind": "text", "text": "BEST", "font": "14px monospace", "color": "#6a7196", "align": "center" },
+      "size": { "w": 200, "h": 18 },
+      "position": { "x": 400, "y": 410 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-value",
+      "sprite": { "kind": "text", "bind": "bestDisplay", "text": "0", "font": "28px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 200, "h": 30 },
+      "position": { "x": 400, "y": 432 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "start-prompt",
+      "sprite": { "kind": "text", "text": "▶  TAP or press ENTER to fight", "font": "18px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 600, "h": 22 },
+      "position": { "x": 400, "y": 520 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "start-btn",
+      "sprite": { "kind": "none" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 0, "y": 0 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+    }
+  ],
+  "systems": [{ "type": "persistence", "params": {} }],
+  "flow": {
+    "on": { "start-pressed": "play" },
+    "persist": ["best"]
+  }
+}

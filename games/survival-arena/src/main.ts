@@ -1,72 +1,132 @@
 /**
- * Survival Arena bootstrap (host glue). The GAME is data — game.json +
- * config.json + src/scenes/main.json composing only SDK + @gitcade/library parts.
- * This file wires it to the runtime + the shared GameShell, mirrors the player's
- * HP into the HUD bar, and shows an integer clock.
+ * Survival Arena bootstrap (host glue). The GAME is data — game.json + config.json +
+ * the three JSON scenes (title → play → over) wired by `flow.on` edges, composing
+ * @gitcade/library + SDK parts plus ONE custom behavior (`swarm-scale`, the
+ * level-driven enemy toughness/speed ramp that no data path can express; see
+ * custom-behaviors/index.ts + LIBRARY-GAPS #8).
+ *
+ * 0.2.0 made the screen flow expressible as DATA (scene `flow`, `tap-emit`,
+ * declarative `persist`), so the old ~306-line GameShell screen-state machine and
+ * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
+ * data primitive: the library audio, the FX SHOWCASE screen juice (shake on every
+ * kill, a bigger shake + red flash on death, a blue flash on level-up — this game is
+ * the FX demo), an Enter bridge mirroring the on-screen flow buttons for keyboard
+ * players, a pause toggle (freezing the sim is a host-loop concern), and a few
+ * presentation-only HUD mirrors (player hp → the bar's `hp`/`maxHp` keys, the float
+ * survival timer → an integer `clock`, `best` → `bestDisplay`, and the win/lose
+ * `outcome` → the game-over headline text). No balance or game logic lives here.
  */
 import { createGame } from "@gitcade/sdk";
-import { createLibraryRegistry, LibraryAudioPlayer } from "@gitcade/library";
+import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
-import main from "./scenes/main.json";
+import title from "./scenes/title.json";
+import play from "./scenes/play.json";
+import over from "./scenes/over.json";
 import { registerCustomBehaviors } from "./custom-behaviors/index.js";
-import { GameShell } from "./host/shell.js";
 import { makeStorage } from "./host/storage.js";
 
 const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
 
+const cfg = config as Record<string, number>;
 const audio = new LibraryAudioPlayer();
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
-  { manifest, config, scenes: [main] },
+  { manifest, config, scenes: [title, play, over] },
   { canvas, registry, audio, storage: makeStorage(manifest.slug) },
 );
 
-const cfg = config as Record<string, number>;
+// --- HUD + outcome mirrors (presentation only) -------------------------------
+// The hud-bar reads world.state.hp/maxHp, but the player's hp lives on the player
+// entity; the timer is a float; the game-over headline depends on the win/lose
+// outcome. Floor/mirror those into the keys the scenes bind to. No game logic —
+// the parts (health-and-death, timer-countdown, win-lose-conditions, score) remain
+// the source of truth.
+function mirror(): void {
+  const s = game.world.state;
+  if (game.scene.id === "play") {
+    s.maxHp = cfg.playerHp;
+    const player = game.world.byId("player");
+    if (player && typeof player.state.hp === "number") {
+      s.hp = Math.max(0, Math.round(player.state.hp as number));
+    }
+    if (typeof s.timeLeft === "number") s.clock = Math.ceil(s.timeLeft as number);
+  }
+  if (typeof s.best === "number") s.bestDisplay = Math.floor(s.best as number);
+  if (game.scene.id === "over") {
+    const won = s.outcome === "win";
+    s.outcomeText = won ? "YOU SURVIVED" : "OVERWHELMED";
+    s.outcomeSub = won ? "You outlasted the swarm. 🏆" : "The swarm got you.";
+  }
+  requestAnimationFrame(mirror);
+}
+requestAnimationFrame(mirror);
 
-new GameShell({
-  game,
-  audio,
-  music: "action",
-  title: "SURVIVAL ARENA",
-  tagline: "Outlast the swarm. 75 seconds.",
-  howto: [
-    "Arrows / WASD / the d-pad to move (or drag toward where you want to go)",
-    "You auto-fire at the nearest enemy",
-    "Survive the timer to win — one hit too many and it's over",
-  ],
-  gameOverEvent: "gameover",
-  outcomeText: (w) => {
-    const won = w.state.outcome === "win";
-    return `${won ? "You survived! 🏆" : "Overwhelmed"}  •  Score ${num(w.state.score)}  •  Best ${num(w.state.highScore)}`;
+// --- FX showcase: screen juice (presentation only) ---------------------------
+// This game is the FX demo. Bind gameplay events → shake/flash. The particle
+// bursts themselves are DATA (the explosion/sparkle systems in play.json); these
+// are the screen-level effects the frozen renderer cannot do from a behavior.
+const fx = new ScreenEffects();
+fx.bindToEvents(game.world, {
+  "enemy-died": (f) => f.shake(5, 0.16, 44),
+  "player-died": (f) => {
+    f.shake(18, 0.6, 34);
+    f.flash("#b13e53", 0.45);
   },
-  screenFx: {
-    "enemy-died": (fx) => fx.shake(5, 0.16, 44),
-    "player-died": (fx) => {
-      fx.shake(16, 0.55, 34);
-      fx.flash("#b13e53", 0.4);
-    },
-  },
-  onEnterPlay: (w) => {
-    w.state.score = 0;
-    w.state.maxHp = cfg.playerHp;
-    w.state.hp = cfg.playerHp;
-    w.state.clock = Math.ceil(cfg.surviveTime);
-  },
-  beforeFrame: (w) => {
-    const player = w.byId("player");
-    if (player && typeof player.state.hp === "number") w.state.hp = Math.max(0, Math.round(player.state.hp as number));
-    if (typeof w.state.timeLeft === "number") w.state.clock = Math.ceil(w.state.timeLeft as number);
-  },
-  touch: [
-    { code: "ArrowUp", label: "▲", cell: "1 / 2" },
-    { code: "ArrowLeft", label: "◀", cell: "2 / 1" },
-    { code: "ArrowRight", label: "▶", cell: "2 / 3" },
-    { code: "ArrowDown", label: "▼", cell: "3 / 2" },
-  ],
+  "level-up": (f) => f.flash("#41a6f6", 0.22),
+});
+const fxOverlay = document.getElementById("fx-overlay") as unknown as { style: Record<string, string> } | null;
+attachScreenEffects(fx, canvas, fxOverlay);
+
+// --- audio (needs a user gesture before the browser will play sound) ---------
+let musicStarted = false;
+function resumeAudio(): void {
+  audio.resume();
+  if (!musicStarted) {
+    audio.startMusic("action");
+    musicStarted = true;
+  }
+}
+window.addEventListener("pointerdown", resumeAudio);
+window.addEventListener("keydown", resumeAudio);
+
+// --- keyboard bridge to the data-driven flow edges ---------------------------
+// On-screen buttons emit their flow event via the `tap-emit` data part; this only
+// mirrors that for Enter/Space on the title/over screens so they stay
+// keyboard-accessible. Scene-guarded, so Space/movement during PLAY is untouched.
+window.addEventListener("keydown", (e) => {
+  if (e.code !== "Enter" && e.code !== "Space") return;
+  if (game.scene.id === "title") {
+    e.preventDefault();
+    game.world.events.emit("start-pressed");
+  } else if (game.scene.id === "over") {
+    e.preventDefault();
+    game.world.events.emit("retry");
+  }
 });
 
-function num(v: unknown): number {
-  return typeof v === "number" ? Math.round(v) : 0;
+// --- pause (a host-loop concern: no data primitive freezes the world) --------
+let paused = false;
+const pauseOverlay = document.getElementById("pause-overlay");
+function setPaused(next: boolean): void {
+  if (game.scene.id !== "play" && !paused) return; // only pause during play
+  paused = next;
+  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
+  if (paused) game.stop();
+  else game.start();
 }
+window.addEventListener("keydown", (e) => {
+  if (e.code === "Escape" || e.code === "KeyP") {
+    e.preventDefault();
+    setPaused(!paused);
+  }
+});
+const pauseBtn = document.getElementById("pause-btn");
+if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+
+// Observation hook for the Stage-4 playthrough harness (audit/harness/survival-arena)
+// — read-only; harmless in production.
+(window as unknown as { __game?: unknown }).__game = game;
+
+game.start();

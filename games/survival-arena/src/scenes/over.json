@@ -1,0 +1,77 @@
+{
+  "id": "over",
+  "size": { "width": 800, "height": 600 },
+  "background": "#07060c",
+  "entities": [
+    {
+      "id": "outcome-text",
+      "sprite": { "kind": "text", "bind": "outcomeText", "text": "GAME OVER", "font": "52px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 720, "h": 52 },
+      "position": { "x": 400, "y": 150 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "outcome-sub",
+      "sprite": { "kind": "text", "bind": "outcomeSub", "text": "", "font": "18px monospace", "color": "#cfd2e6", "align": "center" },
+      "size": { "w": 700, "h": 22 },
+      "position": { "x": 400, "y": 210 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "score-label",
+      "sprite": { "kind": "text", "text": "SCORE", "font": "16px monospace", "color": "#6a7196", "align": "center" },
+      "size": { "w": 200, "h": 20 },
+      "position": { "x": 280, "y": 290 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "score-value",
+      "sprite": { "kind": "text", "bind": "score", "text": "0", "font": "40px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 280, "y": 316 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-label",
+      "sprite": { "kind": "text", "text": "BEST", "font": "16px monospace", "color": "#6a7196", "align": "center" },
+      "size": { "w": 200, "h": 20 },
+      "position": { "x": 520, "y": 290 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "best-value",
+      "sprite": { "kind": "text", "bind": "bestDisplay", "text": "0", "font": "40px monospace", "color": "#ffcd75", "align": "center" },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 520, "y": 316 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "retry-prompt",
+      "sprite": { "kind": "text", "text": "↻  TAP or press ENTER to fight again", "font": "18px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 600, "h": 22 },
+      "position": { "x": 400, "y": 440 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "retry-btn",
+      "sprite": { "kind": "none" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 0, "y": 0 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }]
+    }
+  ],
+  "systems": [{ "type": "persistence", "params": {} }],
+  "flow": {
+    "on": { "retry": "play" },
+    "persist": ["best", "bestDisplay"]
+  }
+}

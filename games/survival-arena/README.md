@@ -2,8 +2,11 @@
 
 A Vampire-Survivors-lite and the **FX showcase** of the seed set: auto-fire at
 escalating swarms of chasers, dodge with twin-stick movement, and stay alive for
-75 seconds. Explosion particles on every kill, screen-shake on impact, a generative
-chiptune loop. Built **100% from SDK + @gitcade/library parts** — no custom code.
+75 seconds. Explosion particles on every kill, a death burst, a level-up sparkle,
+screen-shake on impact, and a generative chiptune loop. The screen flow
+(title → play → over) and high-score persistence are **data** (scene `flow` +
+`manifest.persist`), composed from SDK + `@gitcade/library` parts plus one tiny
+custom behavior (`swarm-scale`) that ramps enemy toughness/speed with the level.
 
 ## Play
 
@@ -27,13 +30,20 @@ Mobile: the **d-pad** (or just drag on the canvas). **Space/Enter** start, **Esc
 | `ai-chase` + `contact-damage` + `health-and-death` | library behaviors | each enemy pursues, hurts on touch, and dies (with a score bounty) |
 | `timer-countdown@1.0.0` | library system | survive the clock → **win** |
 | `win-lose-conditions@1.0.0` | library system | one death → **lose** |
-| `explosion@1.0.0` | library FX | debris burst on every `enemy-died` |
-| `score@1.0.0` | library system | score + high score via the SDK storage bridge |
+| `explosion@1.0.0` ×2 + `sparkle@1.0.0` | library FX | kill burst (`enemy-died`), death burst (`player-died`), level-up sparkle |
+| `level-progression@1.0.0` | library system | a `level` counter that ratchets up on score (`scoreGte`) |
+| `score@1.0.0` + `persistence` + `manifest.persist` | library | score + declarative cross-run high score (no host save code) |
+| `tap-emit` + scene `flow.on` | library UI + SDK | the data-driven title → play → over flow |
 | `hud-bar` | library UI | the health bar (mirrors the player's HP) |
+| `swarm-scale` | **custom behavior** | reads the live `level` and ramps each enemy's hp + chase speed |
 
-Screen-shake (per kill + on death) and the chiptune loop are the shared
-**GameShell** host glue. [`src/custom-behaviors/`](src/custom-behaviors/index.ts)
-is empty — the action-game half of the library was built for exactly this.
+Screen-shake (per kill, a bigger one + red flash on death, a blue flash on
+level-up) and the chiptune loop are slim host glue in
+[`src/main.ts`](src/main.ts). The one mechanic the library can't express as data —
+making the swarm *tougher and faster* as the level climbs (`wave-spawner` scales
+COUNT but bakes the prototype's stats in at scene load) — is the small param-driven
+`swarm-scale` behavior in [`src/custom-behaviors/`](src/custom-behaviors/index.ts),
+logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) #8.
 
 ## Rebalance it (the governance demo)
 
@@ -42,11 +52,18 @@ All of the difficulty is in [`config.json`](config.json):
 ```json
 {
   "playerSpeed": 230, "playerHp": 100, "surviveTime": 75,
-  "fireCooldown": 0.26, "bulletDamage": 34,
-  "enemyHp": 100, "enemySpeed": 95, "enemyDamage": 9,
-  "spawnInterval": 0.7, "waveSize": 4, "waveSizeGrowth": 2, "waveDelay": 3, "maxAlive": 40
+  "fireCooldown": 0.24, "bulletDamage": 34,
+  "enemyHp": 80, "enemySpeed": 95, "enemyDamage": 9,
+  "spawnInterval": 0.45, "waveSize": 5, "waveSizeGrowth": 3, "waveDelay": 1.6, "maxAlive": 40,
+  "levelThreshold": 80, "levelThresholdGrowth": 120, "maxLevel": 8,
+  "speedPerLevel": 0.14, "hpPerLevel": 0.22
 }
 ```
+
+`waveSize`/`waveSizeGrowth` scale the swarm's **count** as the waves climb;
+`speedPerLevel`/`hpPerLevel` scale each enemy's **speed and toughness** with the
+`level` (which advances every `levelThreshold` (+growth) of score). All FX burst
+sizes (`killBurstCount`, `deathBurstCount`, …) are config too.
 
 ### Worked example: a frantic "bullet-hell" tuning
 

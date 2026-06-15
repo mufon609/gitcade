@@ -65,22 +65,31 @@ export async function indexGameParts(
   const scenes = await fetchScenes(game.repoUrl, game.branch, entryPoint, token);
   const refs = extractPartRefsFromScenes(scenes);
 
-  // Resolve each ref to a catalog Part row (best match: exact version, else any).
-  const resolved: MadeFromEntry[] = [];
-  for (const ref of refs) {
-    const part =
-      (await prisma.part.findFirst({
-        where: { partId: ref.id, version: ref.version, source: "catalog" },
-      })) ?? (await prisma.part.findFirst({ where: { partId: ref.id, source: "catalog" } }));
-    resolved.push({
+  // Resolve ALL refs to catalog Part rows in ONE query (collapses the per-ref
+  // N+1: was up to 2 `part.findFirst` per ref). Best match per ref: exact version,
+  // else any version of that partId. Backed by Part @@unique([partId,version,source]).
+  const ids = [...new Set(refs.map((r) => r.id))];
+  const rows = ids.length
+    ? await prisma.part.findMany({ where: { partId: { in: ids }, source: "catalog" } })
+    : [];
+  const byId = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const list = byId.get(row.partId);
+    if (list) list.push(row);
+    else byId.set(row.partId, [row]);
+  }
+  const resolved: MadeFromEntry[] = refs.map((ref) => {
+    const candidates = byId.get(ref.id) ?? [];
+    const part = candidates.find((c) => c.version === ref.version) ?? candidates[0];
+    return {
       ...ref,
       partRef: part?.id ?? null,
       kind: part?.kind,
       category: part?.category,
       description: part?.description,
       license: part?.license,
-    });
-  }
+    };
+  });
 
   // Replace this game's edges in one transaction (idempotent re-index).
   await prisma.$transaction([

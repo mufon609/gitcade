@@ -54,10 +54,28 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
   }
 
   const key = `${game}/${branch}/${assetPath}`;
+  // Conditional GET: forward the client's validators to the bucket so revalidating a
+  // `no-cache` HTML entry returns 304 (empty body) instead of re-streaming it. The
+  // immutable hashed assets never reach this — the browser won't revalidate them
+  // within their year-long max-age. This is a CDN-correctness header adjustment only;
+  // it changes neither the {game}/{branch}/{path} URL convention nor the game CSP.
+  const inm = req.headers["if-none-match"];
+  const ims = req.headers["if-modified-since"];
+  const imsDate = typeof ims === "string" ? new Date(ims) : undefined;
   try {
-    const obj = await s3.send(new GetObjectCommand({ Bucket: env.s3Bucket, Key: key }));
+    const obj = await s3.send(
+      new GetObjectCommand({
+        Bucket: env.s3Bucket,
+        Key: key,
+        ...(typeof inm === "string" ? { IfNoneMatch: inm } : {}),
+        ...(imsDate && !isNaN(imsDate.getTime()) ? { IfModifiedSince: imsDate } : {}),
+      }),
+    );
     const headers = artifactHeaders(assetPath, env.platformOrigin);
     if (obj.ContentLength != null) headers["Content-Length"] = String(obj.ContentLength);
+    // Validators so a browser/CDN can cheaply revalidate the no-cache HTML entry.
+    if (obj.ETag) headers["ETag"] = obj.ETag;
+    if (obj.LastModified) headers["Last-Modified"] = obj.LastModified.toUTCString();
     res.writeHead(200, headers);
     if (req.method === "HEAD" || !obj.Body) {
       res.end();
@@ -67,8 +85,19 @@ export async function handleRequest(req: http.IncomingMessage, res: http.ServerR
     body.on("error", () => { if (!res.writableEnded) res.destroy(); });
     body.pipe(res);
   } catch (err: any) {
+    const httpStatus = err?.$metadata?.httpStatusCode;
     const name = err?.name || "";
-    if (name === "NoSuchKey" || name === "NotFound" || err?.$metadata?.httpStatusCode === 404) {
+    // The bucket reports the conditional match as 304 (Not Modified) — relay it with
+    // the validators + cache policy and no body.
+    if (httpStatus === 304 || name === "NotModified" || name === "304") {
+      const h = artifactHeaders(assetPath, env.platformOrigin);
+      delete h["Content-Type"]; // a 304 must not carry an entity body / type
+      if (typeof inm === "string") h["ETag"] = inm;
+      res.writeHead(304, h);
+      res.end();
+      return;
+    }
+    if (name === "NoSuchKey" || name === "NotFound" || httpStatus === 404) {
       res.writeHead(404, { "Content-Type": "text/plain" }).end(`Not Found: ${key}`);
     } else {
       console.error(`[artifact-server] error serving ${key}:`, err?.message || err);

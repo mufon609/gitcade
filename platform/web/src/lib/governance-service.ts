@@ -74,6 +74,45 @@ export async function proposalTally(p: Pick<Proposal, "id" | "thresholdPct" | "q
   return tally(counts, { thresholdPct: p.thresholdPct, quorum: p.quorum });
 }
 
+/**
+ * Batch-count YES/NO votes for MANY proposals in ONE query. This collapses the
+ * Community-tab N+1: the proposal-list endpoint (polled every 15s) previously ran
+ * 2 `vote.count` per proposal (1 + 2N queries); a single GROUP BY over
+ * `proposalId IN (…)` replaces them. Backed by the additive Vote[proposalId, choice]
+ * index (Phase 8B), so it is an index-only aggregate.
+ */
+export async function countVotesForProposals(
+  proposalIds: string[],
+): Promise<Map<string, { yes: number; no: number }>> {
+  const out = new Map<string, { yes: number; no: number }>();
+  for (const id of proposalIds) out.set(id, { yes: 0, no: 0 });
+  if (proposalIds.length === 0) return out;
+  const groups = await prisma.vote.groupBy({
+    by: ["proposalId", "choice"],
+    where: { proposalId: { in: proposalIds } },
+    _count: { _all: true },
+  });
+  for (const g of groups) {
+    const rec = out.get(g.proposalId);
+    if (!rec) continue;
+    if (g.choice === "YES") rec.yes = g._count._all;
+    else rec.no = g._count._all;
+  }
+  return out;
+}
+
+/** Tally many proposals at once (one GROUP BY for all of them). Returns id → result. */
+export async function tallyProposals(
+  proposals: Pick<Proposal, "id" | "thresholdPct" | "quorum">[],
+): Promise<Map<string, TallyResult>> {
+  const counts = await countVotesForProposals(proposals.map((p) => p.id));
+  const out = new Map<string, TallyResult>();
+  for (const p of proposals) {
+    out.set(p.id, tally(counts.get(p.id) ?? { yes: 0, no: 0 }, { thresholdPct: p.thresholdPct, quorum: p.quorum }));
+  }
+  return out;
+}
+
 // ─────────────────────────── notifications ───────────────────────────
 
 type NType = "PROPOSAL_OPENED" | "PROPOSAL_PASSED" | "PROPOSAL_FAILED" | "PROPOSAL_VETOED" | "PROPOSAL_APPLIED";

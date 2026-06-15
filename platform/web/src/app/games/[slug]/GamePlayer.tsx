@@ -70,6 +70,7 @@ export function GamePlayer({
           className="gc-input w-auto py-1"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
+          aria-label="Select branch to play"
         >
           {playable.map((b) => (
             <option key={b.name} value={b.name}>

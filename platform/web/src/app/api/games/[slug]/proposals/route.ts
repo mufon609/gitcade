@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, getUserGitHubToken } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { createProposal, openProposal, proposalTally } from "@/lib/governance-service";
+import { createProposal, openProposal, tallyProposals } from "@/lib/governance-service";
 import type { ProposalType } from "@prisma/client";
 import type { RemixEdits } from "@/lib/remix";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
@@ -18,18 +18,19 @@ export async function GET(_req: NextRequest, { params }: { params: { slug: strin
     orderBy: { createdAt: "desc" },
     include: { author: { select: { name: true, githubLogin: true } } },
   });
-  const withTally = await Promise.all(
-    proposals.map(async (p) => ({
-      id: p.id,
-      type: p.type,
-      status: p.status,
-      title: p.title,
-      closesAt: p.closesAt,
-      vetoedAt: p.vetoedAt,
-      author: p.author.githubLogin ?? p.author.name,
-      tally: await proposalTally(p),
-    })),
-  );
+  // Tally ALL proposals in ONE GROUP BY (collapses the per-proposal 2× vote.count
+  // N+1; this endpoint is polled every 15s by the Community tab).
+  const tallies = await tallyProposals(proposals);
+  const withTally = proposals.map((p) => ({
+    id: p.id,
+    type: p.type,
+    status: p.status,
+    title: p.title,
+    closesAt: p.closesAt,
+    vetoedAt: p.vetoedAt,
+    author: p.author.githubLogin ?? p.author.name,
+    tally: tallies.get(p.id)!,
+  }));
   return NextResponse.json({ ok: true, proposals: withTally });
 }
 

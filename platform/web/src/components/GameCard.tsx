@@ -23,7 +23,7 @@ export function GameCard({ game }: { game: GameCardData }) {
       className="gc-panel group flex flex-col gap-2 p-4 no-underline transition-colors hover:border-arcade-accent"
     >
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-arcade-ink group-hover:text-arcade-accent">{game.name}</h3>
+        <h2 className="font-bold text-arcade-ink group-hover:text-arcade-accent">{game.name}</h2>
         <span className={`text-xs ${status.cls}`}>{status.text}</span>
       </div>
       <p className="line-clamp-2 min-h-[2.5rem] text-sm text-arcade-mute">

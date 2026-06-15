@@ -1329,3 +1329,118 @@ probe per item lives in **`platform/SECURITY.md`** — this entry records the de
 - **Tests + build:** web unit suite **105/105** green (incl. 7 new `ratelimit.test.ts`);
   `next build` compiles all 18 instrumented routes; `tsc --noEmit` clean for app code
   (the two PRE-EXISTING Phase-6 `remix.test.ts` type errors are unrelated, per Phase 7).
+
+---
+
+## Phase 8B — Performance Pass — 2026-06-15
+
+Scope this session: the PERFORMANCE PASS only (NOT 8C–8E ops/onboarding/starter-kit).
+Optimization, no new features. Changes confined to `platform/web/` (2 additive
+indexes + N+1 collapses + a11y/Lighthouse fixes + 1 unit test) and a service-level
+header adjustment to `platform/artifact-server/` (ETag/304) + its test, plus the new
+`platform/PERFORMANCE.md` and this entry. **No frozen contract changed** — SDK/library
+API + schema, the queue/Build schema shape, the artifact-URL convention, the
+storage-bridge protocol, and the strict game CSP are all byte-identical (verified).
+All Prisma changes are ADDITIVE indexes; the frozen 4A `BuildJob`/`Build` tables were
+left byte-identical (their existing indexes already cover the queue hot paths). No
+CORE blockers; no `[CRITICAL]`/`[PUBLISH]` filed. Full measured before/after is in
+**`platform/PERFORMANCE.md`** — this entry records the decisions.
+
+### DB indexes — proven, additive, and rigorously pruned
+- **Added exactly two indexes, each proven with `EXPLAIN ANALYZE` on realistic
+  volume** (a throwaway `gitcade_perf` DB, identical schema, 5k games / 20k proposals
+  / 502k votes — the 8-row dev DB seq-scans regardless, so it can't prove index
+  *selection*): `Vote([proposalId, choice])` makes the proposal-tally an Index-Only
+  Scan (cost 993→65, 1.012→0.447 ms for a typical 12-proposal Community tab);
+  `Proposal([gameId, authorId])` makes the per-vote eligibility count an Index-Only
+  Scan (cost 615.88→8.31). Both back constant-query hot paths polled/hit frequently.
+- **Dropped two candidates the planner refuses to use** — rather than ship dead
+  write-overhead, per the prompt's "add only indexes a real query uses; prove an
+  index scan" rule. (1) `Game([status, createdAt])`: Prisma orders the home grid by
+  `status::text` (enum→text cast) which a b-tree on the enum column can't satisfy,
+  and with no WHERE/LIMIT the planner seq-scans + sorts regardless. The real fix is
+  keyset pagination = a feature, out of scope. (2) `Proposal([gameId, createdAt])`:
+  without a LIMIT a bitmap scan on the existing `[gameId,status]` + cheap in-memory
+  sort beats the ordered index. Both findings are recorded in the schema comments.
+- **Verified the prompt's other listed hot paths are ALREADY covered by existing
+  indexes** (EXPLAIN-confirmed Index/Bitmap scans): fork-tree lineage
+  (`Game_parentGameId_idx`), eligibility/heartbeat PlaySession
+  (`[userId,gameId]` / PK), and the frozen build queue
+  (`BuildJob[status,createdAt]` claim, `BuildJob[gameSlug,branch,status]` dedup).
+  Pushed the 2 new indexes to the dev DB with `prisma db push` (additive; the never-
+  reshape 4A/4B/5/6/7/8A tables untouched — confirmed via `pg_indexes`).
+
+### N+1 collapses (measured query counts)
+- **Community-tab proposal list** (`GET /api/games/[slug]/proposals`, polled 15 s):
+  was `1 + 1(authors) + 2×N` `vote.count` (26 queries @ 12 proposals, 102 @ 50) →
+  now `findMany + authors + 1` `vote.groupBy` = **3, constant**. New shared service
+  fns `countVotesForProposals` / `tallyProposals` (one GROUP BY for all proposals);
+  the old per-proposal `proposalTally` is kept for single-proposal callers. Backed by
+  the new `Vote[proposalId,choice]` index (index-only aggregate).
+- **"Made from" indexer** (`indexGameParts`, lazy on first game view): per-ref
+  `part.findFirst` (exact + fallback, up to 2/ref) → one `findMany({ partId: { in }})`
+  resolved in memory (6→1 @ 3 refs, 16→1 @ 8 refs).
+- **Game page SSR**: 5 independent reads (refreshGameStatus, playCount, memberCount,
+  branches, parent) were awaited serially → one `Promise.all`.
+- The **home grid** is NOT N+1 (single `findMany`; search/filter is client-side) and
+  the **fork-tree** ancestor walk is a bounded (≤32, realistically ≤3) PK loop — left
+  as-is.
+
+### Lighthouse (real Chrome-for-Testing, production build)
+- **Home `/`: 100/98/96/100 → 100/100/100/100.** **Game `/games/idle-clicker`:
+  96/85/96/100 → 96/100/100/100.** Fixes were a11y + correctness only (no behaviour
+  change): added `src/app/icon.svg` (kills the `/favicon.ico` 404 console error on
+  both pages → best-practices 100); promoted skipped section headings `<h3>`→`<h2>`
+  (heading-order); switched the `MadeFrom` version label off the border colour
+  `text-arcade-edge`→`text-arcade-mute` (color-contrast); restructured the Manifest
+  `<dl>` into `<dt>/<dd>` groups (definition-list); added `aria-label` to the
+  branch-switcher `<select>` (select-name).
+- **Performance left unchanged (already 96–100).** The remaining sub-100 perf audits
+  on the game page (`legacy-javascript`, `render-blocking`, `bf-cache`) are Next.js
+  framework internals (SWC target, CSS delivery, `force-dynamic` no-store) — a Next
+  config eject / framework upgrade, out of scope (the 8A-tracked Next 16 upgrade
+  would address them). No image-dimension findings (canvas art; no `next/image`).
+
+### Artifact cache headers (service-level header adjustment — permitted by the prompt)
+- Hashed assets were already `immutable`; HTML already `no-cache`. **Real gap fixed:**
+  the server forwarded no validator, so a `no-cache` HTML revalidation re-downloaded
+  the full body. `artifact-server/src/server.ts` now forwards the bucket object's
+  `ETag`/`Last-Modified` and passes the client's `If-None-Match`/`If-Modified-Since`
+  through to the bucket → a match returns a bodyless **304** (verified on the wire:
+  `If-None-Match` → `304`, 0 bytes, vs a 3,714-byte body before). **No contract
+  changed** — CSP, content-types, ACAO `*`, and the `{game}/{branch}/{path}` URL
+  convention are byte-identical. Regression test added (`headers.test.ts` 9/9).
+
+### Build queue (verified, not modified — frozen 4A)
+- **Concurrency cap holds (demonstrated):** `claimJobs` + `worker.ts` capacity gating
+  never exceed `WORKER_CONCURRENCY` (cap=2: tick claims 2, then 0 while full, refills
+  exactly 1 as slots free); `FOR UPDATE SKIP LOCKED` prevents double-claim. No
+  container thundering herd even under a backlog.
+- **Dedup works for the designed pattern (demonstrated):** 20 rapid SEQUENTIAL
+  enqueues (the real webhook/poll pattern) → 1 created, 19 deduped.
+- **Finding (pre-existing, frozen):** the dedup is `findFirst`-then-`create` (not
+  atomic), so 25 *truly-simultaneous* parallel enqueues of the identical
+  `(game,branch)` race and can stack redundant jobs (trial 1 coalesced on a cold
+  pool; trials 2–6 stacked 25). Blast radius is bounded by the working cap (redundant
+  jobs drain ≤2 at a time; rebuilds are idempotent) and it does NOT affect the real
+  access pattern (every enqueue call site fires once, sequentially). A robust fix is a
+  **partial unique index on `BuildJob(gameSlug,branch) WHERE status active` +
+  `ON CONFLICT`** — that changes the FROZEN queue/Build schema contract, so it is NOT
+  done here (it would HALT for a human decision). **Recommended as a dedicated 4A
+  queue patch**; logged here and in PERFORMANCE.md, not silently changed.
+
+### Verification performed this session (REAL output)
+- **EXPLAIN proofs** captured for both added indexes (Index-Only Scans) + the
+  fork-tree existing index (Index Scan) + the two rejected candidates (Seq Scan /
+  Bitmap) — all in PERFORMANCE.md §1.
+- **N+1 query counts** measured via Prisma query-event counting: 26/102→3 (Community
+  tab), 6/16→1 ("made from") — PERFORMANCE.md §2.
+- **Lighthouse** before/after JSON for both pages (PERFORMANCE.md §3).
+- **Artifact 304** proven on the wire (curl conditional GET).
+- **Queue** cap + dedup demonstrated with real enqueue/claim runs (and the race
+  surfaced by 6 repeated trials).
+- **Tests + build:** web unit suite **108/108** (+3 `governance-batch-tally.test.ts`);
+  artifact-server **9/9** (+1 ETag/304 regression); `next build` compiles clean;
+  `tsc --noEmit` clean for app code (the same two PRE-EXISTING Phase-6
+  `remix.test.ts` type errors remain, unrelated). The throwaway `gitcade_perf` DB was
+  dropped after capturing the proofs.

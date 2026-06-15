@@ -205,6 +205,10 @@ model Game {
 
   @@index([tier, status])
   @@index([parentGameId])
+  // Phase 8B note: NO ([status, createdAt]) index is added. The home-grid query
+  // orders by `status::text` (Prisma casts the enum), which a b-tree on the enum
+  // column cannot satisfy; and with no WHERE/LIMIT the planner seq-scans + sorts
+  // regardless. Verified by EXPLAIN — see platform/PERFORMANCE.md.
 }
 
 /// Recorded each time a game is played. HARD REQUIREMENT of Phase 7's
@@ -337,6 +341,11 @@ model Proposal {
   bugReports BugReport[] @relation("BugToProposal")
 
   @@index([gameId, status])
+  // Phase 8B (perf): voting-eligibility runs `count(WHERE gameId=? AND authorId=?)`
+  // on every cast vote. This composite turns it into an Index-Only Scan (vs a
+  // bitmap scan of ALL the game's proposals via [gameId,status] + heap recheck).
+  // Proven by EXPLAIN — see platform/PERFORMANCE.md.
+  @@index([gameId, authorId])
 }
 
 model Vote {
@@ -350,6 +359,10 @@ model Vote {
 
   @@unique([proposalId, userId])
   @@index([proposalId])
+  // Phase 8B (perf): the proposal-tally GROUP BY counts YES/NO per proposal
+  // (`WHERE proposalId IN (…) GROUP BY proposalId, choice`). This composite makes
+  // it an index-only aggregate (no heap fetch for `choice`).
+  @@index([proposalId, choice])
 }
 
 model BugReport {

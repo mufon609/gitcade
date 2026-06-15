@@ -41,7 +41,7 @@ export default async function PartDetailPage({ params }: { params: { partId: str
           {/* Behavior previews need the full definition for the micro-scene; the
               client fetches it via /api/parts/[id]. Sprite/audio render directly. */}
           <PartPreview preview={preview} size={120} />
-          <p className="text-xs text-arcade-edge">
+          <p className="text-xs text-arcade-mute">
             {preview.kind === "sprite"
               ? "Rendered from the served library asset."
               : preview.kind === "sfx" || preview.kind === "music"

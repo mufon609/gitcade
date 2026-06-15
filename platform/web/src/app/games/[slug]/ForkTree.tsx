@@ -103,7 +103,7 @@ export function ForkTree({ slug }: { slug: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-bold text-arcade-mute">Fork tree</h3>
+      <h2 className="text-sm font-bold text-arcade-mute">Fork tree</h2>
 
       {!hasLineage && (
         <p className="text-sm text-arcade-mute">

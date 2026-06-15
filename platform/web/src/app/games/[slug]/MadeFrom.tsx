@@ -42,9 +42,9 @@ export async function MadeFrom({
   return (
     <div className="gc-panel p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-arcade-mute">
+        <h2 className="text-sm font-bold text-arcade-mute">
           🧩 Made from {parts.length} catalog part{parts.length === 1 ? "" : "s"}
-        </h3>
+        </h2>
         <Link href="/parts" className="text-xs text-arcade-mute no-underline hover:text-arcade-ink">
           browse marketplace →
         </Link>
@@ -54,7 +54,7 @@ export async function MadeFrom({
           const inner = (
             <>
               <span className="font-mono">{p.id}</span>
-              <span className="text-arcade-edge">@{p.version}</span>
+              <span className="text-arcade-mute">@{p.version}</span>
               {p.count > 1 && <span className="ml-1 text-arcade-mute">×{p.count}</span>}
             </>
           );

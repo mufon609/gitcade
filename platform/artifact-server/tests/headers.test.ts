@@ -106,4 +106,21 @@ describe("served artifact responses", () => {
     const res = await fetch(`${base}/artifacts/${GAME}/${BRANCH}/nope.js`);
     expect(res.status).toBe(404);
   });
+
+  it("forwards an ETag and honors If-None-Match with a 304 (Phase 8B caching)", async () => {
+    // First load: must carry a validator so a browser/CDN can revalidate the
+    // no-cache HTML entry cheaply instead of re-downloading the full body.
+    const first = await fetch(`${base}/artifacts/${GAME}/${BRANCH}/index.html`);
+    expect(first.status).toBe(200);
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+
+    // Revalidation with the matching validator → 304, empty body, cache policy kept.
+    const second = await fetch(`${base}/artifacts/${GAME}/${BRANCH}/index.html`, {
+      headers: { "If-None-Match": etag as string },
+    });
+    expect(second.status).toBe(304);
+    expect(second.headers.get("cache-control")).toBe("no-cache");
+    expect(await second.text()).toBe("");
+  });
 });

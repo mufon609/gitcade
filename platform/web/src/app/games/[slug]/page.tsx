@@ -24,18 +24,20 @@ export default async function GamePage({ params }: { params: { slug: string } })
   const viewerId = (session?.user as { id?: string } | undefined)?.id;
   const isOwner = !!viewerId && viewerId === game.ownerId;
 
-  // THE VALIDATOR IS THE GATE: reconcile from the latest Build before deciding
-  // whether the game is playable.
-  const status = await refreshGameStatus(game.id);
   const manifest = (game.manifest ?? {}) as Record<string, unknown>;
-  const playCount = await prisma.playSession.count({ where: { gameId: game.id } });
-  const memberCount = await prisma.communityMembership.count({ where: { gameId: game.id } });
-  // Branch list for the switcher (DB-only — fast; the client refreshes + can add
-  // repo branches on demand).
-  const branches = await listGameBranches(game);
-  const parent = game.parentGameId
-    ? await prisma.game.findUnique({ where: { id: game.parentGameId }, select: { slug: true, name: true } })
-    : null;
+  // These reads are independent — run them concurrently (was 5 sequential DB
+  // round-trips). THE VALIDATOR IS THE GATE: refreshGameStatus reconciles from the
+  // latest Build before we decide whether the game is playable. Branch list is
+  // DB-only (fast); the client refreshes + can add repo branches on demand.
+  const [status, playCount, memberCount, branches, parent] = await Promise.all([
+    refreshGameStatus(game.id),
+    prisma.playSession.count({ where: { gameId: game.id } }),
+    prisma.communityMembership.count({ where: { gameId: game.id } }),
+    listGameBranches(game),
+    game.parentGameId
+      ? prisma.game.findUnique({ where: { id: game.parentGameId }, select: { slug: true, name: true } })
+      : Promise.resolve(null),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,20 +93,29 @@ export default async function GamePage({ params }: { params: { slug: string } })
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="gc-panel p-4">
-          <h3 className="text-sm font-bold text-arcade-mute">Stats</h3>
+          <h2 className="text-sm font-bold text-arcade-mute">Stats</h2>
           <p className="mt-2 text-sm">▶ {playCount} play sessions</p>
           <p className="text-sm">★ {memberCount} community members</p>
         </div>
         <div className="gc-panel p-4">
-          <h3 className="text-sm font-bold text-arcade-mute">Manifest</h3>
+          <h2 className="text-sm font-bold text-arcade-mute">Manifest</h2>
           <dl className="mt-2 space-y-1 text-xs text-arcade-ink">
-            <div>version: {String(manifest.version ?? "—")}</div>
-            <div>sdk: {String(manifest.sdkVersion ?? "—")}</div>
-            <div>library: {String(manifest.libraryVersion ?? "—")}</div>
+            <div className="flex gap-1">
+              <dt className="text-arcade-mute">version:</dt>
+              <dd>{String(manifest.version ?? "—")}</dd>
+            </div>
+            <div className="flex gap-1">
+              <dt className="text-arcade-mute">sdk:</dt>
+              <dd>{String(manifest.sdkVersion ?? "—")}</dd>
+            </div>
+            <div className="flex gap-1">
+              <dt className="text-arcade-mute">library:</dt>
+              <dd>{String(manifest.libraryVersion ?? "—")}</dd>
+            </div>
           </dl>
         </div>
         <div className="gc-panel flex flex-col gap-2 p-4">
-          <h3 className="text-sm font-bold text-arcade-mute">Community</h3>
+          <h2 className="text-sm font-bold text-arcade-mute">Community</h2>
           <JoinCommunity slug={game.slug} />
           {game.tier === "ecosystem" && (
             <p className="text-xs text-arcade-mute">

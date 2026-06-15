@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { Game, type Scene } from "@gitcade/sdk";
 import { createLibraryRegistry } from "../src/registry.js";
 import { randomFreeCell, snapToGrid } from "../src/util.js";
-import { transaction, persistence } from "../src/systems/index.js";
+import { transaction, persistence, currency } from "../src/systems/index.js";
 import { tapEmit } from "../src/ui/index.js";
+import { scaleByState } from "../src/behaviors/index.js";
 import { makeWorld, makeEntity } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
@@ -43,6 +44,19 @@ describe("transaction system", () => {
 });
 
 // ---------------------------------------------------------------------------
+// #4 (0.2.1) — snapToGrid / randomFreeCell are re-exported from the PACKAGE INDEX
+//   (not just src/util.js), so games no longer inline the grid-snap formula.
+// ---------------------------------------------------------------------------
+describe("public grid helpers re-exported from @gitcade/library (#4)", () => {
+  it("snapToGrid and randomFreeCell are reachable from the package index", async () => {
+    const lib = await import("../src/index.js");
+    expect(typeof lib.snapToGrid).toBe("function");
+    expect(typeof lib.randomFreeCell).toBe("function");
+    expect(lib.snapToGrid(75, 75, 50)).toEqual({ x: 75, y: 75 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // G4 — free-cell placement helpers (deterministic via world.rng)
 // ---------------------------------------------------------------------------
 describe("randomFreeCell / snapToGrid", () => {
@@ -64,6 +78,31 @@ describe("randomFreeCell / snapToGrid", () => {
     makeEntity(world2, { id: "occ", x: 4, y: 4, w: 12, h: 12, tags: ["body"] });
     const b = randomFreeCell(world2, { tileSize: 20, occupiedTag: "body" });
     expect(b).toEqual(a);
+  });
+
+  it("excludes cells of extra excludeTags entities and explicit excludeCells (#2)", () => {
+    // 4x4 grid @ ts20 on a 80x80 world = 16 cells; occupy almost all, leave one free,
+    // then exclude that one via a marker tag → null (proves the marker blocked it).
+    const world = makeWorld({ bounds: { width: 80, height: 80 }, seed: 3 });
+    let free: { x: number; y: number } | null = null;
+    // Fill 15 of 16 cells with "body"; track the single free cell center.
+    const centers: Array<[number, number]> = [];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) centers.push([c * 20 + 10, r * 20 + 10]);
+    const freeCenter = centers[5]!; // arbitrary free cell
+    for (const [cx, cy] of centers) {
+      if (cx === freeCenter[0] && cy === freeCenter[1]) continue;
+      makeEntity(world, { id: `b${cx}-${cy}`, x: cx - 6, y: cy - 6, w: 12, h: 12, tags: ["body"] });
+    }
+    free = randomFreeCell(world, { tileSize: 20, occupiedTag: "body" });
+    expect(free).toEqual({ x: freeCenter[0], y: freeCenter[1] }); // the one open cell
+
+    // Now mark the free cell with a "marker"-tagged entity and exclude it.
+    makeEntity(world, { id: "marker", x: freeCenter[0] - 4, y: freeCenter[1] - 4, w: 8, h: 8, tags: ["marker"] });
+    expect(randomFreeCell(world, { tileSize: 20, occupiedTag: "body", excludeTags: ["marker"] })).toBeNull();
+    // Same via explicit excludeCells.
+    expect(
+      randomFreeCell(world, { tileSize: 20, occupiedTag: "body", excludeCells: [{ x: freeCenter[0], y: freeCenter[1] }] }),
+    ).toBeNull();
   });
 
   it("returns null when every cell is occupied", () => {
@@ -155,6 +194,122 @@ describe("persistence system", () => {
     await Promise.resolve();
     expect(g2.world.state.best).toBe(4242); // restored
     expect("scratch" in g2.world.state).toBe(false); // never persisted
+  });
+});
+
+// ---------------------------------------------------------------------------
+// G6 race (0.2.1) — a persisted, system-SEEDED key restores authoritatively
+//   even when `currency` would seed it synchronously on the SAME scene.
+//   This is the race #6 fix: `persistence` claims the key, `currency` defers
+//   its seed while the load is in flight, the restore wins. No title-scene
+//   workaround needed.
+// ---------------------------------------------------------------------------
+describe("persistence vs currency seeding race (0.2.1, G6)", () => {
+  // Flush the .then→.catch→.finally microtask chain the load promise schedules.
+  const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+
+  // persistence is ORDERED FIRST so it claims the key before currency runs.
+  const raceScene: Scene = {
+    id: "play",
+    size: { width: 100, height: 100 },
+    entities: [],
+    systems: [
+      { type: "persistence", params: {} },
+      { type: "currency", params: { currencyKey: "coins", startAmount: 0 } },
+    ],
+  } as unknown as Scene;
+  const persist = { keys: ["coins"], slot: "save", everySeconds: 0 };
+
+  it("a saved balance survives a reboot of the SAME (seeding) scene", async () => {
+    // Run 1 — earn coins, let persistence flush.
+    const g1 = new Game({ scenes: [raceScene], config: {}, canvas: null, persist, registry: createLibraryRegistry() });
+    g1.stepFrames(1);
+    await flush();
+    g1.world.state.coins = 12345; // simulate gameplay earnings
+    g1.stepFrames(1);
+    await Promise.resolve();
+    expect(await g1.world.storage.get("save")).toEqual({ coins: 12345 });
+
+    // Run 2 — fresh world, SAME scene (currency present), SAME storage.
+    const g2 = new Game({ scenes: [raceScene], config: {}, canvas: null, persist, storage: g1.world.storage, registry: createLibraryRegistry() });
+    // Tick 1: persistence claims `coins`; currency sees it pending and DEFERS its
+    // seed (no `coins: 0` clobber). On 0.2.0 currency would have written 0 here.
+    g2.stepFrames(1);
+    expect(g2.world.isPersistPending("coins")).toBe(true); // claimed, load not yet resolved
+    expect("coins" in g2.world.state).toBe(false); // seed deferred — NOT 0
+    // Load resolves → restore writes the saved balance, claim releases.
+    await flush();
+    expect(g2.world.state.coins).toBe(12345); // restored, authoritative
+    expect(g2.world.isPersistPending("coins")).toBe(false);
+    // Subsequent ticks: currency no longer seeds (key present), value stands.
+    g2.stepFrames(2);
+    expect(g2.world.state.coins).toBe(12345);
+  });
+
+  it("with NO saved value, the seed still fires after the load resolves (additivity)", async () => {
+    const g = new Game({ scenes: [raceScene], config: {}, canvas: null, persist, registry: createLibraryRegistry() });
+    g.stepFrames(1);
+    expect("coins" in g.world.state).toBe(false); // deferred while claimed
+    await flush(); // empty load resolves, claim releases
+    g.stepFrames(1);
+    expect(g.world.state.coins).toBe(0); // currency now seeds startAmount normally
+  });
+
+  it("currency alone (no persistence claiming) seeds on tick 1 — unchanged 0.2.0 behavior", () => {
+    const w = makeWorld();
+    currency(w, { currencyKey: "gold", startAmount: 50 }, 1 / 60);
+    expect(w.state.gold).toBe(50); // no claim ⇒ immediate seed (additive no-op of the check)
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #8 (0.2.1) — scale-by-state: ramp a live field by a world.state level counter.
+//   Generalizes Helicopter `scroll-ramp` (set velocity) and Survival Arena
+//   `swarm-scale` (multiply velocity + one-time hp bump).
+// ---------------------------------------------------------------------------
+describe("scale-by-state behavior (#8)", () => {
+  it("'set' velocity ramps scroll speed from baseX/baseY by the level (Helicopter scroll-ramp)", () => {
+    const world = makeWorld();
+    world.state.level = 3;
+    const e = makeEntity(world, { id: "scroller", x: 0, y: 0, w: 10, h: 10 });
+    const params = { levelKey: "level", perLevel: 0.5, target: "velocity", mode: "set", baseX: -100, baseY: 0 };
+    scaleByState(e, world, params as any, 1 / 60);
+    // factor = 1 + 0.5*(3-1) = 2 ⇒ vx = -100 * 2
+    expect(e.vx).toBe(-200);
+    expect(e.vy).toBe(0);
+    // 'set' forces base*factor each tick — it does NOT compound.
+    scaleByState(e, world, params as any, 1 / 60);
+    expect(e.vx).toBe(-200);
+  });
+
+  it("'multiply' rescales the live velocity another behavior set this frame (Survival speed)", () => {
+    const world = makeWorld();
+    world.state.level = 4; // factor = 1 + 0.25*3 = 1.75
+    const e = makeEntity(world, { id: "enemy", x: 0, y: 0, w: 10, h: 10 });
+    e.vx = 100; e.vy = 0; // imagine ai-chase set this just before
+    scaleByState(e, world, { levelKey: "level", perLevel: 0.25, target: "velocity", mode: "multiply" } as any, 1 / 60);
+    expect(e.vx).toBeCloseTo(175);
+    // Level 1 ⇒ factor 1 ⇒ no-op.
+    const world1 = makeWorld();
+    world1.state.level = 1;
+    const e1 = makeEntity(world1, { id: "e1", x: 0, y: 0, w: 10, h: 10 });
+    e1.vx = 80;
+    scaleByState(e1, world1, { perLevel: 0.25, target: "velocity", mode: "multiply" } as any, 1 / 60);
+    expect(e1.vx).toBe(80);
+  });
+
+  it("'once' bumps a seeded state value exactly once (Survival hp)", () => {
+    const world = makeWorld();
+    world.state.level = 5; // factor = 1 + 0.2*4 = 1.8
+    const e = makeEntity(world, { id: "enemy", x: 0, y: 0, w: 10, h: 10 });
+    e.state.hp = 80; // health-and-death seeded it first
+    const params = { levelKey: "level", perLevel: 0.2, target: "state:hp", mode: "once", base: 80 };
+    scaleByState(e, world, params as any, 1 / 60);
+    expect(e.state.hp).toBeCloseTo(144); // 80 * 1.8
+    // Running again does NOT bump again (one-time guard).
+    e.state.hp = 50; // simulate damage
+    scaleByState(e, world, params as any, 1 / 60);
+    expect(e.state.hp).toBe(50);
   });
 });
 

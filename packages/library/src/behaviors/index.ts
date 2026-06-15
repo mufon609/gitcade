@@ -18,6 +18,7 @@ import { aiAimAndFire } from "./ai-aim-and-fire.js";
 import { collectOnTouch } from "./collect-on-touch.js";
 import { triggerZone } from "./trigger-zone.js";
 import { portal } from "./portal.js";
+import { scaleByState } from "./scale-by-state.js";
 
 /**
  * Every library behavior, keyed by the exact `type` string a scene/entity uses to
@@ -43,6 +44,7 @@ export const LIBRARY_BEHAVIORS = {
   "collect-on-touch": collectOnTouch,
   "trigger-zone": triggerZone,
   portal: portal,
+  "scale-by-state": scaleByState,
 } as const;
 
 /** The library behavior type ids (for tests / introspection). */
@@ -74,4 +76,5 @@ export {
   collectOnTouch,
   triggerZone,
   portal,
+  scaleByState,
 };

@@ -1,7 +1,7 @@
 {
   "id": "place-on-free-cell",
   "kind": "system",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "spawning",
   "tags": ["spawning", "grid", "placement", "snake", "free-cell"],
   "license": "MIT",
@@ -12,7 +12,8 @@
     "trigger": { "type": "string", "balance": false, "description": "Event that triggers a placement." },
     "tileSize": { "type": "number", "balance": false, "description": "Grid cell size in px (structural)." },
     "occupiedTag": { "type": "string", "balance": false, "description": "Tag whose live entities mark a cell occupied." },
-    "require": { "type": "string", "balance": false, "description": "Optional tilemap gate: walkable | buildable." }
+    "require": { "type": "string", "balance": false, "description": "Optional tilemap gate: walkable | buildable." },
+    "excludeTags": { "type": "array", "balance": false, "description": "Extra tags whose live entities also block their cell (e.g. a marker at a soon-to-be-occupied cell)." }
   },
   "definition": {
     "type": "place-on-free-cell",

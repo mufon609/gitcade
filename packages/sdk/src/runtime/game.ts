@@ -146,6 +146,9 @@ export class Game {
     this.world.entities = [];
     for (const key of Object.keys(this.world.state)) delete this.world.state[key];
     Object.assign(this.world.state, carried);
+    // The persistence-restore claim set (0.2.1, G6) is scene-scoped — the active
+    // scene owns its persistence/seed systems — so clear it on every transition.
+    this.world.resolvePersistKeys(this.world.persistPendingKeys());
     this.world.tilemap = scene.tilemap;
     this.world.frame = 0;
     this.world.time = 0;

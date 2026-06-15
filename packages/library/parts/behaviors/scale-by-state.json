@@ -1,0 +1,23 @@
+{
+  "id": "scale-by-state",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "difficulty", "ramp", "endless", "scaling"],
+  "license": "MIT",
+  "description": "Ramp a live entity field (velocity or an entity-state value like hp) by a factor 1 + perLevel*(level-1) read from a world.state level counter. set/multiply/once modes cover auto-scroll speed ramps and per-enemy speed/hp scaling for endless/horde games.",
+  "dependencies": [],
+  "params": {
+    "levelKey": { "type": "string", "balance": false, "description": "world.state key holding the 1-based difficulty level (default 'level')." },
+    "perLevel": { "type": "number", "balance": true, "description": "Fractional increase of the base per level above 1." },
+    "target": { "type": "string", "balance": false, "description": "Field to scale: 'vx' | 'vy' | 'velocity' | 'state:<key>' (default 'velocity')." },
+    "mode": { "type": "string", "balance": false, "description": "'set' (force base*factor each tick) | 'multiply' (rescale live value) | 'once' (one-time, e.g. hp)." },
+    "base": { "type": "number", "balance": true, "description": "Level-1 value for set/once on a single axis or state key." },
+    "baseX": { "type": "number", "balance": true, "description": "Level-1 vx for set with target 'velocity'." },
+    "baseY": { "type": "number", "balance": true, "description": "Level-1 vy for set with target 'velocity'." }
+  },
+  "definition": {
+    "type": "scale-by-state",
+    "params": { "levelKey": "level", "perLevel": "$cfg.rampPerLevel", "target": "velocity", "mode": "set", "baseX": "$cfg.scrollSpeed", "baseY": "$cfg.scrollVy" }
+  }
+}

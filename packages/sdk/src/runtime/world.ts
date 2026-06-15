@@ -72,6 +72,16 @@ export class World {
   /** Pending scene change, drained by the host loop AFTER the current tick. null = none (G1). */
   private _pendingScene: SceneChangeRequest | null = null;
 
+  /**
+   * Keys CLAIMED by a persistence load that is still in flight (0.2.1, G6 race
+   * fix). While a key is claimed, a seed-once system (e.g. `currency`) defers
+   * seeding it, so the async `storage.get` restore lands as the authoritative
+   * boot value instead of being clobbered by a synchronous tick-1 seed. The set
+   * is scene-scoped: `loadScene` clears it, since the active scene owns its
+   * persistence/seed systems. See {@link claimPersistKeys}.
+   */
+  private _persistPending = new Set<string>();
+
   /** Elapsed simulated time (s) and last fixed delta (s). */
   time = 0;
   dt = 0;
@@ -224,6 +234,40 @@ export class World {
     if (bal < cost) return false;
     this.state[key] = bal - cost;
     return true;
+  }
+
+  /**
+   * Claim `keys` as pending-restore for an in-flight persistence load (0.2.1,
+   * G6 race fix). Idempotent. A persistence system calls this SYNCHRONOUSLY on
+   * its first tick — before any seed-once system runs that frame — so a
+   * seed-once system can ask {@link isPersistPending} and DEFER seeding the key.
+   * When the async `storage.get` resolves, the persistence system restores the
+   * saved values and calls {@link resolvePersistKeys} to release the claim
+   * (keys with no saved value are simply released, so the seed system seeds them
+   * on the next tick). Purely additive: a system that does not consult the claim
+   * keeps its 0.2.0 behavior exactly. The claim set is reset by `loadScene`.
+   */
+  claimPersistKeys(keys: Iterable<string>): void {
+    for (const k of keys) this._persistPending.add(k);
+  }
+
+  /** True if `key` is claimed by an unresolved persistence load (0.2.1, G6). */
+  isPersistPending(key: string): boolean {
+    return this._persistPending.has(key);
+  }
+
+  /** Snapshot of the currently-claimed keys (0.2.1, G6) — host uses it to reset on scene change. */
+  persistPendingKeys(): string[] {
+    return [...this._persistPending];
+  }
+
+  /**
+   * Release the persistence claim on `keys` (0.2.1, G6) — called by the
+   * persistence system once its async load resolves (after writing any restored
+   * values). Released keys are eligible for normal seeding again.
+   */
+  resolvePersistKeys(keys: Iterable<string>): void {
+    for (const k of keys) this._persistPending.delete(k);
   }
 
   /**

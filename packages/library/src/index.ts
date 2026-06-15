@@ -32,3 +32,13 @@ export * from "./ui/index.js";
 export * from "./audio/index.js";
 export { LIBRARY_PALETTE, PALETTE } from "./palette.js";
 export { registerLibrary, createLibraryRegistry } from "./registry.js";
+
+/**
+ * Public grid-placement helpers (0.2.1, gap #4). These already existed internally
+ * in `util.ts` and back the `place-on-free-cell` system + `wave-spawner`
+ * `placement:"free-cell"`, but were not re-exported from the package index — so a
+ * game wanting grid-snap had to inline the 3-line formula (Tower Defense did). The
+ * rest of `util.ts` (vector math, `spawnFrom`, `systemState`) stays internal; only
+ * the placement surface is promoted to the public API.
+ */
+export { snapToGrid, randomFreeCell, type Vec2, type CellBounds, type RandomFreeCellOpts } from "./util.js";

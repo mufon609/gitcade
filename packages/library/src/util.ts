@@ -135,6 +135,16 @@ export interface RandomFreeCellOpts {
   bounds?: CellBounds;
   /** Optional tilemap gate — only cells whose tile is buildable/walkable qualify. */
   require?: "walkable" | "buildable";
+  /**
+   * Extra tags whose live entities ALSO mark their cell occupied, beyond
+   * `occupiedTag` (0.2.1, gap #2). Lets a caller exclude a "soon-to-be-occupied"
+   * cell by tagging a marker entity there — e.g. Snake placing an invisible
+   * marker at the head's imminent next cell so a coin never spawns on it (closes
+   * the ~0.08% instant re-eat the old hand-rolled `spawnFood` excluded).
+   */
+  excludeTags?: string[];
+  /** Extra explicit world points to exclude (each maps to its grid cell) (0.2.1, #2). */
+  excludeCells?: Vec2[];
 }
 
 /**
@@ -156,13 +166,21 @@ export function randomFreeCell(world: World, opts: RandomFreeCellOpts): Vec2 | n
   const rows = Math.floor(b.h / ts);
   if (cols <= 0 || rows <= 0) return null;
 
-  // Mark cells occupied by any live entity carrying occupiedTag (keyed on center).
+  // Mark cells occupied by any live entity carrying occupiedTag (or one of the
+  // optional excludeTags), keyed on the entity's center cell. Plus any explicit
+  // excludeCells the caller passed (0.2.1, #2).
   const occupied = new Set<number>();
-  for (const e of world.query(opts.occupiedTag)) {
-    const col = Math.floor((e.cx - b.x) / ts);
-    const row = Math.floor((e.cy - b.y) / ts);
+  const markCell = (cx: number, cy: number): void => {
+    const col = Math.floor((cx - b.x) / ts);
+    const row = Math.floor((cy - b.y) / ts);
     if (col >= 0 && row >= 0 && col < cols && row < rows) occupied.add(row * cols + col);
+  };
+  const tags = opts.excludeTags && opts.excludeTags.length ? [opts.occupiedTag, ...opts.excludeTags] : [opts.occupiedTag];
+  for (const tag of tags) {
+    if (!tag) continue;
+    for (const e of world.query(tag)) markCell(e.cx, e.cy);
   }
+  if (opts.excludeCells) for (const c of opts.excludeCells) markCell(c.x, c.y);
 
   // Collect free + gate-passing cells, then pick one uniformly with world.rng.
   const free: number[] = [];

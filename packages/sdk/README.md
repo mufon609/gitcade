@@ -54,6 +54,20 @@ state-preservation change is gated on an opt-in `persist` set that defaults empt
   `persistence` system round-trips those keys through the **existing, frozen**
   `world.storage` bridge (no wire-protocol change).
 
+## New in 0.2.1 (additive — 0.2.0 games unchanged)
+
+A small engine-cleanup wave. The frozen contracts (storage wire protocol, fixed
+tick order, `world.rng` determinism) are untouched; everything below is new API.
+
+- **Persistence-restore claim (G6 race fix).** `world.claimPersistKeys(keys)` /
+  `isPersistPending(key)` / `resolvePersistKeys(keys)`. A `persistence` system
+  claims its declared keys synchronously on boot; a seed-once system (e.g. the
+  library `currency`) consults `isPersistPending` and **defers** seeding while the
+  async `storage.get` is in flight, so a saved value restores authoritatively
+  with no per-game scene-flow workaround. Purely additive: a system that doesn't
+  consult the claim keeps its prior behavior, and the claim set is scene-scoped
+  (reset on `loadScene`).
+
 ## Quick start (composing a game from JSON)
 
 ```ts

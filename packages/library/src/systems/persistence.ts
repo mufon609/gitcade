@@ -3,7 +3,10 @@ import { num, str, strArray } from "@gitcade/sdk";
 import { systemState } from "../util.js";
 
 interface PersistScratch extends Record<string, unknown> {
+  /** The async load has been ISSUED (claim placed, storage.get fired) once. */
   loadStarted: boolean;
+  /** The async load has RESOLVED (restore written, claim released) — gates saving. */
+  loadResolved: boolean;
   /** JSON of the last snapshot written to storage, so we only write on change. */
   lastSaved: string | null;
   /** Seconds accumulated toward the next autosave (only used when everySeconds > 0). */
@@ -18,14 +21,29 @@ interface PersistScratch extends Record<string, unknown> {
  *
  * Config comes from `manifest.persist` (surfaced on `world.persist`); individual
  * fields may be overridden per-instance via params. Behavior:
+ *  - **Claim on boot (0.2.1, G6 race fix):** on its first tick the system calls
+ *    `world.claimPersistKeys(keys)` SYNCHRONOUSLY — before any seed-once system
+ *    later in the same scene's system order runs — so a seed system (e.g.
+ *    `currency`) that consults `world.isPersistPending(key)` DEFERS seeding while
+ *    the load is in flight. This is the robust fix for the persistence-vs-seeding
+ *    race: a persisted value is authoritative on boot with no per-game workaround.
  *  - **Load on boot:** kicks off `world.storage.get(slot)` once; when it resolves,
- *    restores each declared key that is ABSENT from `world.state` ("live value
- *    wins", so a value already set this run is never clobbered by an old save).
+ *    it WRITES each declared key the save holds (the restore is authoritative for
+ *    its claimed keys — it no longer skips a key the seed already set, because the
+ *    claim made the seed defer), then releases the claim via
+ *    `world.resolvePersistKeys(keys)`. A key with no saved value is simply
+ *    released, so its seed system seeds it on the next tick.
  *  - **Save on change / interval:** each tick snapshots the declared keys that are
  *    present; writes when the snapshot CHANGED, and additionally every
- *    `everySeconds` when that is > 0. An empty snapshot (no declared key present
- *    yet — e.g. the first ticks after a reboot, before the async load resolves) is
- *    never written, so a pending restore is never overwritten with nothing.
+ *    `everySeconds` when that is > 0. Saving is suppressed until the load resolves
+ *    (and an empty snapshot is never written), so a pending restore is never
+ *    overwritten before it lands.
+ *
+ * The mechanism stays additive: the SDK claim methods are no-ops for any seed
+ * system that does not consult them (those keep their 0.2.0 "live value wins"
+ * behavior), and a game that runs persistence on a non-seeding scene (Idle
+ * Clicker's title-scene workaround) is unaffected — no key it carries is seeded
+ * there, so claim/defer never fires.
  *
  * Params (default to `world.persist`): `keys`, `slot`, `everySeconds`.
  */
@@ -38,29 +56,47 @@ export const persistence: SystemFn = (world, params, dt) => {
 
   const s = systemState<PersistScratch>(world, `__persist:${slot}`, {
     loadStarted: false,
-    lastSaved: null,
+    loadResolved: false,
     sinceSave: 0,
+    lastSaved: null,
   });
 
-  // Load-on-boot: issue the async read exactly once; restore absent keys when it lands.
+  // Load-on-boot: claim the declared keys synchronously (so seed-once systems
+  // defer), then issue the async read exactly once. When it lands, the restore is
+  // authoritative for its keys — it WRITES every saved key — then releases the
+  // claim so any unsaved key is free to seed normally.
   if (!s.loadStarted) {
     s.loadStarted = true;
+    world.claimPersistKeys(keys);
     void world.storage
       .get<Record<string, unknown>>(slot)
       .then((saved) => {
-        if (!saved || typeof saved !== "object") return;
-        for (const k of keys) {
-          if (!(k in world.state) && k in saved) world.state[k] = (saved as Record<string, unknown>)[k];
+        if (saved && typeof saved === "object") {
+          for (const k of keys) {
+            if (k in saved) world.state[k] = (saved as Record<string, unknown>)[k];
+          }
         }
-        s.lastSaved = JSON.stringify(snapshot(world, keys));
       })
       .catch(() => {
         /* storage unavailable — persistence degrades to in-memory, like the dev shim */
+      })
+      .finally(() => {
+        s.loadResolved = true;
+        world.resolvePersistKeys(keys);
+        // Re-baseline the change detector to the post-restore snapshot, so the
+        // restored value is not redundantly re-written on the next tick.
+        s.lastSaved = JSON.stringify(snapshot(world, keys));
       });
   }
 
-  // Save-on-change / interval. Skip an empty snapshot so a pending restore (the
-  // ticks between reboot and the async load resolving) is never clobbered.
+  // Save-on-change / interval. The empty-snapshot skip below is what keeps a
+  // pending restore safe: while the load is in flight the seed-once systems have
+  // DEFERRED (they consult `world.isPersistPending`), so on a reboot the declared
+  // keys are absent ⇒ the snapshot is empty ⇒ nothing is written over the unread
+  // save. Once the load resolves it WRITES the saved values (authoritative), the
+  // change detector is re-baselined in `.finally`, and normal save-on-change
+  // resumes. (0.2.1: the claim/defer on the seed side is the real race fix; this
+  // skip is the matching save-side safety, unchanged in spirit from 0.2.0.)
   const snap = snapshot(world, keys);
   if (Object.keys(snap).length === 0) return;
 

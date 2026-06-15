@@ -1,5 +1,25 @@
 # PUBLISHED.md — Phase 3 Seed Game Repos
 
+> **Stage 5a status (2026-06-15) — all six on `0.2.1`, republished to LOCAL MinIO.**
+> The capstone regression repinned every game to `@gitcade/sdk@0.2.1` +
+> `@gitcade/library@0.2.1` (`game.json` + `package.json`), applied the 0.2.1 engine
+> cleanups (helicopter/survival `scale-by-state`, tower-defense `snapToGrid` import,
+> idle-clicker play-scene persistence collapse, snake `excludeTags`), and re-verified
+> the whole set: all six `gitcade validate` PASS, `npm run build` clean, every smoke
+> suite green, headless replays clean (0 console/page errors), the three original
+> complaints re-confirmed fixed, and all six **fresh 0.2.1 `/dist` builds republished
+> to MinIO `<slug>/main/`** (30 objects each; the served `index.html` references the
+> new bundle hash — verified via the S3 API). Evidence: [`../audit/REGRESSION.md`](../audit/REGRESSION.md).
+>
+> **STILL DEFERRED — Stage 5c go-live (owner's discretion), not done here:**
+> (1) `npm publish @gitcade/sdk@0.2.1` + `@gitcade/library@0.2.1` (the human `[PUBLISH]`
+> gate); (2) push each game's `0.2.1` source to its `gitcade-games/<slug>` GitHub repo;
+> (3) a worker-faithful rebuild (clone → `npm install` from public npm → build → upload)
+> once the packages are on npm. The local MinIO blobs above are the bridge until then.
+
+---
+
+
 The six seed games and the scaffold template, published as standalone public repos
 in the **gitcade-games** GitHub org. Each game repo contains ONLY that game (not
 the monorepo), builds from a clean clone against `@gitcade/sdk@0.1.0` +

@@ -1,5 +1,5 @@
 import type { Registry, BehaviorFn } from "@gitcade/sdk";
-import { num, str, strArray } from "@gitcade/sdk";
+import { num, strArray } from "@gitcade/sdk";
 
 /**
  * `thrust-lift` — the one mechanic a one-button flyer needs that no
@@ -36,37 +36,15 @@ export const thrustLift: BehaviorFn = (entity, world, params, dt) => {
 };
 
 /**
- * `scroll-ramp` — auto-scroll whose speed RAMPS with a difficulty level read live
- * from `world.state`. The library `auto-scroll` part forces a static `$cfg` vx
- * every tick (it cannot read a counter), and `wave-spawner`/`level-progression`
- * read their `$cfg` params once at scene load — so there is no library path to make
- * the world scroll FASTER as a single play scene's difficulty climbs. This closes
- * exactly that gap: it sets `entity.vx = vx * (1 + (level-1) * perLevel)`, reading
- * the `levelKey` counter the library `level-progression` (scoreGte) maintains, so
- * the ramp stays data-driven (thresholds + per-level step all in `$cfg`) with one
- * tiny behavior instead of discrete per-level scenes.
- *
- * Like `auto-scroll`, order a `velocity` behavior AFTER it to integrate.
- * Logged in games/LIBRARY-GAPS.md as a generalization candidate
- * ("state-driven / ramping auto-scroll").
- *
- * Params:
- *  - `vx`/`vy`: base scroll velocity in px/sec at level 1 (balance → `$cfg`)
- *  - `levelKey`: `world.state` key holding the 1-based difficulty level (default `"level"`)
- *  - `perLevel`: fractional speed increase per level above 1 (balance → `$cfg`)
+ * 0.2.1 cleanup (LIBRARY-GAPS #8): the custom `scroll-ramp` behavior that used to
+ * live here is GONE. The library now ships `scale-by-state` (behaviors/scale-by-state),
+ * whose `target:"velocity", mode:"set", baseX/baseY, levelKey, perLevel` shape is the
+ * exact ramp this game hand-rolled — so the obstacle prototype in play.json composes
+ * the library part directly (`entity.vx = baseX * (1 + perLevel*(level-1))`, same math,
+ * same `level-progression` counter). One fewer game-owned behavior; balance still 100%
+ * in config. `thrust-lift` stays — no library part covers one-axis hold-thrust (#3).
  */
-export const scrollRamp: BehaviorFn = (entity, world, params) => {
-  const vx = num(params, "vx", 0);
-  const vy = num(params, "vy", 0);
-  const levelKey = str(params, "levelKey", "level");
-  const level = typeof world.state[levelKey] === "number" ? (world.state[levelKey] as number) : 1;
-  const perLevel = num(params, "perLevel", 0);
-  const mult = 1 + Math.max(0, level - 1) * perLevel;
-  entity.vx = vx * mult;
-  entity.vy = vy * mult;
-};
 
 export function registerCustomBehaviors(registry: Registry): void {
   registry.registerBehavior("thrust-lift", thrustLift);
-  registry.registerBehavior("scroll-ramp", scrollRamp);
 }

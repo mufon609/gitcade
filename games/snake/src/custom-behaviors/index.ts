@@ -40,6 +40,7 @@ interface SnakeScratch {
   segIds: string[];
   seq: number;
   dead: boolean;
+  imminentId: string | null; // the marker entity at the head's NEXT cell (0.2.1, #2)
 }
 
 export const snakeBody: SystemFn = (world, params, _dt) => {
@@ -56,6 +57,32 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
 
   const head = world.query(headTag)[0];
   if (!head) return;
+
+  // 0.2.1 (#2): keep an invisible marker on the cell the head is about to step into,
+  // so `place-on-free-cell` (passed excludeTags:["imminent"]) never drops food on the
+  // single predicted cell — closing the ~0.08% instant-re-eat the old hand-rolled
+  // spawnFood used to exclude. The marker carries no collision/collect behavior and is
+  // NOT a `snake-cell`, so it touches neither self-collision nor food pickup.
+  const imminentTag = str(params, "imminentTag", "imminent");
+  const dir = (head.state.__gridDir ?? { x: 1, y: 0 }) as { x: number; y: number };
+  const nextX = Math.round(head.x / tile) * tile + dir.x * tile;
+  const nextY = Math.round(head.y / tile) * tile + dir.y * tile;
+  let marker = s.imminentId ? world.byId(s.imminentId) : null;
+  if (!marker) {
+    marker = world.spawn({
+      id: `imminent.${headTag}`,
+      sprite: { kind: "none" },
+      size: { w: tile, h: tile },
+      position: { x: nextX, y: nextY },
+      tags: [imminentTag],
+      layer: 0,
+      behaviors: [],
+    } as never);
+    s.imminentId = marker.id;
+  } else {
+    marker.x = nextX;
+    marker.y = nextY;
+  }
 
   // One-time init: seed heading. The first food is requested by the "keep exactly
   // one food" check below (board starts empty), so init no longer places it.
@@ -175,7 +202,7 @@ export const snakeGuard: BehaviorFn = (head, world, params, _dt) => {
 };
 
 function freshScratch(startLength: number): SnakeScratch {
-  return { init: false, cells: [], target: startLength, lastCell: null, lastScore: 0, segIds: [], seq: 0, dead: false };
+  return { init: false, cells: [], target: startLength, lastCell: null, lastScore: 0, segIds: [], seq: 0, dead: false, imminentId: null };
 }
 
 function isZero(d: unknown): boolean {

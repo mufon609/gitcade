@@ -54,13 +54,16 @@ is empty, and tags the head + segments with a shared `snake-cell` so the helper
 excludes the whole snake. The "first food on the wall" / stacked-spawn symptoms are
 impossible by construction. **Snake's ~60-line `spawnFood` is deleted.**
 
-**Residual edge (not covered, logged for a future bump):** `place-on-free-cell`
-excludes only cells occupied by *live* `occupiedTag` entities at placement time. It
-cannot exclude a **predicted/imminent cell** — the single cell the head will step
-into next tick — which Snake's old `spawnFood` excluded (the S2 fix). At a 40×30
-grid (~1198 free cells) the odds of a coin landing on that one cell are ~0.08% and
-the only effect is an instant, harmless re-eat, so Snake accepts it. A future
-`place-on-free-cell` could take an `excludeCells`/`excludeTags[]` param to close it.
+**Residual edge — ✅ RESOLVED in 0.2.1 (the `excludeTags`/`excludeCells` param).**
+`place-on-free-cell` previously excluded only cells occupied by *live* `occupiedTag`
+entities at placement time; it could not exclude a **predicted/imminent cell** — the
+single cell the head will step into next tick — which Snake's old `spawnFood` excluded
+(the S2 fix). 0.2.1 added `excludeTags?: string[]` (and `excludeCells?: Vec2[]`) to
+`randomFreeCell`/`place-on-free-cell` (part → v1.1.0). **Adopted in Stage 5a:** Snake's
+`snake-body` now maintains an invisible marker entity tagged `imminent` on the head's
+next cell, and the scene passes `excludeTags: ["imminent"]` — so food can never land on
+the imminent cell. Verified by a 126-placement stress probe: `onImminent: 0, onSnake: 0,
+oob: 0`. The ~0.08% harmless re-eat is closed by construction.
 
 ## 3. `thrust-lift` — one-axis thrust / flappy control
 **From:** Helicopter (`games/helicopter/src/custom-behaviors/index.ts`, behavior `thrust-lift`)
@@ -102,13 +105,15 @@ and `upgrade-tree`. Restart-safe (listeners attached once per `World` via a
 > spawned on its `tower-bought` OK event (one audited part owns the money). A library
 > `build-on-request` should take `tileSize`/`towerTag`/`prototype` + a `buildable`
 > require flag and emit a `transaction` request rather than spending inline.
-> **Real friction filed:** the library's **`snapToGrid`** (G4,
-> `packages/library/src/util.ts`) is **NOT re-exported** from the `@gitcade/library`
-> package index (`src/index.ts` re-exports the registries + UI helpers but not the
-> grid utils), so a game that wants grid-snap must inline the 3-line formula (Tower
-> Defense did, with a comment). A one-line additive re-export of `snapToGrid` /
-> `randomFreeCell` / `snapRectToGrid` from the library index would close it. (Not
-> fixed here — library source is frozen/out of scope this session.)
+> **Real friction filed — ✅ RESOLVED in 0.2.1.** the library's **`snapToGrid`** (G4,
+> `packages/library/src/util.ts`) was **NOT re-exported** from the `@gitcade/library`
+> package index, so a game that wanted grid-snap had to inline the 3-line formula
+> (Tower Defense did, with a comment). 0.2.1 re-exports `snapToGrid` / `randomFreeCell`
+> (+ `Vec2`/`CellBounds`/`RandomFreeCellOpts` types) from `src/index.ts`. **Adopted in
+> Stage 5a:** `games/tower-defense/src/custom-behaviors/index.ts` deleted its inlined
+> `snapToGrid` and now `import { snapToGrid } from "@gitcade/library"` — same math, one
+> source of truth. Verified: an off-center click at (107,93) places a tower snapped to
+> cell center (100,100); validate + replay clean.
 
 ## 5. `event-counters` — event-driven economy & objective tallies
 **From:** Tower Defense (`creep-accounting`)
@@ -166,6 +171,21 @@ would remove the last bit of boilerplate.
 > "hydrate on scene load, then build systems" step), or (ii) give `persistence` a
 > "restore wins over seed for these keys" mode. Until then, the title-load-then-carry
 > pattern is the documented recipe for any game that persists a system-seeded key.
+>
+> **✅ RESOLVED in 0.2.1 — the scene-scoped hydration claim (option ii).** The SDK
+> `World` gained `claimPersistKeys/isPersistPending/resolvePersistKeys/persistPendingKeys`
+> (cleared per scene by `Game.loadScene`); the library `persistence` system claims its
+> declared keys SYNCHRONOUSLY on its first tick (so it must be ordered *before* seed
+> systems) and writes every saved key authoritatively on resolve; the library `currency`
+> defers its seed while `isPersistPending(key)`. **Adopted in Stage 5a (idle-clicker
+> collapse):** the title-scene `persistence` instance + its `flow.persist` carry are
+> DELETED; `persistence` now runs FIRST on the **play** scene alongside `currency` and
+> the custom economy systems. The custom seed-once systems (`click-to-earn` → clickPower,
+> `auto-income` → autoRate) now mirror `currency` and defer on `isPersistPending`, so a
+> saved system-seeded key survives a reload on its OWN scene. Verified: a reboot restores
+> `coins/clickPower/autoRate/upgrades/prestigeMult` exactly (the smoke G6 test was
+> rewritten for the play-scene model; the headless reload replay is identical to the
+> 0.2.0 title-workaround baseline).
 
 ## 7. `post-step-death-guard` — same-tick fatal-move detection + on-screen clamp
 **From:** Snake (`games/snake/src/custom-behaviors/index.ts`, behavior `snake-guard`)
@@ -213,6 +233,20 @@ scenes. **Params proven:** `vx`, `vy`, `levelKey`, `perLevel`.
 > `scaleByStateKey`) on the existing `auto-scroll`/`ai-chase`/`health-and-death`
 > params, or a `level`-aware mode on `wave-spawner` that re-resolves a small set of
 > prototype `$cfg` multipliers per wave — rather than shipping bespoke parts.
+>
+> **✅ RESOLVED in 0.2.1 — the library `scale-by-state` behavior.** Ships as a single
+> data part that ramps a live field by `factor = 1 + perLevel*(level-1)` read from a
+> `world.state` level counter, in three modes — `set` (force `base*factor` each tick,
+> for an auto-scroll velocity), `multiply` (rescale the live velocity another behavior
+> set this frame), `once` (one-time guarded stat bump) — with `target` = `vx|vy|
+> velocity|state:<key>`, all balance via `$cfg`. **Adopted in Stage 5a:** Helicopter's
+> custom `scroll-ramp` is DELETED → one `scale-by-state{target:"velocity",mode:"set",
+> baseX:$cfg.scrollVx,perLevel:$cfg.speedRampPerLevel}` on the obstacle (verified: vx
+> -230 @ lvl1 → -455 @ lvl8, identical to the old behavior). Survival Arena's custom
+> `swarm-scale` is DELETED → TWO instances on the enemy: `mode:"multiply" target:
+> "velocity"` after `ai-chase` (speed 95→188) and `mode:"once" target:"state:hp" base:
+> $cfg.enemyHp` after `health-and-death` (hp 80→203 @ lvl8) — both matching the old
+> custom part. Two custom behaviors removed; balance still 100% in config.
 
 ---
 

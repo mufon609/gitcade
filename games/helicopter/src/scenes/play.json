@@ -68,7 +68,7 @@
           "tags": ["obstacle"],
           "layer": 3,
           "behaviors": [
-            { "type": "scroll-ramp", "params": { "vx": "$cfg.scrollVx", "levelKey": "level", "perLevel": "$cfg.speedRampPerLevel" } },
+            { "type": "scale-by-state", "params": { "target": "velocity", "mode": "set", "baseX": "$cfg.scrollVx", "levelKey": "level", "perLevel": "$cfg.speedRampPerLevel" } },
             { "type": "velocity", "params": {} },
             { "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } },
             { "type": "health-and-death", "params": { "lifespan": "$cfg.obstacleLife", "deathSound": "" } }

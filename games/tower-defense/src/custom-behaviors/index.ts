@@ -1,18 +1,9 @@
 import type { Registry, SystemFn, World } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
-
-/**
- * G4 grid-snap: the CENTER of the grid cell containing `(x,y)`. Identical math to
- * the library's `snapToGrid` (packages/library/src/util.ts), inlined here only
- * because that helper isn't re-exported from the frozen `@gitcade/library` index
- * (filed in games/LIBRARY-GAPS.md). Tower-build owns the snap so the placement pick
- * lands on a cell center, matching the tilemap the renderer draws.
- */
-function snapToGrid(x: number, y: number, tileSize: number): { x: number; y: number } {
-  const col = Math.floor(x / tileSize);
-  const row = Math.floor(y / tileSize);
-  return { x: col * tileSize + tileSize / 2, y: row * tileSize + tileSize / 2 };
-}
+// G4 grid-snap (cell-center). 0.2.1 re-exports `snapToGrid` from the library index
+// (LIBRARY-GAPS #4), so the inlined 3-line copy this file used to carry is gone —
+// the build now imports the one canonical helper. Same math, one source of truth.
+import { snapToGrid } from "@gitcade/library";
 
 /**
  * Tower Defense's two custom systems. Both are written param-driven — every

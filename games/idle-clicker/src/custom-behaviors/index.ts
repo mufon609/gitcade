@@ -34,7 +34,14 @@ export const clickToEarn: SystemFn = (world, params) => {
   const tapEvent = str(params, "tapEvent", "click");
 
   // Seed the per-click power once (so prestige/reset restores a clean base).
-  if (typeof world.state[powerKey] !== "number") world.state[powerKey] = num(params, "basePower", 1);
+  // 0.2.1 (G6 race fix): DEFER the seed while a persistence load owns this key
+  // (`world.isPersistPending`), so collapsing persistence onto the play scene
+  // restores a saved clickPower instead of the tick-1 seed clobbering it — the
+  // same deferral the library `currency` system uses. No claim ⇒ a no-op (0.2.0
+  // behavior, additive).
+  if (!world.isPersistPending(powerKey) && typeof world.state[powerKey] !== "number") {
+    world.state[powerKey] = num(params, "basePower", 1);
+  }
 
   // Count taps this frame that landed on the coin (topmost pick).
   let taps = 0;
@@ -62,8 +69,12 @@ export const autoIncome: SystemFn = (world, params, dt) => {
   const coinsKey = str(params, "coinsKey", "coins");
   const rateKey = str(params, "rateKey", "autoRate");
   const multKey = str(params, "multKey", "prestigeMult");
-  if (typeof world.state[rateKey] !== "number") world.state[rateKey] = num(params, "baseRate", 0);
-  const rate = world.state[rateKey] as number;
+  // 0.2.1 (G6 race fix): defer the autoRate seed while a persistence load claims it
+  // (see click-to-earn above) so a saved rate survives the play-scene collapse.
+  if (!world.isPersistPending(rateKey) && typeof world.state[rateKey] !== "number") {
+    world.state[rateKey] = num(params, "baseRate", 0);
+  }
+  const rate = (world.state[rateKey] as number) ?? 0;
   const mult = (world.state[multKey] as number) ?? 1;
   if (rate > 0) world.state[coinsKey] = ((world.state[coinsKey] as number) ?? 0) + rate * mult * dt;
 };

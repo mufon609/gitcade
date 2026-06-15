@@ -53,6 +53,7 @@
     }
   ],
   "systems": [
+    { "type": "persistence", "params": {} },
     { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "coins", "startAmount": "$cfg.startCoins", "maxAmount": "$cfg.coinCap" } },
     { "type": "click-to-earn", "params": { "coinsKey": "coins", "targetTag": "coin-button", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower", "multKey": "prestigeMult", "tapEvent": "click" } },
     { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate", "multKey": "prestigeMult" } },
@@ -85,8 +86,7 @@
         "levelsKey": "upgrades",
         "bankKey": "lastBank"
       }
-    },
-    { "type": "persistence", "params": {} }
+    }
   ],
   "flow": {
     "persist": ["coins", "clickPower", "autoRate", "upgrades", "prestigeMult", "lastSeen"]

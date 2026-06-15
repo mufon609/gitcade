@@ -15,9 +15,21 @@ function boot(storage?: MemoryStorage): Game {
   registerCustomBehaviors(registry);
   return createGame({ manifest, config, scenes: [title, play] }, { canvas: null, registry, storage });
 }
-function enterPlay(g: Game): void {
+/**
+ * Enter play and let the persistence load resolve. 0.2.1 collapse: `persistence`
+ * runs FIRST on the PLAY scene and claims the economy keys synchronously, so the
+ * seed-once systems (`currency`, `click-to-earn`, `auto-income`) DEFER their seed
+ * until the async `storage.get` resolves. We therefore await a microtask, then step
+ * once so the released claim lets the seeds (or the restored values) land — the same
+ * "kick the async, await, step" shape the G6 reload test uses.
+ */
+const microtask = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+async function enterPlay(g: Game): Promise<void> {
   g.world.events.emit("start-pressed");
-  g.stepFrames(2);
+  g.stepFrames(1); // title tick; the scene-change drains at tick end → now on play
+  g.stepFrames(1); // play tick 1: persistence claims + fires the async load; seeds defer
+  await microtask(); // the async storage.get resolves: restore written / claim released
+  g.stepFrames(1); // claim gone → seeds (or restored values) are now present
 }
 /** Drive the real G2 click edge: push a released tap, then step one frame. */
 function tap(g: Game, x: number, y: number, n: number): void {
@@ -33,10 +45,10 @@ function tap(g: Game, x: number, y: number, n: number): void {
  * purchase through upgrade-tree, the prestige system, and value persistence.
  */
 describe("idle-clicker smoke", () => {
-  it("flows title→play and earns on a real coin tap (G2 click edge)", () => {
+  it("flows title→play and earns on a real coin tap (G2 click edge)", async () => {
     const g = boot();
     expect(g.scene.id).toBe("title");
-    enterPlay(g);
+    await enterPlay(g);
     expect(g.scene.id).toBe("play");
 
     const power = g.world.state.clickPower as number;
@@ -47,9 +59,9 @@ describe("idle-clicker smoke", () => {
     expect(g.world.state.coins).toBe(4 * power);
   });
 
-  it("buys an upgrade through upgrade-tree (G5): deduct + raise power", () => {
+  it("buys an upgrade through upgrade-tree (G5): deduct + raise power", async () => {
     const g = boot();
-    enterPlay(g);
+    await enterPlay(g);
     const power = g.world.state.clickPower as number;
     g.world.state.coins = 1000;
     g.world.state.upgradeRequest = "click";
@@ -59,9 +71,9 @@ describe("idle-clicker smoke", () => {
     expect(() => g.stepFrames(120)).not.toThrow();
   });
 
-  it("prestige system banks, bumps the multiplier, and resets the run", () => {
+  it("prestige system banks, bumps the multiplier, and resets the run", async () => {
     const g = boot();
-    enterPlay(g);
+    await enterPlay(g);
     g.world.state.coins = 5000;
     g.world.state.upgrades = { click: 3 };
     g.world.state.prestigeRequest = true;
@@ -73,10 +85,10 @@ describe("idle-clicker smoke", () => {
   });
 
   // IC-1: the prestige multiplier scales ALL income (clicks AND auto-income).
-  it("prestige multiplier scales click AND auto income (IC-1)", () => {
-    function runRound(mult: number): { fromClicks: number; fromAuto: number } {
+  it("prestige multiplier scales click AND auto income (IC-1)", async () => {
+    async function runRound(mult: number): Promise<{ fromClicks: number; fromAuto: number }> {
       const g = boot();
-      enterPlay(g);
+      await enterPlay(g);
       g.world.state.prestigeMult = mult;
       g.world.state.coins = 0;
       tap(g, 400, 300, 10);
@@ -87,36 +99,41 @@ describe("idle-clicker smoke", () => {
       const fromAuto = g.world.state.coins as number;
       return { fromClicks, fromAuto };
     }
-    const base = runRound(1);
-    const prestiged = runRound(3);
+    const base = await runRound(1);
+    const prestiged = await runRound(3);
     expect(prestiged.fromClicks).toBeCloseTo(base.fromClicks * 3, 5);
     expect(prestiged.fromAuto).toBeCloseTo(base.fromAuto * 3, 5);
     expect(base.fromAuto).toBeGreaterThan(0);
   });
 
-  // G6: values survive a reload through the persistence system + shared storage.
+  // G6 (0.2.1 collapse): values survive a reload with persistence running on the
+  // PLAY scene. The 0.2.1 hydration claim makes the seed-once systems defer until
+  // the async restore lands, so a saved coins/clickPower/autoRate is restored
+  // authoritatively even on the scene that seeds them — no title-scene workaround.
   it("persists coins/upgrades/prestige across a reload (G6)", async () => {
     const storage = new MemoryStorage();
-    const tick = () => new Promise((r) => setTimeout(r, 0));
     const g1 = boot(storage);
-    enterPlay(g1);
+    await enterPlay(g1);
     g1.world.state.coins = 9999;
+    g1.world.state.clickPower = 7;
+    g1.world.state.autoRate = 3;
     g1.world.state.upgrades = { click: 4, cursor: 2 };
     g1.world.state.prestigeMult = 1.5;
-    g1.stepFrames(5);
-    await tick();
+    g1.stepFrames(5); // change-based save writes the snapshot
+    await microtask();
 
-    // Reload: the persistence system loads on the TITLE scene (no system seeds the
-    // economy keys there), so the async restore lands before we transition; the
-    // title's flow.persist then carries the restored values into play.
+    // Reload: persistence on the play scene claims the keys, the async restore lands,
+    // and the deferred seeds never clobber the saved values.
     const g2 = boot(storage);
     expect(g2.scene.id).toBe("title");
-    g2.stepFrames(2); // kick off the async load
-    await tick(); // load resolves + restores into title's world.state
-    g2.stepFrames(1);
-    g2.world.events.emit("start-pressed");
-    g2.stepFrames(3); // flow carries the keys into play; currency sees them present
-    expect(g2.world.state.coins).toBe(9999);
+    await enterPlay(g2);
+    expect(g2.scene.id).toBe("play");
+    // coins restored authoritatively; auto-income (autoRate 3) may accrue a few tenths
+    // on the post-restore steps, so allow a small positive drift from the saved 9999.
+    expect(g2.world.state.coins as number).toBeGreaterThanOrEqual(9999);
+    expect(g2.world.state.coins as number).toBeLessThan(10000);
+    expect(g2.world.state.clickPower).toBe(7);
+    expect(g2.world.state.autoRate).toBe(3);
     expect(g2.world.state.prestigeMult).toBe(1.5);
     expect((g2.world.state.upgrades as Record<string, number>).click).toBe(4);
   });

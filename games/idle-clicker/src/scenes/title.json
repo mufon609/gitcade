@@ -37,11 +37,8 @@
       "size": { "w": 700, "h": 28 }, "position": { "x": 400, "y": 460 }, "tags": ["ui"], "layer": 100, "behaviors": []
     }
   ],
-  "systems": [
-    { "type": "persistence", "params": {} }
-  ],
+  "systems": [],
   "flow": {
-    "on": { "start-pressed": "play" },
-    "persist": ["coins", "clickPower", "autoRate", "upgrades", "prestigeMult", "lastSeen"]
+    "on": { "start-pressed": "play" }
   }
 }

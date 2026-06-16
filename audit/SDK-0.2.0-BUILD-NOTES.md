@@ -4,7 +4,8 @@
 all `g*` acceptance probes PASS, 0.1.x additivity verified. Awaiting the human
 `[PUBLISH]` gate (republish to npm + Stage-4 consumer repins).
 
-Built to [`SDK-0.2.0-DESIGN.md`](./SDK-0.2.0-DESIGN.md) (settled spec, all 7 OQs
+Built to the 0.2.0 design spec (`SDK-0.2.0-DESIGN.md` — removed in the 0.3.0
+audit-dir cleanup; recoverable from git history; settled spec, all 7 OQs
 resolved). This file records what landed, the decisions that needed a judgment
 call during implementation, the pasted probe results, and what Stage 4 inherits.
 
@@ -161,7 +162,7 @@ all 5 `proofs/*` still validate, 0.1.x **and** 0.2.0 scenes behave identically.
 Awaiting the human `[PUBLISH]` gate. **Scope was `packages/sdk` + `packages/library`
 ONLY** — no game or `platform/` source was touched.
 
-Built to the four gaps `audit/PROMPT-10-0.2.1-engine-cleanup.md` / `LIBRARY-GAPS.md`
+Built to the four gaps `LIBRARY-GAPS.md`
 (#2, #4, #6, #8) surfaced. **Additive / backward-compatible**: every change is a new
 API method, a new param, a new behavior, or a new export. The frozen contracts are
 untouched — storage **wire protocol** unchanged (`storage/protocol.ts` not edited),

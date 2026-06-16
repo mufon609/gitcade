@@ -6,9 +6,9 @@ and samples — over a timeline — canvas-pixel hashes, `world.state`, live ent
 positions, console messages, page errors, request failures, and (via `eval`
 probes) the runtime API surface a data-driven part can actually reach.
 
-Every "works"/"broken" verdict in [`../ENGINE-AUDIT.md`](../ENGINE-AUDIT.md) is
-backed by a report this produced (the `out-*.json` files here). Stage 4 per-game
-audits reuse it.
+Every "works"/"broken" verdict in the original engine audit (`ENGINE-AUDIT.md`,
+removed in the 0.3.0 audit-dir cleanup — recoverable from git history) was backed
+by a report this produced (the `out-*.json` files here). The per-game audits reuse it.
 
 ## Why it's trustworthy
 

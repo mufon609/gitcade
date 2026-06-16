@@ -7,6 +7,26 @@
   "background": "#07060c",
   "entities": [
     {
+      "id": "bg-stars",
+      "sprite": {
+        "kind": "image",
+        "src": "assets/backgrounds/starfield.png"
+      },
+      "size": {
+        "w": 800,
+        "h": 600
+      },
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "tags": [
+        "decor"
+      ],
+      "layer": 0,
+      "behaviors": []
+    },
+    {
       "id": "title-text",
       "sprite": {
         "kind": "text",

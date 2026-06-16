@@ -41,12 +41,15 @@ const game = createGame(
 );
 
 // --- screen juice (presentation only) ---------------------------------------
-// Bind gameplay events → flash/shake. These are the same events the scene parts
-// emit (block-broken from health-and-death, ball-lost from trigger-zone,
-// level-cleared from level-progression, gameover from lives-respawn).
+// Bind only BIG, INFREQUENT moments → flash/shake. Routine feedback (breaking a
+// brick — the single most frequent action) is now LOCAL: an `explosion` particle
+// burst at the broken brick, declared as scene data (see each level's FX system),
+// not a screen effect. Reserving the screen for rare events keeps the per-hit feel
+// punchy without a constant whole-screen jiggle. These remaining bindings fire on
+// the scene events the library parts emit: ball-lost (trigger-zone), level-cleared
+// (level-progression), gameover (lives-respawn).
 const fx = new ScreenEffects();
 fx.bindToEvents(game.world, {
-  "block-broken": (f) => f.shake(4, 0.12, 50),
   "ball-lost": (f) => {
     f.shake(10, 0.35, 34);
     f.flash("#b13e53", 0.25);

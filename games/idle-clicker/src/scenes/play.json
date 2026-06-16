@@ -7,9 +7,9 @@
       "id": "tap-field",
       "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)" },
       "size": { "w": 800, "h": 600 },
-      "position": { "x": 400, "y": 300 },
+      "position": { "x": 0, "y": 0 },
       "tags": ["coin-button"],
-      "layer": 0,
+      "layer": 999,
       "behaviors": []
     },
     {
@@ -34,12 +34,12 @@
     {
       "id": "hud-power",
       "sprite": { "kind": "text", "bind": "powerDisplay", "text": "x1/click", "font": "20px monospace", "color": "#41a6f6", "align": "left" },
-      "size": { "w": 220, "h": 24 }, "position": { "x": 16, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
+      "size": { "w": 220, "h": 24 }, "position": { "x": 56, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
     },
     {
       "id": "hud-prestige",
       "sprite": { "kind": "text", "bind": "prestigeDisplay", "text": "", "font": "20px monospace", "color": "#ef7d57", "align": "left" },
-      "size": { "w": 220, "h": 24 }, "position": { "x": 16, "y": 44 }, "tags": ["hud"], "layer": 100, "behaviors": []
+      "size": { "w": 220, "h": 24 }, "position": { "x": 56, "y": 44 }, "tags": ["hud"], "layer": 100, "behaviors": []
     },
     {
       "id": "hud-bonus",
@@ -58,6 +58,8 @@
     { "type": "click-to-earn", "params": { "coinsKey": "coins", "targetTag": "coin-button", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower", "multKey": "prestigeMult", "tapEvent": "click" } },
     { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate", "multKey": "prestigeMult" } },
     { "type": "interval-bonus", "params": { "coinsKey": "coins", "period": "$cfg.bonusPeriod", "amount": "$cfg.bonusAmount", "multKey": "prestigeMult", "leftKey": "bonusLeft" } },
+    { "type": "sparkle", "part": "sparkle@1.0.0", "params": { "event": "click", "colors": ["#ffcd75", "#ffd98e", "#f4f4f4"] } },
+    { "type": "sparkle", "part": "sparkle@1.0.0", "params": { "event": "bonus", "colors": ["#a7f070", "#ffcd75", "#f4f4f4"], "size": 6 } },
     {
       "type": "upgrade-tree",
       "part": "upgrade-tree@1.0.0",

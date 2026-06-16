@@ -21,6 +21,16 @@
       #idlebar button b { display: block; color: var(--accent); font-size: 15px; }
       #idlebar button#prestige-btn { background: #5a2f50; flex: 0 0 90px; }
       #idlebar button#prestige-btn b { color: #ef7d57; }
+      /* Denied-buy cue: a brief red shake on the specific button (LOCAL feedback,
+         replacing a full-screen flash for a minor can't-afford mis-tap). */
+      @keyframes denied {
+        0%   { transform: translateX(0); background: #6a2433; }
+        25%  { transform: translateX(-4px); }
+        50%  { transform: translateX(4px); background: #6a2433; }
+        75%  { transform: translateX(-3px); }
+        100% { transform: translateX(0); }
+      }
+      #idlebar button.denied { animation: denied .28s ease; }
     </style>
   </head>
   <body>

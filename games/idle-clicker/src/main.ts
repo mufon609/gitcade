@@ -113,41 +113,50 @@ function updateShop(w: World): void {
 //   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now" as the
 //      away-point (started AFTER step 1 so it can't clobber the read).
 //
-// ORDERING (the fix): the old code read the save in a SECOND storage.get and applied the
-// gain on a fixed `setTimeout(credit, 60)`. That raced the play-scene `persistence` restore
-// (also async, a postMessage round-trip): whenever the restore landed after 60 ms it
-// overwrote `coins` with the saved value, silently DROPPING the credited earnings. Now we
-// piggyback on the restore instead of racing it. `coins` is a claimed persist key, so
-// `world.isPersistPending("coins")` is true while the restore is in flight (the same claim
-// the seed systems defer on) and false once it lands. We wait until we've seen it pending
-// and then resolved, then add the gain on TOP of the just-restored `coins` — reading the
-// restored `autoRate`/`prestigeMult`/`lastSeen` straight from `world.state` (no second read).
+// ORDERING: we must credit on TOP of the RESTORED `coins`, never a pre-restore (empty)
+// state — `coins` is a claimed persist key, so `world.isPersistPending("coins")` is true
+// while the restore is in flight (the same claim the seed systems defer on) and false once
+// it lands. We wait for it to be false, then add the gain to the just-restored `coins`,
+// reading the restored `autoRate`/`prestigeMult`/`lastSeen` straight from `world.state`.
+//
+// IC-OFFLINE (the robustness fix): the previous version waited until it had *sampled*
+// `isPersistPending` true (a `sawRestoreClaim` flag) before crediting — to prove a restore
+// actually happened. But this `mirror()` loop runs once per animation frame (and BEFORE the
+// game's own loop, so it samples the flag before each tick), while the production bridge
+// store on the parent is SYNCHRONOUS (the platform's parent-side key-value store): the
+// restore's claim is placed and released entirely within the macrotask gap BETWEEN two
+// frames, so the pending=true window is never observed and the credit was silently DROPPED
+// in production. We now gate on two DURABLE signals instead of that transient one:
+//   • GATE 1 — the play sim has actually ticked. This rAF loop can outrun the sim's first
+//     tick, so we can't assume the persistence claim is placed yet. `bonusLeft` is written
+//     by the `interval-bonus` system on EVERY play tick and is NOT a persisted key, so its
+//     presence is a frame-timing-independent "≥1 play tick ran" signal. `persistence` is
+//     ordered before `interval-bonus` in play.json, so bonusLeft set ⟹ the claim is placed.
+//   • GATE 2 — the restore RESOLVED (`!isPersistPending("coins")`), so we read RESTORED values.
+// Past both gates, a numeric `lastSeen` can only be a just-restored save (no system seeds it;
+// the heartbeat writes it only AFTER `offlineApplied`); its absence means a first run with
+// nothing to credit — either way we then own `lastSeen` (start the heartbeat).
 let offlineApplied = false;
-let sawRestoreClaim = false;
 
 function tryApplyOfflineCredit(): void {
   if (offlineApplied || !playing()) return;
-  if (world.isPersistPending("coins")) {
-    sawRestoreClaim = true; // restore is in flight — its claim is up
-    return;
-  }
-  // Not pending. If we never saw the claim, the play-scene persistence system hasn't
-  // restored yet (claim is placed on its first tick, released when the read lands) —
-  // wait, so we don't credit a pre-restore (empty) state and then get clobbered.
-  if (!sawRestoreClaim) return;
+  if (typeof world.state.bonusLeft !== "number") return; // GATE 1: a play tick has run
+  if (world.isPersistPending("coins")) return; // GATE 2: the restore has resolved
 
-  offlineApplied = true;
-  const rate = (world.state.autoRate as number) ?? 0;
-  const mult = (world.state.prestigeMult as number) ?? 1;
   const lastSeen = world.state.lastSeen;
-  if (typeof lastSeen === "number" && rate > 0) {
-    const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
-    const gain = Math.floor(rate * elapsed * mult);
-    if (gain > 0) {
-      world.state.coins = ((world.state.coins as number) ?? 0) + gain;
-      world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
+  if (typeof lastSeen === "number") {
+    const rate = (world.state.autoRate as number) ?? 0;
+    const mult = (world.state.prestigeMult as number) ?? 1;
+    if (rate > 0) {
+      const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
+      const gain = Math.floor(rate * elapsed * mult);
+      if (gain > 0) {
+        world.state.coins = ((world.state.coins as number) ?? 0) + gain;
+        world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
+      }
     }
   }
+  offlineApplied = true; // credited (or no save) — own `lastSeen` (heartbeat) from here on
 }
 
 // --- HUD mirrors + lastSeen heartbeat (presentation + the offline timestamp) ---
@@ -173,19 +182,32 @@ function mirror(): void {
 requestAnimationFrame(mirror);
 
 // --- screen-FX juice (presentation only) --------------------------------------
+// SCREEN effects are reserved for the big, infrequent moment. Prestige — a deliberate
+// run-resetting reset-for-a-multiplier — gets the flash + shake; it's rare and major,
+// so it's proportionate (the same bar snake/tower-defense use: screen FX = big moments).
+// The high-frequency actions are now LOCAL instead of full-screen flashes (IC-FX,
+// the audit headline): clicking the coin (the single most frequent action) and the
+// periodic bonus burst particles via the `sparkle` FX systems in play.json, at the
+// tap point / coin — a per-click screen flash read as a strobe.
 const fx = new ScreenEffects();
 fx.bindToEvents(world, {
-  click: (f) => f.flash("#ffcd75", 0.06),
-  bonus: (f) => f.flash("#a7f070", 0.18),
   prestige: (f) => {
     f.flash("#ef7d57", 0.3);
     f.shake(8, 0.3, 36);
   },
-  // IC-3: a rejected buy gets a cue instead of silently no-op'ing.
-  "upgrade-denied": (f) => {
-    f.flash("#ef7d57", 0.12);
-    audio.play("hit");
-  },
+});
+// IC-3: a rejected buy gets a cue instead of silently no-op'ing — but LOCAL to the
+// button that was denied (the event carries its id), not a full-screen flash for a
+// minor mis-tap. The shop buttons are HTML, so the cue lives in the DOM next to them.
+world.events.on("upgrade-denied", (data) => {
+  const id = (data as { id?: string } | null)?.id;
+  const btn = id ? shopButtons.get(id) : undefined;
+  if (btn) {
+    btn.classList.remove("denied"); // restart the animation if it's already mid-flash
+    void btn.offsetWidth; // force reflow so re-adding the class re-triggers the keyframes
+    btn.classList.add("denied");
+  }
+  audio.play("hit");
 });
 // `attachScreenEffects` types the overlay structurally; a DOM element's
 // CSSStyleDeclaration is runtime-compatible (the fx loop only assigns style props)

@@ -43,20 +43,29 @@ export const clickToEarn: SystemFn = (world, params) => {
     world.state[powerKey] = num(params, "basePower", 1);
   }
 
-  // Count taps this frame that landed on the coin (topmost pick).
+  // Count taps this frame that landed on the coin (topmost pick), remembering the
+  // last hit point so feedback can be LOCAL — a particle burst at the cursor instead
+  // of a full-screen flash (IC-FX; clicking is the highest-frequency action in the game).
   let taps = 0;
+  let lastX = 0;
+  let lastY = 0;
   for (const t of world.input.justReleased()) {
     const hit = world.entityAt(t.x, t.y);
-    if (hit && hit.hasTag(targetTag)) taps++;
+    if (hit && hit.hasTag(targetTag)) {
+      taps++;
+      lastX = t.x;
+      lastY = t.y;
+    }
   }
   if (taps === 0) return;
 
   const per = (world.state[powerKey] as number) ?? 1;
   const mult = (world.state[multKey] as number) ?? 1;
   world.state[coinsKey] = ((world.state[coinsKey] as number) ?? 0) + taps * per * mult;
-  // Feedback (sound + a screen-juice event the host flashes on).
+  // Feedback (sound + a juice event carrying the tap point so a `sparkle` FX system
+  // can burst particles right where the player tapped — `eventPos` reads {x,y}).
   world.audio.play("collect");
-  if (tapEvent) world.events.emit(tapEvent, { taps });
+  if (tapEvent) world.events.emit(tapEvent, { taps, x: lastX, y: lastY });
 };
 
 /**

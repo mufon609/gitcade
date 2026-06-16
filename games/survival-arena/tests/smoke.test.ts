@@ -9,10 +9,11 @@ import over from "../src/scenes/over.json";
 import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 
 /**
- * The headless smoke boot `gitcade validate` defers to. Survival Arena's 0.2.0 build
- * is the three-scene data flow (title → play → over wired by `flow.on`) composing
- * library parts + the one custom `swarm-scale` behavior (the level-driven enemy
- * toughness/speed ramp). Boots on the full library + custom registry, no canvas, and
+ * The headless smoke boot `gitcade validate` defers to. Survival Arena's build is the
+ * three-scene data flow (title → play → over wired by `flow.on`) composing library
+ * parts only — the level-driven enemy toughness/speed ramp is data now (two
+ * `scale-by-state` instances; no custom behavior). Boots on the full library
+ * registry (the custom hook is a no-op), no canvas, and
  * exercises the data-driven transitions: the wave-spawner scatters chasers, the
  * player auto-fires + takes contact damage, score accrues, the difficulty level
  * ramps (and makes enemies tougher/faster), a death routes to game-over, and a retry

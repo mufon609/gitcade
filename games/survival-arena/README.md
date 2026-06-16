@@ -2,11 +2,12 @@
 
 A Vampire-Survivors-lite and the **FX showcase** of the seed set: auto-fire at
 escalating swarms of chasers, dodge with twin-stick movement, and stay alive for
-75 seconds. Explosion particles on every kill, a death burst, a level-up sparkle,
-screen-shake on impact, and a generative chiptune loop. The screen flow
-(title → play → over) and high-score persistence are **data** (scene `flow` +
-`manifest.persist`), composed from SDK + `@gitcade/library` parts plus one tiny
-custom behavior (`swarm-scale`) that ramps enemy toughness/speed with the level.
+75 seconds. A local explosion burst on every kill, a death burst, a level-up
+sparkle, a screen-shake when you take a hit, and a generative chiptune loop. The
+screen flow (title → play → over) and high-score persistence are **data** (scene
+`flow` + `manifest.persist`), composed **entirely** from SDK + `@gitcade/library`
+parts — including the level-driven enemy toughness/speed ramp, now pure data via
+two `scale-by-state` instances (no custom behavior remains).
 
 ## Play
 
@@ -35,15 +36,17 @@ Mobile: the **d-pad** (or just drag on the canvas). **Space/Enter** start, **Esc
 | `score@1.0.0` + `persistence` + `manifest.persist` | library | score + declarative cross-run high score (no host save code) |
 | `tap-emit` + scene `flow.on` | library UI + SDK | the data-driven title → play → over flow |
 | `hud-bar` | library UI | the health bar (mirrors the player's HP) |
-| `swarm-scale` | **custom behavior** | reads the live `level` and ramps each enemy's hp + chase speed |
+| `scale-by-state` ×2 | library behavior | reads the live `level` and ramps each enemy's hp (once, at spawn) + chase speed (every tick) |
 
-Screen-shake (per kill, a bigger one + red flash on death, a blue flash on
-level-up) and the chiptune loop are slim host glue in
-[`src/main.ts`](src/main.ts). The one mechanic the library can't express as data —
-making the swarm *tougher and faster* as the level climbs (`wave-spawner` scales
-COUNT but bakes the prototype's stats in at scene load) — is the small param-driven
-`swarm-scale` behavior in [`src/custom-behaviors/`](src/custom-behaviors/index.ts),
-logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) #8.
+Screen-shake (a small one when the player is hit, a bigger one + red flash on
+death, a blue flash on level-up) and the chiptune loop are slim host glue in
+[`src/main.ts`](src/main.ts). The per-kill burst itself is **data** — a local
+`explosion` at each dead enemy — so the host owns only the screen-level FX the
+frozen renderer can't do from a behavior. Making the swarm *tougher and faster* as
+the level climbs (`wave-spawner` scales COUNT but bakes the prototype's stats in at
+scene load) — once the custom `swarm-scale` behavior, logged in
+[`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) #8 — is now expressed purely as data with
+two library `scale-by-state` instances on the enemy prototype.
 
 ## Rebalance it (the governance demo)
 

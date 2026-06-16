@@ -1,16 +1,18 @@
 /**
  * Survival Arena bootstrap (host glue). The GAME is data — game.json + config.json +
  * the three JSON scenes (title → play → over) wired by `flow.on` edges, composing
- * @gitcade/library + SDK parts plus ONE custom behavior (`swarm-scale`, the
- * level-driven enemy toughness/speed ramp that no data path can express; see
- * custom-behaviors/index.ts + LIBRARY-GAPS #8).
+ * @gitcade/library + SDK parts ONLY. There are NO custom behaviors: the level-driven
+ * enemy toughness/speed ramp (once `swarm-scale`, LIBRARY-GAPS #8) is now pure DATA via
+ * two library `scale-by-state` instances in play.json. See custom-behaviors/index.ts.
  *
  * 0.2.0 made the screen flow expressible as DATA (scene `flow`, `tap-emit`,
  * declarative `persist`), so the old ~306-line GameShell screen-state machine and
  * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
- * data primitive: the library audio, the FX SHOWCASE screen juice (shake on every
- * kill, a bigger shake + red flash on death, a blue flash on level-up — this game is
- * the FX demo), an Enter bridge mirroring the on-screen flow buttons for keyboard
+ * data primitive: the library audio, the FX SHOWCASE *screen-level* juice (the
+ * per-kill burst is DATA — a local `explosion` at each dead enemy; the host owns only
+ * the screen-shake/flash the frozen renderer can't do from a behavior: a small shake
+ * when the PLAYER is hit, a bigger shake + red flash on death, a blue flash on
+ * level-up), an Enter bridge mirroring the on-screen flow buttons for keyboard
  * players, a pause toggle (freezing the sim is a host-loop concern), and a few
  * presentation-only HUD mirrors (player hp → the bar's `hp`/`maxHp` keys, the float
  * survival timer → an integer `clock`, `best` → `bestDisplay`, and the win/lose
@@ -66,12 +68,31 @@ function mirror(): void {
 requestAnimationFrame(mirror);
 
 // --- FX showcase: screen juice (presentation only) ---------------------------
-// This game is the FX demo. Bind gameplay events → shake/flash. The particle
-// bursts themselves are DATA (the explosion/sparkle systems in play.json); these
-// are the screen-level effects the frozen renderer cannot do from a behavior.
+// This game is the FX demo. The per-KILL juice is DATA — a local `explosion` burst
+// at each dead enemy (play.json), which reads far better at swarm density than a
+// global shake: a shake on every kill never settles between kills, so under a dense
+// swarm it degrades into a constant rumble that flattens the bigger beats AND hurts
+// readability (you can't parse threats through a perpetually-jittering field). So the
+// host reserves SCREEN-shake for player-stakes moments the renderer can't express
+// from a behavior:
+//  - the player taking a hit  → a small shake, rate-limited so a pile-on can't
+//    strobe. Deliberately NO full-screen flash: getting hit is a frequent/routine
+//    event, and a full-screen flash on a routine action is the exact anti-pattern
+//    this audit pass exists to kill — the shake conveys the hit without washing the
+//    field. (The "damage" event fires for EVERY contact-damage hit, including the
+//    player's bullets hitting enemies, so we gate on the player being the target.)
+//  - the player dying         → a big shake + red flash (a rare, decisive beat).
+//  - a level-up               → a blue flash (rare, and paired with a sparkle burst).
 const fx = new ScreenEffects();
+let lastHitFx = 0;
 fx.bindToEvents(game.world, {
-  "enemy-died": (f) => f.shake(5, 0.16, 44),
+  "damage": (f, data) => {
+    if ((data as { target?: unknown } | null)?.target !== "player") return;
+    const now = typeof performance !== "undefined" ? performance.now() : 0;
+    if (now - lastHitFx < 220) return; // throttle so a swarm pile-on can't strobe-shake
+    lastHitFx = now;
+    f.shake(7, 0.2, 40);
+  },
   "player-died": (f) => {
     f.shake(18, 0.6, 34);
     f.flash("#b13e53", 0.45);

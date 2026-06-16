@@ -240,7 +240,69 @@ export const creepAccounting: SystemFn = (world, params) => {
   }
 };
 
+/**
+ * `build-preview` — the placement affordance (0.3.0 sharp-pointer maximize). A host
+ * `pointermove` writes the desktop cursor (world coords) to `world.state[hoverKey]`;
+ * this system snaps it to a grid cell and parks a pre-declared range RING + CELL
+ * highlight there, recolored GREEN when a turret could go there (buildable tile,
+ * cell free, gold ≥ cost) and RED when it could not — so the player sees the reach
+ * and the cost-validity BEFORE committing the click. The ring tracks `rangeKey`, so
+ * a range upgrade grows the preview too.
+ *
+ * Presentation only — it owns no game state and never blocks a build (the real
+ * placement is still the `tower-build` click edge). Touch has no hover and headless
+ * has no pointer, so `hoverKey` is unset there and both preview entities sit
+ * off-screen — smoke tests and touch taps are untouched.
+ *
+ * Params: `tileSize` (structural), `rangeKey`, `currencyKey`, `towerCost` ($cfg),
+ * `towerTag`, `hoverKey`, `ringTag`, `cellTag`.
+ */
+export const buildPreview: SystemFn = (world, params) => {
+  const tile = num(params, "tileSize", 40);
+  const rangeKey = str(params, "rangeKey", "towerRange");
+  const currencyKey = str(params, "currencyKey", "gold");
+  const cost = num(params, "towerCost", 0);
+  const towerTag = str(params, "towerTag", "tower");
+  const hoverKey = str(params, "hoverKey", "buildHover");
+  const ring = world.query(str(params, "ringTag", "build-preview"))[0];
+  const cell = world.query(str(params, "cellTag", "build-cell"))[0];
+  if (!ring && !cell) return;
+
+  const hover = world.state[hoverKey] as { x?: unknown; y?: unknown } | undefined;
+  if (!hover || typeof hover.x !== "number" || typeof hover.y !== "number") {
+    // Not hovering (touch, blur, off-canvas) — park both previews off-screen.
+    for (const e of [ring, cell]) if (e) { e.x = -9999; e.y = -9999; }
+    return;
+  }
+
+  const c = snapToGrid(hover.x, hover.y, tile);
+  const range = (world.state[rangeKey] as number) ?? 0;
+  const ok =
+    world.isBuildable(c.x, c.y) &&
+    !cellOccupied(world, towerTag, c.x, c.y, tile) &&
+    ((world.state[currencyKey] as number) ?? 0) >= cost;
+  // Palette greens/reds at low alpha — a hint over the field, never an opaque cover.
+  const stroke = ok ? "rgba(167,240,112,0.8)" : "rgba(177,62,83,0.8)";
+  const fill = ok ? "rgba(167,240,112,0.13)" : "rgba(177,62,83,0.15)";
+
+  if (ring) {
+    const r = Math.max(1, range);
+    ring.w = ring.h = r * 2;
+    ring.x = c.x - r;
+    ring.y = c.y - r;
+    (ring.sprite as { stroke?: string }).stroke = stroke;
+  }
+  if (cell) {
+    cell.w = cell.h = tile;
+    cell.x = c.x - tile / 2;
+    cell.y = c.y - tile / 2;
+    (cell.sprite as { color: string; stroke?: string }).color = fill;
+    (cell.sprite as { color: string; stroke?: string }).stroke = stroke;
+  }
+};
+
 export function registerCustomBehaviors(registry: Registry): void {
   registry.registerSystem("tower-build", towerBuild);
   registry.registerSystem("creep-accounting", creepAccounting);
+  registry.registerSystem("build-preview", buildPreview);
 }

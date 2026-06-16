@@ -123,12 +123,16 @@ function syncBarVisibility(): void {
 requestAnimationFrame(syncBarVisibility);
 
 // --- screen-FX juice (presentation only) ---------------------------------------
+// Screen-level FX is reserved for SCREEN-WIDE, low-frequency events: a life lost to
+// a leak (a brief red vignette) and game-over (a hard shake). The routine, high-
+// frequency actions — placing a turret, a denied mis-tap — used to flash the WHOLE
+// screen (the reported green flash); that feedback is now LOCAL, emitted at the cell
+// by the data `sparkle`/`explosion` systems in play.json. A creep kill keeps a tiny
+// 3px shake to punch the local death burst (the `explosion` system) without flashing.
 const fx = new ScreenEffects();
 fx.bindToEvents(world, {
   "creep-killed": (f) => f.shake(3, 0.1, 50),
   "creep-leaked": (f) => f.flash("#b13e53", 0.18),
-  "build-denied": (f) => f.flash("#ef7d57", 0.14),
-  "tower-placed": (f) => f.flash("#a7f070", 0.08),
   gameover: (f) => f.shake(12, 0.45, 36),
 });
 // `attachScreenEffects` types the overlay structurally; a DOM element's
@@ -215,6 +219,24 @@ if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
 // The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
+
+// --- desktop build-preview hover bridge ----------------------------------------
+// The SDK Input tracks PRESSED pointers (for the G2 click edge), not a button-less
+// hover, so feed the cursor's world-space cell to the data `build-preview` system as
+// game state: a pointermove during play writes `buildHover`; leaving the canvas
+// clears it. Touch never hovers (it taps), so this stays desktop-only — the preview
+// is simply absent on touch and placement itself is unchanged. (world.state is wiped
+// on scene change, so the hover auto-clears when leaving PLAY.)
+canvas.addEventListener("pointermove", (e) => {
+  if (!playing()) return;
+  const rect = canvas.getBoundingClientRect();
+  const sx = rect.width > 0 ? world.bounds.width / rect.width : 1;
+  const sy = rect.height > 0 ? world.bounds.height / rect.height : 1;
+  world.state.buildHover = { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+});
+canvas.addEventListener("pointerleave", () => {
+  delete world.state.buildHover;
+});
 
 // Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
 (window as unknown as { __game?: unknown }).__game = game;

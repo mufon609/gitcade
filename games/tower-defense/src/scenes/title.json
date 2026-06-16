@@ -8,9 +8,9 @@
       "id": "start-target",
       "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)" },
       "size": { "w": 800, "h": 600 },
-      "position": { "x": 400, "y": 300 },
+      "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
-      "layer": 1,
+      "layer": 999,
       "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
     },
     {

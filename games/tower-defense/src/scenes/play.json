@@ -32,8 +32,8 @@
     {
       "id": "hud-gold",
       "sprite": { "kind": "text", "bind": "goldHud", "text": "Gold 0", "font": "20px monospace", "color": "#ffcd75", "align": "left" },
-      "size": { "w": 220, "h": 24 },
-      "position": { "x": 12, "y": 10 },
+      "size": { "w": 240, "h": 24 },
+      "position": { "x": 56, "y": 10 },
       "tags": ["hud"],
       "layer": 100,
       "behaviors": []
@@ -50,8 +50,8 @@
     {
       "id": "hud-leak",
       "sprite": { "kind": "text", "bind": "leakHud", "text": "Leaked 0/15", "font": "20px monospace", "color": "#ff6b6b", "align": "right" },
-      "size": { "w": 220, "h": 24 },
-      "position": { "x": 568, "y": 10 },
+      "size": { "w": 240, "h": 24 },
+      "position": { "x": 744, "y": 10 },
       "tags": ["hud"],
       "layer": 100,
       "behaviors": []
@@ -60,9 +60,27 @@
       "id": "hud-buildhint",
       "sprite": { "kind": "text", "bind": "buildHint", "text": "", "font": "16px monospace", "color": "#a7f070", "align": "center" },
       "size": { "w": 760, "h": 22 },
-      "position": { "x": 400, "y": 566 },
+      "position": { "x": 400, "y": 40 },
       "tags": ["hud"],
       "layer": 100,
+      "behaviors": []
+    },
+    {
+      "id": "build-range-preview",
+      "sprite": { "kind": "shape", "shape": "circle", "color": "rgba(0,0,0,0)", "stroke": "rgba(167,240,112,0.0)", "strokeWidth": 2 },
+      "size": { "w": 270, "h": 270 },
+      "position": { "x": -9999, "y": -9999 },
+      "tags": ["build-preview"],
+      "layer": 2,
+      "behaviors": []
+    },
+    {
+      "id": "build-cell-preview",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)", "stroke": "rgba(167,240,112,0.0)", "strokeWidth": 2 },
+      "size": { "w": 40, "h": 40 },
+      "position": { "x": -9999, "y": -9999 },
+      "tags": ["build-cell"],
+      "layer": 2,
       "behaviors": []
     }
   ],
@@ -102,8 +120,8 @@
         "towerTag": "tower",
         "prototype": {
           "id": "tower",
-          "sprite": { "kind": "image", "src": "assets/sprites/enemy-shooter.png" },
-          "size": { "w": 32, "h": 32 },
+          "sprite": { "kind": "shape", "shape": "rect", "color": "#3b5dc9", "stroke": "#41a6f6", "strokeWidth": 3 },
+          "size": { "w": 30, "h": 30 },
           "tags": ["tower"],
           "layer": 4,
           "behaviors": [
@@ -118,8 +136,8 @@
                 "sound": "shoot",
                 "projectile": {
                   "id": "tower-bullet",
-                  "sprite": { "kind": "image", "src": "assets/sprites/bullet.png" },
-                  "size": { "w": 10, "h": 10 },
+                  "sprite": { "kind": "shape", "shape": "circle", "color": "#ffcd75" },
+                  "size": { "w": 9, "h": 9 },
                   "tags": ["tower-bullet"],
                   "layer": 3,
                   "behaviors": [
@@ -182,7 +200,7 @@
         "spawnPoints": [{ "x": -42, "y": 140 }],
         "prototype": {
           "id": "creep",
-          "sprite": { "kind": "image", "src": "assets/sprites/enemy-swarm.png" },
+          "sprite": { "kind": "shape", "shape": "circle", "color": "#b13e53", "stroke": "#ffcd75", "strokeWidth": 2 },
           "size": { "w": 24, "h": 24 },
           "tags": ["creep"],
           "layer": 3,
@@ -220,7 +238,22 @@
         ]
       }
     },
-    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "creep-killed" } }
+    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "creep-killed" } },
+    { "type": "sparkle", "part": "sparkle@1.0.0", "params": { "event": "tower-placed", "colors": ["#a7f070", "#ffcd75", "#f4f4f4"] } },
+    { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "build-denied", "colors": ["#b13e53", "#ef7d57"], "size": 3 } },
+    {
+      "type": "build-preview",
+      "params": {
+        "tileSize": 40,
+        "rangeKey": "towerRange",
+        "currencyKey": "gold",
+        "towerCost": "$cfg.towerCost",
+        "towerTag": "tower",
+        "hoverKey": "buildHover",
+        "ringTag": "build-preview",
+        "cellTag": "build-cell"
+      }
+    }
   ],
   "flow": {
     "on": { "gameover": "over" },

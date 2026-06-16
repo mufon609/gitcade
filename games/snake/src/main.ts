@@ -35,11 +35,14 @@ const game = createGame(
 );
 
 // --- screen juice (presentation only) ---------------------------------------
-// Bind gameplay events → flash/shake; the death event is the same `snake-dead`
-// the play scene's `flow.on` edge routes to the game-over scene.
+// SCREEN effects are reserved for big, infrequent moments. Death is one: the same
+// `snake-dead` the play scene's `flow.on` edge routes to game-over gets a shake +
+// red flash — proportionate to losing the run. Eating a coin is the single most
+// frequent action, so it does NOT get a full-screen flash (that read as a strobe);
+// its feedback is LOCAL — the `sparkle` FX system in play.json bursts particles at
+// the eaten cell, plus the existing `collect` sound. (0.3.0 audit, snake-01.)
 const fx = new ScreenEffects();
 fx.bindToEvents(game.world, {
-  collect: (f) => f.flash("#ffcd75", 0.08),
   "snake-dead": (f) => {
     f.shake(12, 0.45, 36);
     f.flash("#b13e53", 0.3);

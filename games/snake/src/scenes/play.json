@@ -4,6 +4,24 @@
   "background": "#0b0b16",
   "entities": [
     {
+      "id": "bg-stars",
+      "sprite": { "kind": "image", "src": "assets/backgrounds/starfield.png" },
+      "size": { "w": 800, "h": 600 },
+      "position": { "x": 0, "y": 0 },
+      "tags": ["decor"],
+      "layer": 0,
+      "behaviors": []
+    },
+    {
+      "id": "playfield-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)", "stroke": "#3b5dc9", "strokeWidth": 2 },
+      "size": { "w": 798, "h": 598 },
+      "position": { "x": 1, "y": 1 },
+      "tags": ["decor"],
+      "layer": 1,
+      "behaviors": []
+    },
+    {
       "id": "head",
       "sprite": { "kind": "sheet", "src": "assets/sprites/player-blob.png", "frameWidth": 32, "frameHeight": 32, "frameCount": 2, "fps": 4, "animations": { "idle": { "from": 0, "to": 1 } } },
       "size": { "w": 20, "h": 20 },
@@ -17,10 +35,19 @@
       ]
     },
     {
+      "id": "hud-score-label",
+      "sprite": { "kind": "text", "text": "SCORE", "font": "11px monospace", "color": "#6a7196", "align": "center" },
+      "size": { "w": 120, "h": 14 },
+      "position": { "x": 400, "y": 10 },
+      "tags": ["hud"],
+      "layer": 100,
+      "behaviors": []
+    },
+    {
       "id": "hud-score",
-      "sprite": { "kind": "text", "bind": "score", "text": "0", "font": "20px monospace", "color": "#f4f4f4", "align": "left" },
-      "size": { "w": 160, "h": 24 },
-      "position": { "x": 12, "y": 10 },
+      "sprite": { "kind": "text", "bind": "score", "text": "0", "font": "22px monospace", "color": "#f4f4f4", "align": "center" },
+      "size": { "w": 120, "h": 26 },
+      "position": { "x": 400, "y": 24 },
       "tags": ["hud"],
       "layer": 100,
       "behaviors": []
@@ -49,6 +76,11 @@
       }
     },
     { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "best", "persist": false } },
+    {
+      "type": "sparkle",
+      "part": "sparkle@1.0.0",
+      "params": { "event": "collect", "colors": ["#ffcd75", "#f4f4f4", "#a7f070"] }
+    },
     {
       "type": "snake-body",
       "params": {

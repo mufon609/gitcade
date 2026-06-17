@@ -179,3 +179,62 @@ export function checkPartRefs(
   }
   return issues;
 }
+
+/**
+ * Corner inset (px) within which the mute (top-left) / pause (top-right) DOM buttons
+ * sit in every game's index.html. Canvas HUD authored inside it gets covered by the
+ * button — the HUD safe-area convention (0.3.1, helicopter-05 / survival-arena-06).
+ */
+const HUD_CORNER_INSET = 52;
+
+/**
+ * Non-failing presentation ADVISORIES (0.3.1). These are WARNING-level only — a game
+ * that passed before still passes (`ok` ignores warnings) — surfacing two recurring
+ * authoring footguns the 0.3.0 game audit hit across several games:
+ *  - **HUD under a corner button** (helicopter-05 / survival-arena-06): a `hud`-tagged
+ *    entity tucked into a top corner where the mute/pause DOM buttons draw. Keep canvas
+ *    HUD ≥~56px from the corners.
+ *  - **Full-field rect at center coords** (idle-clicker IC-10): a near-full-field rect
+ *    (tap target / UI overlay) anchored at the field CENTER, so its top-left box
+ *    overflows and only partly covers the field. Full-field rects anchor at {0,0}. The
+ *    headless smoke boot taps dead center, so a broken AABB still boots green — which is
+ *    exactly why this is an authoring advisory, not a runtime catch.
+ *
+ * Both are deliberately precise (corner zone / center signature) to avoid false
+ * positives on legitimate edge-anchored decor tiles or origin-anchored backgrounds.
+ */
+export function checkAdvisories(scenes: Scene[]): Issue[] {
+  const issues: Issue[] = [];
+  for (const scene of scenes) {
+    const W = scene.size?.width ?? 800;
+    const H = scene.size?.height ?? 600;
+    for (let i = 0; i < scene.entities.length; i++) {
+      const e = scene.entities[i];
+      const { x, y } = e.position;
+      const { w, h } = e.size;
+      const where = `${scene.id}.entities[${i}] (${e.id})`;
+
+      if (e.tags.includes("hud") && y < HUD_CORNER_INSET && (x < HUD_CORNER_INSET || x > W - HUD_CORNER_INSET)) {
+        const corner = x < HUD_CORNER_INSET ? "top-left mute" : "top-right pause";
+        issues.push({
+          level: "warning",
+          code: "hud-corner-button",
+          message: `HUD entity sits in the ${corner} button zone (~${HUD_CORNER_INSET}px corner inset); shift it clear (≥56px) so the DOM button doesn't cover it`,
+          where,
+        });
+      }
+
+      const nearFull = w >= 0.8 * W && h >= 0.8 * H;
+      const nearCenter = Math.abs(x - W / 2) < 0.15 * W && Math.abs(y - H / 2) < 0.15 * H;
+      if (nearFull && nearCenter && x > 0 && y > 0) {
+        issues.push({
+          level: "warning",
+          code: "fullfield-rect-offset",
+          message: `near-full-field entity (${w}x${h}) anchored at center coords (${x},${y}) overflows the ${W}x${H} field — full-field rects use top-left position {0,0} (the center-tap smoke boot can hide the resulting broken AABB)`,
+          where,
+        });
+      }
+    }
+  }
+  return issues;
+}

@@ -9,6 +9,10 @@ type Ctx = CanvasRenderingContext2D;
 /** Muted fallback fills for tilemap indices when no tileset image is available. */
 const TILE_FALLBACK_COLORS = ["#2a2f3a", "#3a3030", "#30343a", "#2f3a30", "#3a3a2f", "#352f3a"];
 
+/** Subtle per-cell gridline for the no-tileset tilemap fallback, so a map reads as
+ *  structured cells rather than one flat slab (0.3.1, td-09). */
+const TILE_GRID_COLOR = "rgba(255,255,255,0.06)";
+
 /**
  * Canvas 2D renderer (the "sprite renderer" primitive: static shapes, images,
  * sheet-animation frames, and bound text). Entirely OPTIONAL: constructed with a
@@ -29,7 +33,7 @@ export class Renderer {
     if (!ctx) return;
     const { width, height } = world.bounds;
 
-    this.drawBackground(ctx, background, width, height);
+    this.drawBackground(ctx, world, background, width, height);
     this.drawTilemap(ctx, world);
 
     const drawList = world.entities
@@ -45,7 +49,11 @@ export class Renderer {
    * no entity/tilemap double-encoding. No-op when the scene has no tilemap, so a
    * 0.1.x scene renders exactly as before. When a `tileset` image is supplied each
    * non-empty index is blitted from the sheet; without one (or before it loads)
-   * non-empty tiles fall back to a flat per-index color so the map is still visible.
+   * non-empty tiles fall back to a per-index fill — tinted by the cell's
+   * `properties[idx].color` when authored (else a muted default) and outlined with a
+   * subtle per-cell gridline, so a tileset-less map reads as structured terrain
+   * rather than a flat slab (0.3.1, td-09 — additive; `color` rides the existing
+   * `properties` catchall, no schema change).
    */
   private drawTilemap(ctx: Ctx, world: World): void {
     const t = world.tilemap;
@@ -64,19 +72,68 @@ export class Renderer {
           const sy = Math.floor(idx / sheetCols) * t.tileSize;
           ctx.drawImage(sheet!, sx, sy, t.tileSize, t.tileSize, x, y, t.tileSize, t.tileSize);
         } else {
-          ctx.fillStyle = TILE_FALLBACK_COLORS[idx % TILE_FALLBACK_COLORS.length];
+          const props = t.properties?.[String(idx)];
+          const tint = typeof props?.color === "string" ? props.color : TILE_FALLBACK_COLORS[idx % TILE_FALLBACK_COLORS.length];
+          ctx.fillStyle = tint;
           ctx.fillRect(x, y, t.tileSize, t.tileSize);
+          // Per-cell gridline (half-pixel offset for a crisp 1px line).
+          ctx.strokeStyle = TILE_GRID_COLOR;
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 0.5, y + 0.5, t.tileSize - 1, t.tileSize - 1);
         }
       }
     }
   }
 
-  private drawBackground(ctx: Ctx, bg: Background | undefined, w: number, h: number): void {
+  /**
+   * Draw the scene background: the solid `color` fill, then any declarative
+   * `background.layers` as scrolling/parallax image planes (0.3.1, B). Each layer
+   * is an image tiled to cover the viewport and drifted by `scrollX`/`scrollY`
+   * px-per-second against `world.time` — so the same data renders identically at
+   * any frame rate, and a fixed-camera scene just uses `scrollX:0`. The `layers`
+   * descriptor has been in the FROZEN scene schema since 0.2.0 (parallax slot); the
+   * 0.3.0 renderer only filled `color` and silently dropped layers — this honors
+   * them with NO schema change (additive renderer, engine-root snake-05/breakout-05/
+   * helicopter/survival-arena). For background depth, prefer this over a full-field
+   * image entity: it stays declarative and needs no host scroll glue.
+   */
+  private drawBackground(ctx: Ctx, world: World, bg: Background | undefined, w: number, h: number): void {
     let color = "#0b0b12";
+    let layers: ReadonlyArray<{ src: string; scrollX: number; scrollY: number }> | undefined;
     if (typeof bg === "string") color = bg;
-    else if (bg && typeof bg === "object" && bg.color) color = bg.color;
+    else if (bg && typeof bg === "object") {
+      if (bg.color) color = bg.color;
+      layers = bg.layers;
+    }
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, w, h);
+    if (!layers) return;
+    for (const layer of layers) this.drawParallaxLayer(ctx, layer, world.time, w, h);
+  }
+
+  /** Tile one parallax layer image across the viewport, drifted by scroll*time. */
+  private drawParallaxLayer(
+    ctx: Ctx,
+    layer: { src: string; scrollX: number; scrollY: number },
+    time: number,
+    w: number,
+    h: number,
+  ): void {
+    const img = this.loadImage(layer.src);
+    if (!img || !img.complete || img.naturalWidth === 0) return;
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    // Wrap the time-scaled offset into (-iw, 0] / (-ih, 0] so the first tile starts
+    // just left/above the viewport and the loop fills to the right/bottom edge.
+    let startX = (layer.scrollX * time) % iw;
+    if (startX > 0) startX -= iw;
+    let startY = (layer.scrollY * time) % ih;
+    if (startY > 0) startY -= ih;
+    for (let x = startX; x < w; x += iw) {
+      for (let y = startY; y < h; y += ih) {
+        ctx.drawImage(img, x, y, iw, ih);
+      }
+    }
   }
 
   private drawEntity(ctx: Ctx, e: Entity, world: World): void {

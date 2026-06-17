@@ -162,9 +162,11 @@ export class Game {
     this.world.entities = [];
     for (const key of Object.keys(this.world.state)) delete this.world.state[key];
     Object.assign(this.world.state, carried);
-    // The persistence-restore claim set (0.2.1, G6) is scene-scoped — the active
-    // scene owns its persistence/seed systems — so clear it on every transition.
-    this.world.resolvePersistKeys(this.world.persistPendingKeys());
+    // The persistence-restore tracking (0.2.1 claim set + 0.3.1 restored set/waiters)
+    // is scene-scoped — the active scene owns its persistence/seed systems — so reset
+    // it on every transition. Using the dedicated reset (not resolvePersistKeys) means
+    // a scene change does NOT emit a spurious "persist-restored" for leftover claims.
+    this.world.resetPersistTracking();
     this.world.tilemap = scene.tilemap;
     this.world.frame = 0;
     this.world.time = 0;

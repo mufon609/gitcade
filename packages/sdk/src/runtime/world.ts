@@ -82,6 +82,19 @@ export class World {
    */
   private _persistPending = new Set<string>();
 
+  /**
+   * Keys whose persistence load has COMPLETED this scene — i.e. the restore wrote
+   * any saved value and released the claim (0.3.1, IC-9). Distinct from the pending
+   * set: a key moves pending → restored when {@link resolvePersistKeys} runs. Scene-
+   * scoped (reset by {@link resetPersistTracking} on every transition). Lets a host
+   * await the restore deterministically via {@link whenRestored} instead of polling
+   * {@link isPersistPending} and racing it.
+   */
+  private _persistRestored = new Set<string>();
+
+  /** Hosts awaiting a restore via {@link whenRestored}; each resolves when all its keys are restored. */
+  private _restoreWaiters: Array<{ keys: string[]; resolve: () => void }> = [];
+
   /** Elapsed simulated time (s) and last fixed delta (s). */
   time = 0;
   dt = 0;
@@ -265,9 +278,63 @@ export class World {
    * Release the persistence claim on `keys` (0.2.1, G6) — called by the
    * persistence system once its async load resolves (after writing any restored
    * values). Released keys are eligible for normal seeding again.
+   *
+   * Restore-complete signal (0.3.1, IC-9): each released key is also recorded as
+   * restored, a `"persist-restored"` event fires with `{ keys }`, and any
+   * {@link whenRestored} waiter whose keys are now all restored resolves. This is
+   * the deterministic "the saved state has landed" signal — purely additive (a
+   * caller that ignores the event/promise sees the exact 0.2.1 release behavior),
+   * and it does NOT touch the frozen storage-bridge wire protocol: the persistence
+   * system already calls this in its load `.finally`.
    */
   resolvePersistKeys(keys: Iterable<string>): void {
-    for (const k of keys) this._persistPending.delete(k);
+    const released: string[] = [];
+    for (const k of keys) {
+      this._persistPending.delete(k);
+      this._persistRestored.add(k);
+      released.push(k);
+    }
+    if (released.length === 0) return;
+    this.events.emit("persist-restored", { keys: released });
+    this._restoreWaiters = this._restoreWaiters.filter((w) => {
+      if (w.keys.every((k) => this._persistRestored.has(k))) {
+        w.resolve();
+        return false;
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Resolve once every key in `keys` has been restored this scene (0.3.1, IC-9) —
+   * the race-free alternative to polling {@link isPersistPending}. Resolves
+   * immediately if the restore already completed; otherwise resolves when
+   * {@link resolvePersistKeys} releases the last awaited key. A host reads the
+   * authoritative persisted value AFTER this resolves, instead of guessing when
+   * the async `storage.get` has landed (the root enabler of idle-clicker's
+   * offline-credit race). Scene-scoped: a pending wait is resolved by
+   * {@link resetPersistTracking} on a scene change so it can never hang.
+   */
+  whenRestored(keys: Iterable<string>): Promise<void> {
+    const arr = [...keys];
+    if (arr.every((k) => this._persistRestored.has(k))) return Promise.resolve();
+    return new Promise<void>((resolve) => this._restoreWaiters.push({ keys: arr, resolve }));
+  }
+
+  /**
+   * Reset all persistence-restore tracking — the pending claims, the restored set,
+   * and any outstanding {@link whenRestored} waiters (0.3.1, IC-9). Called by
+   * `Game.loadScene` on every transition: the restore set is scene-scoped (the new
+   * scene owns its own persistence/seed systems), and resolving leftover waiters
+   * keeps a stale promise from the old scene from hanging forever. Replaces the
+   * old `resolvePersistKeys(persistPendingKeys())` cleanup so a scene change does
+   * NOT masquerade as a restore-complete signal.
+   */
+  resetPersistTracking(): void {
+    this._persistPending.clear();
+    this._persistRestored.clear();
+    for (const w of this._restoreWaiters) w.resolve();
+    this._restoreWaiters = [];
   }
 
   /**

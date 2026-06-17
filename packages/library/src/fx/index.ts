@@ -38,4 +38,4 @@ export function registerLibraryFx(registry: Registry): void {
 
 export { particle, spawnBurst, eventPos, type BurstOptions } from "./particle.js";
 export { explosion, sparkle, trail, dust } from "./emitters.js";
-export { ScreenEffects, attachScreenEffects, type ScreenEffectFrame } from "./screen-effects.js";
+export { ScreenEffects, attachScreenEffects, throttle, type ScreenEffectFrame } from "./screen-effects.js";

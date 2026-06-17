@@ -24,6 +24,32 @@ governance flagships need two/three small economy systems). That ratio is itself
 useful signal: the action-game half of the library is complete; the **economy and
 control** corners are the gaps.
 
+> **0.3.1 update (0.3.0 game-audit synthesis):** four engine-root findings from the
+> audit shipped as **clean additive PATCHes** (no frozen-contract change), retiring the
+> per-game workarounds the audited games used:
+> - **`background.layers` parallax** (findings snake-05 / breakout-05 / helicopter-04 /
+>   survival-arena-07): the renderer now honors the long-standing `background.layers`
+>   schema slot (tiled, time-scrolled). Games drop the full-field-image-entity +
+>   `auto-scroll` + `velocity` + `$cfg` scroll-key workaround for a declarative
+>   `background.layers`. See [CONVENTIONS.md §3](../packages/library/CONVENTIONS.md).
+> - **`world.whenRestored(keys)` + `persist-restored` event** (finding IC-9): a
+>   deterministic persistence-restore signal, replacing the `isPersistPending` poll-race
+>   that enabled idle-clicker's offline-credit bug. See CONVENTIONS.md §5.
+> - **`throttle` FX helper** + the **FX-proportionality convention** (findings
+>   td-08 / snake-04 / IC-8 / breakout-04 / survival-arena-08): screen FX for big rare
+>   beats, LOCAL bursts for routine actions, rate-limited shake for frequent-but-
+>   meaningful ones. See CONVENTIONS.md §1.
+> - **validator advisories** (findings IC-10 + helicopter-05 / survival-arena-06):
+>   non-failing `gitcade validate` warnings for HUD-under-corner-button and
+>   full-field-rect-at-center-coords. See CONVENTIONS.md §2, §4.
+>
+> One audit finding is **deferred, not shipped**: scaling 16px library tilesets to a
+> 40px map `tileSize` (finding td-10) would need a new `tilemap` schema field — a schema
+> *shape* change, so not PATCH-clean. The drab no-tileset fallback it shares a cluster
+> with (td-09) *did* ship: the renderer now tints the fallback from
+> `properties[idx].color` and draws a per-cell gridline (additive — `color` rides the
+> existing `properties` catchall). td-10 proper is a MINOR-release / asset-bundle item.
+
 ---
 
 ## 1. `trailing-body` — path-history follower

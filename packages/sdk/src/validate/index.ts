@@ -11,6 +11,7 @@ import {
   checkParams,
   collectPartRefs,
   checkPartRefs,
+  checkAdvisories,
   type LibraryCatalog,
 } from "./rules.js";
 
@@ -121,6 +122,12 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     const refs = collectPartRefs(scenes);
     const catalog = manifest?.libraryVersion ? loadLibraryCatalog(absDir) : null;
     issues.push(...checkPartRefs(refs, manifest?.libraryVersion, catalog));
+  }
+
+  // 6b. Non-failing presentation advisories (0.3.1): HUD-under-corner-button and
+  //     full-field-rect-at-center-coords. Warnings only — never affect `ok`.
+  if (scenes.length > 0) {
+    issues.push(...checkAdvisories(scenes));
   }
 
   // 7. Smoke boot — only attempt if the structural checks passed (errors so far

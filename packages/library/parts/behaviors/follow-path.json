@@ -1,11 +1,11 @@
 {
   "id": "follow-path",
   "kind": "behavior",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "movement",
   "tags": ["movement", "path", "waypoints", "on-rails"],
   "license": "MIT",
-  "description": "Travel an ordered list of waypoints, advancing on arrival; loops or stops at the end. Sets velocity for a following velocity integrator.",
+  "description": "Travel an ordered list of waypoints, advancing on arrival; loops or stops at the end. Sets velocity for a following velocity integrator. 1.1.0 records a monotonic __pathProgress (cumulative distance) so other parts can rank movers by how far along the path they are (e.g. ai-aim-and-fire 'first' targeting).",
   "dependencies": ["velocity"],
   "params": {
     "points": { "type": "array", "balance": false, "description": "Array of { x, y } waypoints (structural geometry)." },

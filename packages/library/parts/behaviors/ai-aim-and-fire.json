@@ -1,11 +1,11 @@
 {
   "id": "ai-aim-and-fire",
   "kind": "behavior",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "ai",
-  "tags": ["ai", "enemy", "turret", "shooter", "projectile"],
+  "tags": ["ai", "enemy", "turret", "shooter", "projectile", "targeting"],
   "license": "MIT",
-  "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot.",
+  "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot. 1.1.0 adds optional priorityKey/priorityOrder targeting — prefer the most-advanced creep (follow-path __pathProgress) or the strongest/weakest by an entity-state key — defaulting to nearest.",
   "dependencies": ["velocity", "contact-damage", "health-and-death"],
   "params": {
     "targetTag": { "type": "string", "balance": false, "description": "Tag of entities to fire at." },
@@ -13,7 +13,9 @@
     "cooldown": { "type": "number", "balance": true, "description": "Seconds between shots." },
     "projectile": { "type": "object", "balance": false, "description": "Entity-definition to spawn." },
     "projectileSpeed": { "type": "number", "balance": true, "description": "Launch speed in px/sec." },
-    "spawnOffset": { "type": "object", "balance": false, "description": "{ x, y } muzzle offset (structural)." }
+    "spawnOffset": { "type": "object", "balance": false, "description": "{ x, y } muzzle offset (structural)." },
+    "priorityKey": { "type": "string", "balance": false, "description": "Entity-state key to rank in-range targets by (e.g. '__pathProgress' for first/most-advanced, 'hp' for strongest); unset = nearest." },
+    "priorityOrder": { "type": "string", "balance": false, "description": "'high' (default, largest value wins) | 'low'." }
   },
   "definition": {
     "type": "ai-aim-and-fire",

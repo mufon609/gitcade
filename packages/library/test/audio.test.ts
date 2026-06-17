@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { AudioPlayer } from "@gitcade/sdk";
-import { LibraryAudioPlayer, SFX_RECIPES, SFX_KEYS, MUSIC_TRACKS, MUSIC_LOOPS } from "../src/audio/index.js";
+import { LibraryAudioPlayer, SFX_RECIPES, SFX_KEYS, MUSIC_TRACKS, MUSIC_LOOPS, notesDueInWindow } from "../src/audio/index.js";
 import { LIBRARY_PALETTE } from "../src/palette.js";
 
 describe("audio synthesis data", () => {
@@ -25,6 +25,29 @@ describe("audio synthesis data", () => {
       expect(track.loopBeats).toBeGreaterThan(0);
       expect(track.voices.length).toBeGreaterThan(0);
       expect(track.voices.flat().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("schedules off-beat (fractional) notes — they were silently dropped before 0.3.2", () => {
+    // Walk every integer loop-beat window of each track; every authored note must
+    // be scheduled exactly once across the loop, INCLUDING fractional beats.
+    for (const name of MUSIC_LOOPS) {
+      const track = MUSIC_TRACKS[name]!;
+      const allNotes = track.voices.flat();
+      const offbeat = allNotes.filter((n) => !Number.isInteger(n.beat));
+      expect(offbeat.length, `${name} should exercise off-beat notes`).toBeGreaterThan(0);
+
+      const scheduled: typeof allNotes = [];
+      for (let beat = 0; beat < track.loopBeats; beat++) {
+        for (const { note, offset } of notesDueInWindow(track, beat)) {
+          expect(offset, "offset is the within-beat fraction").toBeGreaterThanOrEqual(0);
+          expect(offset).toBeLessThan(1);
+          scheduled.push(note);
+        }
+      }
+      // Every note fires exactly once per loop, and every off-beat note is included.
+      expect(scheduled.length, `${name}: all notes scheduled`).toBe(allNotes.length);
+      for (const n of offbeat) expect(scheduled).toContain(n);
     }
   });
 });

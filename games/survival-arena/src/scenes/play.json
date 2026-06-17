@@ -119,8 +119,8 @@
           "layer": 3,
           "behaviors": [
             { "type": "ai-chase", "params": { "targetTag": "player", "speed": "$cfg.enemySpeed" } },
-            { "type": "velocity", "params": {} },
             { "type": "scale-by-state", "params": { "target": "velocity", "mode": "multiply", "levelKey": "level", "perLevel": "$cfg.speedPerLevel" } },
+            { "type": "velocity", "params": {} },
             { "type": "contact-damage", "params": { "targetTag": "player", "damage": "$cfg.enemyDamage", "cooldown": "$cfg.damageCooldown" } },
             { "type": "health-and-death", "params": { "hp": "$cfg.enemyHp", "tallyKey": "score", "tallyAmount": "$cfg.killScore", "deathEvent": "enemy-died", "deathSound": "explode" } },
             { "type": "scale-by-state", "params": { "target": "state:hp", "mode": "once", "base": "$cfg.enemyHp", "levelKey": "level", "perLevel": "$cfg.hpPerLevel" } }

@@ -211,6 +211,52 @@ function passesRequire(world: World, cx: number, cy: number, require: "walkable"
   return world.tilemap.properties?.[String(idx)]?.walkable ?? true;
 }
 
+/** Compact-notation suffixes (short scale): 1e3, 1e6, 1e9, 1e12, ... */
+const COMPACT_SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc"];
+
+/**
+ * Format a number in compact HUD notation: `1234 → "1.23K"`, `4.5e6 → "4.5M"`,
+ * `7.89e9 → "7.89B"`. Values below 1000 render as a plain integer; values past the
+ * suffix table fall back to exponential. The idle/incremental affordance every
+ * big-number game needs — the SDK renderer's text `bind` draws `String(value)` raw
+ * (so an uncapped balance becomes a digit wall that overruns the HUD) and the frozen
+ * text-sprite contract has no formatting hook. Host code computes a `*Display` string
+ * with this and binds the text sprite to it. Pure + deterministic.
+ */
+export function formatCompact(n: number, decimals = 2): string {
+  if (!Number.isFinite(n)) return String(n);
+  const sign = n < 0 ? "-" : "";
+  let v = Math.abs(n);
+  if (v < 1000) return sign + String(Math.floor(v));
+  let tier = 0;
+  while (v >= 1000 && tier < COMPACT_SUFFIXES.length - 1) {
+    v /= 1000;
+    tier++;
+  }
+  if (v >= 1000) return sign + v.toExponential(decimals); // beyond the suffix table
+  // Trim trailing zeros: 1.20K → 1.2K, 5.00M → 5M.
+  const mantissa = v.toFixed(decimals).replace(/\.?0+$/, "");
+  return sign + mantissa + COMPACT_SUFFIXES[tier];
+}
+
+/**
+ * Capped offline accrual for incremental/idle games: the integer amount earned at
+ * `rate` per second over the wall-clock gap `nowMs - lastSeenMs`, clamped to at most
+ * `capSeconds` of accrual (so closing the tab for a week doesn't pay out a week).
+ * Returns a FLOORED integer; a non-positive or backwards gap yields 0; `capSeconds <= 0`
+ * means uncapped. `Date.now()` is the caller's to pass — it must stay OUT of the
+ * deterministic sim, which is exactly why this is a host-glue util and not a system.
+ * Pairs with `world.whenRestored`: await the restore, read the saved `lastSeen`, credit
+ * `cappedOfflineGain(...)`, then heartbeat `lastSeen = Date.now()`.
+ */
+export function cappedOfflineGain(rate: number, lastSeenMs: number, nowMs: number, capSeconds: number): number {
+  if (!Number.isFinite(rate) || rate <= 0) return 0;
+  const elapsedSec = (nowMs - lastSeenMs) / 1000;
+  if (!Number.isFinite(elapsedSec) || elapsedSec <= 0) return 0;
+  const capped = capSeconds > 0 ? Math.min(elapsedSec, capSeconds) : elapsedSec;
+  return Math.floor(rate * capped);
+}
+
 /** Read/create a namespaced scratch object on `world.state` for stateful systems. */
 export function systemState<T extends Record<string, unknown>>(world: World, key: string, init: T): T {
   const existing = world.state[key];

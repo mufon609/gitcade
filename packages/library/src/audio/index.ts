@@ -9,6 +9,7 @@ export { LibraryAudioPlayer } from "./library-audio-player.js";
 export {
   playSfx,
   MusicPlayer,
+  notesDueInWindow,
   SFX_RECIPES,
   SFX_KEYS,
   MUSIC_TRACKS,

@@ -16,6 +16,7 @@
       "behaviors": [
         { "type": "thrust-lift", "params": { "thrustKeys": ["Space"], "thrust": "$cfg.thrust", "gravity": "$cfg.gravity", "maxUp": "$cfg.maxUp", "maxDown": "$cfg.maxDown" } },
         { "type": "velocity", "params": {} },
+        { "type": "face-angle", "part": "face-angle@1.0.0", "params": { "mode": "tilt", "axis": "vy", "tiltPerVel": "$cfg.heliTiltPerVel", "maxTilt": "$cfg.heliMaxTilt" } },
         { "type": "trail", "params": { "color": "#ffcd75" } }
       ]
     },

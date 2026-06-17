@@ -137,6 +137,25 @@ export class Renderer {
   }
 
   private drawEntity(ctx: Ctx, e: Entity, world: World): void {
+    // Honor the entity transform (0.3.2). `rotation` (radians, clockwise) and
+    // `scaleX`/`scaleY` are in the FROZEN entity schema (`rotation`/`scale`) and
+    // populated on the runtime Entity since the schema froze, but the 0.3.x
+    // renderer drew everything axis-aligned and unscaled — a declared-but-ignored
+    // slot, exactly like `background.layers` before 0.3.1. We now apply it around
+    // the entity's CENTER so a sprite spins/scales in place. Collision and
+    // `entityAt` still use the un-rotated AABB (`collision.ts`, `world.ts`), so
+    // this is PURELY visual — no contract/shape change. The transform is skipped
+    // entirely at the identity (rotation 0, scale 1), so an entity that never sets
+    // them renders byte-identically to before; only `ctx.translate/rotate/scale`
+    // are used, which any real 2D context provides.
+    const transformed = e.rotation !== 0 || e.scaleX !== 1 || e.scaleY !== 1;
+    if (transformed) {
+      ctx.save();
+      ctx.translate(e.cx, e.cy);
+      ctx.rotate(e.rotation);
+      ctx.scale(e.scaleX, e.scaleY);
+      ctx.translate(-e.cx, -e.cy);
+    }
     switch (e.sprite.kind) {
       case "shape":
         this.drawShape(ctx, e, e.sprite);
@@ -153,6 +172,7 @@ export class Renderer {
       default:
         break;
     }
+    if (transformed) ctx.restore();
   }
 
   private drawShape(ctx: Ctx, e: Entity, s: ShapeSprite): void {

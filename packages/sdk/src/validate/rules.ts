@@ -188,6 +188,33 @@ export function checkPartRefs(
 const HUD_CORNER_INSET = 52;
 
 /**
+ * Known library/SDK behavior TYPE names that SET an entity's velocity (`vx`/`vy`)
+ * each tick and rely on a later integrator to move it — the composition contract
+ * documented in the library README ("movement parts SET velocity; order a
+ * `velocity` behavior AFTER them"). A heuristic list of stable published part ids;
+ * a custom/unknown type is never classified, so it can't trip a false positive.
+ */
+const VELOCITY_SETTERS = new Set<string>([
+  "ai-chase",
+  "ai-flee",
+  "ai-wander",
+  "ai-patrol",
+  "move-4dir",
+  "move-topdown-360",
+  "auto-scroll",
+  "follow-path",
+  "keyboard-axis",
+  "follow-entity-axis",
+]);
+
+/**
+ * Behavior TYPE names that INTEGRATE velocity into position (`velocity`) or move an
+ * entity's position DIRECTLY (`move-grid-step`/`move-platformer`) — any one of them
+ * later in an entity's behavior array satisfies a {@link VELOCITY_SETTERS} mover.
+ */
+const VELOCITY_INTEGRATORS = new Set<string>(["velocity", "move-grid-step", "move-platformer"]);
+
+/**
  * Non-failing presentation ADVISORIES (0.3.1). These are WARNING-level only — a game
  * that passed before still passes (`ok` ignores warnings) — surfacing two recurring
  * authoring footguns the 0.3.0 game audit hit across several games:
@@ -234,7 +261,117 @@ export function checkAdvisories(scenes: Scene[]): Issue[] {
           where,
         });
       }
+
+      // Behavior-ordering advisories run on this authored entity's behavior array.
+      issues.push(...checkBehaviorOrder(e.behaviors, where));
+    }
+
+    // The behavior-ordering footguns most often bite SPAWNED entities — creeps,
+    // enemies, and bullets live as `prototype`/`projectile` objects inside a
+    // system's or behavior's params (wave-spawner, lives-respawn, ai-aim-and-fire,
+    // shoot), NOT as scene entities — so the same checks must reach into params.
+    for (let si = 0; si < scene.systems.length; si++) {
+      collectPrototypes(scene.systems[si].params, `${scene.id}.systems[${si}:${scene.systems[si].type}].params`).forEach(
+        (p) => issues.push(...checkBehaviorOrder(p.behaviors, p.where)),
+      );
+    }
+    scene.entities.forEach((e, ei) => {
+      e.behaviors.forEach((b, bi) => {
+        collectPrototypes(b.params, `${scene.id}.entities[${ei}:${e.id}].behaviors[${bi}:${b.type}].params`).forEach((p) =>
+          issues.push(...checkBehaviorOrder(p.behaviors, p.where)),
+        );
+      });
+    });
+  }
+  return issues;
+}
+
+/** A minimal behavior-def shape (authored entity or spawn prototype). */
+interface BehaviorLike {
+  type: string;
+  params?: Record<string, unknown>;
+}
+
+/**
+ * The two behavior-ORDERING advisories (0.3.2) — "passes-validation-but-silently-
+ * broken" footguns the 0.3.x game audit surfaced. Heuristic (keyed on stable
+ * published part names) and never classify a custom/unknown type, so a bespoke
+ * mover can't trip a false positive. Runs on any behavior array — an authored
+ * entity OR a spawn prototype.
+ */
+function checkBehaviorOrder(behaviors: BehaviorLike[], where: string): Issue[] {
+  const issues: Issue[] = [];
+  const types = behaviors.map((b) => b.type);
+
+  // (1) mover-without-integrator: a known velocity-SETTING behavior with no
+  //     integrator (`velocity`) / direct-position mover anywhere in the array — it
+  //     sets vx/vy that nothing turns into motion, so it silently never moves. The
+  //     60-frame smoke boot asserts no throw, not motion, so this slips through.
+  const hasSetter = types.some((t) => VELOCITY_SETTERS.has(t));
+  const hasIntegrator = types.some((t) => VELOCITY_INTEGRATORS.has(t));
+  if (hasSetter && !hasIntegrator) {
+    const setter = types.find((t) => VELOCITY_SETTERS.has(t));
+    issues.push({
+      level: "warning",
+      code: "mover-without-integrator",
+      message: `has a velocity-setting behavior ("${setter}") but no \`velocity\` integrator (or move-grid-step/move-platformer) after it — it sets vx/vy that nothing integrates, so it never moves. Add a \`velocity\` behavior later in this behaviors array`,
+      where,
+    });
+  }
+
+  // (2) scale-ramp-after-integrator: a `scale-by-state` that writes velocity
+  //     (target vx/vy/velocity, default "velocity") ordered AFTER the `velocity`
+  //     integrator — the integrator consumes the velocity first and the next tick's
+  //     mover overwrites the scaled value, so the ramp is a visual-only no-op (the
+  //     exact survival-arena bug: enemies "got faster" in the HUD but never moved
+  //     faster). Move it BEFORE `velocity`.
+  const firstVelocityIdx = types.indexOf("velocity");
+  if (firstVelocityIdx >= 0) {
+    for (let bi = firstVelocityIdx + 1; bi < behaviors.length; bi++) {
+      const b = behaviors[bi];
+      if (b.type !== "scale-by-state") continue;
+      const target = typeof b.params?.target === "string" ? (b.params.target as string) : "velocity";
+      if (target === "velocity" || target === "vx" || target === "vy") {
+        issues.push({
+          level: "warning",
+          code: "scale-ramp-after-integrator",
+          message: `\`scale-by-state\` targeting "${target}" is ordered AFTER the \`velocity\` integrator — the integrator consumes the velocity first, so the ramp never affects motion (it only changes the post-tick vx/vy a test might read). Move this scale-by-state BEFORE the \`velocity\` behavior`,
+          where: `${where}.behaviors[${bi}]`,
+        });
+      }
     }
   }
   return issues;
+}
+
+/** A spawn prototype discovered inside a params subtree: its behaviors + a location label. */
+interface FoundPrototype {
+  behaviors: BehaviorLike[];
+  where: string;
+}
+
+/**
+ * Recursively collect entity-like spawn prototypes — any object carrying a
+ * `behaviors` array of `{type}` defs — from a params subtree. Finds nested
+ * prototypes too (a spawner whose prototype itself spawns). The element guard
+ * keeps an unrelated `behaviors`-named field from matching.
+ */
+function collectPrototypes(node: unknown, where: string, out: FoundPrototype[] = []): FoundPrototype[] {
+  if (Array.isArray(node)) {
+    node.forEach((v, i) => collectPrototypes(v, `${where}[${i}]`, out));
+    return out;
+  }
+  if (node && typeof node === "object") {
+    const o = node as Record<string, unknown>;
+    if (
+      Array.isArray(o.behaviors) &&
+      o.behaviors.length > 0 &&
+      o.behaviors.every((b) => b && typeof b === "object" && typeof (b as { type?: unknown }).type === "string")
+    ) {
+      const id = typeof o.id === "string" ? o.id : "prototype";
+      out.push({ behaviors: o.behaviors as BehaviorLike[], where: `${where} (${id})` });
+    }
+    for (const [k, v] of Object.entries(o)) collectPrototypes(v, `${where}.${k}`, out);
+  }
+  return out;
 }

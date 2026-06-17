@@ -27,7 +27,7 @@
  */
 import { createGame } from "@gitcade/sdk";
 import type { World } from "@gitcade/sdk";
-import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
+import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects, formatCompact, cappedOfflineGain } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
 import title from "./scenes/title.json";
@@ -140,11 +140,13 @@ function armOfflineCredit(): void {
       const rate = (world.state.autoRate as number) ?? 0;
       const mult = (world.state.prestigeMult as number) ?? 1;
       if (rate > 0) {
-        const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
-        const gain = Math.floor(rate * elapsed * mult);
+        // The capped-accrual formula is the library `cappedOfflineGain` (0.3.2) —
+        // floor(rate*mult × min(elapsed, cap)). `Date.now()` stays here in host glue
+        // (it must never enter the deterministic sim), which is why this is a util.
+        const gain = cappedOfflineGain(rate * mult, lastSeen, Date.now(), cfg.offlineCapSeconds);
         if (gain > 0) {
           world.state.coins = ((world.state.coins as number) ?? 0) + gain;
-          world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
+          world.state.hint = `Welcome back! +${formatCompact(gain)} coins while away`;
         }
       }
     }
@@ -263,6 +265,9 @@ window.addEventListener("keydown", (e) => {
 
 game.start();
 
+// Compact HUD formatting (0.3.2): the library `formatCompact` turns a climbing
+// balance into 1.23K / 4.5M / 7.89B so an idle game's whole point — watching the
+// number grow — stays readable instead of overrunning the HUD as a digit wall.
 function fmt(v: unknown): string {
-  return (typeof v === "number" ? Math.floor(v) : 0).toLocaleString();
+  return formatCompact(typeof v === "number" ? v : Number(v) || 0);
 }

@@ -91,16 +91,29 @@ describe("survival-arena smoke (0.2.0 data flow)", () => {
     }
     const lvlHigh = game.world.state.level as number;
     expect(lvlHigh).toBeGreaterThan(lvl1);
-    // swarm-scale toughens enemies: at the higher level a fresh enemy's hp/speed
-    // exceeds the base config values (the prototype's nominal enemyHp/enemySpeed).
+    // scale-by-state toughens enemies at the higher level. HP is read off entity
+    // state, but SPEED must be measured as ACTUAL DISPLACEMENT, not post-tick vx:
+    // the 0.3.1 bug ran scale-by-state(multiply) AFTER the `velocity` integrator, so
+    // e.vx showed the scaled value while the enemy never actually moved faster.
+    // Snapshot positions, advance ONE tick, and measure displacement/dt.
+    const dt = 1 / 60;
     let maxHp = 0;
-    let maxSpeed = 0;
+    const before = new Map<string, { x: number; y: number }>();
     for (const e of game.world.query("enemy")) {
       if (typeof e.state.hp === "number") maxHp = Math.max(maxHp, e.state.hp as number);
-      maxSpeed = Math.max(maxSpeed, Math.hypot(e.vx, e.vy));
+      before.set(e.id, { x: e.cx, y: e.cy });
+    }
+    park(game);
+    game.stepFrames(1);
+    let maxDisplacementSpeed = 0;
+    for (const e of game.world.query("enemy")) {
+      const p = before.get(e.id);
+      if (!p) continue;
+      maxDisplacementSpeed = Math.max(maxDisplacementSpeed, Math.hypot(e.cx - p.x, e.cy - p.y) / dt);
     }
     expect(maxHp).toBeGreaterThan(config.enemyHp);
-    expect(maxSpeed).toBeGreaterThan(config.enemySpeed);
+    // Enemies actually MOVE faster than base speed at the higher level (not just in vx).
+    expect(maxDisplacementSpeed).toBeGreaterThan(config.enemySpeed);
   });
 
   it("player death routes play → over and hands off the score", () => {

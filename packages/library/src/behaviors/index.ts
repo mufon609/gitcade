@@ -19,6 +19,7 @@ import { collectOnTouch } from "./collect-on-touch.js";
 import { triggerZone } from "./trigger-zone.js";
 import { portal } from "./portal.js";
 import { scaleByState } from "./scale-by-state.js";
+import { faceAngle } from "./face-angle.js";
 
 /**
  * Every library behavior, keyed by the exact `type` string a scene/entity uses to
@@ -45,6 +46,7 @@ export const LIBRARY_BEHAVIORS = {
   "trigger-zone": triggerZone,
   portal: portal,
   "scale-by-state": scaleByState,
+  "face-angle": faceAngle,
 } as const;
 
 /** The library behavior type ids (for tests / introspection). */
@@ -77,4 +79,5 @@ export {
   triggerZone,
   portal,
   scaleByState,
+  faceAngle,
 };

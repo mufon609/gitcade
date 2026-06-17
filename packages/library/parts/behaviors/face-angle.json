@@ -1,0 +1,23 @@
+{
+  "id": "face-angle",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["facing", "rotation", "aim", "tilt", "juice", "presentation"],
+  "license": "MIT",
+  "description": "Orient an entity by writing entity.rotation (radians) each tick — the data path to a directional sprite now that the renderer honors rotation (0.3.2). Modes: velocity (point along travel), target (track the nearest tagged entity), pointer (twin-stick aim at the cursor), tilt (bank by a velocity axis, e.g. a flyer pitching with vertical speed). Visual only; collision stays axis-aligned.",
+  "dependencies": [],
+  "params": {
+    "mode": { "type": "string", "balance": false, "description": "'velocity' | 'target' | 'pointer' | 'tilt' (default 'velocity')." },
+    "offset": { "type": "number", "balance": true, "description": "Radians added to the computed angle, to correct sprite art that doesn't point +x." },
+    "targetTag": { "type": "string", "balance": false, "description": "Tag to face in 'target' mode." },
+    "minSpeed": { "type": "number", "balance": true, "description": "In 'velocity' mode, hold facing below this speed (px/s)." },
+    "axis": { "type": "string", "balance": false, "description": "In 'tilt' mode, 'vy' (default) | 'vx'." },
+    "tiltPerVel": { "type": "number", "balance": true, "description": "In 'tilt' mode, radians of bank per px/s of the chosen axis." },
+    "maxTilt": { "type": "number", "balance": true, "description": "In 'tilt' mode, clamp magnitude in radians (0 = unclamped)." }
+  },
+  "definition": {
+    "type": "face-angle",
+    "params": { "mode": "velocity", "minSpeed": "$cfg.faceMinSpeed" }
+  }
+}

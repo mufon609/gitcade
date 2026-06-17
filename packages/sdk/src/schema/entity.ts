@@ -30,7 +30,12 @@ export const EntityDefSchema = z.object({
 
   // Additive optional fields (not part of the frozen core shape):
   zIndex: z.number().int().optional(),
+  /** Rotation in RADIANS (clockwise), applied around the entity center by the renderer
+   *  since 0.3.2. Default 0. Collision/picking stay axis-aligned (visual only). The
+   *  library `face-angle` behavior writes this from velocity/target/pointer/tilt. */
   rotation: z.number().optional(),
+  /** Uniform scale factor applied around the entity center by the renderer since 0.3.2
+   *  (maps to both scaleX/scaleY). Default 1. Visual only — collision uses the base size. */
   scale: z.number().optional(),
   state: z.record(z.string(), z.unknown()).optional(),
   /** Catalog provenance for this entity, e.g. `"enemy-chaser@1.0.0"`. */

@@ -217,6 +217,29 @@ export const MUSIC_LOOPS = ["action", "menu"] as const;
 export type MusicLoop = (typeof MUSIC_LOOPS)[number];
 
 /**
+ * Notes due in the one-beat window that starts at integer loop-beat `localBeat`,
+ * each paired with the sub-beat fraction (0..1) at which it begins. A note authored
+ * at `beat: i + 0.5` (an eighth-note off-beat — the ACTION lead arpeggio and the
+ * MENU melody both use these) belongs to window `i` at offset `0.5`.
+ *
+ * Before 0.3.2 the scheduler advanced `beat` by whole integers and matched notes
+ * with `n.beat === localBeat`, so EVERY fractional-beat note silently never played
+ * — roughly half the ACTION lead and 2 of 5 MENU melody notes were inaudible, and
+ * the music degraded to a sparse on-beat skeleton. Matching a half-open window
+ * `[localBeat, localBeat + 1)` instead restores them. Pure + exported so the
+ * scheduling is unit-testable without a WebAudio context.
+ */
+export function notesDueInWindow(track: MusicTrack, localBeat: number): Array<{ note: Note; offset: number }> {
+  const due: Array<{ note: Note; offset: number }> = [];
+  for (const voice of track.voices) {
+    for (const n of voice) {
+      if (n.beat >= localBeat && n.beat < localBeat + 1) due.push({ note: n, offset: n.beat - localBeat });
+    }
+  }
+  return due;
+}
+
+/**
  * A looping music voice scheduler. Uses a lookahead window so timing is solid even
  * when the page tab throttles timers. Headless-safe: only constructed once a real
  * `AudioContext` exists (the player gates this).
@@ -257,10 +280,11 @@ export class MusicPlayer {
     const horizon = this.ctx.currentTime + 0.15;
     while (this.nextBeatTime < horizon) {
       const localBeat = this.beat % this.track.loopBeats;
-      for (const voice of this.track.voices) {
-        for (const n of voice) {
-          if (n.beat === localBeat) this.note(n, this.nextBeatTime);
-        }
+      // Fire every note whose beat falls in this beat's window, offsetting its
+      // start by the sub-beat fraction so off-beat (eighth-note) hits land at the
+      // right moment instead of being dropped (0.3.2 fix).
+      for (const { note, offset } of notesDueInWindow(this.track, localBeat)) {
+        this.note(note, this.nextBeatTime + offset * this.secPerBeat);
       }
       this.beat += 1;
       this.nextBeatTime += this.secPerBeat;

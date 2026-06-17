@@ -1,22 +1,23 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "generatedFrom": "parts/",
   "parts": [
     {
       "id": "ai-aim-and-fire",
       "kind": "behavior",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "ai",
       "tags": [
         "ai",
         "enemy",
         "turret",
         "shooter",
-        "projectile"
+        "projectile",
+        "targeting"
       ],
-      "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot.",
+      "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot. 1.1.0 adds optional priorityKey/priorityOrder targeting — prefer the most-advanced creep (follow-path __pathProgress) or the strongest/weakest by an entity-state key — defaulting to nearest.",
       "license": "MIT",
       "dependencies": [
         "velocity",
@@ -53,6 +54,16 @@
           "type": "object",
           "balance": false,
           "description": "{ x, y } muzzle offset (structural)."
+        },
+        "priorityKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Entity-state key to rank in-range targets by (e.g. '__pathProgress' for first/most-advanced, 'hp' for strongest); unset = nearest."
+        },
+        "priorityOrder": {
+          "type": "string",
+          "balance": false,
+          "description": "'high' (default, largest value wins) | 'low'."
         }
       },
       "definition": {
@@ -483,9 +494,70 @@
       }
     },
     {
-      "id": "follow-path",
+      "id": "face-angle",
       "kind": "behavior",
       "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "facing",
+        "rotation",
+        "aim",
+        "tilt",
+        "juice",
+        "presentation"
+      ],
+      "description": "Orient an entity by writing entity.rotation (radians) each tick — the data path to a directional sprite now that the renderer honors rotation (0.3.2). Modes: velocity (point along travel), target (track the nearest tagged entity), pointer (twin-stick aim at the cursor), tilt (bank by a velocity axis, e.g. a flyer pitching with vertical speed). Visual only; collision stays axis-aligned.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "mode": {
+          "type": "string",
+          "balance": false,
+          "description": "'velocity' | 'target' | 'pointer' | 'tilt' (default 'velocity')."
+        },
+        "offset": {
+          "type": "number",
+          "balance": true,
+          "description": "Radians added to the computed angle, to correct sprite art that doesn't point +x."
+        },
+        "targetTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag to face in 'target' mode."
+        },
+        "minSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "In 'velocity' mode, hold facing below this speed (px/s)."
+        },
+        "axis": {
+          "type": "string",
+          "balance": false,
+          "description": "In 'tilt' mode, 'vy' (default) | 'vx'."
+        },
+        "tiltPerVel": {
+          "type": "number",
+          "balance": true,
+          "description": "In 'tilt' mode, radians of bank per px/s of the chosen axis."
+        },
+        "maxTilt": {
+          "type": "number",
+          "balance": true,
+          "description": "In 'tilt' mode, clamp magnitude in radians (0 = unclamped)."
+        }
+      },
+      "definition": {
+        "type": "face-angle",
+        "params": {
+          "mode": "velocity",
+          "minSpeed": "$cfg.faceMinSpeed"
+        }
+      }
+    },
+    {
+      "id": "follow-path",
+      "kind": "behavior",
+      "version": "1.1.0",
       "category": "movement",
       "tags": [
         "movement",
@@ -493,7 +565,7 @@
         "waypoints",
         "on-rails"
       ],
-      "description": "Travel an ordered list of waypoints, advancing on arrival; loops or stops at the end. Sets velocity for a following velocity integrator.",
+      "description": "Travel an ordered list of waypoints, advancing on arrival; loops or stops at the end. Sets velocity for a following velocity integrator. 1.1.0 records a monotonic __pathProgress (cumulative distance) so other parts can rank movers by how far along the path they are (e.g. ai-aim-and-fire 'first' targeting).",
       "license": "MIT",
       "dependencies": [
         "velocity"

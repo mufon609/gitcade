@@ -20,7 +20,13 @@ import { num, str } from "@gitcade/sdk";
  *    compounds across ticks).
  *  - `"multiply"`: multiply the field's CURRENT value by `factor` every tick — to
  *    rescale a velocity another behavior just set this frame (Survival `swarm-scale`
- *    speed ramp; order this AFTER the mover, e.g. after `ai-chase`).
+ *    speed ramp). ORDERING (footgun): for a velocity target this must run AFTER the
+ *    behavior that SETS the velocity (e.g. `ai-chase`) but BEFORE the `velocity`
+ *    integrator — `ai-chase → scale-by-state(multiply) → velocity`. If it lands AFTER
+ *    `velocity`, the integrator has already consumed the un-scaled velocity and the
+ *    next tick's `ai-chase` overwrites the scaled value, so the ramp becomes a
+ *    visual-only no-op (it changes the post-tick `vx/vy` a test reads but never the
+ *    motion). `gitcade validate` warns (`scale-ramp-after-integrator`) on this.
  *  - `"once"`: set the field to `base * factor` exactly ONCE per entity (guarded by
  *    a per-entity flag), for a spawn-time stat like hp; `base` defaults to the
  *    field's current value, so it bumps a stat another part (e.g. `health-and-death`)

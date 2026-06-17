@@ -127,13 +127,15 @@
           "behaviors": [
             {
               "type": "ai-aim-and-fire",
-              "part": "ai-aim-and-fire@1.0.0",
+              "part": "ai-aim-and-fire@1.1.0",
               "params": {
                 "targetTag": "creep",
                 "range": "$cfg.towerBaseRange",
                 "cooldown": "$cfg.towerBaseCooldown",
                 "projectileSpeed": "$cfg.towerBulletSpeed",
                 "sound": "shoot",
+                "priorityKey": "__pathProgress",
+                "priorityOrder": "high",
                 "projectile": {
                   "id": "tower-bullet",
                   "sprite": { "kind": "shape", "shape": "circle", "color": "#ffcd75" },
@@ -207,7 +209,7 @@
           "behaviors": [
             {
               "type": "follow-path",
-              "part": "follow-path@1.0.0",
+              "part": "follow-path@1.1.0",
               "params": {
                 "points": [
                   { "x": -40, "y": 140 },

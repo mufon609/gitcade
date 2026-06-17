@@ -42,3 +42,11 @@ export { registerLibrary, createLibraryRegistry } from "./registry.js";
  * the placement surface is promoted to the public API.
  */
 export { snapToGrid, randomFreeCell, type Vec2, type CellBounds, type RandomFreeCellOpts } from "./util.js";
+
+/**
+ * Public HUD/economy helpers (0.3.2). `formatCompact` turns a big balance into
+ * `1.23K`/`4.5M` for a text-sprite `bind` (the renderer draws raw values, so idle
+ * HUDs need this); `cappedOfflineGain` is the capped offline-accrual formula every
+ * incremental game re-derived as host boilerplate (LIBRARY-GAPS #6). Both are pure.
+ */
+export { formatCompact, cappedOfflineGain } from "./util.js";

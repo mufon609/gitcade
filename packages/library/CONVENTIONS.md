@@ -113,3 +113,57 @@ Several games deliberately use flat colored shapes (breakout's per-row brick tie
 snake's segments) where the per-color coding *is* the readability. A bundled 16px sprite
 stretched to a large cell looks worse and erases that coding. Reskin only when the art
 genuinely improves the game — not for its own sake.
+
+## 7. FX bound to a scene-routing event renders on the DESTINATION scene
+
+A local FX burst (`explosion`/`sparkle`) bound to the **same event** that also routes a
+scene change (`flow.on`) never draws: the event spawns the particles AND queues the
+transition; `loadScene` wipes the freshly-spawned particles before a single frame
+renders. Bind the burst on the **destination** scene instead (or on an event that does
+*not* route), and keep the screen `shake`/`flash` (host glue) for the transition itself.
+This bit helicopter's crash explosion. The rule: *a burst bound to a death/clear event
+that also changes scene belongs on the scene you're routing TO.*
+
+## 8. Entity facing — `entity.rotation` + the `face-angle` behavior (0.3.2)
+
+The renderer now rotates/scales a sprite around its center by `entity.rotation` (RADIANS,
+clockwise) and `scale` (a slot that was in the frozen entity schema but ignored until
+0.3.2 — the same fill-the-declared-slot move as `background.layers`). It is **visual
+only** — collision/picking stay axis-aligned. Drive it as DATA with the library
+`face-angle` behavior:
+
+```json
+{ "type": "face-angle", "params": { "mode": "tilt", "axis": "vy", "tiltPerVel": "$cfg.heliTiltPerVel", "maxTilt": "$cfg.heliMaxTilt" } }
+```
+
+Modes: `velocity` (point along travel — projectiles, top-down movers), `target` (track
+the nearest tagged entity — turrets), `pointer` (twin-stick aim), `tilt` (bank by a
+velocity axis — a flyer pitching with vertical speed). Order it AFTER the mover +
+`velocity` integrator so it reads the committed velocity. Reskin caveat from §6 applies:
+rotation is near-invisible on a symmetric circle/blob — adopt it where the sprite has a
+clear "front" (helicopter ship, a barreled turret, a directional bullet).
+
+## 9. Movement ordering — set velocity, THEN integrate; ramps go BEFORE the integrator
+
+Movement parts SET `vx/vy`; the SDK `velocity` behavior (ordered AFTER them) integrates it
+into position. Two ordering footguns `gitcade validate` now warns on (non-failing):
+
+- **`mover-without-integrator`** — a velocity-setting behavior (`ai-chase`, `move-4dir`,
+  `auto-scroll`, `follow-path`, …) with **no** `velocity` integrator after it: the entity
+  sets a velocity nothing moves, so it silently never moves.
+- **`scale-ramp-after-integrator`** — a `scale-by-state` that rescales velocity ordered
+  **after** `velocity`: the integrator consumes the un-scaled velocity first and the next
+  tick's mover overwrites the scaled value, so the ramp is a visual-only no-op. The correct
+  order is `ai-chase → scale-by-state(multiply, velocity) → velocity`. (This was
+  survival-arena's dead speed-ramp.) Both checks reach into spawn `prototype`s, where
+  creeps/enemies/bullets actually live.
+
+## 10. Big-number HUD + offline gain — library helpers, not host math
+
+The renderer's text `bind` draws `String(value)`, so a climbing balance becomes an
+unreadable digit wall. Compute a `*Display` string host-side with the library
+`formatCompact(n)` (→ `1.23K`/`4.5M`/`7.89B`) and bind the text sprite to it. For
+incremental games, the capped offline-accrual formula is the library
+`cappedOfflineGain(rate, lastSeenMs, nowMs, capSeconds)` — `Date.now()` stays in host glue
+(never the deterministic sim), paired with `world.whenRestored` (§5) so the saved
+`lastSeen` is credited exactly once.

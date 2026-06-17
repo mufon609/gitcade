@@ -59,6 +59,13 @@ export const followPath: BehaviorFn = (entity, world, params, dt) => {
     entity.state.__wp = i;
   }
 
+  // Maintain a monotonic cumulative-distance metric so other parts can rank movers
+  // by how far ALONG the path they are (1.1.0). `__wp` (waypoint index) doesn't
+  // discriminate on a long segment — every creep between two waypoints shares the
+  // same index — so `ai-aim-and-fire`'s "first" targeting (`priorityKey:
+  // "__pathProgress"`) needs this continuous value, not the integer index.
+  entity.state.__pathProgress = ((entity.state.__pathProgress as number) ?? 0) + speed * dt;
+
   const dir = normalize({ x: dx, y: dy });
   applyVelocity(entity, dir.x * speed, dir.y * speed, 0, dt);
 };

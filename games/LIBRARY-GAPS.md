@@ -50,6 +50,43 @@ control** corners are the gaps.
 > `properties[idx].color` and draws a per-cell gridline (additive — `color` rides the
 > existing `properties` catchall). td-10 proper is a MINOR-release / asset-bundle item.
 
+> **0.3.2 update (second games+engine audit synthesis).** A fresh end-to-end audit of all
+> six games + the engine shipped the following as **clean additive PATCHes** (no frozen-
+> contract change), each streamlining several games at once. Per-game *isolated* findings
+> (balance/content/feel) were split out into [`GAME-IMPROVEMENTS.md`](./GAME-IMPROVEMENTS.md);
+> only the ecosystem-wide work is here.
+> - **Renderer honors `entity.rotation` + `scale`** (declared-but-ignored slot, like
+>   `background.layers`) + a new library **`face-angle`** behavior that writes rotation
+>   (modes velocity/target/pointer/tilt). The data path to a directional sprite for the
+>   whole ecosystem. **Adopted:** helicopter's ship now banks with vertical velocity. See
+>   CONVENTIONS.md §8. Beneficiaries: helicopter, survival-arena, tower-defense, snake,
+>   breakout (juice).
+> - **Music synth off-beat fix** (engine bug, all six games): `MusicPlayer.schedule`
+>   matched notes by integer-beat equality, so every fractional-beat (eighth-note) note —
+>   ~half the ACTION lead and 2/5 of the MENU melody — *never played*. Now scheduled in a
+>   half-open per-beat window with a sub-beat offset. The music was playing as a sparse
+>   on-beat skeleton on every game.
+> - **`ai-aim-and-fire@1.1.0` priority targeting** (`priorityKey`/`priorityOrder`) +
+>   **`follow-path@1.1.0` `__pathProgress`** metric. **Adopted:** tower-defense towers now
+>   fire at the most-advanced creep ("first"), not the nearest — the #1 TD feel gap (towers
+>   shot the wrong creep ~58% of the time). Default unset = nearest (byte-identical).
+> - **Library `formatCompact` + `cappedOfflineGain` utils** (LIBRARY-GAPS #6, partial).
+>   **Adopted:** idle-clicker's HUD now compacts (`1.23K`/`4.5M`) instead of overrunning as
+>   a digit wall, and offline credit uses the shared capped formula. Beneficiaries: any
+>   currency/score game (tower-defense gold, survival-arena score).
+> - **Behavior-ordering validator advisories** (`mover-without-integrator`,
+>   `scale-ramp-after-integrator`) + a tightened `scale-by-state` ordering doc. These catch
+>   the survival-arena dead-speed-ramp class (a velocity rescale ordered after the
+>   integrator) and the silent never-moves class **statically**, reaching into spawn
+>   prototypes where creeps/enemies/bullets live. **Fixed:** survival-arena's reorder + a
+>   hardened smoke test that measures displacement, not post-tick `vx`. See CONVENTIONS.md §9.
+>
+> **Deferred (contract-change → needs a human decision, or additive-but-no-current-consumer):**
+> hitbox/collision inset, a text-sprite `format` field, td-10 tileset scaling, a
+> `reflect-on-hit` total-speed cap / `forceDir` bias, `spawn-on-event` + powerup effects,
+> `shoot-at-pointer`, `damage-flash`/i-frames, level-aware `wave-spawner` density, a
+> `move-grid-step` turn buffer. Catalogued with per-game rationale in GAME-IMPROVEMENTS.md.
+
 ---
 
 ## 1. `trailing-body` — path-history follower

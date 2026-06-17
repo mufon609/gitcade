@@ -17,6 +17,13 @@ import { toward, length, normalize, vec2, spawnFrom } from "../util.js";
  *  - `projectileSpeed`: launch speed in px/sec (balance → `$cfg`)
  *  - `spawnOffset`: `{ x, y }` muzzle offset from center (structural; default `{0,0}`)
  *  - `sound`: sound key on fire (default `"shoot"`)
+ *  - `priorityKey` (1.1.0): when set, choose the in-range target with the HIGHEST
+ *    (or lowest) numeric `entity.state[priorityKey]`, distance as tiebreak, instead
+ *    of the plain nearest. The tower-defense fix for "shoots the wrong creep":
+ *    pair with `follow-path`'s `__pathProgress` for canonical "first" (most-advanced)
+ *    targeting, or a creep `hp` state key for "strongest"/"weakest". Unset ⇒ nearest
+ *    (byte-identical to 1.0.0).
+ *  - `priorityOrder` (1.1.0): `"high"` (default, prefer the largest value) | `"low"`.
  */
 export const aiAimAndFire: BehaviorFn = (entity, world, params) => {
   const targetTag = str(params, "targetTag");
@@ -25,11 +32,35 @@ export const aiAimAndFire: BehaviorFn = (entity, world, params) => {
   const speed = num(params, "projectileSpeed", 0);
   const offset = vec2(params, "spawnOffset", { x: 0, y: 0 });
   const sound = str(params, "sound", "shoot");
+  const priorityKey = str(params, "priorityKey", "");
 
   const last = (entity.state.__aimCd as number) ?? -Infinity;
   if (world.time < last + cooldown) return;
 
-  const target = world.nearest(entity, targetTag);
+  // Target selection: by default the NEAREST tagged entity (1.0.0). With a
+  // `priorityKey`, rank the IN-RANGE candidates by that entity-state value
+  // (highest, or lowest with `priorityOrder:"low"`) and break ties by distance —
+  // so a tower can prefer the most-advanced creep ("first") rather than the closest.
+  let target = world.nearest(entity, targetTag);
+  if (priorityKey) {
+    const preferLow = str(params, "priorityOrder", "high") === "low";
+    let best: typeof target;
+    let bestVal = 0;
+    let bestDist = Infinity;
+    for (const c of world.query(targetTag)) {
+      if (c === entity) continue;
+      const d = length(toward(entity, c));
+      if (range > 0 && d > range) continue;
+      const v = typeof c.state[priorityKey] === "number" ? (c.state[priorityKey] as number) : 0;
+      const better = !best || (preferLow ? v < bestVal : v > bestVal) || (v === bestVal && d < bestDist);
+      if (better) {
+        best = c;
+        bestVal = v;
+        bestDist = d;
+      }
+    }
+    target = best;
+  }
   if (!target) return;
   const delta = toward(entity, target);
   if (range > 0 && length(delta) > range) return;

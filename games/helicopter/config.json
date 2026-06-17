@@ -18,5 +18,7 @@
   "levelThreshold": 120,
   "levelThresholdGrowth": 120,
   "maxLevel": 8,
-  "speedRampPerLevel": 0.14
+  "speedRampPerLevel": 0.14,
+  "heliTiltPerVel": 0.001,
+  "heliMaxTilt": 0.4
 }

@@ -5,7 +5,7 @@ import { Nav } from "@/components/Nav";
 
 export const metadata: Metadata = {
   title: "GitCade — Git for Gamers",
-  description: "Open-source, AI-built, community-governed browser games.",
+  description: "Open-source, AI-built browser games — forkable and remixable.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

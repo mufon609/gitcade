@@ -1,6 +1,27 @@
 # PUBLISHED.md — Phase 3 Seed Game Repos
 
-> **0.3.1 PUBLISHED (2026-06-16) — all six live on `0.3.1`.**
+> **0.3.2 PUBLISHED (2026-06-16) — all six live on `0.3.2`.**
+> The second games+engine audit synthesis shipped as `@gitcade/sdk@0.3.2` +
+> `@gitcade/library@0.3.2` — a clean **PATCH** (additive, no frozen-contract change):
+> renderer honors `entity.rotation` + `scale` (the declared-but-ignored slot) + a new
+> `face-angle` behavior; the music synth off-beat-note-drop fix (all six games); an
+> `ai-aim-and-fire@1.1.0` priority-targeting + `follow-path@1.1.0` `__pathProgress`;
+> `formatCompact` + `cappedOfflineGain` library utils; and two behavior-ordering validator
+> advisories. Four games adopted new capabilities (helicopter → `face-angle` ship bank;
+> tower-defense → "first" targeting; idle-clicker → `formatCompact`/`cappedOfflineGain`;
+> survival-arena → the dead-speed-ramp **fix**), snake/breakout repinned only. Per-game
+> isolated work split into [`GAME-IMPROVEMENTS.md`](GAME-IMPROVEMENTS.md). Re-verified: SDK
+> 79/79, library 107/107, root build + test green, all six `gitcade validate` PASS (incl.
+> from a clean clone against public npm).
+>
+> **DONE — external steps (scripted via [`tools/release/`](../tools/release/)):** (1)
+> `@gitcade/sdk@0.3.2` then `@gitcade/library@0.3.2` published to npm; (2) each game's
+> `0.3.2` source pushed to its `gitcade-games/<slug>` repo, each re-verified from a clean
+> clone; (3) all six MinIO `<slug>/main/` artifacts republished (the artifact server serves
+> them HTTP 200); (4) monorepo `main` pushed. The release runbook is now scripted —
+> `node tools/release/release.mjs all`.
+
+> **0.3.1 PUBLISHED (2026-06-16) — superseded by 0.3.2 above.**
 > The 0.3.0 game-audit synthesis shipped as `@gitcade/sdk@0.3.1` +
 > `@gitcade/library@0.3.1` — a clean **PATCH** (additive, no frozen-contract change):
 > `background.layers` parallax in the renderer, `world.whenRestored()` + a

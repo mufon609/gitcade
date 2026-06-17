@@ -19,7 +19,7 @@
  * `outcome` → the game-over headline text). No balance or game logic lives here.
  */
 import { createGame } from "@gitcade/sdk";
-import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
+import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects, throttle } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
 import title from "./scenes/title.json";
@@ -84,15 +84,13 @@ requestAnimationFrame(mirror);
 //  - the player dying         → a big shake + red flash (a rare, decisive beat).
 //  - a level-up               → a blue flash (rare, and paired with a sparkle burst).
 const fx = new ScreenEffects();
-let lastHitFx = 0;
 fx.bindToEvents(game.world, {
-  "damage": (f, data) => {
+  // `throttle` (library, 0.3.1) caps the shake to once per 220ms so a swarm pile-on
+  // can't strobe — the shared helper that generalizes this game's audit fix.
+  "damage": throttle(220, (f, data) => {
     if ((data as { target?: unknown } | null)?.target !== "player") return;
-    const now = typeof performance !== "undefined" ? performance.now() : 0;
-    if (now - lastHitFx < 220) return; // throttle so a swarm pile-on can't strobe-shake
-    lastHitFx = now;
     f.shake(7, 0.2, 40);
-  },
+  }),
   "player-died": (f) => {
     f.shake(18, 0.6, 34);
     f.flash("#b13e53", 0.45);

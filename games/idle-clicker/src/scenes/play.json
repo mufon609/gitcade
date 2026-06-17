@@ -44,7 +44,7 @@
     {
       "id": "hud-bonus",
       "sprite": { "kind": "text", "bind": "bonusDisplay", "text": "bonus soon", "font": "20px monospace", "color": "#ef7d57", "align": "right" },
-      "size": { "w": 280, "h": 24 }, "position": { "x": 784, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
+      "size": { "w": 280, "h": 24 }, "position": { "x": 740, "y": 16 }, "tags": ["hud"], "layer": 100, "behaviors": []
     },
     {
       "id": "hud-hint",

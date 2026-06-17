@@ -21,14 +21,18 @@ Desktop: **hold Space** to rise. Mobile: **tap-and-hold** the big button.
 
 | Part | Source | Role |
 |---|---|---|
-| `auto-scroll@1.0.0` | library behavior | drives the seamless scrolling starfield backdrop (the sense-of-speed cue — two full-field tiles that wrap end-to-end) |
 | `scale-by-state@1.0.0` | library behavior | pushes the pillars leftward past the fixed craft, ramping their speed per level |
 | `trigger-zone@1.0.0` | library behavior | the hazards — pillars and the top/bottom walls emit `crash` on contact |
 | `wave-spawner@1.0.0` | library system | the endless stream of pillars at varied heights |
 | `currency@1.0.0` | library system | accrues the survival score (`pointsPerSec`) |
 | `score@1.0.0` | library system | high score persisted via the SDK storage bridge |
 | `explosion@1.0.0` + `trail` | library FX | the crash burst and the craft's exhaust trail |
-| `velocity` | SDK built-in | integrates the motion |
+| `velocity` | SDK built-in | integrates the pillar motion |
+
+The seamless scrolling starfield backdrop (the sense-of-speed cue) is the SDK
+renderer's declarative **`background.layers`** (0.3.1) — `play.json`'s `background`
+carries a `starfield.png` layer with a `scrollX` drift, tiled and wrapped by the
+renderer. No part, no host scroll glue, and no `$cfg` key (it's presentational).
 
 ### The one custom part
 
@@ -49,7 +53,6 @@ All of the feel is in [`config.json`](config.json):
   "maxUp": 360,       // climb speed cap
   "maxDown": 430,     // fall speed cap
   "scrollVx": -230,   // pillar scroll velocity (negative = leftward)
-  "bgScrollVx": -70,  // starfield backdrop drift (slower than pillars = parallax depth)
   "waveDelay": 1.15,  // seconds between pillars
   "pointsPerSec": 12  // score earned per second survived
 }

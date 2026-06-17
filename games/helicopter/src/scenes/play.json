@@ -1,32 +1,11 @@
 {
   "id": "play",
   "size": { "width": 800, "height": 600 },
-  "background": "#0b0b16",
+  "background": {
+    "color": "#0b0b16",
+    "layers": [{ "src": "assets/backgrounds/starfield.png", "scrollX": -70 }]
+  },
   "entities": [
-    {
-      "id": "bg-stars-a",
-      "sprite": { "kind": "image", "src": "assets/backgrounds/starfield.png" },
-      "size": { "w": 800, "h": 600 },
-      "position": { "x": 0, "y": 0 },
-      "tags": ["decor"],
-      "layer": 0,
-      "behaviors": [
-        { "type": "auto-scroll", "params": { "vx": "$cfg.bgScrollVx", "wrap": true } },
-        { "type": "velocity", "params": {} }
-      ]
-    },
-    {
-      "id": "bg-stars-b",
-      "sprite": { "kind": "image", "src": "assets/backgrounds/starfield.png" },
-      "size": { "w": 800, "h": 600 },
-      "position": { "x": 800, "y": 0 },
-      "tags": ["decor"],
-      "layer": 0,
-      "behaviors": [
-        { "type": "auto-scroll", "params": { "vx": "$cfg.bgScrollVx", "wrap": true } },
-        { "type": "velocity", "params": {} }
-      ]
-    },
     {
       "id": "player",
       "sprite": { "kind": "image", "src": "assets/sprites/player-ship.png" },

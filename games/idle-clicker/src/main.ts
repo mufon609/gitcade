@@ -113,59 +113,52 @@ function updateShop(w: World): void {
 //   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now" as the
 //      away-point (started AFTER step 1 so it can't clobber the read).
 //
-// ORDERING: we must credit on TOP of the RESTORED `coins`, never a pre-restore (empty)
-// state — `coins` is a claimed persist key, so `world.isPersistPending("coins")` is true
-// while the restore is in flight (the same claim the seed systems defer on) and false once
-// it lands. We wait for it to be false, then add the gain to the just-restored `coins`,
-// reading the restored `autoRate`/`prestigeMult`/`lastSeen` straight from `world.state`.
-//
-// IC-OFFLINE (the robustness fix): the previous version waited until it had *sampled*
-// `isPersistPending` true (a `sawRestoreClaim` flag) before crediting — to prove a restore
-// actually happened. But this `mirror()` loop runs once per animation frame (and BEFORE the
-// game's own loop, so it samples the flag before each tick), while the production bridge
-// store on the parent is SYNCHRONOUS (the platform's parent-side key-value store): the
-// restore's claim is placed and released entirely within the macrotask gap BETWEEN two
-// frames, so the pending=true window is never observed and the credit was silently DROPPED
-// in production. We now gate on two DURABLE signals instead of that transient one:
-//   • GATE 1 — the play sim has actually ticked. This rAF loop can outrun the sim's first
-//     tick, so we can't assume the persistence claim is placed yet. `bonusLeft` is written
-//     by the `interval-bonus` system on EVERY play tick and is NOT a persisted key, so its
-//     presence is a frame-timing-independent "≥1 play tick ran" signal. `persistence` is
-//     ordered before `interval-bonus` in play.json, so bonusLeft set ⟹ the claim is placed.
-//   • GATE 2 — the restore RESOLVED (`!isPersistPending("coins")`), so we read RESTORED values.
-// Past both gates, a numeric `lastSeen` can only be a just-restored save (no system seeds it;
-// the heartbeat writes it only AFTER `offlineApplied`); its absence means a first run with
-// nothing to credit — either way we then own `lastSeen` (start the heartbeat).
+// ORDERING: credit on TOP of the RESTORED `coins`, never a pre-restore (empty) state. We
+// await the deterministic restore signal `world.whenRestored(["coins"])` (0.3.1, IC-9)
+// rather than polling `isPersistPending`. The old poll had to gate on two DURABLE proxies
+// (a play tick having run + the pending flag clearing) because the production bridge store
+// is SYNCHRONOUS — the claim was placed AND released inside the macrotask gap between two
+// rAF frames, so the transient pending=true window was never observed and the credit was
+// silently DROPPED in production. `whenRestored` removes the race: it resolves exactly once
+// the restore has written the saved values and released the claim (or immediately if that
+// already happened), and never trivially before the claim. We ARM it once the play scene is
+// live — so the wait belongs to play, after `loadScene`'s scene-scoped reset — then the
+// restore (which writes the whole key batch, `lastSeen` included) credits once.
 let offlineApplied = false;
+let offlineArmed = false;
 
-function tryApplyOfflineCredit(): void {
-  if (offlineApplied || !playing()) return;
-  if (typeof world.state.bonusLeft !== "number") return; // GATE 1: a play tick has run
-  if (world.isPersistPending("coins")) return; // GATE 2: the restore has resolved
-
-  const lastSeen = world.state.lastSeen;
-  if (typeof lastSeen === "number") {
-    const rate = (world.state.autoRate as number) ?? 0;
-    const mult = (world.state.prestigeMult as number) ?? 1;
-    if (rate > 0) {
-      const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
-      const gain = Math.floor(rate * elapsed * mult);
-      if (gain > 0) {
-        world.state.coins = ((world.state.coins as number) ?? 0) + gain;
-        world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
+function armOfflineCredit(): void {
+  if (offlineArmed || !playing()) return;
+  offlineArmed = true;
+  void world.whenRestored(["coins"]).then(() => {
+    if (offlineApplied || !playing()) {
+      offlineApplied = true;
+      return;
+    }
+    const lastSeen = world.state.lastSeen;
+    if (typeof lastSeen === "number") {
+      const rate = (world.state.autoRate as number) ?? 0;
+      const mult = (world.state.prestigeMult as number) ?? 1;
+      if (rate > 0) {
+        const elapsed = Math.min((Date.now() - lastSeen) / 1000, cfg.offlineCapSeconds);
+        const gain = Math.floor(rate * elapsed * mult);
+        if (gain > 0) {
+          world.state.coins = ((world.state.coins as number) ?? 0) + gain;
+          world.state.hint = `Welcome back! +${gain.toLocaleString()} coins while away`;
+        }
       }
     }
-  }
-  offlineApplied = true; // credited (or no save) — own `lastSeen` (heartbeat) from here on
+    offlineApplied = true; // credited (or no save) — own `lastSeen` (heartbeat) from here on
+  });
 }
 
 // --- HUD mirrors + lastSeen heartbeat (presentation + the offline timestamp) ---
 function mirror(): void {
   const w = world;
   if (playing()) {
-    // Credit offline earnings once the persistence restore has landed (before the
-    // heartbeat below overwrites the saved `lastSeen` we read from).
-    tryApplyOfflineCredit();
+    // Arm the offline-earnings credit once play is live; it fires when the persistence
+    // restore lands (before the heartbeat below overwrites the saved `lastSeen`).
+    armOfflineCredit();
     const mult = (w.state.prestigeMult as number) ?? 1;
     w.state.coinsDisplay = fmt(w.state.coins);
     w.state.rateDisplay = `${fmt(((w.state.autoRate as number) ?? 0) * mult)}/sec`;

@@ -1,17 +1,11 @@
 {
   "id": "over",
   "size": { "width": 800, "height": 600 },
-  "background": "#07060c",
+  "background": {
+    "color": "#07060c",
+    "layers": [{ "src": "assets/backgrounds/starfield.png", "scrollX": 0, "scrollY": 0 }]
+  },
   "entities": [
-    {
-      "id": "bg-stars",
-      "sprite": { "kind": "image", "src": "assets/backgrounds/starfield.png" },
-      "size": { "w": 800, "h": 600 },
-      "position": { "x": 0, "y": 0 },
-      "tags": ["decor"],
-      "layer": 0,
-      "behaviors": []
-    },
     {
       "id": "gameover-text",
       "sprite": { "kind": "text", "text": "GAME OVER", "font": "56px monospace", "color": "#b13e53", "align": "center" },

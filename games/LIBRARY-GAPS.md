@@ -20,9 +20,9 @@ generalizing.
 
 Four of the six games needed zero custom code (Breakout and Survival Arena are
 pure library/SDK composition; Snake/Helicopter need one custom part each; the two
-governance flagships need two/three small economy systems). That ratio is itself a
-useful signal: the action-game half of the library is complete; the **economy and
-control** corners are the gaps.
+economy games — Tower Defense and Idle Clicker — need two/three small economy
+systems). That ratio is itself a useful signal: the action-game half of the library
+is complete; the **economy and control** corners are the gaps.
 
 > **0.3.1 update (0.3.0 game-audit synthesis):** four engine-root findings from the
 > audit shipped as **clean additive PATCHes** (no frozen-contract change), retiring the

@@ -7,8 +7,7 @@ marked with the **PROBE** that verified it (real output, not assertion). Dated
 **The security model in one line:** untrusted game code runs in an **opaque-origin
 iframe** (`sandbox="allow-scripts"` only) served from a **separate artifact origin**
 under a **strict CSP**; builds run in **network-isolated sibling containers**; the
-storage bridge authenticates by **source identity + nonce** (never origin); governance
-auto-commits use a **GitHub App installation token** (never a user's OAuth token);
+storage bridge authenticates by **source identity + nonce** (never origin);
 every state-changing endpoint is **rate-limited**. None of these may be weakened to
 "make something work."
 
@@ -44,7 +43,7 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
   grants no new capability.
   **PROBE:** only `GET`/`HEAD` are accepted (`405` otherwise, `server.ts:23`); the
   only non-artifact routes are `/healthz` and `/favicon.ico` (204); path traversal is
-  rejected (see §7). ✓
+  rejected (see §6). ✓
 - [x] **Defense-in-depth headers:** `X-Content-Type-Options: nosniff`,
   `Cross-Origin-Resource-Policy: cross-origin`, correct per-type `Content-Type`,
   `immutable` cache on hashed assets / `no-cache` on HTML.
@@ -82,21 +81,19 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
   `user:<id>` (authenticated) **and** `ip:<addr>` (always) — neither axis can be
   evaded by rotating the other. Returns `429` + `Retry-After` + `X-RateLimit-*`.
   The check runs **before** the auth/401 check so anonymous floods are throttled too.
-  Instrumented routes (18): publish, fork, vote, proposal-create, remix-commit,
-  bug-report **(the six named)** + remix-start, part-upload, community-join,
-  proposal open/approve/veto/fork-with-patch/finalize, bug-convert, branch-build,
-  notifications-read, play-heartbeat.
-  **PROBE (live HTTP):** `POST /api/games/snake/bugs` ×13 → req 1–10 = `401`
+  Instrumented routes (7): publish, fork, remix-commit, remix-start, part-upload,
+  branch-build, play-heartbeat.
+  **PROBE (live HTTP):** `POST /api/games/snake/fork` ×13 → req 1–10 = `401`
   (limit allowed, auth gates), req 11–13 = **`429`** with `Retry-After: 58`,
-  `X-RateLimit-Limit: 10`, `X-RateLimit-Remaining: 0`. A `vote` request stayed `401`
+  `X-RateLimit-Limit: 10`, `X-RateLimit-Remaining: 0`. A `publish` request stayed `401`
   (separate counter) — buckets are independent. ✓
 - [x] **The counter is durable (survives restart / multi-instance), not in-memory.**
-  **PROBE (psql):** `RateLimit` rows present — `bug-report ip:::1 count=14`,
-  `vote ip:::1 count=1`. ✓
+  **PROBE (psql):** `RateLimit` rows present — `fork ip:::1 count=14`,
+  `publish ip:::1 count=1`. ✓
 - [x] **Webhook / OAuth-callback endpoints are deliberately NOT rate-limited** — the
   app-level GitHub webhook is HMAC-verified (`verifyGithubSignature`, fails closed)
-  and throttling GitHub's delivery would drop legitimate push events; the NextAuth and
-  App-install callbacks are GitHub-driven redirects. Documented, not an omission.
+  and throttling GitHub's delivery would drop legitimate push events; the NextAuth
+  callbacks are GitHub-driven redirects. Documented, not an omission.
 
 ## 4. Storage bridge (cross-game isolation)
 
@@ -114,24 +111,7 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
 - [x] **The frozen SDK protocol is unchanged** (`packages/sdk/src/storage/protocol.ts`,
   `v:1`) — the bridge re-audit touched no contract.
 
-## 5. Governance credential
-
-- [x] **Auto-commit ONLY ever mints an installation token from the App key — never the
-  owner's OAuth token, and cannot fall back to OAuth.**
-  `platform/web/src/lib/governance-service.ts#approveAndCommit`: requires
-  `game.installationId` (else `critical` reject, `:286`), mints via
-  `getInstallationToken` (`github-app.ts`), and on ANY mint/commit failure returns
-  `{ critical: true }` with **no OAuth path** (`:294-297`, `:325-327`). Both
-  `loadRemixSources` and `commitFiles` are called with `tok.token` (the installation
-  token), `:301`/`:324`.
-  **PROBE (code audit + grep):** the only token used in the auto-commit path is the
-  installation token; `getUserGitHubToken` is never imported into the approve path.
-  Phase 7 already verified the on-wire commit is authored by `gitcade-governance[bot]`,
-  GPG-`valid`. ✓
-- [x] **`fork-with-patch` (the user's exit door) correctly uses the USER's OAuth token
-  on THEIR fork** — a distinct, intended path, not a fallback (`forkWithPatch`). ✓
-
-## 6. Dependency audit
+## 5. Dependency audit
 
 - [x] **`npm audit` run across web / worker / artifact-server; SDK + library noted.**
 - [x] **worker + artifact-server: 0 production vulnerabilities** (`npm audit --omit=dev`).
@@ -154,7 +134,7 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
 - [x] **SDK / library (`@gitcade/sdk`, `@gitcade/library`): runtime dep is only `zod`;
   no audit findings of note.** (Frozen packages — not modified this phase.)
 
-## 7. Secrets hygiene
+## 6. Secrets hygiene
 
 - [x] **No `.env` / `.pem` / `.key` / secret / `.npmrc` / `.git` in any served
   artifact.**
@@ -163,11 +143,6 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
 - [x] **No secret files tracked in game repos / templates, and no `.pem`/`.env`/
   private-key tracked anywhere in the monorepo.**
   **PROBE (`git ls-files`):** both scans clean. ✓
-- [x] **The App private key is never logged.** It is read in `github-app.ts`
-  (`loadAppPrivateKey`) and used only to sign the JWT; a missing key throws
-  `[CRITICAL]` (never invents/echoes it).
-  **PROBE (grep):** no `console.*` of `privateKey`/`jwt`/`token`/`secret` anywhere in
-  `src`. ✓
 - [x] **Path traversal on the artifact server is blocked.** `server.ts` rejects any
   `..` segment (`:51`) and the URL parser normalizes the rest.
   **PROBE (curl):** `%2e%2e` encoded traversal → `400`; literal `..` → `404` (never
@@ -186,7 +161,7 @@ cd platform/web && npm run build && npm run start               # :3000
 # 3. build-sandbox isolation (needs gitcade-builder:local)
 docker run --rm --network none gitcade-builder:local sh -c 'node -e "fetch(\"https://registry.npmjs.org/\").then(()=>process.exit(0)).catch(()=>process.exit(1))"'   # exit 1 = isolated
 # 4. rate limit
-for i in $(seq 1 13); do curl -s -o /dev/null -w "%{http_code}\n" -X POST -d '{}' localhost:3000/api/games/snake/bugs; done   # 401x10 then 429
+for i in $(seq 1 13); do curl -s -o /dev/null -w "%{http_code}\n" -X POST -d '{}' localhost:3000/api/games/snake/fork; done   # 401x10 then 429
 # 5. CSP/sandbox in a real browser
 node /tmp/csp-sandbox-probe.mjs snake     # (probe script; see DECISIONS Phase 8A)
 # 6. dependency audit

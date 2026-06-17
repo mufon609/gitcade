@@ -7,7 +7,7 @@ ecosystem-wide work (engine/library bug fixes + new capabilities that streamline
 — its balance, content, feel, or assets — and is deliberately **not** done in the
 ecosystem pass. Each item is tagged:
 
-- **data** — `config.json` / scene JSON only (a governance-friendly diff).
+- **data** — `config.json` / scene JSON only (a small config diff).
 - **host** — that game's `src/` glue.
 - **asset** — needs a sprite/audio/background.
 - **needs-engine** — blocked on a future engine capability (cross-referenced to the
@@ -41,7 +41,7 @@ banking (now adopts `face-angle`).
 |---|-----|-------|------|
 | H1 | **med** | data/host | **Crash explosion never renders.** The `explosion` FX is bound to `crash`, which *also* routes `flow.on.crash → over`; `loadScene` wipes the freshly-spawned particles before a frame draws. Bind the burst on the **destination** (`over`) scene, or delay the route. (Convention added to CONVENTIONS.md §7.) |
 | H2 | med | data | **Difficulty ramps speed, not density.** `scale-by-state` speeds the scroll, but pillar spacing stays a flat `waveDelay`; best-in-class flyers tighten the gap *and* cadence. Density-by-level is **needs-engine** (level-aware `wave-spawner`); until then, hand-tune `waveDelay`/`spawnPoints`. |
-| H3 | low | data | **Dead spacing knob.** `waveSize:1` makes `spawnInterval` inert — actual spacing is governed entirely by `waveDelay`. Document `waveDelay` as *the* live knob (a governance tweak to `spawnInterval` currently does nothing). |
+| H3 | low | data | **Dead spacing knob.** `waveSize:1` makes `spawnInterval` inert — actual spacing is governed entirely by `waveDelay`. Document `waveDelay` as *the* live knob (a config tweak to `spawnInterval` currently does nothing). |
 | H4 | low | data | **Spawn points cluster near the top** (`y: [60,420,220,90,360]` — two within 30px at the top). Spread vertically for varied threading. |
 | H5 | low | asset | **No heli/rotor or pillar art.** The game named "Helicopter" reuses `player-ship.png`; obstacles are flat `#3b5dc9` rects. A heli sprite (animatable rotor via `sheet`) + a tileable pillar/cave-wall sprite would lift identity. Distinct crash SFX too. |
 
@@ -73,7 +73,7 @@ banking (now adopts `face-angle`).
 | T2 | med | host/data | **No per-tower upgrade/sell.** Upgrades are global (`restampTowers` hits all towers). Per-tower agency needs a selected-tower concept (host UI + a small custom system). |
 | T3 | low | data | **`build-denied` FX fires on every mistap** including taps on the road — the FX-proportionality footgun (CONVENTIONS §1). Gate it to the funds-denial case, or use a quieter cue. |
 | T4 | low | data | `towerMinCooldown` (0.2) is dead config (the upgrade chain bottoms out at 0.30s). Flag for the rebalance surface. |
-| T5 | low | data | `goldPerSec:0` → a player who spends to zero pre-placement can soft-lock until a kill pays out. Intentional tension, but a candidate for a governance softening. |
+| T5 | low | data | `goldPerSec:0` → a player who spends to zero pre-placement can soft-lock until a kill pays out. Intentional tension, but a candidate for a config softening. |
 | T6 | low | asset/needs-engine | **Directional art** (turret with a barrel, facing creep) would unlock the now-available rotation rendering for turrets; a proper tiled road needs **td-10** (a `tilemap` tile-scale field — contract change, deferred). |
 
 **Shipped in 0.3.2:** towers now use **"first" (most-advanced) targeting** (`ai-aim-and-fire@1.1.0` `priorityKey:"__pathProgress"`) instead of nearest — the #1 TD correctness/feel gap (towers were shooting the wrong creep ~58% of the time).

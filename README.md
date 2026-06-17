@@ -1,16 +1,12 @@
 # GitCade
 
 **Git for Gamers** — a platform where AI-built, open-source browser games are
-published, played, forked, remixed, and governed by community vote.
+published, played, forked, and remixed.
 
-Three pillars no platform combines today:
+Two pillars no platform combines today:
 
 - **GitHub-style forking** — every game is a git repo; every branch is playable
   in one click. Fork a game, rebalance it, and share a side-by-side compare URL.
-- **OSRS-style governance** — communities vote on proposals at a 70% threshold.
-  Most proposals are one-line `config.json` diffs that auto-commit on pass. Lose
-  the vote? Fork it with the patch applied in one click — democracy with an exit
-  door.
 - **A component marketplace as the standard** — games are assembled from
   interoperable parts (entities, behaviors, systems, art, audio, UI, FX). Browse
   what every game is made of, and remix a fork by swapping parts — no code.
@@ -20,7 +16,7 @@ Scope for v1: single-player browser games only.
 > **Status:** v1 feature-complete. The SDK and component library are published
 > as `@gitcade/sdk` and `@gitcade/library`; six seed games run on them; the
 > build worker, artifact server, and the full Next.js platform (publish, play,
-> fork, marketplace, governance) are built and hardened. The original
+> fork, remix, marketplace) are built and hardened. The original
 > phase-by-phase build plan and its decision log are archived under
 > [`setup/archive/`](./setup/archive/) for historical reference.
 
@@ -49,7 +45,7 @@ GitCade is one npm-workspaces monorepo (Node 22) split into three layers:
    artifact-server/  the ONLY path games reach the browser: streams artifacts
                      with a strict per-game CSP and immutable cache headers
    web/              the Next.js App Router site: publish, play, fork, remix,
-                     marketplace, governance
+                     marketplace
 
  examples/   pong — the proof that a real game is buildable as pure JSON
  templates/  game-scaffold — the compliant starting point for a new game
@@ -69,8 +65,8 @@ part references. Games run in a `sandbox="allow-scripts"` iframe (opaque origin,
 strongest isolation), so they can't touch browser storage directly: the SDK
 ships a **postMessage storage bridge** that the platform page answers,
 namespacing every save by `gameSlug + branch` so switching branches or playing a
-fork never corrupts a save. Because balance lives in data, a community vote to
-rebalance a game is a one-line JSON diff the platform can commit automatically.
+fork never corrupts a save. Because balance lives in data, rebalancing a game —
+or remixing a fork — is a one-line JSON diff, not a code change.
 
 ---
 
@@ -117,7 +113,7 @@ All configuration is environment variables, documented key-by-key in
 
 | Group | Keys |
 |---|---|
-| GitHub | `GITHUB_ORG`, `GITHUB_OAUTH_ID`, `GITHUB_OAUTH_SECRET`, `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`, `WEBHOOK_PROXY_URL` |
+| GitHub | `GITHUB_ORG`, `GITHUB_OAUTH_ID`, `GITHUB_OAUTH_SECRET`, `GITHUB_WEBHOOK_SECRET`, `WEBHOOK_PROXY_URL` |
 | Database & storage | `DATABASE_URL`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE` |
 | Artifact serving | `ARTIFACT_SERVER_PORT`, `ARTIFACT_BASE_URL` |
 | Build worker | `BUILDER_IMAGE`, `QUEUE_POLL_INTERVAL_MS` |

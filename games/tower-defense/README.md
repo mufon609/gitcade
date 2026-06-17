@@ -1,10 +1,9 @@
-# Tower Defense — a GitCade ecosystem game (governance flagship)
+# Tower Defense — a GitCade ecosystem game
 
 Place turrets along the creep path, spend the gold from each kill on upgrades, and
-hold the line through **10 escalating waves**. This is the **governance flagship**:
-**100% of its balance lives in `config.json`** — there is not a single balance
-number in the scenes or behaviors, which is exactly what makes a community vote a
-one-line JSON diff.
+hold the line through **10 escalating waves**. **100% of its balance lives in
+`config.json`** — there is not a single balance number in the scenes or behaviors,
+so any rebalance is a one-line JSON diff.
 
 ## Play
 
@@ -53,7 +52,7 @@ and the upgrade tree. Nothing to hunt for in code.
 
 ### Worked example: make towers cheaper
 
-The canonical governance demo — cut the tower price so defenses come up faster:
+Cut the tower price so defenses come up faster:
 
 ```diff
 // config.json
@@ -61,8 +60,7 @@ The canonical governance demo — cut the tower price so defenses come up faster
 +  "towerCost": 40
 ```
 
-Re-run `npm run validate` → still publishable. That one-line diff is exactly what a
-passed "make towers cheaper" proposal commits to `main` automatically. Try also:
+Re-run `npm run validate` → still publishable. Try also:
 
 ```diff
 -  "creepHp": 60,         // tankier creeps

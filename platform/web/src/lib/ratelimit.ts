@@ -33,25 +33,13 @@ export interface RateLimitRule {
  *  abuse loop (so a 429 is demonstrable). Window is one minute unless noted. */
 const MIN = 60_000;
 export const RATE_LIMITS = {
-  // The six the phase names explicitly:
+  // State-changing endpoints (every mutation route is covered):
   publish: { bucket: "publish", limit: 10, windowMs: MIN },
   fork: { bucket: "fork", limit: 15, windowMs: MIN },
-  vote: { bucket: "vote", limit: 30, windowMs: MIN },
-  proposalCreate: { bucket: "proposal-create", limit: 10, windowMs: MIN },
   remixCommit: { bucket: "remix-commit", limit: 20, windowMs: MIN },
-  bugReport: { bucket: "bug-report", limit: 10, windowMs: MIN },
-  // Other state-changing endpoints (every mutation route is covered):
   remixStart: { bucket: "remix-start", limit: 20, windowMs: MIN },
   partUpload: { bucket: "part-upload", limit: 5, windowMs: MIN },
-  communityJoin: { bucket: "community-join", limit: 30, windowMs: MIN },
-  proposalOpen: { bucket: "proposal-open", limit: 20, windowMs: MIN },
-  proposalApprove: { bucket: "proposal-approve", limit: 20, windowMs: MIN },
-  proposalVeto: { bucket: "proposal-veto", limit: 20, windowMs: MIN },
-  proposalForkPatch: { bucket: "proposal-fork-patch", limit: 15, windowMs: MIN },
-  proposalFinalize: { bucket: "proposal-finalize", limit: 60, windowMs: MIN },
-  bugConvert: { bucket: "bug-convert", limit: 20, windowMs: MIN },
   branchBuild: { bucket: "branch-build", limit: 20, windowMs: MIN },
-  notificationsRead: { bucket: "notifications-read", limit: 60, windowMs: MIN },
   // High-frequency by design (a heartbeat every ~10s per open pane); generous.
   heartbeat: { bucket: "heartbeat", limit: 120, windowMs: MIN },
 } as const;

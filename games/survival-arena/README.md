@@ -48,7 +48,7 @@ scene load) — once the custom `swarm-scale` behavior, logged in
 [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) #8 — is now expressed purely as data with
 two library `scale-by-state` instances on the enemy prototype.
 
-## Rebalance it (the governance demo)
+## Rebalance it
 
 All of the difficulty is in [`config.json`](config.json):
 
@@ -82,8 +82,7 @@ Speed everything up and thicken the swarm — no code:
 +  "fireCooldown": 0.16
 ```
 
-Re-run `npm run validate` and the harder build is publishable — the one-line diff a
-passed governance proposal commits automatically.
+Re-run `npm run validate` and the harder build is publishable.
 
 ## Fork it
 

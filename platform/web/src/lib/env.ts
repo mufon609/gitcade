@@ -43,17 +43,6 @@ export const env = {
   githubOrg: optional("GITHUB_ORG", "gitcade-games"),
   githubOAuthId: required("GITHUB_OAUTH_ID"),
   githubOAuthSecret: required("GITHUB_OAUTH_SECRET"),
-  /// GitHub App slug/id — used to build the "Install the GitCade App" URL for the
-  /// ecosystem governance step. App id is numeric; the install URL uses the app's
-  /// public name, which we keep configurable.
-  githubAppId: optional("GITHUB_APP_ID", ""),
-  githubAppSlug: optional("GITHUB_APP_SLUG", "gitcade-governance"),
-  /// The GitHub App private key — used ONLY to mint installation access tokens for
-  /// governance auto-commits (Phase 7). Either inline (PEM, possibly with literal
-  /// `\n`) or a path to the .pem file. NEVER the owner's OAuth token (locked
-  /// Governance-credential decision).
-  githubAppPrivateKey: optional("GITHUB_APP_PRIVATE_KEY", ""),
-  githubAppPrivateKeyPath: optional("GITHUB_APP_PRIVATE_KEY_PATH", ""),
 
   nextAuthUrl: optional("NEXTAUTH_URL", "http://localhost:3000"),
   nextAuthSecret: required("NEXTAUTH_SECRET"),

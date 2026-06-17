@@ -46,10 +46,6 @@ export function parseManifestObject(json: unknown): ManifestResult {
 
 export interface PublishGate {
   tier: Tier;
-  /** Ecosystem games get the "Enable community governance" (install GitHub App)
-   *  step; open games do not. Skippable, but Phase 7 proposals stay disabled
-   *  until the app is installed. */
-  offersGovernanceStep: boolean;
   /** Whether `partId@version` provenance + full structure validation will run in
    *  the worker (ecosystem) vs the lighter open-tier gate. Informational for the
    *  publish UI; the worker enforces it. */
@@ -60,7 +56,6 @@ export interface PublishGate {
 export function publishGate(tier: Tier): PublishGate {
   return {
     tier,
-    offersGovernanceStep: tier === "ecosystem",
     fullValidation: tier === "ecosystem",
   };
 }

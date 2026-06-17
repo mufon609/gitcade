@@ -1,7 +1,7 @@
 # CLAUDE.md — GitCade Operating Contract
 
 You are working on **GitCade**: a platform where AI-built, open-source browser
-games are published, played, forked, remixed, and governed by community vote.
+games are published, played, forked, and remixed by the community.
 The v1 build is complete — this file tells you *how to operate* on the existing
 codebase. Read it, read [README.md](./README.md) for what the system is, then
 act.
@@ -84,8 +84,8 @@ When in doubt about whether something is a contract: treat it as one.
   platform enforces; if a game change passes locally it'll pass on publish.
 - **Run the platform:** see README.md → Quick start. Web on :3000, artifact
   server on :3001, worker consuming the Postgres queue. `platform/web` has demo
-  scripts (`npm run fork-demo`, `remix-demo`, `governance-demo`,
-  `part-upload-demo`) that exercise the major flows end-to-end without the UI.
+  scripts (`npm run fork-demo`, `remix-demo`, `part-upload-demo`) that exercise
+  the major flows end-to-end without the UI.
 - **See a change in the real browser:** use the `chromium` shim (headless, or
   headed to watch — an X11 session is present). For UI/play verification this
   beats asserting from code.
@@ -102,8 +102,8 @@ it. If something is incomplete, say so plainly and list what remains.
   neighboring service while fixing one. A platform bug is fixed in `platform/`;
   an SDK bug follows the patch-release protocol.
 - **Games are data.** Balance numbers belong in `config.json` (referenced as
-  `$cfg.key`), never hardcoded — the validator enforces this and most governance
-  depends on it. Parts are referenced as `partId@version`.
+  `$cfg.key`), never hardcoded — the validator enforces this, and it's what makes
+  a rebalance a one-line diff. Parts are referenced as `partId@version`.
 - **Comment the non-obvious**, especially anything touching a frozen contract,
   the storage bridge, or the build worker's container plumbing.
 - **Match the surrounding code** — its naming, structure, and comment density.

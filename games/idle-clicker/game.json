@@ -1,7 +1,7 @@
 {
   "name": "Idle Clicker",
   "slug": "idle-clicker",
-  "description": "Tap the coin, buy generators, watch the numbers climb — even while you're away. Offline progress flows through the SDK storage bridge. A governance flagship: 100% of its balance lives in config.json.",
+  "description": "Tap the coin, buy generators, watch the numbers climb — even while you're away. Offline progress flows through the SDK storage bridge. 100% of its balance lives in config.json.",
   "version": "1.0.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "0.3.2",

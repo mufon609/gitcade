@@ -44,5 +44,4 @@ Make the CPU easier — change one number:
 +  "aiPaddleSpeed": 220,
 ```
 
-That one-line `config.json` diff is exactly the shape a passed GitCade governance
-proposal commits automatically.
+No code touched — that one-line `config.json` diff is all it takes to rebalance.

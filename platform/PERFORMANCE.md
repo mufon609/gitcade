@@ -2,75 +2,33 @@
 
 Optimization only — **no new features**. Every item below is backed by a **measured
 before/after** (Lighthouse scores, `EXPLAIN ANALYZE` plans, query counts, queue
-load numbers), not "should be faster". Frozen contracts were respected: all Prisma
-changes are additive **indexes only** (no table reshaped; the frozen 4A/4B
-`BuildJob`/`Build` tables are byte-identical), and no SDK/library/queue-schema/
-artifact-URL/storage-bridge/CSP contract changed.
+load numbers), not "should be faster". Frozen contracts were respected: no table was
+reshaped (the frozen 4A/4B `BuildJob`/`Build` tables are byte-identical), and no
+SDK/library/queue-schema/artifact-URL/storage-bridge/CSP contract changed.
 
 Measured on the dev box (Postgres 16, MinIO, Chrome-for-Testing 148) on 2026-06-15.
 
 ---
 
-## 1. DB indexes on hot paths — EXPLAIN-proven, additive only
+## 1. DB indexes on hot paths — EXPLAIN-proven
 
 ### Method
 The dev DB has only 8 games, so its planner seq-scans everything regardless of
 indexing — useless for proving index *selection*. So a throwaway **`gitcade_perf`**
 database was created with the **identical schema** and **realistic volume** (5,000
-games, 20,000 proposals, 502,500 votes, 1,500 forks of one game), then `ANALYZE`d.
+games, 1,500 forks of one game), then `ANALYZE`d.
 Each candidate was tested with the **exact SQL Prisma emits** (captured via the
 Prisma query-event log), `EXPLAIN ANALYZE` run with and without the index.
 
 The governing rule from the phase prompt — *"add only indexes a real query uses;
-prove each with an index scan, not a seq scan"* — was applied strictly. Two
-candidates that the planner **refused to use** were dropped rather than shipped as
+prove each with an index scan, not a seq scan"* — was applied strictly. A
+candidate that the planner **refused to use** was dropped rather than shipped as
 dead write-overhead.
-
-### ✅ Added — `Vote @@index([proposalId, choice])`  (proposal tallies)
-The tally counts YES/NO per proposal. For a typical Community tab (a game with ~12
-proposals, polled every 15 s), the composite makes it an **index-only aggregate**:
-
-```
-BEFORE (existing Vote_proposalId_userId_key):
-  HashAggregate  (cost=989.06..993.59 …)
-    -> Bitmap Heap Scan on "Vote"  (cost=55.43..986.78 …) actual time=…0.59
-       -> Bitmap Index Scan on "Vote_proposalId_userId_key"
-  Execution Time: 1.012 ms
-
-AFTER (Vote_proposalId_choice_idx):
-  GroupAggregate  (cost=0.42..65.15 …)
-    -> Index Only Scan using "Vote_proposalId_choice_idx" on "Vote"
-  Execution Time: 0.447 ms
-```
-**cost 993 → 65 (15× lower), 1.012 ms → 0.447 ms (2.3×), heap fetch eliminated.**
-(For a pathological 500-proposal game the planner still prefers a bitmap scan on the
-existing `Vote_proposalId_idx` — correct; the composite wins the common small-IN case.)
-
-### ✅ Added — `Proposal @@index([gameId, authorId])`  (voting-eligibility)
-`voterEligibility()` runs `count(WHERE gameId=? AND authorId=?)` on **every cast
-vote**. The existing `[gameId, status]` index can only filter `gameId`, then
-bitmap-scans **all** of that game's proposals and rechecks `authorId` on the heap:
-
-```
-BEFORE (existing Proposal_gameId_status_idx):
-  Aggregate  (cost=615.88..615.89 …)
-    -> Bitmap Heap Scan on "Proposal"  (cost=16.04..615.88 …)
-       -> Bitmap Index Scan on "Proposal_gameId_status_idx"  (rows=1000 scanned)
-  Execution Time: 0.163 ms
-
-AFTER (Proposal_gameId_authorId_idx):
-  Aggregate  (cost=8.31..8.32 …)
-    -> Index Only Scan using "Proposal_gameId_authorId_idx"  (rows=3)
-  Execution Time: 0.121 ms
-```
-**cost 615.88 → 8.31 (74× lower); reads the 3 matching rows, not the game's 1,000.**
-The gap widens with proposals-per-game (the bitmap scans the whole bucket; the
-composite jumps straight to the author's rows).
 
 ### ✅ Verified already-covered (existing indexes used — no change needed)
 - **Fork-tree lineage** — `WHERE parentGameId=?`: **Index Scan using
   `Game_parentGameId_idx`** (2.57 ms for 1,500 direct forks). Already optimal.
-- **Voting-eligibility / heartbeat PlaySession** — `WHERE userId=? AND gameId=?`
+- **Heartbeat PlaySession** — `WHERE userId=? AND gameId=?`
   uses the existing `PlaySession_userId_gameId_idx`; heartbeat read/update is by PK.
 - **Build queue (frozen 4A — not modified)** — the claim (`WHERE status='PENDING'
   ORDER BY createdAt`) is covered by `BuildJob_status_createdAt_idx`; the dedup
@@ -90,10 +48,6 @@ composite jumps straight to the author's rows).
   The genuine scaling fix here is **keyset pagination** (don't load the whole
   arcade), which is a feature change — out of scope for this pass. Documented in the
   schema next to the existing `Game` indexes.
-- **`Proposal([gameId, createdAt])` (community list order)** — without a `LIMIT`,
-  the planner prefers a Bitmap Index Scan on the existing `[gameId, status]` index +
-  a cheap in-memory sort (79 kB) over an ordered index scan with 500 random heap
-  fetches. The ordered index is never chosen, so it was dropped.
 
 ---
 
@@ -104,9 +58,8 @@ realistic `gitcade_perf` data.
 
 | Hot path | Before | After | Notes |
 |---|---|---|---|
-| **Community tab** proposal list (`GET …/proposals`, polled every 15 s) | **26** queries @ 12 proposals; **102** @ 50 | **3** (constant) | was `1 + 1(authors) + 2×N` `vote.count`; now `findMany + authors + 1 groupBy`. O(N) → O(1). |
 | **"Made from"** indexer (`indexGameParts`, lazy on first game view) | **6** @ 3 refs; **16** @ 8 refs | **1** | per-ref `part.findFirst` (exact + fallback) → one `findMany({ partId: { in } })`, resolved in memory. |
-| **Game page** SSR reads | 5 **sequential** round-trips | 1 **parallel** batch | `refreshGameStatus`, playCount, memberCount, branches, parent were awaited serially; now one `Promise.all` (independent reads). |
+| **Game page** SSR reads | 4 **sequential** round-trips | 1 **parallel** batch | `refreshGameStatus`, playCount, branches, parent were awaited serially; now one `Promise.all` (independent reads). |
 
 - Home **grid** was audited and is **not** N+1: a single `game.findMany` feeds the
   whole grid; search/filter is entirely client-side (`HomeGrid.tsx`), so no
@@ -114,9 +67,6 @@ realistic `gitcade_perf` data.
 - Fork-tree ancestor walk is a bounded loop of `findUnique` by PK (depth-capped at
   32, realistically ≤ 3); the per-fork diff fan-out is already `Promise.all` and is
   GitHub-API-bound, not DB. Left as-is.
-
-The Community-tab collapse is backed by the new `Vote([proposalId, choice])` index
-(§1), so the single `groupBy` is an index-only aggregate.
 
 ---
 
@@ -137,7 +87,7 @@ best-practices / SEO`.
   finding on **both** pages → best-practices 96 → 100.
 - **heading-order** — game-card titles and panel/section headings skipped from
   `<h1>` to `<h3>`; promoted the intervening section headings to `<h2>`
-  (`GameCard`, game page Stats/Manifest/Community, `MadeFrom`, `ForkTree`).
+  (`GameCard`, game page Stats/Manifest, `MadeFrom`, `ForkTree`).
 - **color-contrast** — `MadeFrom`'s version label used `text-arcade-edge`
   (#2b3142, a border colour) as text → contrast 1.27. Switched to `text-arcade-mute`
   (passing). Same fix applied to the parts pages for consistency.
@@ -224,7 +174,7 @@ This is a **pre-existing property of the frozen 4A queue**, not introduced here,
 its blast radius is **bounded by the (working) concurrency cap** — redundant jobs
 drain ≤ 2 at a time, never a container storm; and rebuilds are idempotent (same
 commit → same artifact). It does **not** affect the real access pattern (webhook /
-poll / governance / fork / publish each enqueue **once**, sequentially).
+poll / fork / publish each enqueue **once**, sequentially).
 
 A robust fix is a **partial unique index** on `BuildJob(gameSlug, branch) WHERE
 status IN ('PENDING','RUNNING')` + `INSERT … ON CONFLICT` — but that alters the
@@ -235,9 +185,10 @@ Documented here and in DECISIONS.md; not silently changed.
 ---
 
 ## What 8C–8E inherit
-- **Two additive indexes** (`Vote[proposalId,choice]`, `Proposal[gameId,authorId]`),
-  live on the dev DB via `prisma db push`; frozen `BuildJob`/`Build` byte-identical.
-- **Constant-query Community-tab & "made-from" paths** + a parallelized game page.
+- **Existing hot-path indexes verified adequate** (fork lineage, heartbeat
+  PlaySession, the frozen 4A build-queue indexes); frozen `BuildJob`/`Build`
+  byte-identical.
+- **Constant-query "made-from" path** + a parallelized game page.
 - **Conditional-GET (ETag/304)** on the artifact server (CDN-ready).
 - **A documented, bounded queue-dedup race** to fix as a 4A queue patch (not a
   blocker; the cap contains it).

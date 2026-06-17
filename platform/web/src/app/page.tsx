@@ -41,8 +41,7 @@ export default async function HomePage() {
         <h1 className="text-2xl font-bold">The GitCade Arcade</h1>
         <p className="max-w-2xl text-arcade-mute">
           Open-source, AI-built browser games — published from a GitHub repo, validated by the build
-          pipeline, and played in a sandboxed iframe. Forking, remixing, and community governance
-          arrive in later phases.
+          pipeline, and played in a sandboxed iframe. Fork or remix any game to make it your own.
         </p>
         <div>
           <Link href="/publish" className="gc-btn gc-btn-primary mt-2 no-underline">

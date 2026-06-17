@@ -1,13 +1,12 @@
 // THE FORK TREE — a game's lineage: the parent chain upward and its direct forks
 // downward. Each fork edge carries a HEADLINE DIFF: the changed-files count, and
 // when config.json is the only changed file, the inline value diffs
-// ("towerCost.arrow: 50 → 30") computed by the reusable ConfigDiff core. This is
-// the Phase 7 governance preview surface, built once here.
+// ("towerCost.arrow: 50 → 30") computed by the reusable ConfigDiff core.
 //
 // Diffs are computed live via the GitHub compare + contents APIs (with the acting
 // user's token when available to lift the rate limit) and degrade gracefully — a
 // tree always renders even if GitHub is unreachable; only the diff annotation is
-// omitted. (Reversible: Phase 6/7 may cache a config snapshot on the Game row to
+// omitted. (Reversible: we may later cache a config snapshot on the Game row to
 // avoid the live calls.)
 import { prisma } from "./prisma";
 import { parseRepoUrl, compareRefs, getRepoFile } from "./github";

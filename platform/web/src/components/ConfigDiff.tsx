@@ -1,8 +1,7 @@
-// REUSABLE config.json diff renderer — the foundation of Phase 7 governance (a
-// config-change proposal IS one of these diffs). It takes two parsed config blobs
-// (or a precomputed change list) and renders the leaf-value changes as
+// REUSABLE config.json diff renderer. It takes two parsed config blobs (or a
+// precomputed change list) and renders the leaf-value changes as
 // "towerCost.arrow: 50 → 30" rows. Used by the fork tree (inline, compact) and the
-// compare view (full), and reused verbatim by Phase 7's proposal UI.
+// compare view (full).
 import {
   diffConfigs,
   meaningfulChanges,

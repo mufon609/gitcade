@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { NotificationsBell } from "./NotificationsBell";
 
 /** Top navigation with GitHub auth controls. */
 export function Nav() {
@@ -39,7 +38,6 @@ export function Nav() {
         <div className="flex items-center gap-3">
           {status === "authenticated" && session?.user ? (
             <>
-              <NotificationsBell />
               <span className="hidden text-sm text-arcade-mute sm:inline">
                 {session.user.name ?? "signed in"}
               </span>

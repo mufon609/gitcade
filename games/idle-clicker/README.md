@@ -1,10 +1,9 @@
-# Idle Clicker — a GitCade ecosystem game (governance flagship)
+# Idle Clicker — a GitCade ecosystem game
 
 Tap the coin, buy cursors and factories to automate income, and watch the number
 climb — **even while you're away**. Offline progress is computed from your last
 save and flows **only through the SDK storage bridge** (`world.storage`), never raw
-browser storage. The second **governance flagship**: **100% of its balance lives in
-`config.json`**.
+browser storage. **100% of its balance lives in `config.json`.**
 
 ## Play
 
@@ -63,8 +62,7 @@ Make taps and the first cursor pay off sooner — no code:
 +  "bonusAmount": 120
 ```
 
-Re-run `npm run validate` → still publishable. That one-line-per-value diff is the
-shape a passed governance proposal commits automatically.
+Re-run `npm run validate` → still publishable.
 
 ## Fork it
 

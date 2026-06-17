@@ -29,7 +29,7 @@ const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
 
 const audio = new LibraryAudioPlayer();
-// Audio level is data: $cfg.volume (default 0.6), so it's governance-tunable like any balance value.
+// Audio level is data: $cfg.volume (default 0.6), so it's tunable like any balance value.
 audio.setVolume(typeof (config as Record<string, number>).volume === "number" ? (config as Record<string, number>).volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(

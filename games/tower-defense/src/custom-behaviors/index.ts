@@ -8,8 +8,8 @@ import { snapToGrid } from "@gitcade/library";
 /**
  * Tower Defense's two custom systems. Both are written param-driven — every
  * balance value arrives via `$cfg` from config.json, none is hardcoded here — so
- * Tower Defense keeps 100% of its balance in config.json (the governance-flagship
- * requirement). Logged in games/LIBRARY-GAPS.md as generalization candidates
+ * Tower Defense keeps 100% of its balance in config.json (no balance value is
+ * hardcoded here). Logged in games/LIBRARY-GAPS.md as generalization candidates
  * ("click-to-place build system" and "event-driven economy/objective counters").
  *
  * 0.2.0 ADOPTION (the heaviest game exercises every new primitive):

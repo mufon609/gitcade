@@ -24,8 +24,8 @@ const SEED_TAGS: Record<string, string[]> = {
   snake: ["arcade", "grid"],
   helicopter: ["arcade", "endless"],
   breakout: ["arcade", "physics"],
-  "tower-defense": ["strategy", "governance"],
-  "idle-clicker": ["idle", "governance"],
+  "tower-defense": ["strategy"],
+  "idle-clicker": ["idle"],
   "survival-arena": ["action", "shooter"],
 };
 

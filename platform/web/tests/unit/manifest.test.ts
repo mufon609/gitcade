@@ -59,15 +59,13 @@ describe("parseManifest (frozen SDK schema)", () => {
 });
 
 describe("publishGate (tier gating)", () => {
-  it("ecosystem games are offered the governance step + full validation", () => {
+  it("ecosystem games get full validation in the worker", () => {
     const g = publishGate("ecosystem");
-    expect(g.offersGovernanceStep).toBe(true);
     expect(g.fullValidation).toBe(true);
   });
 
-  it("open games get neither the governance step nor full validation", () => {
+  it("open games get the lighter open-tier gate", () => {
     const g = publishGate("open");
-    expect(g.offersGovernanceStep).toBe(false);
     expect(g.fullValidation).toBe(false);
   });
 });

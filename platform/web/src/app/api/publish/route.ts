@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, getUserGitHubToken } from "@/lib/auth";
 import { publishGame } from "@/lib/publish";
-import { appInstallUrl } from "@/lib/github";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
@@ -55,7 +54,5 @@ export async function POST(req: NextRequest) {
     deduped: result.deduped,
     reused: result.reused,
     gate: result.gate,
-    // Ecosystem games get the optional "Enable community governance" step.
-    installUrl: result.gate.offersGovernanceStep ? appInstallUrl(result.gameId) : null,
   });
 }

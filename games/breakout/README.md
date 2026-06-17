@@ -56,7 +56,7 @@ and the Enter/Space → flow-event bridge are the only host glue left in
 [`src/custom-behaviors/`](src/custom-behaviors/index.ts) is intentionally empty:
 Breakout proves the library composes a full multi-level arcade game with no new code.
 
-## Rebalance it (the governance demo)
+## Rebalance it
 
 All of Breakout's feel is in [`config.json`](config.json):
 
@@ -89,8 +89,7 @@ Make the ball calmer and give the player more lives — no code:
 +  "startLives": 5
 ```
 
-Re-run `npm run validate` and the slower, friendlier build is publishable — exactly
-the one-line `config.json` diff a passed governance proposal commits automatically.
+Re-run `npm run validate` and the slower, friendlier build is publishable.
 
 ## Fork it
 

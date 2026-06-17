@@ -144,14 +144,8 @@ model User {
   sessions      Session[]
   games         Game[]               @relation("GameOwner")
   playSessions  PlaySession[]
-  memberships   CommunityMembership[]
   // Phase 6 marketplace: parts this user published (back-relation, no column).
   parts         Part[]               @relation("PartAuthor")
-  // Phase 7 governance relations.
-  votes         Vote[]
-  bugReports    BugReport[]
-  proposals     Proposal[]           @relation("ProposalAuthor")
-  notifications Notification[]
 }
 
 model Game {
@@ -185,19 +179,10 @@ model Game {
   parent       Game?      @relation("GameForks", fields: [parentGameId], references: [id])
   forks        Game[]     @relation("GameForks")
 
-  // ── Phase 7 governance extension point ──
-  /// GitCade GitHub App installation id on this repo, captured during the
-  /// ecosystem publish "Enable community governance" step. Null = app not
-  /// installed → Phase 7 proposals are disabled for this game.
-  installationId String?
-
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
   playSessions PlaySession[]
-  memberships  CommunityMembership[]
-  proposals    Proposal[]
-  bugReports   BugReport[]
   // Phase 6 marketplace: the catalog parts this game composes (the "made from"
   // index). Back-relation only — the FK lives on GamePart, so no column is added
   // to the (Phase-4B, never-reshaped) Game table.
@@ -211,8 +196,7 @@ model Game {
   // regardless. Verified by EXPLAIN — see platform/PERFORMANCE.md.
 }
 
-/// Recorded each time a game is played. HARD REQUIREMENT of Phase 7's
-/// anti-brigading rule (a recorded PlaySession is a voting-eligibility signal).
+/// Recorded each time a game is played; drives the per-game play-count stat.
 /// userId is nullable — anonymous play is allowed and still recorded.
 model PlaySession {
   id          String   @id @default(cuid())
@@ -228,182 +212,6 @@ model PlaySession {
 
   @@index([gameId, userId])
   @@index([userId, gameId])
-}
-
-/// A user joining a game's community. HARD REQUIREMENT of Phase 7 (voting is
-/// restricted to members). No other community features in Phase 4B.
-model CommunityMembership {
-  id       String   @id @default(cuid())
-  userId   String
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  gameId   String
-  game     Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  joinedAt DateTime @default(now())
-
-  @@unique([userId, gameId])
-  @@index([gameId])
-}
-
-// ───────────────────── Phase 7 — Governance (fills the placeholders) ─────────────────────
-// These three tables were created EMPTY in 4B as placeholders; Phase 7 fills them
-// with the real governance columns. This is ADDITIVE — the tables hold no rows yet,
-// and NO 4A/4B/5/6 table is reshaped. New enums + a Notification table are added.
-
-/// How a proposal becomes code.
-///   CONFIG_CHANGE / PART_SWAP — the proposal IS a diff (RemixEdits); on pass +
-///     owner approval it auto-commits to main via the GitHub APP installation.
-///   FEATURE_REQUEST — free text; on pass it becomes a "help wanted" item closed by
-///     a PR linking the proposal. NEVER auto-applies.
-enum ProposalType {
-  CONFIG_CHANGE
-  PART_SWAP
-  FEATURE_REQUEST
-}
-
-/// The proposal lifecycle. draft → open → (window closes → tally) → passed | failed.
-/// A PASSED auto-applicable proposal is then APPLIED (owner approves → app commits)
-/// or VETOED (owner blocks with a public reason). A PASSED feature request becomes
-/// HELP_WANTED.
-enum ProposalStatus {
-  DRAFT
-  OPEN
-  PASSED
-  FAILED
-  APPLIED
-  VETOED
-  HELP_WANTED
-}
-
-enum VoteChoice {
-  YES
-  NO
-}
-
-enum BugStatus {
-  OPEN
-  CLOSED
-  CONVERTED
-}
-
-enum NotificationType {
-  PROPOSAL_OPENED
-  PROPOSAL_PASSED
-  PROPOSAL_FAILED
-  PROPOSAL_VETOED
-  PROPOSAL_APPLIED
-}
-
-model Proposal {
-  id        String         @id @default(cuid())
-  gameId    String
-  game      Game           @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  authorId  String
-  author    User           @relation("ProposalAuthor", fields: [authorId], references: [id])
-
-  type      ProposalType
-  status    ProposalStatus @default(DRAFT)
-  title     String
-  /// Free-text rationale (and, for FEATURE_REQUEST, the acceptance criteria).
-  body      String?        @db.Text
-
-  /// For CONFIG_CHANGE / PART_SWAP: the RemixEdits the proposal applies (the diff).
-  /// Re-applied against current main at commit time (so it tracks intervening pushes).
-  edits     Json?
-  /// Snapshots captured at draft time so the proposal page renders a STABLE ConfigDiff
-  /// without re-reading the repo, and so the historical diff survives later main drift.
-  baseConfig Json?
-  headConfig Json?
-  /// Human-readable one-liners from applyRemix (the change summary shown on the page).
-  changeSummary String[]   @default([])
-
-  // ── voting config (owner-tunable within locked bounds) ──
-  thresholdPct Int   @default(70)  // % of votes cast required to pass
-  quorum       Int   @default(10)  // minimum total votes
-  windowDays   Int   @default(5)   // 1–14, owner-configurable
-
-  openedAt   DateTime?
-  closesAt   DateTime?
-  decidedAt  DateTime?
-
-  // ── owner veto (the exit door) ──
-  vetoedAt   DateTime?
-  vetoReason String?   @db.Text
-
-  // ── auto-commit result (app-authored) ──
-  appliedCommit String?
-  appliedJobId  String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  votes     Vote[]
-  /// Bug reports converted into this proposal (owner action).
-  bugReports BugReport[] @relation("BugToProposal")
-
-  @@index([gameId, status])
-  // Phase 8B (perf): voting-eligibility runs `count(WHERE gameId=? AND authorId=?)`
-  // on every cast vote. This composite turns it into an Index-Only Scan (vs a
-  // bitmap scan of ALL the game's proposals via [gameId,status] + heap recheck).
-  // Proven by EXPLAIN — see platform/PERFORMANCE.md.
-  @@index([gameId, authorId])
-}
-
-model Vote {
-  id         String     @id @default(cuid())
-  proposalId String
-  proposal   Proposal   @relation(fields: [proposalId], references: [id], onDelete: Cascade)
-  userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  choice     VoteChoice @default(YES)
-  createdAt  DateTime   @default(now())
-
-  @@unique([proposalId, userId])
-  @@index([proposalId])
-  // Phase 8B (perf): the proposal-tally GROUP BY counts YES/NO per proposal
-  // (`WHERE proposalId IN (…) GROUP BY proposalId, choice`). This composite makes
-  // it an index-only aggregate (no heap fetch for `choice`).
-  @@index([proposalId, choice])
-}
-
-model BugReport {
-  id         String    @id @default(cuid())
-  gameId     String
-  game       Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  reporterId String
-  reporter   User      @relation(fields: [reporterId], references: [id], onDelete: Cascade)
-
-  title      String
-  body       String    @db.Text
-  /// The build/commit the bug was observed on (ties a report to a specific state).
-  commit     String?
-  buildId    String?
-  status     BugStatus @default(OPEN)
-
-  /// Set when an owner converts this bug into a proposal.
-  proposalId String?
-  proposal   Proposal? @relation("BugToProposal", fields: [proposalId], references: [id], onDelete: SetNull)
-
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  @@index([gameId, status])
-}
-
-/// In-app notifications (v1: no email). Created for community members when a
-/// proposal on a game they belong to is opened / passed / vetoed / applied.
-model Notification {
-  id         String           @id @default(cuid())
-  userId     String
-  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type       NotificationType
-  message    String
-  gameId     String?
-  gameSlug   String?
-  proposalId String?
-  readAt     DateTime?
-  createdAt  DateTime         @default(now())
-
-  @@index([userId, readAt])
 }
 
 // ───────────────────────── Phase 6 — Marketplace (ADDITIVE) ─────────────────────────
@@ -507,7 +315,7 @@ model GamePart {
 /// periodic `DELETE WHERE "windowStart" < now() - interval`.
 model RateLimit {
   id          String   @id @default(cuid())
-  /// Endpoint class being limited (e.g. "publish", "fork", "vote").
+  /// Endpoint class being limited (e.g. "publish", "fork", "remix-commit").
   bucket      String
   /// `user:<userId>` when authenticated, else `ip:<address>`.
   identity    String

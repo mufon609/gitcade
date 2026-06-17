@@ -110,7 +110,7 @@ describe("publishGame", () => {
     if (!r.ok) expect(r.stage).toBe("manifest");
   });
 
-  it("publishes a valid ecosystem game: creates the Game, enqueues, offers governance", async () => {
+  it("publishes a valid ecosystem game: creates the Game, enqueues, gates full validation", async () => {
     getRepoMeta.mockResolvedValue({ ok: true, isPrivate: false, defaultBranch: "main" });
     getRepoFile.mockResolvedValue({ ok: true, content: MANIFEST });
     const r = await publishGame({ repoUrl: "https://github.com/gitcade-games/snake", ownerUserId: "u1" });
@@ -118,7 +118,7 @@ describe("publishGame", () => {
     if (!r.ok) return;
     expect(r.slug).toBe("snake");
     expect(r.tier).toBe("ecosystem");
-    expect(r.gate.offersGovernanceStep).toBe(true);
+    expect(r.gate.fullValidation).toBe(true);
     expect(enqueueBuild).toHaveBeenCalledWith(
       expect.objectContaining({ gameSlug: "snake", branch: "main" }),
     );

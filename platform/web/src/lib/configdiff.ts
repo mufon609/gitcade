@@ -5,10 +5,9 @@
 // blobs to dotted leaf paths and diffs them.
 //
 // It is built as a PURE, framework-free function (no React, no DOM, no I/O) on
-// purpose: Phase 7 governance turns a passed proposal INTO exactly this diff and
-// commits it. The <ConfigDiff> React component (components/ConfigDiff.tsx) and the
-// fork-tree nodes both render the output of `diffConfigs`; keep the logic here so
-// the renderer and the governance engine can never drift.
+// purpose: the <ConfigDiff> React component (components/ConfigDiff.tsx) and the
+// fork-tree nodes both render the output of `diffConfigs`; keeping the logic here
+// means the renderers can never drift. A remix is, at bottom, exactly this diff.
 
 /** A config leaf — the only value types config.json may hold (SDK schema, frozen). */
 export type ConfigLeaf = number | string | boolean;

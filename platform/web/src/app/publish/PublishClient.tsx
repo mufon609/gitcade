@@ -10,7 +10,6 @@ interface PublishResponse {
   ok: boolean;
   slug?: string;
   tier?: "ecosystem" | "open";
-  installUrl?: string | null;
   errors?: string[];
   error?: string;
   stage?: string;
@@ -30,7 +29,6 @@ export function PublishClient() {
   const [errors, setErrors] = useState<string[]>([]);
   const [slug, setSlug] = useState<string | null>(null);
   const [tier, setTier] = useState<"ecosystem" | "open" | null>(null);
-  const [installUrl, setInstallUrl] = useState<string | null>(null);
   const [logs, setLogs] = useState<string | null>(null);
   const [stage, setStage] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -81,7 +79,6 @@ export function PublishClient() {
       }
       setSlug(data.slug ?? null);
       setTier(data.tier ?? null);
-      setInstallUrl(data.installUrl ?? null);
       setPhase("building");
       if (data.slug) poll(data.slug);
     } catch (err) {
@@ -181,18 +178,6 @@ export function PublishClient() {
               <Link href={`/games/${slug}`} className="gc-btn gc-btn-primary w-fit no-underline">
                 Play it →
               </Link>
-              {installUrl && (
-                <div className="mt-2 rounded-md border border-arcade-edge p-3 text-sm">
-                  <p className="font-medium">Enable community governance (optional)</p>
-                  <p className="mt-1 text-arcade-mute">
-                    Install the GitCade GitHub App on this repo so passed proposals can auto-commit
-                    later. <strong>Phase 7 proposals stay disabled until you install it.</strong>
-                  </p>
-                  <a className="gc-btn mt-2 inline-block no-underline" href={installUrl}>
-                    Install the GitCade App →
-                  </a>
-                </div>
-              )}
             </div>
           )}
 

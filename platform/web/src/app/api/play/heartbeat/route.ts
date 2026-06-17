@@ -1,7 +1,7 @@
 // POST /api/play/heartbeat — the player heartbeat. Creates a PlaySession on first
-// beat and updates its durationSec on subsequent beats. PlaySession is a HARD
-// REQUIREMENT of Phase 7 (a recorded session is a voting-eligibility signal), so
-// this runs for anonymous players too (userId nullable).
+// beat and updates its durationSec on subsequent beats. It records every play
+// (driving the per-game play-count stat) and runs for anonymous players too
+// (userId nullable).
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";

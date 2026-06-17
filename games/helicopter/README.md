@@ -42,7 +42,7 @@ lives in [`src/custom-behaviors/`](src/custom-behaviors/index.ts) as the
 [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as a generalization candidate
 ("one-axis thrust / flappy control").
 
-## Rebalance it (the governance demo)
+## Rebalance it
 
 All of the feel is in [`config.json`](config.json):
 
@@ -72,8 +72,7 @@ Make it gentler so new players last longer — no code:
 +  "waveDelay": 1.6
 ```
 
-Re-run `npm run validate` and the easier build is publishable — the one-line diff a
-passed governance proposal commits automatically.
+Re-run `npm run validate` and the easier build is publishable.
 
 ## Fork it
 

@@ -22,7 +22,7 @@ tests/smoke.test.ts       # headless 60-frame boot test (the publish gate)
    threshold) lives in `config.json` and is referenced from a behavior/system
    param as `"$cfg.<key>"`. Numeric literals are allowed in params ONLY for
    structural keys (position `x`/`y`, `size`, `layer`, frame indices, …). This is
-   what turns most community votes into one-line `config.json` diffs.
+   what turns most rebalances into one-line `config.json` diffs.
 2. **No raw storage.** Persist via `world.storage` (the SDK bridge), never
    `localStorage`/`indexedDB`. Switching branches or playing a fork must never
    corrupt saves. The dev server uses an in-memory shim automatically.
@@ -41,7 +41,7 @@ plus a headless smoke boot. Exit 0 means publishable.
 | `npm test` | Headless 60-frame smoke boot |
 | `npm run validate` | Full publish-gate validation |
 
-## Rebalancing (the governance demo)
+## Rebalancing
 
 Want a faster ball? Change one number:
 
@@ -51,5 +51,4 @@ Want a faster ball? Change one number:
 +  "ballSpeedX": 320,
 ```
 
-No code touched. That diff is exactly the shape a passed governance proposal
-commits automatically.
+No code touched — that one-line `config.json` diff is all it takes.

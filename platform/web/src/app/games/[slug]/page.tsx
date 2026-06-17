@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { env } from "@/lib/env";
 import { refreshGameStatus } from "@/lib/publish";
@@ -9,10 +7,8 @@ import { listGameBranches } from "@/lib/branches";
 import { GamePlayer } from "./GamePlayer";
 import { ForkButton } from "./ForkButton";
 import { Versions } from "./Versions";
-import { JoinCommunity } from "./JoinCommunity";
 import { MadeFrom } from "./MadeFrom";
 import { RemixButton } from "./RemixButton";
-import { CommunityPanel } from "./CommunityPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -20,19 +16,14 @@ export default async function GamePage({ params }: { params: { slug: string } })
   const game = await prisma.game.findUnique({ where: { slug: params.slug } });
   if (!game) notFound();
 
-  const session = await getServerSession(authOptions);
-  const viewerId = (session?.user as { id?: string } | undefined)?.id;
-  const isOwner = !!viewerId && viewerId === game.ownerId;
-
   const manifest = (game.manifest ?? {}) as Record<string, unknown>;
-  // These reads are independent — run them concurrently (was 5 sequential DB
-  // round-trips). THE VALIDATOR IS THE GATE: refreshGameStatus reconciles from the
-  // latest Build before we decide whether the game is playable. Branch list is
-  // DB-only (fast); the client refreshes + can add repo branches on demand.
-  const [status, playCount, memberCount, branches, parent] = await Promise.all([
+  // These reads are independent — run them concurrently. THE VALIDATOR IS THE GATE:
+  // refreshGameStatus reconciles from the latest Build before we decide whether the
+  // game is playable. Branch list is DB-only (fast); the client refreshes + can add
+  // repo branches on demand.
+  const [status, playCount, branches, parent] = await Promise.all([
     refreshGameStatus(game.id),
     prisma.playSession.count({ where: { gameId: game.id } }),
-    prisma.communityMembership.count({ where: { gameId: game.id } }),
     listGameBranches(game),
     game.parentGameId
       ? prisma.game.findUnique({ where: { id: game.parentGameId }, select: { slug: true, name: true } })
@@ -91,11 +82,10 @@ export default async function GamePage({ params }: { params: { slug: string } })
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="gc-panel p-4">
           <h2 className="text-sm font-bold text-arcade-mute">Stats</h2>
           <p className="mt-2 text-sm">▶ {playCount} play sessions</p>
-          <p className="text-sm">★ {memberCount} community members</p>
         </div>
         <div className="gc-panel p-4">
           <h2 className="text-sm font-bold text-arcade-mute">Manifest</h2>
@@ -114,33 +104,12 @@ export default async function GamePage({ params }: { params: { slug: string } })
             </div>
           </dl>
         </div>
-        <div className="gc-panel flex flex-col gap-2 p-4">
-          <h2 className="text-sm font-bold text-arcade-mute">Community</h2>
-          <JoinCommunity slug={game.slug} />
-          {game.tier === "ecosystem" && (
-            <p className="text-xs text-arcade-mute">
-              {game.installationId ? (
-                <>
-                  ✓ Governance enabled —{" "}
-                  <Link href="#community" className="underline">
-                    open proposals & vote ↓
-                  </Link>
-                </>
-              ) : (
-                "Governance app not installed — proposals disabled."
-              )}
-            </p>
-          )}
-        </div>
       </div>
 
       {/* Phase 6: the catalog parts this ecosystem game is composed from. */}
       <MadeFrom
         game={{ id: game.id, repoUrl: game.repoUrl, branch: game.branch, manifest: game.manifest, tier: game.tier }}
       />
-
-      {/* Phase 7: community governance (proposals, votes, bugs). */}
-      <CommunityPanel slug={game.slug} governanceEnabled={!!game.installationId} isOwner={isOwner} />
 
       {/* Phase 5 lineage, re-presented: current version + a forks-as-versions dropdown. */}
       <Versions slug={game.slug} />

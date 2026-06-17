@@ -3,8 +3,6 @@
 // candidate game.json over the raw/contents API and read repo visibility. Calls
 // are unauthenticated by default (public repos need no token); an optional user
 // token raises the rate limit and lets a user publish a repo they can see.
-import { env } from "./env";
-
 export interface RepoRef {
   owner: string;
   repo: string;
@@ -420,14 +418,4 @@ export async function createBranch(
   if (res.status === 422) return { ok: true }; // already exists — idempotent
   if (!res.ok) return { ok: false, error: `GitHub create-ref ${res.status}` };
   return { ok: true };
-}
-
-/** The URL that prompts the owner to install the GitCade GitHub App on their repo.
- *  After install, GitHub redirects to our /api/github/app/callback with
- *  installation_id + the state we pass (the gameId), which we persist. */
-export function appInstallUrl(gameId: string): string {
-  const base = `https://github.com/apps/${env.githubAppSlug}/installations/new`;
-  // `state` round-trips back on the post-install redirect so we know which Game
-  // to attach the installation to.
-  return `${base}?state=${encodeURIComponent(gameId)}`;
 }

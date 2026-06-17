@@ -23,9 +23,7 @@
     "poll": "tsx scripts/poll-repos.ts",
     "webhook:proxy": "tsx scripts/webhook-proxy.ts",
     "test": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts",
-    "backfill-installations": "tsx scripts/backfill-installations.ts",
-    "governance-demo": "tsx scripts/governance-demo.ts"
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@gitcade/sdk": "0.1.0",

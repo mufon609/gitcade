@@ -60,7 +60,7 @@ candidates. The remaining host glue in [`src/main.ts`](src/main.ts) is only what
 has no data primitive: audio, screen juice (flash/shake), the mobile d-pad (which
 synthesizes the arrow keys the parts read), and a pause toggle.
 
-## Rebalance it (the governance demo)
+## Rebalance it
 
 **All** of Snake's balance is four numbers in [`config.json`](config.json):
 
@@ -85,7 +85,6 @@ Want a tougher, higher-scoring game? Change two numbers — no code:
 +  "foodValue": 25
 ```
 
-That diff is exactly the shape a passed governance proposal commits automatically.
 Re-run `npm run validate` and the build is publishable.
 
 ## Fork it

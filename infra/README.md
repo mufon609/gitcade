@@ -62,7 +62,7 @@ server hold bucket credentials. Everything below follows from that.
 - **What:** Next.js App Router app (TypeScript, Tailwind, Prisma, NextAuth + GitHub OAuth).
 - **Prod:** Vercel, or a container. Serverless is fine here — requests are short.
 - **Local:** `localhost:3000`.
-- **Holds:** the user's OAuth token (for forks/remix commits), the GitHub App credentials (for governance auto-commits).
+- **Holds:** the user's OAuth token (for forks/remix commits) and the GitHub App webhook secret (for verifying inbound push webhooks).
 - **Never:** runs game builds; serves game artifacts. It only **enqueues** build jobs (writes a Postgres queue row) and **reads** Build rows.
 
 ### WORKER ZONE — the build pipeline (Phase 4A)

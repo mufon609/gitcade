@@ -38,8 +38,8 @@ describe("clientIp (proxy header extraction)", () => {
 });
 
 describe("RATE_LIMITS registry", () => {
-  it("defines a rule for each of the six endpoints the phase names", () => {
-    for (const key of ["publish", "fork", "vote", "proposalCreate", "remixCommit", "bugReport"] as const) {
+  it("defines a rule for each state-changing endpoint", () => {
+    for (const key of ["publish", "fork", "remixCommit", "remixStart", "partUpload", "branchBuild", "heartbeat"] as const) {
       expect(RATE_LIMITS[key], key).toBeDefined();
       expect(RATE_LIMITS[key].limit).toBeGreaterThan(0);
       expect(RATE_LIMITS[key].windowMs).toBeGreaterThan(0);

@@ -2,7 +2,7 @@
  * Tower Defense bootstrap (host glue). The GAME is data — game.json + config.json +
  * src/scenes/{title,play,over}.json composing @gitcade/library + SDK parts and two
  * custom systems (`tower-build`, `creep-accounting`). 100% of the balance is in
- * config.json (the governance-flagship rule).
+ * config.json (no value is hardcoded in host glue).
  *
  * 0.2.0 ADOPTION — what used to be host TypeScript is now DATA:
  *   • G3 tilemap: the road is one data tilemap (drawn + queried via
@@ -39,7 +39,7 @@ const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
 
 const audio = new LibraryAudioPlayer();
-// Audio level is data: $cfg.volume (default 0.6), so it's governance-tunable like any balance value.
+// Audio level is data: $cfg.volume (default 0.6), so it's tunable like any balance value.
 audio.setVolume(typeof cfg.volume === "number" ? cfg.volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(

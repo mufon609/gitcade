@@ -86,6 +86,23 @@ export function buildPartJson(input: PartUploadInput, version = "1.0.0") {
   };
 }
 
+/** The SDK + library versions the part sandbox validates against. NOT a frozen pin:
+ *  we read the CURRENT monorepo package versions so a user part is checked against
+ *  the SAME release the marketplace catalog mirrors. The release process bumps +
+ *  publishes @gitcade/sdk and @gitcade/library to npm in lockstep, so the local
+ *  package.json version is the latest one the sandbox can `npm install`. (Hardcoding
+ *  an old version validated parts against an API the platform no longer ships —
+ *  silently rejecting valid parts that import newer library exports.) */
+function sandboxDepPins(): { sdk: string; library: string } {
+  const read = (pkg: string): string =>
+    (
+      JSON.parse(
+        fs.readFileSync(path.join(env.repoRoot, "packages", pkg, "package.json"), "utf8"),
+      ) as { version: string }
+    ).version;
+  return { sdk: read("sdk"), library: read("library") };
+}
+
 /** Write the throwaway sandbox project to a host temp dir + run it in the builder
  *  image: STAGE 1 (network) install, STAGE 2 (network none) schema check + vitest. */
 async function defaultRunSandbox(si: SandboxInput): Promise<SandboxResult> {
@@ -101,8 +118,10 @@ async function defaultRunSandbox(si: SandboxInput): Promise<SandboxResult> {
   const volume = `gc-part-ws-${path.basename(work)}`;
   const cname1 = `gc-part-s1-${path.basename(work)}`;
   const cname2 = `gc-part-s2-${path.basename(work)}`;
+  const pins = sandboxDepPins();
   try {
-    // package.json — pinned SDK/library from public npm (same source the worker uses).
+    // package.json — SDK/library pinned to the CURRENT published versions from public
+    // npm (sandboxDepPins), the same release the marketplace catalog mirrors.
     fs.writeFileSync(
       path.join(work, "package.json"),
       JSON.stringify(
@@ -111,7 +130,7 @@ async function defaultRunSandbox(si: SandboxInput): Promise<SandboxResult> {
           private: true,
           type: "module",
           scripts: { test: "vitest run" },
-          dependencies: { "@gitcade/sdk": "0.1.0", "@gitcade/library": "0.1.0" },
+          dependencies: { "@gitcade/sdk": pins.sdk, "@gitcade/library": pins.library },
           devDependencies: { vitest: "^2.1.8", ajv: "^8.17.1" },
         },
         null,

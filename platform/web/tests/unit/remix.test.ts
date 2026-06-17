@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { applyRemix, buildRemixModel, flattenConfigLeaves } from "@/lib/remix";
+import { applyRemix, buildRemixModel, flattenConfigLeaves, type CatalogIndex } from "@/lib/remix";
 import { validateRemix } from "@/lib/remix-validate";
 import type { CatalogPart } from "@/lib/catalog";
 
 // A minimal catalog index for the pure apply/model functions.
-function catalog() {
-  const moveGrid: CatalogPart & { source: "catalog"; version: string } = {
+type MovementEntry = CatalogIndex["movement"][number];
+function catalog(): CatalogIndex {
+  const moveGrid: MovementEntry = {
     id: "move-grid-step",
     kind: "behavior",
     version: "1.0.0",
@@ -16,7 +17,7 @@ function catalog() {
     definition: { type: "move-grid-step", params: { tileSize: 20, stepInterval: "$cfg.stepInterval", continuous: true } },
     source: "catalog",
   };
-  const move360: CatalogPart & { source: "catalog"; version: string } = {
+  const move360: MovementEntry = {
     id: "move-topdown-360",
     kind: "behavior",
     version: "1.0.0",
@@ -133,8 +134,32 @@ describe("remix — apply edits (the dragon-on-snake transform)", () => {
     const move = (result.scene.entities as Array<Record<string, unknown>>)[0].behaviors as Array<Record<string, unknown>>;
     expect(move[1].type).toBe("wobble-move");
     expect(move[1].part).toBeUndefined(); // no catalog provenance for a vendored part
-    expect(result.vendored).toEqual([{ path: "src/vendored-parts/wobble-move.js", content: "export const wobble = () => {};" }]);
+    expect(result.vendored).toEqual([{ path: "src/vendored-parts/wobble-move.ts", content: "export const wobble = () => {};" }]);
     expect(result.addedConfigKeys).toContain("wobbleAmt");
+  });
+
+  it("skips a user-part swap with no stored source (never references an unregistered type)", () => {
+    const cat = catalog();
+    const userBeh: CatalogPart & { source: "user"; version: string; sourceCode: null } = {
+      id: "ghost-move",
+      kind: "behavior",
+      version: "1.0.0",
+      category: "movement",
+      tags: ["movement", "custom"],
+      description: "",
+      license: "MIT",
+      definition: { type: "ghost-move", params: {} },
+      source: "user",
+      sourceCode: null,
+    };
+    cat.movement.push(userBeh);
+    cat.behaviorById.set("ghost-move", userBeh);
+
+    const result = applyRemix(snakeScene(), snakeConfig(), { movementSwaps: { "head#1": "ghost-move" } }, cat);
+    const move = (result.scene.entities as Array<Record<string, unknown>>)[0].behaviors as Array<Record<string, unknown>>;
+    expect(move[1].type).not.toBe("ghost-move"); // swap skipped — type unchanged
+    expect(result.vendored).toEqual([]);
+    expect(result.summary).toEqual([]);
   });
 });
 

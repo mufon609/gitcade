@@ -17,7 +17,7 @@ import { prisma } from "./prisma";
 import { enqueueBuild } from "./queue";
 import { parseRepoUrl, commitFiles } from "./github";
 import { getInstallationToken } from "./github-app";
-import { loadRemixSources, ensureRemixableFork, commitRemix } from "./remix-service";
+import { loadRemixSources, ensureRemixableFork, commitRemix, vendoredWiringFiles } from "./remix-service";
 import { getRemixCatalog, applyRemix, type RemixEdits } from "./remix";
 import { validateRemix } from "./remix-validate";
 import { diffConfigs } from "./configdiff";
@@ -347,10 +347,15 @@ export async function approveAndCommit(proposalId: string, actorId: string): Pro
   }
 
   // 3. Commit as ONE readable commit, AUTHORED BY THE APP (installation token).
+  //    A proposal that vendors a community part needs the runtime-registration wiring
+  //    too, or the rebuild fails on an unregistered behavior type.
+  const wiring = await vendoredWiringFiles(ref, game.branch, game.tier, applied.vendored, tok.token);
+  if (!wiring.ok) return { ok: false, error: wiring.error };
   const files = [
     { path: sources.scenePath, content: JSON.stringify(applied.scene, null, 2) + "\n" },
     { path: sources.configPath, content: JSON.stringify(applied.config, null, 2) + "\n" },
     ...applied.vendored,
+    ...wiring.files,
   ];
   const counts = await countVotes(proposalId);
   const t = tally(counts, { thresholdPct: proposal.thresholdPct, quorum: proposal.quorum });

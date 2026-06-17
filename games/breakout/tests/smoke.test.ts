@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry } from "@gitcade/library";
+import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 import manifest from "../game.json";
 import config from "../config.json";
 import title from "../src/scenes/title.json";
@@ -12,14 +13,21 @@ import over from "../src/scenes/over.json";
 
 /**
  * The headless smoke boot `gitcade validate` defers to. Boots the 0.2.0 six-scene
- * flow (title → level-1 → level-2 → level-3 → win / over) on the full library
- * registry with no canvas and exercises the data-driven transitions: a started run
- * launches the ball and breaks bricks; clearing a level advances to the next via
- * the `level-cleared` flow edge (carrying score/lives/level); clearing the last
- * level wins; draining lives routes to game-over — all without throwing.
+ * flow (title → level-1 → level-2 → level-3 → win / over) on the full library +
+ * custom registry with no canvas and exercises the data-driven transitions: a
+ * started run launches the ball and breaks bricks; clearing a level advances to the
+ * next via the `level-cleared` flow edge (carrying score/lives/level); clearing the
+ * last level wins; draining lives routes to game-over — all without throwing.
+ *
+ * Breakout ships no custom behaviors, so registerCustomBehaviors is a no-op today —
+ * but calling it (like the other games + the scaffold) means a remix that vendors a
+ * community part into a breakout fork installs the managed custom-behaviors registry,
+ * and THIS smoke test then registers the vendored behavior instead of throwing
+ * "unknown behavior type" during ecosystem validation.
  */
 function boot() {
   const registry = createLibraryRegistry();
+  registerCustomBehaviors(registry);
   return createGame(
     { manifest, config, scenes: [title, level1, level2, level3, win, over] },
     { canvas: null, registry },

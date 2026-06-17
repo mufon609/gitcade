@@ -5,13 +5,14 @@
 import { prisma } from "./prisma";
 import { enqueueBuild } from "./queue";
 import { forkGame, forkSlug } from "./fork";
-import { parseRepoUrl, getRepoFile, commitFiles } from "./github";
+import { parseRepoUrl, getRepoFile, commitFiles, type RepoRef } from "./github";
 import {
   getRemixCatalog,
   buildRemixModel,
   applyRemix,
   type RemixModel,
   type RemixEdits,
+  type VendoredFile,
 } from "./remix";
 import { validateRemix } from "./remix-validate";
 import { diffConfigs } from "./configdiff";
@@ -118,13 +119,131 @@ export interface RemixCommitFailure {
   error?: string;
 }
 
+// Marker in a remix-managed src/custom-behaviors/index.ts (so re-runs are idempotent).
+const MANAGED_MARKER = "GitCade remix mode — managed custom-behaviors registry";
+
+// The managed src/custom-behaviors/index.ts a vendoring remix installs. main.ts (and
+// every convention-following smoke test) calls registerCustomBehaviors(), so this is
+// the single hook that gets vendored marketplace parts REGISTERED with the runtime
+// registry — otherwise createGame throws "unknown behavior type" at build/play time.
+const MANAGED_CUSTOM_BEHAVIORS_TS = `// ${MANAGED_MARKER}. DO NOT EDIT BY HAND.
+//
+// A remix swap vendored one or more marketplace parts into ../vendored-parts/. The
+// generic game bootstrap (and the smoke test) only call registerCustomBehaviors(), so
+// this is the wiring hook: it registers this game's ORIGINAL custom behaviors
+// (preserved verbatim in ./_gitcade-original.ts) PLUS every vendored part, keyed by
+// its filename — which equals the behavior \`type\` the remixed scene references.
+import type { Registry } from "@gitcade/sdk";
+import { registerCustomBehaviors as registerOriginalCustomBehaviors } from "./_gitcade-original.js";
+
+// Eagerly import every vendored module so parts from EARLIER remixes stay registered.
+const vendoredModules = import.meta.glob("../vendored-parts/*.{ts,js}", { eager: true }) as Record<
+  string,
+  Record<string, unknown>
+>;
+
+export function registerCustomBehaviors(registry: Registry): void {
+  registerOriginalCustomBehaviors(registry);
+  for (const [filePath, mod] of Object.entries(vendoredModules)) {
+    const m = filePath.match(/\\/([^/]+)\\.(?:ts|js)$/);
+    if (!m) continue;
+    // The vendored module's BehaviorFn — default export, else the first exported fn.
+    const fn =
+      typeof mod.default === "function"
+        ? mod.default
+        : Object.values(mod).find((v) => typeof v === "function");
+    if (typeof fn === "function") registry.registerBehavior(m[1], fn as never);
+  }
+}
+`;
+
+/**
+ * Build the extra files a VENDORING remix must commit so the vendored parts are
+ * actually REGISTERED with the runtime registry. Without this the build's headless /
+ * smoke check boots the scene, hits the unregistered behavior `type`, and throws
+ * "unknown behavior type" → the fork builds FAILED. Idempotent: once
+ * custom-behaviors/index.ts is the managed wrapper, later remixes just add the new
+ * module file (the wrapper's glob registers it). Returns a failure (so we never
+ * commit a doomed build) when the fork can't be safely wired.
+ */
+export type VendoredWiring = { ok: true; files: VendoredFile[] } | { ok: false; error: string };
+
+/** PURE decision for the vendored-part wiring (separated from repo I/O so it is
+ *  unit-testable): given the fork's current custom-behaviors/index.ts and — for an
+ *  ecosystem fork — its smoke test, return the files to commit, or why it can't be
+ *  wired. `null` content means the file is absent. */
+export function planVendoredWiring(input: {
+  tier: string;
+  hasVendored: boolean;
+  customBehaviorsIndex: string | null;
+  smokeTest: string | null;
+}): VendoredWiring {
+  if (!input.hasVendored) return { ok: true, files: [] };
+
+  const idxPath = "src/custom-behaviors/index.ts";
+  if (input.customBehaviorsIndex == null) {
+    return {
+      ok: false,
+      error: `Cannot wire the vendored community part: ${idxPath} was not found in the fork (it must use the standard custom-behaviors hook to remix a community part in).`,
+    };
+  }
+
+  // For an ECOSYSTEM fork the build gate is the game's own `npm test` smoke, which
+  // must load custom behaviors for the vendored type to register THERE too. main.ts
+  // always calls registerCustomBehaviors (covers play + OPEN-tier headless), but a
+  // smoke test booting the library registry alone would still throw on the new type.
+  if (input.tier === "ecosystem") {
+    const smokeLoadsCustom = !!input.smokeTest && /registerCustomBehaviors\s*\(/.test(input.smokeTest);
+    if (!smokeLoadsCustom) {
+      return {
+        ok: false,
+        error:
+          "Can't remix a community part into this game yet: its test harness " +
+          "(tests/smoke.test.ts) doesn't load custom behaviors, so the ecosystem build " +
+          "would reject the vendored part. Swapping in a built-in catalog part still works.",
+      };
+    }
+  }
+
+  // Already managed → the new module file alone is enough (the glob registers it).
+  if (input.customBehaviorsIndex.includes(MANAGED_MARKER)) return { ok: true, files: [] };
+
+  // First vendoring on this fork: preserve the original verbatim, install the wrapper.
+  return {
+    ok: true,
+    files: [
+      { path: "src/custom-behaviors/_gitcade-original.ts", content: input.customBehaviorsIndex },
+      { path: idxPath, content: MANAGED_CUSTOM_BEHAVIORS_TS },
+    ],
+  };
+}
+
+/** Fetch the fork files the wiring decision needs, then delegate to {@link planVendoredWiring}. */
+export async function vendoredWiringFiles(
+  ref: RepoRef,
+  branch: string,
+  tier: string,
+  vendored: VendoredFile[],
+  token?: string,
+): Promise<VendoredWiring> {
+  if (vendored.length === 0) return { ok: true, files: [] };
+  const idx = await getRepoFile(ref, "src/custom-behaviors/index.ts", branch, token);
+  const smoke = tier === "ecosystem" ? await getRepoFile(ref, "tests/smoke.test.ts", branch, token) : null;
+  return planVendoredWiring({
+    tier,
+    hasVendored: true,
+    customBehaviorsIndex: idx.ok ? idx.content ?? null : null,
+    smokeTest: smoke?.content ?? null,
+  });
+}
+
 /**
  * Apply remix edits to the user's fork and COMMIT them as one readable commit, then
  * enqueue a rebuild. The remix is VALIDATED before committing — an edit that would
  * produce an invalid game is rejected here (in the UI), never after a wasted build.
  */
 export async function commitRemix(
-  game: { id: string; slug: string; repoUrl: string; branch: string; manifest: unknown },
+  game: { id: string; slug: string; repoUrl: string; branch: string; manifest: unknown; tier: string },
   edits: RemixEdits,
   token: string,
 ): Promise<RemixCommitResult | RemixCommitFailure> {
@@ -147,11 +266,17 @@ export async function commitRemix(
 
   const configChanges = diffConfigs(sources.config, applied.config);
 
-  // Compose ONE readable commit: scene + config + any vendored parts.
+  // Vendored community parts only run if the fork is wired to register them; refuse
+  // to commit a build that would fail on an unregistered behavior type.
+  const wiring = await vendoredWiringFiles(ref, game.branch, game.tier, applied.vendored, token);
+  if (!wiring.ok) return { ok: false, error: wiring.error };
+
+  // Compose ONE readable commit: scene + config + any vendored parts + their wiring.
   const files = [
     { path: sources.scenePath, content: JSON.stringify(applied.scene, null, 2) + "\n" },
     { path: sources.configPath, content: JSON.stringify(applied.config, null, 2) + "\n" },
     ...applied.vendored,
+    ...wiring.files,
   ];
   const title = `Remix: ${applied.summary.slice(0, 2).join("; ")}${applied.summary.length > 2 ? "; …" : ""}`;
   const message = `${title}\n\n${applied.summary.map((s) => `- ${s}`).join("\n")}\n\nvia GitCade remix mode`;

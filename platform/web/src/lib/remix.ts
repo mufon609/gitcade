@@ -37,7 +37,7 @@ export interface RemixMovementOption {
   sourceCode?: string | null;
 }
 
-interface CatalogIndex {
+export interface CatalogIndex {
   /** entityPartId → sprite option */
   sprites: RemixSpriteOption[];
   /** movement behavior parts (catalog + user) */
@@ -312,9 +312,19 @@ export function applyRemix(
       // Keep catalog provenance so the "made from" panel + validator resolve it.
       swapped.part = `${target.id}@${target.version}`;
     } else if (target.sourceCode) {
-      // User part: vendor the source; reference by type only (no catalog provenance).
-      vendored.push({ path: `src/vendored-parts/${target.id}.js`, content: target.sourceCode });
-      summary.push(`vendored user part src/vendored-parts/${target.id}.js`);
+      // User part: vendor the source so the fork carries the implementation (no
+      // private registry — locked decision). It is REGISTERED at runtime by the
+      // managed src/custom-behaviors/index.ts the commit step writes (see
+      // remix-service#vendoredWiringFiles) — without that, the build's headless/smoke
+      // check throws "unknown behavior type". Always `.ts`: uploaded sources may use
+      // TS-only syntax (type imports/annotations) a `.js` file can't bundle, and TS is
+      // a JS superset so plain-JS sources compile as `.ts` too.
+      vendored.push({ path: `src/vendored-parts/${target.id}.ts`, content: target.sourceCode });
+      summary.push(`vendored user part src/vendored-parts/${target.id}.ts`);
+    } else {
+      // A user part with no stored source can't be wired into the fork — skip the
+      // swap rather than commit a scene that references an unregistered type.
+      continue;
     }
     behaviors[bi] = swapped;
 

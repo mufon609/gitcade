@@ -43,7 +43,8 @@
     "scripts/gen-assets.ts",
     "CATALOG.json",
     "catalog.schema.json",
-    "README.md"
+    "README.md",
+    "CONVENTIONS.md"
   ],
   "scripts": {
     "build": "tsup",

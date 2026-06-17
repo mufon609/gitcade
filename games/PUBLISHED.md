@@ -1,22 +1,32 @@
 # PUBLISHED.md — Phase 3 Seed Game Repos
 
-> **0.3.0 PUBLISHED (2026-06-15) — all six live on `0.3.0`.**
+> **0.3.1 PUBLISHED (2026-06-16) — all six live on `0.3.1`.**
+> The 0.3.0 game-audit synthesis shipped as `@gitcade/sdk@0.3.1` +
+> `@gitcade/library@0.3.1` — a clean **PATCH** (additive, no frozen-contract change):
+> `background.layers` parallax in the renderer, `world.whenRestored()` + a
+> `persist-restored` event, a `throttle` FX helper + authoring conventions, two
+> non-failing validator advisories, and `properties[idx].color` tilemap tinting. Every
+> game was repinned `0.3.0 → 0.3.1` and migrated to the new capabilities (helicopter →
+> declarative `background.layers`, dropping its `bgScrollVx` key; idle-clicker → offline
+> credit via `whenRestored`; etc.). Re-verified: SDK 73/73, library 97/97, root build +
+> test green, all six `gitcade validate` PASS. Conventions:
+> [`../packages/library/CONVENTIONS.md`](../packages/library/CONVENTIONS.md); synthesis
+> record: [`LIBRARY-GAPS.md`](LIBRARY-GAPS.md).
+>
+> **DONE — external steps:** (1) `@gitcade/sdk@0.3.1` then `@gitcade/library@0.3.1`
+> published to npm; (2) each game's `0.3.1` source pushed to its `gitcade-games/<slug>`
+> repo, each re-verified from a clean clone; (3) all six MinIO `<slug>/main/` artifacts
+> republished from the fresh 0.3.1 `/dist`; (4) monorepo `main` pushed.
+
+> **0.3.0 PUBLISHED (2026-06-15) — superseded by 0.3.1 above.**
 > The input/focus/lifecycle/rendering/data work from the three audit batches (started by
 > the "Space scrolls the page" report) shipped as `@gitcade/sdk@0.3.0` +
 > `@gitcade/library@0.3.0` (a clean MINOR — additive `pause/resume/isPaused` + the
-> `controls` manifest field, no breaking changes). Every game was repinned `0.2.1 → 0.3.0`
-> (`game.json` + `package.json`), the library `CATALOG.json` regenerated to `0.3.0`, and
-> the whole set re-verified: SDK 59/59, library 95/95, root `npm run build`/`npm test`
-> green, all six `gitcade validate` PASS. Full detail:
-> [`../audit/RELEASE-0.3.0.md`](../audit/RELEASE-0.3.0.md); per-issue outcomes:
-> [`../audit/SHARED-ISSUES.md`](../audit/SHARED-ISSUES.md).
->
-> **DONE — the `[PUBLISH]` external steps:** (1) `@gitcade/sdk@0.3.0` then
-> `@gitcade/library@0.3.0` published to npm; (2) each game's `0.3.0` source pushed to its
-> `gitcade-games/<slug>` GitHub repo (jumped `0.1.x → 0.3.0`), each re-verified from a clean
-> clone; (3) all six MinIO `<slug>/main/` artifacts republished from the fresh 0.3.0 `/dist`
-> (bundle hashes verified). Prior history (the 0.2.1 regression) is in
-> [`../audit/REGRESSION.md`](../audit/REGRESSION.md).
+> `controls` manifest field). Every game was repinned `0.2.1 → 0.3.0`, the library
+> `CATALOG.json` regenerated to `0.3.0`, all six `gitcade validate` PASS, npm + the six
+> `gitcade-games/<slug>` repos + MinIO all published. (The detailed 0.3.0 release /
+> shared-issues / regression docs lived under `audit/`, removed after the pass — recover
+> from git history if needed.)
 
 ---
 

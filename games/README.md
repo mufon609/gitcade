@@ -8,8 +8,7 @@ plus its own `config.json` and JSON scene definitions, with a thin host `main.ts
 Each pins exact `sdkVersion` + `libraryVersion` from public npm — **not** workspace
 links — because each game also lives as a standalone `gitcade-games/<slug>` repo that
 the build worker resolves from the public registry. Current pins: `@gitcade/sdk@0.6.0`
-+ `@gitcade/library@0.6.0` (committed; the 0.6.0 publish + repo sync is the pending
-release step — the standalone `gitcade-games/<slug>` repos still serve 0.5.0 until then).
++ `@gitcade/library@0.6.0`.
 
 ## Synthesis / planning docs
 

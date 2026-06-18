@@ -69,7 +69,8 @@
       "id": "build-range-preview",
       "sprite": { "kind": "shape", "shape": "circle", "color": "rgba(0,0,0,0)", "stroke": "rgba(167,240,112,0.0)", "strokeWidth": 2 },
       "size": { "w": 270, "h": 270 },
-      "position": { "x": -9999, "y": -9999 },
+      "position": { "x": 0, "y": 0 },
+      "visible": false,
       "tags": ["build-preview"],
       "layer": 2,
       "behaviors": []
@@ -78,7 +79,8 @@
       "id": "build-cell-preview",
       "sprite": { "kind": "shape", "shape": "rect", "color": "rgba(0,0,0,0)", "stroke": "rgba(167,240,112,0.0)", "strokeWidth": 2 },
       "size": { "w": 40, "h": 40 },
-      "position": { "x": -9999, "y": -9999 },
+      "position": { "x": 0, "y": 0 },
+      "visible": false,
       "tags": ["build-cell"],
       "layer": 2,
       "behaviors": []

@@ -197,7 +197,7 @@ export const creepAccounting: SystemFn = (world, params) => {
  * Presentation only — it owns no game state and never blocks a build (the real placement
  * is still the `tower-build` click edge). Touch has no hover (`cursor()` is null after a
  * tap) and headless has no pointer, so `cursor()` is null there and both preview entities
- * sit off-screen — smoke tests and touch taps are untouched.
+ * stay hidden (`visible:false`) — smoke tests and touch taps are untouched.
  */
 export const buildPreview: SystemFn = (world, params) => {
   const tile = num(params, "tileSize", 40);
@@ -212,8 +212,9 @@ export const buildPreview: SystemFn = (world, params) => {
   // The engine's button-less cursor (world coords), null on touch/headless/off-canvas.
   const hover = world.input.cursor();
   if (!hover) {
-    // Not hovering — park both previews off-screen.
-    for (const e of [ring, cell]) if (e) { e.x = -9999; e.y = -9999; }
+    // Not hovering — hide both previews (the renderer's visibility toggle, 0.7.0; replaces
+    // the old off-screen `x=-9999` park, which only worked because nothing read visibility).
+    for (const e of [ring, cell]) if (e) e.visible = false;
     return;
   }
 
@@ -228,6 +229,7 @@ export const buildPreview: SystemFn = (world, params) => {
   const fill = ok ? "rgba(167,240,112,0.13)" : "rgba(177,62,83,0.15)";
 
   if (ring) {
+    ring.visible = true;
     const r = Math.max(1, range);
     ring.w = ring.h = r * 2;
     ring.x = c.x - r;
@@ -235,6 +237,7 @@ export const buildPreview: SystemFn = (world, params) => {
     (ring.sprite as { stroke?: string }).stroke = stroke;
   }
   if (cell) {
+    cell.visible = true;
     cell.w = cell.h = tile;
     cell.x = c.x - tile / 2;
     cell.y = c.y - tile / 2;

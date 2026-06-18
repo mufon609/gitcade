@@ -5,6 +5,7 @@ import {
   World,
   Game,
   Renderer,
+  Entity,
   type Scene,
   createDefaultRegistry,
 } from "../src/index.js";
@@ -145,5 +146,75 @@ describe("0.7.0 Renderer — camera transform", () => {
     const { ctx, calls } = recordingCtx();
     new Renderer(ctx as never).render(worldWithBox(0, 0));
     expect(calls.translate).toHaveLength(0);
+  });
+});
+
+/** A ctx stub that records the `globalAlpha` IN EFFECT at each fillRect (so we can assert
+ *  the entity drew faded), plus whether a fillRect happened at all (drawn vs skipped). */
+function alphaCtx() {
+  const fills: Array<{ alpha: number }> = [];
+  const stack: number[] = []; // emulate canvas save/restore of globalAlpha
+  const ctx = {
+    globalAlpha: 1,
+    fillStyle: "",
+    strokeStyle: "",
+    lineWidth: 1,
+    font: "",
+    textAlign: "left",
+    textBaseline: "top",
+    save() {
+      stack.push(ctx.globalAlpha);
+    },
+    restore() {
+      const v = stack.pop();
+      if (v !== undefined) ctx.globalAlpha = v;
+    },
+    translate: () => {},
+    rotate: () => {},
+    scale: () => {},
+    fillRect() {
+      fills.push({ alpha: ctx.globalAlpha });
+    },
+    strokeRect: () => {},
+    beginPath: () => {},
+    ellipse: () => {},
+    moveTo: () => {},
+    lineTo: () => {},
+    closePath: () => {},
+    fill: () => {},
+    stroke: () => {},
+    drawImage: () => {},
+    fillText: () => {},
+  };
+  return { ctx, fills };
+}
+
+describe("0.7.0 Renderer — opacity + visibility (declared-but-ignored slots)", () => {
+  function boxWorld(over: { opacity?: number; visible?: boolean }) {
+    const world = new World({ bounds: { width: 200, height: 200 }, config: {}, registry: createDefaultRegistry() });
+    world.add(
+      new Entity({ id: "b", x: 10, y: 10, w: 16, h: 16, layer: 0, sprite: { kind: "shape", shape: "rect", color: "#fff" }, ...over }),
+    );
+    return world;
+  }
+
+  it("applies entity.opacity as globalAlpha while drawing", () => {
+    const { ctx, fills } = alphaCtx();
+    new Renderer(ctx as never).render(boxWorld({ opacity: 0.4 }), "#000");
+    const shapeFill = fills[fills.length - 1]; // last fillRect is the entity (background is first)
+    expect(shapeFill.alpha).toBeCloseTo(0.4, 6);
+    expect(ctx.globalAlpha).toBe(1); // restored after the entity
+  });
+
+  it("draws fully opaque (globalAlpha 1) by default — byte-identical to pre-0.7", () => {
+    const { ctx, fills } = alphaCtx();
+    new Renderer(ctx as never).render(boxWorld({}), "#000");
+    expect(fills[fills.length - 1].alpha).toBe(1);
+  });
+
+  it("skips an entity with visible:false (retires the off-screen-park bandaid)", () => {
+    const { ctx, fills } = alphaCtx();
+    new Renderer(ctx as never).render(boxWorld({ visible: false }), "#000");
+    expect(fills).toHaveLength(1); // only the background fill; the entity was skipped
   });
 });

@@ -250,7 +250,7 @@ describe("tower-defense smoke", () => {
   });
 
   // --- the build preview reads world.input.cursor() ---
-  it("build-preview tracks world.input.cursor() and parks on pointerleave", () => {
+  it("build-preview tracks world.input.cursor() and hides on pointerleave", () => {
     const { game, w } = boot(config as Cfg);
     // The headless boot doesn't attach DOM input, so wire the SDK Input to a fake pointer
     // target (no getBoundingClientRect ⇒ client coords map 1:1 to world coords).
@@ -260,23 +260,24 @@ describe("tower-defense smoke", () => {
     });
     const cell = (): Entity => w.query("build-cell")[0];
 
-    // No hover yet → cursor() is null → the preview cell sits parked off-screen.
+    // No hover yet → cursor() is null → the preview cell is hidden (0.7.0 visibility toggle).
     game.stepFrames(1);
     expect(w.input.cursor()).toBeNull();
-    expect(cell().x).toBe(-9999);
+    expect(cell().visible).toBe(false);
 
-    // Hover an open cell at world (100,60) → cursor() reports it → build-preview snaps the
-    // cell highlight to that grid cell (x = cellCenter - tile/2 = 100 - 20 = 80).
+    // Hover an open cell at world (100,60) → cursor() reports it → build-preview shows the
+    // cell highlight and snaps it to that grid cell (x = cellCenter - tile/2 = 100 - 20 = 80).
     ptrL.pointermove({ pointerId: 1, clientX: 100, clientY: 60 });
     expect(w.input.cursor()).toEqual({ x: 100, y: 60 });
     game.stepFrames(1);
+    expect(cell().visible).toBe(true);
     expect(cell().x).toBe(80);
     expect(cell().y).toBe(40);
 
-    // pointerleave clears the cursor → the preview parks again.
+    // pointerleave clears the cursor → the preview hides again.
     ptrL.pointerleave({ pointerId: 1, clientX: 100, clientY: 60 });
     expect(w.input.cursor()).toBeNull();
     game.stepFrames(1);
-    expect(cell().x).toBe(-9999);
+    expect(cell().visible).toBe(false);
   });
 });

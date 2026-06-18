@@ -24,6 +24,8 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
     zIndex: def.zIndex,
     rotation: def.rotation,
     scale: def.scale,
+    opacity: def.opacity,
+    visible: def.visible,
     tags: def.tags,
     sprite: def.sprite,
     state: def.state ? { ...def.state } : {},

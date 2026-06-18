@@ -8,8 +8,8 @@ import { BehaviorDefSchema } from "./behavior.js";
  *
  * `{ id, sprite, size, position, behaviors[], tags[], layer }` is the FROZEN
  * Phase 1 shape. Optional presentational/transform fields (`rotation`, `scale`,
- * `zIndex`) and an optional initial `state` bag are additive and do not change
- * the frozen core.
+ * `zIndex`, `opacity`, `visible`) and an optional initial `state` bag are additive
+ * and do not change the frozen core.
  *
  * - `id` is unique within a scene; tag queries and `world.byId` use it.
  * - `behaviors[]` are behavior instances run every tick (see {@link BehaviorDefSchema}).
@@ -37,6 +37,15 @@ export const EntityDefSchema = z.object({
   /** Uniform scale factor applied around the entity center by the renderer since 0.3.2
    *  (maps to both scaleX/scaleY). Default 1. Visual only — collision uses the base size. */
   scale: z.number().optional(),
+  /** Opacity 0..1, applied by the renderer as `globalAlpha` (0.7.0). Default 1 (opaque).
+   *  Visual only — a behavior writes `entity.opacity` at runtime to fade / damage-flash /
+   *  i-frame-flicker an entity. (The `opacity`/`alpha` keys were whitelisted but the
+   *  renderer never honored them — a declared-but-ignored slot, now wired.) */
+  opacity: z.number().min(0).max(1).optional(),
+  /** Visibility toggle: the renderer SKIPS an entity with `visible:false` (0.7.0). Default
+   *  true. A behavior flips it at runtime to hide/show an entity (e.g. a hover preview)
+   *  without parking it off-screen. Visual only — a hidden entity still simulates. */
+  visible: z.boolean().optional(),
   state: z.record(z.string(), z.unknown()).optional(),
   /** Catalog provenance for this entity, e.g. `"enemy-chaser@1.0.0"`. */
   part: z.string().optional(),

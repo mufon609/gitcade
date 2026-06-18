@@ -38,6 +38,12 @@ export class Entity {
   rotation = 0;
   scaleX = 1;
   scaleY = 1;
+  /** Opacity 0..1, applied by the renderer as `globalAlpha` (0.7.0). Visual only;
+   *  a behavior writes it to fade / damage-flash / i-frame-flicker. Default 1 (opaque). */
+  opacity = 1;
+  /** When false, the renderer skips this entity (0.7.0). Visual only — it still
+   *  simulates (behaviors/collision run). Default true. */
+  visible = true;
   /** Draw layer; higher draws on top. */
   layer: number;
   zIndex: number;
@@ -62,6 +68,8 @@ export class Entity {
     zIndex?: number;
     rotation?: number;
     scale?: number;
+    opacity?: number;
+    visible?: boolean;
     tags?: string[];
     sprite: Sprite;
     state?: Record<string, unknown>;
@@ -76,6 +84,8 @@ export class Entity {
     this.rotation = init.rotation ?? 0;
     this.scaleX = init.scale ?? 1;
     this.scaleY = init.scale ?? 1;
+    this.opacity = init.opacity ?? 1;
+    this.visible = init.visible ?? true;
     this.tags = new Set(init.tags ?? []);
     this.sprite = init.sprite;
     this.state = init.state ?? {};

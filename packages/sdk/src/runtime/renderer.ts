@@ -54,7 +54,7 @@ export class Renderer {
     this.drawTilemap(ctx, world);
 
     const drawList = world.entities
-      .filter((e) => e.alive && e.sprite.kind !== "none")
+      .filter((e) => e.alive && e.visible !== false && e.sprite.kind !== "none")
       .sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
 
     for (const e of drawList) this.drawEntity(ctx, e, world);
@@ -168,8 +168,15 @@ export class Renderer {
     // them renders byte-identically to before; only `ctx.translate/rotate/scale`
     // are used, which any real 2D context provides.
     const transformed = e.rotation !== 0 || e.scaleX !== 1 || e.scaleY !== 1;
+    // Honor entity opacity (0.7.0): apply it as `globalAlpha`. Another declared-but-ignored
+    // slot — `opacity`/`alpha` are whitelisted yet drawEntity never set globalAlpha, exactly
+    // like rotation/scale before 0.3.2. Multiplied (so it composes with any ambient alpha)
+    // and clamped to [0,1]; skipped at 1 so an opaque entity (the default) is byte-identical.
+    // Lets a behavior fade / damage-flash / i-frame-flicker an entity.
+    const faded = e.opacity < 1;
+    if (transformed || faded) ctx.save();
+    if (faded) ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * e.opacity));
     if (transformed) {
-      ctx.save();
       ctx.translate(e.cx, e.cy);
       ctx.rotate(e.rotation);
       ctx.scale(e.scaleX, e.scaleY);
@@ -191,7 +198,7 @@ export class Renderer {
       default:
         break;
     }
-    if (transformed) ctx.restore();
+    if (transformed || faded) ctx.restore();
   }
 
   private drawShape(ctx: Ctx, e: Entity, s: ShapeSprite): void {

@@ -1,5 +1,28 @@
 # PUBLISHED.md — Phase 3 Seed Game Repos
 
+> **0.4.x PUBLISHED (2026-06-17) — sdk on `0.4.0`, library on `0.4.1`.**
+> The engine-core wave (E1–E7 from [`ENGINE-ROADMAP.md`](ENGINE-ROADMAP.md)) shipped as an
+> additive MINOR — `@gitcade/sdk@0.4.0` + `@gitcade/library@0.4.0` — retiring the most-
+> duplicated host bandaids: E1 SDK input-action layer (+ library `input-actions@1.0.0`,
+> `move-grid-step@1.1.0`), E2 `format-binding@1.0.0` (deleted the per-frame `mirror()` rAF
+> loops), E3 `key-emit@1.0.0` (deleted the Enter/Space bridge), E4 SDK pause API (deleted
+> the `setPaused` state machine), E6 `stat-modifier@1.0.0` (TD upgrades → data;
+> `restampTowers`/`stampDef` gone), E7 `win-lose-conditions@1.1.0` (entity-count + truthy +
+> all/any composition; TD's win is now a composed condition). CATALOG = 91 parts.
+> Re-verified: SDK 89, library 125, all six `gitcade validate` PASS.
+>
+> **PATCH follow-up — `@gitcade/library@0.4.1`:** `library@0.4.0` shipped with a stale
+> `peerDependencies["@gitcade/sdk"]: "0.3.x"` (the monorepo masked it — workspaces ignore the
+> peer range; only the clean-clone game-repo sync surfaced the ERESOLVE against `sdk@0.4.0`).
+> npm versions are immutable, so it was fixed as a PATCH: `library@0.4.1` with peer `"0.4.x"`.
+> All six games pin `sdk@0.4.0` + `library@0.4.1`. **Lesson: bump the library's `@gitcade/sdk`
+> peer range on every minor.**
+>
+> **DONE — external steps (`node tools/release/release.mjs`):** npm publish (`sdk@0.4.0` +
+> `library@0.4.1`); monorepo `main` pushed; each game's source synced to its `gitcade-games`
+> repo (clean-clone verified vs public npm); all six MinIO `<slug>/main/` artifacts rebuilt
+> and uploaded.
+
 > **0.3.2 PUBLISHED (2026-06-16) — all six live on `0.3.2`.**
 > The second games+engine audit synthesis shipped as `@gitcade/sdk@0.3.2` +
 > `@gitcade/library@0.3.2` — a clean **PATCH** (additive, no frozen-contract change):

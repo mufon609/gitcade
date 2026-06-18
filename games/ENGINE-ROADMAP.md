@@ -57,7 +57,6 @@ are the findings below.
 | E2 | **No formatted / computed / entity text binding** ✅ shipped 0.4.0 | all 6 | ~~per-frame `mirror()` rAF loop~~ → `format-binding` data part | 🟢 |
 | E3 | **No key→flow-event data part** ✅ shipped 0.4.0 | all 6 | ~~host Enter/Space → `emit()` bridge~~ → `key-emit` part | 🟢 |
 | E4 | **No data pause primitive** ✅ shipped 0.4.0 | all 6 | ~~host `setPaused` state machine~~ → engine `togglePause`/`pauseKeys` | 🟢 |
-| E5 | **No post-step tick hook** | snake | `snake-guard` behavior duplicates the system's collision check to beat tick order | 🔴 |
 | E6 | **No shared/global stat modifier** ✅ shipped 0.4.0 | tower-defense | ~~`restampTowers` rewrites every tower's params~~ → `stat-modifier` system | 🟢 |
 | E7 | **Win conditions can't query live entities / compose** ✅ shipped 0.4.0 | tower-defense | ~~hand-rolled win in `creep-accounting`~~ → composed `win-lose-conditions@1.1.0` | 🟢 |
 | E8 | **No entity show/hide** | tower-defense | park preview entities at `x:-9999` | 🟡 |
@@ -191,20 +190,6 @@ per-frame host loop.
 > engine-owned-keys design is the realistic answer. The overlay/audio stay host — they're
 > DOM/audio presentation the engine can't touch.)
 
-### E5 — No post-step tick hook 🔴
-**Affected:** snake (any "die the instant a step lands on a fatal cell" mechanic).
-
-Systems run **before** behaviors (`packages/sdk/src/runtime/game.ts:204-211`), so a
-system observing a grid step sees a one-tick-stale position — the head visibly slides
-off-field for a frame before dying. Snake works around it with `snake-guard`, a
-**behavior** placed after `move-grid-step` that **duplicates** `snake-body`'s wall/self
-check purely to win the ordering race, and reaches into the mover's undocumented
-`__gridDir` internal to predict the next cell.
-**Root cause:** the frozen tick order exposes no "after movement, before render" phase.
-**Fix sketch:** a new *late* system phase that runs after behaviors. Additive in that
-existing parts keep their order — **but it touches the frozen tick-order contract, so it
-needs a human decision** before implementation.
-
 ### E6 — No shared / global stat modifier 🟢 — ✅ SHIPPED in 0.4.0
 **Affected:** tower-defense, idle-clicker.
 
@@ -322,10 +307,12 @@ deferred list, surfaced here so the sequencing is one picture.
    0.4.0** — TD's shared range/cooldown upgrade (`stat-modifier`) and its real win
    (`win-lose-conditions@1.1.0` composite) are now data; `restampTowers`/`stampDef` and
    the hand-rolled win predicate are deleted.
-5. **Scene-scoped listeners (E10) + entity visibility (E8).** 🟢/🟡 Cleanups; E8 wants the
-   schema-field decision or the behavior workaround.
-6. **Post-step tick hook (E5).** 🔴 **Needs a human decision** (frozen tick order). Until
-   then snake's `snake-guard` stays as the documented workaround.
+5. **Scene-scoped listeners (E10) + cursor channel (E9) + entity visibility (E8).** 🟢/🟡
+   Cleanups; E8 wants the schema-field decision or the behavior workaround.
+
+(E5 — a post-step tick hook for snake's instant-death-on-step — was dropped: it touches the
+frozen tick order for a single game whose `snake-guard` workaround already produces correct
+gameplay. Revisit only if a second consumer needs it.)
 
 ### Track B — unlock new genres (all 🟢 additive library parts)
 
@@ -347,10 +334,10 @@ Cross-referenced from `GAME-IMPROVEMENTS.md` deferred list:
 
 ### Items that need a human decision (frozen-contract)
 
-Collected for one sign-off: **E5** post-step tick hook (tick-order semantics); **E2/E8**
-if taken via new schema fields rather than the part path; **`reflect-on-hit` total-speed
-cap** (changes feel for all consumers); plus the still-open contract items already logged
-in `GAME-IMPROVEMENTS.md` (hitbox/collision inset, td-10 tileset tile-scale).
+Collected for one sign-off: **E8** if taken via a new schema field rather than the behavior
+path; **`reflect-on-hit` total-speed cap** (changes feel for all consumers); plus the
+still-open contract items already logged in `GAME-IMPROVEMENTS.md` (hitbox/collision inset,
+td-10 tileset tile-scale).
 
 ---
 

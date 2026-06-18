@@ -27,7 +27,7 @@ Mobile: the **d-pad** (or just drag on the canvas). **Space/Enter** start, **Esc
 |---|---|---|
 | `move-topdown-360@1.0.0` | library behavior | normalized twin-stick movement + drag-to-steer for touch |
 | `shoot@1.0.0` | library behavior | the player's auto-fire, aimed at the nearest enemy |
-| `wave-spawner@1.0.0` | library system | escalating waves of chasers from spawn points |
+| `wave-spawner@1.1.0` | library system | escalating waves of chasers from spawn points |
 | `ai-chase` + `contact-damage` + `health-and-death` | library behaviors | each enemy pursues, hurts on touch, and dies (with a score bounty) |
 | `timer-countdown@1.0.0` | library system | survive the clock → **win** |
 | `win-lose-conditions@1.1.0` | library system | one death → **lose** |

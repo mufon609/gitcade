@@ -25,7 +25,10 @@ game.start();
 `registerLibrary(registry)` adds the library onto an existing registry (e.g. one
 that already has a game's `custom-behaviors/`).
 
-## What's inside (27 parts, all MIT, all v1.0.0)
+## What's inside (27 parts, all MIT)
+
+Most parts are `v1.0.0`; a few have grown additive `v1.1.0` revisions (`wave-spawner`,
+`follow-path`, `ai-aim-and-fire`). Each part carries its own semver in `CATALOG.json`.
 
 **Behaviors**
 - *movement* — `move-4dir`, `move-platformer`, `move-topdown-360`,
@@ -37,8 +40,8 @@ that already has a game's `custom-behaviors/`).
 **Systems**
 - *progression* — `score` (storage-persisted high score), `lives-respawn`,
   `timer-countdown`, `level-progression`
-- *spawning* — `wave-spawner` (0.2.0: optional `placement: "free-cell"` scatter),
-  `place-on-free-cell` *(0.2.0)*
+- *spawning* — `wave-spawner` *(v1.1.0: optional `placement: "free-cell"` scatter +
+  level-driven `densityPerLevel`/`intervalPerLevel` ramp)*, `place-on-free-cell` *(0.2.0)*
 - *rules* — `win-lose-conditions`
 - *economy* — `simple-inventory`, `currency`, `upgrade-tree`, `transaction` *(0.2.0)*
 - *persistence* — `persistence` *(0.2.0)* — declarative cross-run save/load
@@ -61,7 +64,9 @@ Built on the SDK 0.2.0 primitives (additive — existing games bump
   verified-free grid cell (`world.rng`-deterministic, tilemap-aware). Replaces
   hand-rolled free-cell food/pickup placement.
 - **`wave-spawner` `placement: "free-cell"`** — optional scatter across free grid
-  cells; default `"literal"` is the exact 0.1.x behavior.
+  cells; default `"literal"` is the exact 0.1.x behavior. *(v1.1.0)* optional
+  `densityPerLevel`/`intervalPerLevel` scale wave size + cadence by `world.state.level`
+  — the spawn-pressure half of difficulty (the speed half is `scale-by-state`).
 - **`tap-emit`** *(ui)* — emits a game event when an entity is clicked (reads the
   SDK click edge + topmost pick), so a button becomes a pure-data `scene.flow.on`
   edge: title → play → game-over with no host code.

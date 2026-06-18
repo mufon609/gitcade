@@ -23,7 +23,7 @@ Desktop: **hold Space** to rise. Mobile: **tap-and-hold** the big button.
 |---|---|---|
 | `scale-by-state@1.0.0` | library behavior | pushes the pillars leftward past the fixed craft, ramping their speed per level |
 | `trigger-zone@1.0.0` | library behavior | the hazards — pillars and the top/bottom walls emit `crash` on contact |
-| `wave-spawner@1.0.0` | library system | the endless stream of pillars at varied heights |
+| `wave-spawner@1.1.0` | library system | the endless stream of pillars at varied heights; `intervalPerLevel` tightens the cadence as the level climbs (the density half of difficulty) |
 | `currency@1.0.0` | library system | accrues the survival score (`pointsPerSec`) |
 | `score@1.0.0` | library system | high score persisted via the SDK storage bridge |
 | `explosion@1.0.0` + `trail` | library FX | the crash burst and the craft's exhaust trail |
@@ -53,7 +53,8 @@ All of the feel is in [`config.json`](config.json):
   "maxUp": 360,       // climb speed cap
   "maxDown": 430,     // fall speed cap
   "scrollVx": -230,   // pillar scroll velocity (negative = leftward)
-  "waveDelay": 1.15,  // seconds between pillars
+  "waveDelay": 1.15,  // seconds between pillars (tightened per level by densityRampPerLevel)
+  "densityRampPerLevel": 0.12, // +12% pillar cadence per level (wave-spawner intervalPerLevel)
   "pointsPerSec": 12  // score earned per second survived
 }
 ```

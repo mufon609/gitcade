@@ -24,7 +24,7 @@ npm run validate   # also proves the no-magic-numbers rule: zero balance literal
 
 | Part | Source | Role |
 |---|---|---|
-| `wave-spawner@1.0.0` | library system | the 10 escalating creep waves |
+| `wave-spawner@1.1.0` | library system | the 10 escalating creep waves |
 | `follow-path@1.0.0` | library behavior | creeps walking the fixed waypoint path |
 | `ai-aim-and-fire@1.0.0` | library behavior | turrets acquiring + firing at creeps in range |
 | `contact-damage` + `health-and-death` | library behaviors | turret bullets damaging creeps; creep HP + death |

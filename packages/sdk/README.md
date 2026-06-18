@@ -68,6 +68,31 @@ tick order, `world.rng` determinism) are untouched; everything below is new API.
   consult the claim keeps its prior behavior, and the claim set is scene-scoped
   (reset on `loadScene`).
 
+## New in 0.6.0 (E11 multi-level — additive, older games unchanged)
+
+First-class support for games with multiple levels. Every change is an **optional
+schema field** or additive runtime/validator behavior; a game that sets neither
+`scene.extends` nor `manifest.levels` runs byte-identically.
+
+- **Scene inheritance.** A scene may declare `extends: "<baseSceneId>"` to inherit
+  a base scene's shell (entities, systems, size, background, music, tilemap, flow)
+  and overlay only its own content — so a multi-level game authors the shared stage
+  ONCE and each level is a thin override. The merge is id-keyed (base first, then
+  the child, overriding by `id`); chains resolve bottom-up, cycle-guarded. Resolved
+  in the `Game` constructor (`resolveSceneInheritance`), so the renderer/runtime
+  never see `extends`.
+- **Level sequence.** `manifest.levels: [<sceneId>, …]` (+ optional
+  `levelsComplete`) makes "a campaign of N levels" first-class. The reserved
+  `flow.on` targets **`@next`** / **`@first`** resolve against it at emit time (a
+  level never hard-wires its successor), and the runtime sets `world.state.level` to
+  the active level's 1-based index — so `scale-by-state` / `wave-spawner` difficulty
+  ramps track the stage with no per-scene config. `game.requestNextLevel()` is the
+  programmatic companion to `@next`.
+- **Validator cross-checks.** `gitcade validate` now resolves every scene reference
+  — `flow.on` targets, `extends`, `manifest.levels`/`levelsComplete`, and
+  `entryPoint` — against the actual scene-id set, so a broken link fails the publish
+  gate instead of surfacing at runtime.
+
 ## Quick start (composing a game from JSON)
 
 ```ts

@@ -112,7 +112,4 @@ document.addEventListener("visibilitychange", syncAudio);
 // same logical action the keyboard feeds. (The window `pointerdown` listener above
 // still unlocks audio on the first touch.)
 
-// debug handle: inspect the running game from the devtools console.
-(window as unknown as { __game?: unknown }).__game = game;
-
 game.start();

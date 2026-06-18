@@ -92,8 +92,7 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | V2 | **med** | data | **No enemy variety.** One `enemy-chaser` prototype. Add a fast-swarm tier (`enemy-swarm.png` **already in the manifest**) as a second `wave-spawner` instance — pure data. The genre's core content lever. |
 | V3 | med | data | **No in-run progression.** Brotato/VS live on XP gems → level-up → pick an upgrade. Even a minimal version (enemies drop a `collect-on-touch` gem that bumps `score`, feeding the existing `level-progression`) adds the missing reward loop. `gem.png` already exists. |
 | V4 | low | data | Win-state is a text swap ("YOU SURVIVED"); an endless/stretch mode past 75s is a natural extension. |
-| V5 | low | data | `over.flow.persist` carries `bestDisplay` redundantly (the host `mirror()` recomputes it each frame); drop it from the list. |
-| V6 | low | asset | Confirm the synth audio keys (`shoot`/`explode`/`lose`) resolve — there's no `public/assets/audio/`; the library player is procedural, so this is a verify, not a known break. |
+| V5 | low | asset | Confirm the synth audio keys (`shoot`/`explode`/`lose`) resolve — there's no `public/assets/audio/`; the library player is procedural, so this is a verify, not a known break. |
 
 ---
 

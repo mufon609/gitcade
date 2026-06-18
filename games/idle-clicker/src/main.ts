@@ -94,24 +94,16 @@ function updateShop(w: World): void {
 }
 
 // --- offline-credit shim (deliberately tiny) ----------------------------------
-// Computing earnings-while-away needs a saved wall-clock timestamp + a game-specific
-// credit formula — NOT a generic engine primitive, and crucially it needs `Date.now()`,
-// which must stay OUT of the deterministic sim (so it's host-side, never a system). The
-// persistence system handles the VALUE round-trip (incl. `lastSeen`); this shim does only
-// the two things persistence can't:
-//   1. on resume, credit `autoRate × elapsed × mult` (capped at `offlineCapSeconds`) once;
-//   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now" as the
-//      away-point (started AFTER step 1 so it can't clobber the read).
+// Earnings-while-away needs a saved wall-clock timestamp + a credit formula, and crucially
+// `Date.now()` — which must stay OUT of the deterministic sim, so this is host-side, never a
+// system. Persistence round-trips the values (incl. `lastSeen`); this shim credits
+// `autoRate × elapsed × mult` (capped at `offlineCapSeconds`) once on resume, then heartbeats
+// `world.state.lastSeen = Date.now()` for the next save.
 //
-// ORDERING: credit on TOP of the RESTORED `coins`, never a pre-restore (empty) state. We
-// await the deterministic restore signal `world.whenRestored(["coins"])` rather than polling
-// `isPersistPending`: the production bridge store is SYNCHRONOUS, so the pending claim is
-// placed AND released inside the macrotask gap between two rAF frames, and a poll would never
-// observe the transient pending window. `whenRestored` resolves exactly once the restore has
-// written the saved values and released the claim (or immediately if that already happened),
-// and never trivially before the claim. We ARM it once the play scene is live — so the wait
-// belongs to play, after `loadScene`'s scene-scoped reset — then the restore (which writes
-// the whole key batch, `lastSeen` included) credits once.
+// Credit on TOP of the RESTORED `coins`: await `world.whenRestored(["coins"])` rather than
+// poll `isPersistPending`, because the production bridge store is synchronous — the pending
+// claim is placed and released inside the rAF macrotask gap, so a poll would miss it. Armed
+// once the play scene is live, after `loadScene`'s scene-scoped reset.
 let offlineApplied = false;
 let offlineArmed = false;
 
@@ -241,8 +233,5 @@ document.addEventListener("visibilitychange", syncAudio);
 
 // Keyboard flow access (Enter/Space → start) is DATA — a `key-emit` behavior on the
 // title flow button, the keyboard companion to `tap-emit`. No host bridge.
-
-// debug handle: inspect the running game from the devtools console
-(window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

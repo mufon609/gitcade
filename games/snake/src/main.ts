@@ -155,7 +155,4 @@ if (pad) {
   }
 }
 
-// debug handle: inspect the running game from the devtools console
-(window as unknown as { __game?: unknown }).__game = game;
-
 game.start();

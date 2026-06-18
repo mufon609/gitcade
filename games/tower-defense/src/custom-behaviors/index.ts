@@ -44,11 +44,6 @@ function cellOccupied(world: World, towerTag: string, gx: number, gy: number, ti
  * `boughtEvent` (one audited part owns the money). Seeds the upgrade-affected stats
  * (`rangeKey`/`cooldownKey`/`bountyBonusKey`) from their `$cfg` base on the first
  * tick so the `upgrade-tree` can raise them.
- *
- * Params: `currencyKey`, `towerCost` ($cfg), `buyRequestKey`, `boughtEvent`,
- * `tileSize` (structural), `rangeKey`/`cooldownKey`/`bountyBonusKey`,
- * `baseRange`/`baseCooldown` ($cfg), `towerTag`, `prototype` (tower entity-def),
- * `stateKey`.
  */
 export const towerBuild: SystemFn = (world, params) => {
   const currencyKey = str(params, "currencyKey", "gold");
@@ -144,10 +139,6 @@ export const towerBuild: SystemFn = (world, params) => {
  * emits the event only after the FINAL wave is fully spawned and cleared, and the count
  * condition adds the 0-creeps guard — so no config edit can decouple the win from the
  * wave math.
- *
- * Params: `currencyKey`, `bounty` ($cfg), `bountyBonusKey`, `resolvedKey`,
- * `leakedKey`, `killEvent`, `leakEvent`, `creepTag`, `waveKey`, `wavesCompleteEvent`,
- * `wavesCompleteKey`, `bestWaveKey`, `stateKey`.
  */
 export const creepAccounting: SystemFn = (world, params) => {
   const currencyKey = str(params, "currencyKey", "gold");
@@ -207,9 +198,6 @@ export const creepAccounting: SystemFn = (world, params) => {
  * is still the `tower-build` click edge). Touch has no hover (`cursor()` is null after a
  * tap) and headless has no pointer, so `cursor()` is null there and both preview entities
  * sit off-screen — smoke tests and touch taps are untouched.
- *
- * Params: `tileSize` (structural), `rangeKey`, `currencyKey`, `towerCost` ($cfg),
- * `towerTag`, `ringTag`, `cellTag`.
  */
 export const buildPreview: SystemFn = (world, params) => {
   const tile = num(params, "tileSize", 40);

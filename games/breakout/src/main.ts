@@ -129,7 +129,4 @@ document.addEventListener("visibilitychange", syncAudio);
 // The `#touch` overlay is `pointer-events:none`, so touches pass straight through to
 // the canvas where the mover reads them.
 
-// debug handle: inspect the running game from the devtools console.
-(window as unknown as { __game?: unknown }).__game = game;
-
 game.start();

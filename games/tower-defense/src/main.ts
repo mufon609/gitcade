@@ -181,7 +181,4 @@ if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// debug handle: inspect the running game from the devtools console.
-(window as unknown as { __game?: unknown }).__game = game;
-
 game.start();

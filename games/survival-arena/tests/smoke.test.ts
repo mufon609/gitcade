@@ -146,8 +146,8 @@ describe("survival-arena smoke (data flow)", () => {
     game.world.events.emit("retry"); // what the over scene's tap-emit button emits
     game.stepFrames(2);
     expect(game.scene.id).toBe("play");
-    // over.flow.persist carries only best/bestDisplay — score is NOT carried, so the
-    // fresh play scene's score system restarts it at 0.
+    // over.flow.persist carries only best (the over scene re-derives bestDisplay via
+    // format-binding) — score is NOT carried, so the fresh play scene's score restarts at 0.
     expect((game.world.state.score as number) ?? 0).toBeLessThan(120);
     expect(game.world.query("player").length).toBe(1);
   });

@@ -85,6 +85,6 @@
   ],
   "flow": {
     "on": { "retry": "play" },
-    "persist": ["best", "bestDisplay"]
+    "persist": ["best"]
   }
 }

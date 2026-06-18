@@ -134,7 +134,10 @@ are themselves immovable. The two halves on top of it:
   (carry + push) *and* re-resolves them against solids in the same pass. A naive post-behavior
   carry phase is a regression (it applies carry AFTER the rider's `solid-collide`, so a carrier
   shoving a rider into a wall penetrates it — whereas `ride-platform` runs FIRST and re-resolves
-  same-tick), so carry-as-a-phase and push land together here, not separately. 🟢 (open)
+  same-tick), so carry-as-a-phase and push land together here, not separately. The full design —
+  the additive `resolveBodies()` phase, the `collider` component, the dependency-ordered carry+push
+  solver, the determinism story, and the proof-gated build order — is written up in
+  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢 (open, design done)
 
 ---
 

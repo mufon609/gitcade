@@ -189,9 +189,12 @@ product."
   camera — see `survival-arena/src/main.ts`). Once a camera exists, make **screenshake,
   hitstop/time-scale, knockback, and squash-stretch** first-class, data-triggered effects.
   🟢
-- **Tweening / easing primitive.** No tween system today. Coin pops, door slides, menu
-  springs, screen wipes — the small motions that read as "polish" — need an easing/tween
-  behavior. 🟢
+- **Tweening / easing primitive. ✅ Now in the engine (`tween`).** A behavior that animates
+  one numeric property (`x`/`y`/`scale`/`scaleX`/`scaleY`/`rotation`/`opacity`) from a start
+  to a target over a duration with an easing curve (linear / in-out-quad / `out-back`
+  overshoot) and a `loop` mode (none / loop / pingpong). Drives the renderer-honored
+  transform + `opacity` slots, so coin pops, bobbing pickups, fade-ins, and pulsing beacons
+  are data — proven by the pulsing goal flag in the `platformer-scroll` proof. 🟢
 - **Screen transitions as data** (fade/wipe between scenes), instead of an instant
   `loadScene` swap. 🟢
 
@@ -286,8 +289,8 @@ assumed.
   (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
   `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense
   off-screen-park bandaid) — driven end-to-end by the `platformer-scroll` proof.
-  *Remaining:* render interpolation, gamepad, pixel-perfect render mode, tween/easing,
-  hitstop.
+  *Remaining:* render interpolation, gamepad, pixel-perfect render mode, hitstop. (The
+  `tween`/easing primitive — a Tier-2 item — also landed here, ahead of its phase.)
 - **Phase C — it feels finished.** Sampled audio + music + mixer, data-driven
   particles/screenshake/camera juice, Tiled/`grid-layout` authoring, atlases, spatial-hash
   broadphase, `collisionInset`, save slots / settings / pause menu.

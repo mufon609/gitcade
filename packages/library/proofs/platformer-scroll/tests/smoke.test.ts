@@ -184,4 +184,17 @@ describe("platformer-scroll reuse proof", () => {
     game.stepFrames(1);
     expect(player.anim.current).toBe("fall");
   });
+
+  it("pulses the goal flag via a scale tween (visual only — physics untouched, 0.7.0)", () => {
+    const game = boot();
+    const goal = game.world.byId("goal")!;
+    const x0 = goal.x;
+    const w0 = goal.w;
+    game.stepFrames(20); // partway into the pingpong pulse (duration 0.6s)
+    expect(goal.scaleX).toBeGreaterThan(1); // scaled up
+    expect(goal.scaleX).toBeLessThanOrEqual(1.2); // never past the target
+    expect(goal.scaleX).toBe(goal.scaleY); // uniform
+    expect(goal.x).toBe(x0); // position untouched by the scale tween
+    expect(goal.w).toBe(w0); // base size (collision) untouched
+  });
 });

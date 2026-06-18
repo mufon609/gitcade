@@ -11,5 +11,6 @@
   "jumpBuffer": 0.1,
   "apexGravityMult": 0.6,
   "apexThreshold": 90,
-  "dropThroughTime": 0.4
+  "dropThroughTime": 0.4,
+  "goalPulseDuration": 0.6
 }

@@ -888,7 +888,19 @@
         "goal"
       ],
       "layer": 1,
-      "behaviors": []
+      "behaviors": [
+        {
+          "type": "tween",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.2,
+            "duration": "$cfg.goalPulseDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
     }
   ],
   "systems": [

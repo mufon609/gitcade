@@ -24,6 +24,7 @@ import { scaleByState } from "./scale-by-state.js";
 import { faceAngle } from "./face-angle.js";
 import { faceVelocity } from "./face-velocity.js";
 import { spriteStateMachine } from "./sprite-state-machine.js";
+import { tween } from "./tween.js";
 
 /**
  * Every library behavior, keyed by the exact `type` string a scene/entity uses to
@@ -55,6 +56,7 @@ export const LIBRARY_BEHAVIORS = {
   "face-angle": faceAngle,
   "face-velocity": faceVelocity,
   "sprite-state-machine": spriteStateMachine,
+  tween: tween,
 } as const;
 
 /** The library behavior type ids (for tests / introspection). */
@@ -92,4 +94,5 @@ export {
   faceAngle,
   faceVelocity,
   spriteStateMachine,
+  tween,
 };

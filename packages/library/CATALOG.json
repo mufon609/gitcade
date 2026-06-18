@@ -1533,6 +1533,70 @@
       }
     },
     {
+      "id": "tween",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "tween",
+        "easing",
+        "juice",
+        "animation",
+        "presentation"
+      ],
+      "description": "Animates one numeric entity property (x, y, scaleX/scaleY/scale, rotation, opacity) from a start value to a target over a duration with an easing curve (linear, in/out/in-out-quad, out-back overshoot). Auto-starts; loop modes none (hold at target) / loop / pingpong (triangle wave). The data path to juice motions: coin pops, bobbing pickups, fade-ins, slide-ins, pulsing beacons. from defaults to the property's current value. Visual/positional only; collision uses the base AABB. Pure per-tick math (deterministic). State is namespaced per property, so independent tweens of x and opacity coexist.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "property": {
+          "type": "string",
+          "balance": false,
+          "description": "x|y|scaleX|scaleY|scale|rotation|opacity (default 'opacity')."
+        },
+        "to": {
+          "type": "number",
+          "balance": false,
+          "description": "Target value (whitelisted; default 0)."
+        },
+        "from": {
+          "type": "number",
+          "balance": false,
+          "description": "Start value (whitelisted; default = the property's current value when the tween starts)."
+        },
+        "duration": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds for one from->to pass (default 1)."
+        },
+        "delay": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds to wait before starting (default 0)."
+        },
+        "easing": {
+          "type": "string",
+          "balance": false,
+          "description": "linear|in-quad|out-quad|in-out-quad|out-back (default 'linear')."
+        },
+        "loop": {
+          "type": "string",
+          "balance": false,
+          "description": "none|loop|pingpong (default 'none')."
+        }
+      },
+      "definition": {
+        "type": "tween",
+        "params": {
+          "property": "scale",
+          "from": 1,
+          "to": 1.2,
+          "duration": "$cfg.tweenDuration",
+          "easing": "out-back",
+          "loop": "pingpong"
+        }
+      }
+    },
+    {
       "id": "camera-follow",
       "kind": "system",
       "version": "2.0.0",

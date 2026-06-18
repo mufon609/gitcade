@@ -232,9 +232,13 @@ Capabilities for building (and shipping) a game with real *content volume*.
   🟢
 - **Texture atlases / sprite packing.** Canvas2D `drawImage`-per-entity is fine to a few
   hundred entities, but atlas regions cut load and let one sheet hold many sprites. 🟢
-- **Spatial partitioning for collision.** `aabb-collision` is O(n²) per tag pair over a
-  `world.query` filter (`world.ts`). Fine for dozens; a busy action level with hundreds of
-  colliders needs a uniform grid / spatial hash broadphase. 🟢 (internal).
+- **Spatial partitioning for collision. ✅ Now in the engine (0.12.0).** `aabb-collision` keeps
+  the O(n·m) nested loop for small tag pairs but, above a threshold, buckets the `b` colliders
+  into a uniform grid and tests each `a` only against the candidates in the cells its AABB
+  overlaps — O(n+m) typical, so a busy level with hundreds of colliders scales. The result is
+  **byte-identical** to the naive loop (candidates tested in ascending index order → same
+  `entity.collisions` contents AND order), so determinism is preserved. Internal — no contract
+  or behavior change; pinned by SDK byte-identity tests vs a naive reference at scale. 🟢
 - **Hitbox inset / separate collider** (`collisionInset` / `hitbox` on the entity schema):
   fairer collisions than the raw sprite AABB (corner-clip deaths, contact damage). 🟡 new
   optional entity field.

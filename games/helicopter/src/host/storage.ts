@@ -4,10 +4,10 @@
  *
  * In production the game runs in an opaque-origin iframe where the raw browser
  * stores throw; it uses {@link BridgeStorage} to post saves to the GitCade parent
- * page, which persists them namespaced by `gameSlug + branch` (Phase 4B implements
- * that parent side). Standalone (`npm run dev`, or any non-GitCade host) it falls
- * back to the in-memory dev-shim. Either way the game only ever talks to
- * `world.storage`, so no game code changes between the two.
+ * page, which persists them namespaced by `gameSlug + branch`. Standalone
+ * (`npm run dev`, or any non-GitCade host) it falls back to the in-memory dev-shim.
+ * Either way the game only ever talks to `world.storage`, so no game code changes
+ * between the two.
  */
 import { MemoryStorage, BridgeStorage, type StorageAdapter } from "@gitcade/sdk";
 

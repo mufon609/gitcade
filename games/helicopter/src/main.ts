@@ -1,20 +1,12 @@
 /**
  * Helicopter bootstrap (host glue). The GAME is data — game.json + config.json +
  * the three JSON scenes (title → play → over) wired by `flow.on` edges, composing
- * @gitcade/library + SDK parts plus two custom behaviors (`thrust-lift`, the
- * one-button lift; `scroll-ramp`, the state-driven difficulty ramp).
+ * @gitcade/library + SDK parts plus the custom `thrust-lift` one-button behavior.
  *
- * 0.2.0 made the screen flow expressible as DATA (scene `flow`, `tap-emit`,
- * declarative `persist`), so the old ~305-line GameShell screen-state machine and
- * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
- * data primitive: the library audio, screen juice (flash/shake on crash), a pause
- * toggle (freezing the sim is a host-loop concern), and an Enter/Space bridge that
- * mirrors the on-screen flow buttons for keyboard players. No balance or game logic
- * lives here.
- *
- * 0.4.0 (E2): the per-frame HUD mirror that floored the float score into a display
- * key is GONE — the library `format-binding` system in each scene now derives
- * `scoreDisplay`/`bestDisplay` from `score`/`best` as DATA (no host rAF loop).
+ * The screen flow is DATA (scene `flow`, `tap-emit`, declarative `persist`). This
+ * file keeps ONLY host concerns that have no data primitive: the library audio,
+ * screen juice (flash/shake on crash), and a pause toggle (freezing the sim is a
+ * host-loop concern). No balance or game logic lives here.
  */
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
@@ -93,14 +85,14 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
-// on each title/over flow button (E3); Space during PLAY stays pure thrust (no key-emit
-// on the play scene). No host bridge.
+// Keyboard flow access (Enter/Space → start/retry) is DATA — a `key-emit` behavior
+// on each title/over flow button; Space during PLAY stays pure thrust (no key-emit
+// on the play scene).
 
-// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// --- pause overlay + audio --------------------------------------------------
 // `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
 // `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
-// forwards the on-screen button to `togglePause`. No setPaused state machine.
+// forwards the on-screen button to `togglePause`.
 const pauseOverlay = document.getElementById("pause-overlay");
 game.world.events.on("pause-changed", (e) => {
   if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
@@ -113,16 +105,14 @@ if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- mobile touch: NONE needed (declarative, E1) ----------------------------
-// Touch-to-fly is pure DATA now: the `input-actions` system in play.json binds the
+// --- mobile touch: no host glue needed --------------------------------------
+// Touch-to-fly is pure DATA: the `input-actions` system in play.json binds the
 // `thrust` action to a full-canvas `rect`, so HOLDING ANYWHERE on the canvas lifts
-// (the classic flappy control) and `thrust-lift` reads it via `thrustAction`. The
-// old DOM "HOLD TO FLY" button that synthesized a `Space` key event is GONE — touch
-// reaches the mover through the same logical action the keyboard does, no host glue.
-// (The window `pointerdown` listener above still unlocks audio on the first touch.)
+// (the classic flappy control) and `thrust-lift` reads it via `thrustAction` — the
+// same logical action the keyboard feeds. (The window `pointerdown` listener above
+// still unlocks audio on the first touch.)
 
-// Observation hook for the Stage-4 playthrough harness (audit/harness/helicopter) —
-// read-only; harmless in production.
+// debug handle: inspect the running game from the devtools console.
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

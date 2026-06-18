@@ -16,12 +16,12 @@ function boot(storage?: MemoryStorage): Game {
   return createGame({ manifest, config, scenes: [title, play] }, { canvas: null, registry, storage });
 }
 /**
- * Enter play and let the persistence load resolve. 0.2.1 collapse: `persistence`
- * runs FIRST on the PLAY scene and claims the economy keys synchronously, so the
- * seed-once systems (`currency`, `click-to-earn`, `auto-income`) DEFER their seed
- * until the async `storage.get` resolves. We therefore await a microtask, then step
- * once so the released claim lets the seeds (or the restored values) land — the same
- * "kick the async, await, step" shape the G6 reload test uses.
+ * Enter play and let the persistence load resolve. `persistence` runs FIRST on the
+ * PLAY scene and claims the economy keys synchronously, so the seed-once systems
+ * (`currency`, `click-to-earn`, `auto-income`) DEFER their seed until the async
+ * `storage.get` resolves. We therefore await a microtask, then step once so the
+ * released claim lets the seeds (or the restored values) land — the same "kick the
+ * async, await, step" shape the reload test uses.
  */
 const microtask = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 async function enterPlay(g: Game): Promise<void> {
@@ -31,7 +31,7 @@ async function enterPlay(g: Game): Promise<void> {
   await microtask(); // the async storage.get resolves: restore written / claim released
   g.stepFrames(1); // claim gone → seeds (or restored values) are now present
 }
-/** Drive the real G2 click edge: push a released tap, then step one frame. */
+/** Drive the real click edge: push a released tap, then step one frame. */
 function tap(g: Game, x: number, y: number, n: number): void {
   for (let i = 0; i < n; i++) {
     (g.world.input.justReleased() as { id: number; x: number; y: number }[]).push({ id: 1, x, y });
@@ -40,12 +40,12 @@ function tap(g: Game, x: number, y: number, n: number): void {
 }
 
 /**
- * The headless smoke boot `gitcade validate` defers to. Exercises the 0.2.0
- * data-driven economy: the title→play flow, click-to-earn via the click EDGE, a
- * purchase through upgrade-tree, the prestige system, and value persistence.
+ * The headless smoke boot `gitcade validate` defers to. Exercises the data-driven
+ * economy: the title→play flow, click-to-earn via the click EDGE, a purchase
+ * through upgrade-tree, the prestige system, and value persistence.
  */
 describe("idle-clicker smoke", () => {
-  it("flows title→play and earns on a real coin tap (G2 click edge)", async () => {
+  it("flows title→play and earns on a real coin tap (click edge)", async () => {
     const g = boot();
     expect(g.scene.id).toBe("title");
     await enterPlay(g);
@@ -59,7 +59,7 @@ describe("idle-clicker smoke", () => {
     expect(g.world.state.coins).toBe(4 * power);
   });
 
-  it("buys an upgrade through upgrade-tree (G5): deduct + raise power", async () => {
+  it("buys an upgrade through upgrade-tree: deduct + raise power", async () => {
     const g = boot();
     await enterPlay(g);
     const power = g.world.state.clickPower as number;
@@ -84,8 +84,8 @@ describe("idle-clicker smoke", () => {
     expect(Object.keys(g.world.state.upgrades as object).length).toBe(0);
   });
 
-  // IC-1: the prestige multiplier scales ALL income (clicks AND auto-income).
-  it("prestige multiplier scales click AND auto income (IC-1)", async () => {
+  // The prestige multiplier scales ALL income (clicks AND auto-income).
+  it("prestige multiplier scales click AND auto income", async () => {
     async function runRound(mult: number): Promise<{ fromClicks: number; fromAuto: number }> {
       const g = boot();
       await enterPlay(g);
@@ -106,11 +106,11 @@ describe("idle-clicker smoke", () => {
     expect(base.fromAuto).toBeGreaterThan(0);
   });
 
-  // G6 (0.2.1 collapse): values survive a reload with persistence running on the
-  // PLAY scene. The 0.2.1 hydration claim makes the seed-once systems defer until
-  // the async restore lands, so a saved coins/clickPower/autoRate is restored
-  // authoritatively even on the scene that seeds them — no title-scene workaround.
-  it("persists coins/upgrades/prestige across a reload (G6)", async () => {
+  // Values survive a reload with persistence running on the PLAY scene. The
+  // hydration claim makes the seed-once systems defer until the async restore lands,
+  // so a saved coins/clickPower/autoRate is restored authoritatively even on the
+  // scene that seeds them.
+  it("persists coins/upgrades/prestige across a reload", async () => {
     const storage = new MemoryStorage();
     const g1 = boot(storage);
     await enterPlay(g1);
@@ -140,11 +140,10 @@ describe("idle-clicker smoke", () => {
 });
 
 /**
- * E2 (0.4.0) — the per-frame host `fmt()`/mirror that compacted the HUD is gone; the
- * `format-binding` system in play.json compacts/templates the numeric readouts as DATA
- * (the duplicated `formatCompact` bandaid is retired).
+ * The `format-binding` system in play.json compacts/templates the numeric HUD
+ * readouts as DATA — no per-frame host formatting.
  */
-describe("idle-clicker HUD (E2 format-binding)", () => {
+describe("idle-clicker HUD (format-binding)", () => {
   it("compacts coins and templates the prestige-scaled rate as data", async () => {
     const game = boot();
     await enterPlay(game);

@@ -6,8 +6,8 @@ escalating swarms of chasers, dodge with twin-stick movement, and stay alive for
 sparkle, a screen-shake when you take a hit, and a generative chiptune loop. The
 screen flow (title → play → over) and high-score persistence are **data** (scene
 `flow` + `manifest.persist`), composed **entirely** from SDK + `@gitcade/library`
-parts — including the level-driven enemy toughness/speed ramp, now pure data via
-two `scale-by-state` instances (no custom behavior remains).
+parts — including the level-driven enemy toughness/speed ramp, which is data via
+two `scale-by-state` instances (no custom behavior).
 
 ## Play
 
@@ -44,9 +44,8 @@ death, a blue flash on level-up) and the chiptune loop are slim host glue in
 `explosion` at each dead enemy — so the host owns only the screen-level FX the
 frozen renderer can't do from a behavior. Making the swarm *tougher and faster* as
 the level climbs (`wave-spawner` scales COUNT but bakes the prototype's stats in at
-scene load) — once the custom `swarm-scale` behavior, logged in
-[`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) #8 — is now expressed purely as data with
-two library `scale-by-state` instances on the enemy prototype.
+scene load) is expressed purely as data with two library `scale-by-state` instances
+on the enemy prototype.
 
 ## Rebalance it
 

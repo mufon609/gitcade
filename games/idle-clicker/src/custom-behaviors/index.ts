@@ -9,21 +9,20 @@ import { num, str } from "@gitcade/sdk";
  * `world.state` but not the event bus) can never double-count.
  * Logged in games/LIBRARY-GAPS.md as generalization candidates.
  *
- * 0.2.0 ADOPTION: `click-to-earn` now reads the SDK's G2 pointer-click EDGE
- * (`world.input.justReleased()` + `world.entityAt`) directly, so the host
- * `pointerdown` listener that used to increment `world.state.clicks` is GONE — the
- * click is data. Purchases route through the library `upgrade-tree` (the G5 fixed-
- * catalog economy primitive: afford → deduct → effect). Value persistence is
- * declarative (`manifest.persist` + the library `persistence` system). The only
- * thing still custom is this idle-economy trio + a tiny `prestige` reset system.
+ * `click-to-earn` reads the SDK's pointer-click EDGE (`world.input.justReleased()`
+ * + `world.entityAt`) directly, so the click is data — no host listener. Purchases
+ * route through the library `upgrade-tree` (fixed-catalog economy: afford → deduct →
+ * effect), and value persistence is declarative (`manifest.persist` + the library
+ * `persistence` system). What stays custom is this idle-economy trio + the tiny
+ * `prestige` reset system.
  */
 
 /**
  * `click-to-earn` — award coins for each tap on the coin button. Polls the SDK's
- * one-frame click EDGE (`world.input.justReleased()`, G2) and pays `clickPower`
- * per tap that lands on an entity tagged `targetTag` (`world.entityAt`, G2), scaled
- * by the prestige multiplier (`multKey`, default 1) so prestige raises ALL income
- * (IC-1). No host listener, no `clicks` counter — the click is pure data now.
+ * one-frame click EDGE (`world.input.justReleased()`) and pays `clickPower` per tap
+ * that lands on an entity tagged `targetTag` (`world.entityAt`), scaled by the
+ * prestige multiplier (`multKey`, default 1) so prestige raises ALL income. No host
+ * listener, no `clicks` counter — the click is pure data.
  * Params: `coinsKey`, `targetTag`, `powerKey`, `basePower` ($cfg), `multKey`, `tapEvent`.
  */
 export const clickToEarn: SystemFn = (world, params) => {
@@ -34,18 +33,16 @@ export const clickToEarn: SystemFn = (world, params) => {
   const tapEvent = str(params, "tapEvent", "click");
 
   // Seed the per-click power once (so prestige/reset restores a clean base).
-  // 0.2.1 (G6 race fix): DEFER the seed while a persistence load owns this key
-  // (`world.isPersistPending`), so collapsing persistence onto the play scene
-  // restores a saved clickPower instead of the tick-1 seed clobbering it — the
-  // same deferral the library `currency` system uses. No claim ⇒ a no-op (0.2.0
-  // behavior, additive).
+  // DEFER the seed while a persistence load owns this key (`world.isPersistPending`),
+  // so a saved clickPower is restored instead of the tick-1 seed clobbering it — the
+  // same deferral the library `currency` system uses. No claim ⇒ seed immediately.
   if (!world.isPersistPending(powerKey) && typeof world.state[powerKey] !== "number") {
     world.state[powerKey] = num(params, "basePower", 1);
   }
 
   // Count taps this frame that landed on the coin (topmost pick), remembering the
   // last hit point so feedback can be LOCAL — a particle burst at the cursor instead
-  // of a full-screen flash (IC-FX; clicking is the highest-frequency action in the game).
+  // of a full-screen flash (clicking is the highest-frequency action in the game).
   let taps = 0;
   let lastX = 0;
   let lastY = 0;
@@ -71,15 +68,15 @@ export const clickToEarn: SystemFn = (world, params) => {
 /**
  * `auto-income` — passive coins per second from `rateKey` (raised by the
  * upgrade-tree's generator upgrades), scaled by the prestige multiplier
- * (`multKey`, default 1) so prestige boosts the dominant late-game income (IC-1).
+ * (`multKey`, default 1) so prestige boosts the dominant late-game income.
  * Params: `coinsKey`, `rateKey`, `baseRate` ($cfg), `multKey`.
  */
 export const autoIncome: SystemFn = (world, params, dt) => {
   const coinsKey = str(params, "coinsKey", "coins");
   const rateKey = str(params, "rateKey", "autoRate");
   const multKey = str(params, "multKey", "prestigeMult");
-  // 0.2.1 (G6 race fix): defer the autoRate seed while a persistence load claims it
-  // (see click-to-earn above) so a saved rate survives the play-scene collapse.
+  // Defer the autoRate seed while a persistence load claims it (see click-to-earn
+  // above) so a saved rate survives instead of being clobbered by the seed.
   if (!world.isPersistPending(rateKey) && typeof world.state[rateKey] !== "number") {
     world.state[rateKey] = num(params, "baseRate", 0);
   }
@@ -90,8 +87,8 @@ export const autoIncome: SystemFn = (world, params, dt) => {
 
 /**
  * `interval-bonus` — every `period` seconds grant a lump `amount` (scaled by the
- * prestige multiplier `multKey`, default 1, so prestige boosts it too — IC-1) and
- * expose the remaining time for a HUD countdown (the game's "timer"). Self-resetting.
+ * prestige multiplier `multKey`, default 1, so prestige boosts it too) and expose
+ * the remaining time for a HUD countdown (the game's "timer"). Self-resetting.
  * Params: `coinsKey`, `period` ($cfg), `amount` ($cfg), `multKey`, `leftKey`, `stateKey`.
  */
 export const intervalBonus: SystemFn = (world, params, dt) => {
@@ -109,7 +106,7 @@ export const intervalBonus: SystemFn = (world, params, dt) => {
     const mult = (world.state[multKey] as number) ?? 1;
     const paid = amount * mult;
     world.state[coinsKey] = ((world.state[coinsKey] as number) ?? 0) + paid;
-    // IC-4: a routine periodic trickle should not play the game's "win" cue.
+    // A routine periodic trickle should not play the game's "win" cue.
     world.audio.play("collect");
     world.events.emit("bonus", { amount: paid });
   }
@@ -122,10 +119,9 @@ export const intervalBonus: SystemFn = (world, params, dt) => {
  * request it banks the current coins (`bankKey`, for the "Banked N" readout), bumps
  * the permanent multiplier (`multKey`) by `bonus` ($cfg), and RESETS the run's
  * progress (coins→0, clickPower→base, autoRate→base, upgrades→{}) so prestige is a
- * fresh, faster run. Emits `prestige`. This replaces the host prestige-button
- * economics (the multiplier + reset used to live in main.ts) — only the button
- * wiring (set the flag) stays host UI. Balance ($cfg): `bonus`, `baseClickPower`,
- * `baseAutoRate`.
+ * fresh, faster run. Emits `prestige`. The economics live here in data — only the
+ * button wiring (set the flag) stays host UI. Balance ($cfg): `bonus`,
+ * `baseClickPower`, `baseAutoRate`.
  * Params: `requestKey`, `coinsKey`, `multKey`, `bonus` ($cfg), `powerKey`,
  *         `basePower` ($cfg), `rateKey`, `baseRate` ($cfg), `levelsKey`, `bankKey`.
  */

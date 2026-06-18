@@ -4,25 +4,13 @@
  * custom systems (`tower-build`, `creep-accounting`). 100% of the balance is in
  * config.json (no value is hardcoded in host glue).
  *
- * 0.2.0 ADOPTION — what used to be host TypeScript is now DATA:
- *   • G3 tilemap: the road is one data tilemap (drawn + queried via
- *     `world.isBuildable`); `tower-build` refuses the road. The rectangle `path`
- *     entities are GONE — towers on the road are impossible by construction.
- *   • G2 click-to-place: the host `canvas.addEventListener("pointerdown" → state.
- *     placeRequest)` is GONE; `tower-build` reads the SDK click EDGE directly.
- *   • G4/G5: grid-snap via `snapToGrid`; placement cost routed through the library
- *     `transaction` system (afford → deduct → emit).
- *   • G1 flow: title → play → over are DATA scenes (`flow.on` + `tap-emit`); the
- *     305-line GameShell is DELETED and the game runs the real `game.start()` loop
- *     (so the click edge clears every frame — the Idle Clicker lesson).
- *
- * What REMAINS host (no data primitive covers it):
+ * What stays host (no data primitive covers it):
  *   • the HTML upgrade bar (rich cost labels + affordability dimming the canvas
  *     renderer can't do) — it only SETS the data `upgradeRequest` flag;
  *   • a residual mirror for the two-value outcome summary (the single-value HUD
- *     readouts — Gold/Wave/Leaked/best/outcome title — are DATA now via the library
- *     `format-binding` system in each scene, E2);
- *   • a screen-FX juice bind + the audio gesture + a keyboard bridge to the flow.
+ *     readouts — Gold/Wave/Leaked/best/outcome title — are DATA, via the library
+ *     `format-binding` system in each scene);
+ *   • a screen-FX juice bind + the audio gesture.
  */
 import { createGame } from "@gitcade/sdk";
 import type { World } from "@gitcade/sdk";
@@ -54,9 +42,7 @@ const playing = () => game.scene.id === "play";
 // --- upgrade bar → data request flag (HTML chrome; the economy is data) --------
 // The bottom bar stays HTML host UI (rich cost labels + affordability dimming),
 // but it only SETS the `upgradeRequest` flag the data `upgrade-tree` consumes — no
-// economy logic lives here. (Prior audit suspected these weren't wired: the real
-// cause was the GameShell's own loop never draining the click edge; on the real
-// game.start() loop the flag is consumed every tick.)
+// economy logic lives here.
 const upgradeDefs = [
   { up: "range", label: "Range", cost: cfg.upgradeRangeCost, growth: cfg.upgradeRangeGrowth, max: cfg.upgradeRangeMax },
   { up: "firerate", label: "Fire rate", cost: cfg.upgradeFirerateCost, growth: cfg.upgradeFirerateGrowth, max: cfg.upgradeFirerateMax },
@@ -98,10 +84,10 @@ function updateBar(w: World): void {
 // --- HUD mirrors (presentation strings the canvas text sprites bind to) --------
 function mirror(): void {
   const w = world;
-  // The HUD strings (gold/wave/leak/bestWave/outcomeTitle/buildHint) are DATA now —
-  // the library `format-binding` system in each scene templates them (E2). Only the
-  // host-bound bits remain: the HTML upgrade bar, and the two-value outcome summary
-  // (one format-binding writes one value; this line interpolates wave AND leaked).
+  // The HUD strings (gold/wave/leak/bestWave/outcomeTitle/buildHint) are DATA — the
+  // library `format-binding` system in each scene templates them. Only the host-bound
+  // bits remain: the HTML upgrade bar, and the two-value outcome summary (one
+  // format-binding writes one value; this line interpolates wave AND leaked).
   if (playing()) updateBar(w);
   if (game.scene.id === "over") {
     w.state.outcomeSummary = `Reached wave ${Math.max(1, (w.state.wave as number) ?? 0)} · leaked ${(w.state.leaked as number) ?? 0}`;
@@ -120,11 +106,11 @@ requestAnimationFrame(syncBarVisibility);
 
 // --- screen-FX juice (presentation only) ---------------------------------------
 // Screen-level FX is reserved for SCREEN-WIDE, low-frequency events: a life lost to
-// a leak (a brief red vignette) and game-over (a hard shake). The routine, high-
-// frequency actions — placing a turret, a denied mis-tap — used to flash the WHOLE
-// screen (the reported green flash); that feedback is now LOCAL, emitted at the cell
-// by the data `sparkle`/`explosion` systems in play.json. A creep kill keeps a tiny
-// 3px shake to punch the local death burst (the `explosion` system) without flashing.
+// a leak (a brief red vignette) and game-over (a hard shake). Routine, high-frequency
+// actions — placing a turret, a denied mis-tap — get LOCAL feedback instead, emitted
+// at the cell by the data `sparkle`/`explosion` systems in play.json, so they never
+// flash the whole screen. A creep kill keeps a tiny 3px shake to punch the local death
+// burst (the `explosion` system) without flashing.
 const fx = new ScreenEffects();
 fx.bindToEvents(world, {
   "creep-killed": (f) => f.shake(3, 0.1, 50),
@@ -176,10 +162,10 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
-// on each title/over flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
+// Keyboard flow access (Enter/Space → start/retry) is DATA — a `key-emit` behavior on
+// each title/over flow button, the keyboard companion to `tap-emit`. No host bridge.
 
-// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// --- pause overlay + audio ------------------------------------------------------
 // `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
 // `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
 // forwards the on-screen button to `togglePause`. No setPaused state machine.
@@ -195,12 +181,7 @@ if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// The desktop build-preview hover bridge is GONE (E9): the data `build-preview` system
-// reads the SDK's button-less cursor channel (`world.input.cursor()`) directly, so the
-// host `pointermove → world.state.buildHover` listener and its manual screen→world
-// transform are no longer needed. The SDK already does that transform for every pointer.
-
-// Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
+// debug handle: inspect the running game from the devtools console.
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

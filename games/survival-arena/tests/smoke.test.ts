@@ -36,7 +36,7 @@ const park = (game: ReturnType<typeof boot>) => {
   }
 };
 
-describe("survival-arena smoke (0.2.0 data flow)", () => {
+describe("survival-arena smoke (data flow)", () => {
   it("boots the entry (title) scene and runs frames without throwing", () => {
     const game = boot();
     expect(game.scene.id).toBe("title");
@@ -93,9 +93,9 @@ describe("survival-arena smoke (0.2.0 data flow)", () => {
     expect(lvlHigh).toBeGreaterThan(lvl1);
     // scale-by-state toughens enemies at the higher level. HP is read off entity
     // state, but SPEED must be measured as ACTUAL DISPLACEMENT, not post-tick vx:
-    // the 0.3.1 bug ran scale-by-state(multiply) AFTER the `velocity` integrator, so
-    // e.vx showed the scaled value while the enemy never actually moved faster.
-    // Snapshot positions, advance ONE tick, and measure displacement/dt.
+    // if scale-by-state(multiply) ran AFTER the `velocity` integrator, e.vx would show
+    // the scaled value while the enemy never actually moved faster. This guards that
+    // ordering. Snapshot positions, advance ONE tick, and measure displacement/dt.
     const dt = 1 / 60;
     let maxHp = 0;
     const before = new Map<string, { x: number; y: number }>();
@@ -154,11 +154,10 @@ describe("survival-arena smoke (0.2.0 data flow)", () => {
 });
 
 /**
- * E2 (0.4.0) — the per-frame host mirror is gone; the `format-binding` system in each
- * scene derives the HUD as DATA: a const max, a child-entity hp source, a ceil, and a
- * value→label outcome map.
+ * The HUD is DATA: the `format-binding` system in each scene derives it — a const max,
+ * a child-entity hp source, a ceil, and a value→label outcome map.
  */
-describe("survival-arena HUD (E2 format-binding)", () => {
+describe("survival-arena HUD (format-binding)", () => {
   it("derives hp/maxHp/clock on play from data (entity-state source + const + ceil)", () => {
     const game = boot();
     game.world.events.emit("start-pressed");

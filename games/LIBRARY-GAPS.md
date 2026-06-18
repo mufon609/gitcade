@@ -1,9 +1,9 @@
-# LIBRARY-GAPS.md — Generalization Candidates from Phase 3
+# LIBRARY-GAPS.md — Generalization Candidates
 
-Phase 3 built six seed games composing **only** `@gitcade/library` + SDK parts. Where a
-game genuinely needed a mechanic no catalog part provides, it was written as a
-**param-driven custom part** in that game's `src/custom-behaviors/` (all balance via `$cfg`,
-so it still passes `gitcade validate`) and logged here as a candidate for promotion into a
+The six seed games compose **only** `@gitcade/library` + SDK parts. Where a game
+genuinely needs a mechanic no catalog part provides, it lives as a **param-driven
+custom part** in that game's `src/custom-behaviors/` (all balance via `$cfg`, so it
+still passes `gitcade validate`) and is logged here as a candidate for promotion into a
 future `@gitcade/library` minor release.
 
 These are **proposals for a later library phase** — nothing here changes a frozen contract.

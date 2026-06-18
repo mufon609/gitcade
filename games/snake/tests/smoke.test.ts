@@ -10,11 +10,11 @@ import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 
 /**
  * The headless smoke boot `gitcade validate` defers to (Snake uses custom parts +
- * library parts the default registry can't supply). Boots the 0.2.0 three-scene
- * flow on the full library + custom registry and exercises the data-driven
- * transitions with no canvas — title → play → over → play — asserting the snake
- * food appears, a death routes to the game-over scene, score hands off, and a
- * retry returns to play, all without throwing.
+ * library parts the default registry can't supply). Boots the three-scene flow on
+ * the full library + custom registry and exercises the data-driven transitions with
+ * no canvas — title → play → over → play — asserting the snake food appears, a death
+ * routes to the game-over scene, score hands off, and a retry returns to play, all
+ * without throwing.
  */
 /**
  * A tiny deterministic PRNG (mulberry32). Snake's food/coin placement draws from
@@ -40,7 +40,7 @@ function boot() {
   return createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry, rng: seededRng(0x5eed) });
 }
 
-describe("snake smoke (0.2.0 data flow)", () => {
+describe("snake smoke (data flow)", () => {
   it("boots the entry (title) scene and runs frames without throwing", () => {
     const game = boot();
     expect(game.scene.id).toBe("title");
@@ -87,12 +87,11 @@ describe("snake smoke (0.2.0 data flow)", () => {
 });
 
 /**
- * E1 (0.4.0) — the real play.json wiring end-to-end: the `input-actions` system
- * installs the `move` action and `move-grid-step{moveAction:"move"}` steers by it,
- * so BOTH a real keyboard event AND the touch d-pad's `setActionVector` turn the
- * head — proving the synthesized-`KeyboardEvent` bandaid is fully retired.
+ * The real play.json wiring end-to-end: the `input-actions` system installs the
+ * `move` action and `move-grid-step{moveAction:"move"}` steers by it, so BOTH a real
+ * keyboard event AND the touch d-pad's `setActionVector` turn the head.
  */
-describe("snake input action layer (E1)", () => {
+describe("snake input action layer", () => {
   function bootPlay() {
     const registry = createLibraryRegistry();
     registerCustomBehaviors(registry);
@@ -126,11 +125,11 @@ describe("snake input action layer (E1)", () => {
 });
 
 /**
- * E3 (key-emit) + E4 (engine pause) — the keyboard flow bridge and the host pause
- * state machine are gone: a real Enter on the title fires the flow as DATA, and the
- * engine owns the pause (guarded by `pauseScenes`, emitting `pause-changed`).
+ * The keyboard flow and pause are data/engine-owned: a real Enter on the title fires
+ * the flow as DATA (via `key-emit`), and the engine owns the pause (guarded by
+ * `pauseScenes`, emitting `pause-changed`).
  */
-describe("snake flow + pause (E3 key-emit / E4 pause)", () => {
+describe("snake flow + pause (key-emit / engine pause)", () => {
   it("a real Enter on the title fires start-pressed via key-emit → play (no host bridge)", () => {
     const registry = createLibraryRegistry();
     registerCustomBehaviors(registry);
@@ -145,7 +144,7 @@ describe("snake flow + pause (E3 key-emit / E4 pause)", () => {
     expect(game.scene.id).toBe("play");
   });
 
-  it("togglePause is engine-owned: guarded off the title, works on play, emits pause-changed (E4)", () => {
+  it("togglePause is engine-owned: guarded off the title, works on play, emits pause-changed", () => {
     const registry = createLibraryRegistry();
     registerCustomBehaviors(registry);
     // Mirror main.ts's createGame opts: pause only on the play scene.

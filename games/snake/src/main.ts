@@ -3,14 +3,11 @@
  * three JSON scenes (title → play → over) wired by `flow.on` edges, composing
  * @gitcade/library + SDK parts plus two custom parts (`snake-body`, `snake-guard`).
  *
- * 0.2.0 made the screen flow expressible as DATA (scene `flow`, `tap-emit`,
- * declarative `persist`), so the old ~305-line GameShell screen-state machine and
- * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
- * data primitive: the library audio, screen juice (flash/shake), the mobile touch
- * d-pad (which drives the data-defined `move` ACTION via `input.setActionVector`,
- * NOT synthesized key events — the keyboard half is the `input-actions` system),
- * a pause toggle (freezing the sim is a host-loop concern), and an Enter/Space
- * bridge that mirrors the on-screen flow buttons for keyboard players. No balance
+ * The screen flow is data (scene `flow`, `tap-emit`, declarative `persist`), so this
+ * file keeps ONLY host concerns that have no data primitive: the library audio,
+ * screen juice (flash/shake), the mobile touch d-pad (which drives the data-defined
+ * `move` ACTION via `input.setActionVector` — the keyboard half is the `input-actions`
+ * system), and a pause toggle (freezing the sim is a host-loop concern). No balance
  * or game logic lives here.
  */
 import { createGame } from "@gitcade/sdk";
@@ -39,9 +36,9 @@ const game = createGame(
 // SCREEN effects are reserved for big, infrequent moments. Death is one: the same
 // `snake-dead` the play scene's `flow.on` edge routes to game-over gets a shake +
 // red flash — proportionate to losing the run. Eating a coin is the single most
-// frequent action, so it does NOT get a full-screen flash (that read as a strobe);
+// frequent action, so it does NOT get a full-screen flash (that reads as a strobe);
 // its feedback is LOCAL — the `sparkle` FX system in play.json bursts particles at
-// the eaten cell, plus the existing `collect` sound. (0.3.0 audit, snake-01.)
+// the eaten cell, plus the existing `collect` sound.
 const fx = new ScreenEffects();
 fx.bindToEvents(game.world, {
   "snake-dead": (f) => {
@@ -94,13 +91,10 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
-// on each title/over flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
-
-// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// --- pause overlay + audio --------------------------------------------------
 // `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
 // `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
-// forwards the on-screen button to `togglePause`. No setPaused state machine.
+// forwards the on-screen button to `togglePause`.
 const pauseOverlay = document.getElementById("pause-overlay");
 game.world.events.on("pause-changed", (e) => {
   if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
@@ -113,13 +107,11 @@ if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- mobile touch d-pad (drives the data-defined `move` ACTION; no synth keys) ---
+// --- mobile touch d-pad (drives the data-defined `move` ACTION) -------------
 // Each button reports its direction as HELD; we fold the held set into a vector and
 // push it through the SDK input layer (`setActionVector`), which `move-grid-step`
 // reads via its `moveAction:"move"` param — the exact same channel the keyboard
-// `input-actions` binding feeds. This replaces the old `dispatchEvent(KeyboardEvent)`
-// bandaid: touch and keyboard now share one logical action instead of the game
-// faking browser key events to reach a keyboard-only mover.
+// `input-actions` binding feeds, so touch and keyboard share one logical action.
 interface TouchControl {
   dir: "up" | "down" | "left" | "right";
   label: string;
@@ -163,8 +155,7 @@ if (pad) {
   }
 }
 
-// Observation hook for the Stage-4 playthrough harness (audit/harness/snake) —
-// read-only; harmless in production.
+// debug handle: inspect the running game from the devtools console
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

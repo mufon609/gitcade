@@ -3,22 +3,19 @@
  * six JSON scenes (title → level-1 → level-2 → level-3 → win / over) wired by
  * `flow.on` edges, composing only @gitcade/library + SDK parts (no custom code).
  *
- * 0.2.0 made the screen flow AND the level progression expressible as DATA (scene
- * `flow`, `tap-emit`, declarative `persist`), so the old ~305-line GameShell
- * screen-state machine and its HTML menu overlays are GONE. The level-to-level
- * advance is a `flow.on` edge per level scene (`level-cleared → level-2`, etc.),
- * driven by the library `level-progression` system — not host code.
+ * The screen flow and the level progression are DATA (scene `flow`, `tap-emit`,
+ * declarative `persist`): the level-to-level advance is a `flow.on` edge per level
+ * scene (`level-cleared → level-2`, etc.), driven by the library `level-progression`
+ * system — not host code.
  *
  * This file keeps ONLY host concerns that have no data primitive: the library
  * audio, screen juice (flash/shake), a pause toggle (freezing the sim is a host-
  * loop concern), and an Enter/Space bridge that mirrors the on-screen flow buttons
  * for keyboard players. No balance or game logic lives here.
  *
- * 0.4.0 (E1): the mobile touch pad that synthesized arrow keys is GONE. The paddle
- * now uses the SDK `keyboard-axis` mover, which natively supports DRAG-to-move on
- * touch (move toward the finger) — the right primitive all along; the old keyboard-
- * only `move-4dir` + a synthesized-`KeyboardEvent` d-pad was a workaround for using
- * the wrong mover. Desktop keyboard play is byte-identical.
+ * The paddle uses the SDK `keyboard-axis` mover, which natively supports DRAG-to-move
+ * on touch (move toward the finger) — the right primitive for a paddle, so no separate
+ * touch handling is needed.
  */
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
@@ -47,9 +44,9 @@ const game = createGame(
 
 // --- screen juice (presentation only) ---------------------------------------
 // Bind only BIG, INFREQUENT moments → flash/shake. Routine feedback (breaking a
-// brick — the single most frequent action) is now LOCAL: an `explosion` particle
-// burst at the broken brick, declared as scene data (see each level's FX system),
-// not a screen effect. Reserving the screen for rare events keeps the per-hit feel
+// brick — the single most frequent action) is LOCAL: an `explosion` particle burst
+// at the broken brick, declared as scene data (see each level's FX system), not a
+// screen effect. Reserving the screen for rare events keeps the per-hit feel
 // punchy without a constant whole-screen jiggle. These remaining bindings fire on
 // the scene events the library parts emit: ball-lost (trigger-zone), level-cleared
 // (level-progression), gameover (lives-respawn).
@@ -107,10 +104,10 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
-// on each title/win/over flow button (E3), the keyboard companion to `tap-emit`.
+// Keyboard flow access (Enter/Space → start/retry) is DATA — a `key-emit` behavior
+// on each title/win/over flow button, the keyboard companion to `tap-emit`.
 
-// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// --- pause overlay + audio (the SDK owns the freeze + Esc/P key) --------------
 // `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
 // `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
 // forwards the on-screen button to `togglePause`. No setPaused state machine.
@@ -129,12 +126,10 @@ document.addEventListener("visibilitychange", syncAudio);
 // --- mobile touch: NONE needed (the paddle's keyboard-axis mover has it) -----
 // The paddle uses the SDK `keyboard-axis` mover with `touch:true`, so touching/
 // dragging on the canvas moves it toward the finger — the classic breakout control.
-// The old DOM left/right buttons that synthesized arrow-key events are GONE; the
-// `#touch` overlay is `pointer-events:none`, so its now-empty region passes touches
-// straight through to the canvas where the mover reads them.
+// The `#touch` overlay is `pointer-events:none`, so touches pass straight through to
+// the canvas where the mover reads them.
 
-// Observation hook for the Stage-4 playthrough harness (audit/harness/breakout) —
-// read-only; harmless in production.
+// debug handle: inspect the running game from the devtools console.
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

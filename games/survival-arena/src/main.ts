@@ -2,24 +2,20 @@
  * Survival Arena bootstrap (host glue). The GAME is data — game.json + config.json +
  * the three JSON scenes (title → play → over) wired by `flow.on` edges, composing
  * @gitcade/library + SDK parts ONLY. There are NO custom behaviors: the level-driven
- * enemy toughness/speed ramp (once `swarm-scale`, LIBRARY-GAPS #8) is now pure DATA via
- * two library `scale-by-state` instances in play.json. See custom-behaviors/index.ts.
+ * enemy toughness/speed ramp is pure DATA via two library `scale-by-state` instances
+ * in play.json. See custom-behaviors/index.ts.
  *
- * 0.2.0 made the screen flow expressible as DATA (scene `flow`, `tap-emit`,
- * declarative `persist`), so the old ~306-line GameShell screen-state machine and
- * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
- * data primitive: the library audio, the FX SHOWCASE *screen-level* juice (the
- * per-kill burst is DATA — a local `explosion` at each dead enemy; the host owns only
- * the screen-shake/flash the frozen renderer can't do from a behavior: a small shake
- * when the PLAYER is hit, a bigger shake + red flash on death, a blue flash on
- * level-up), an Enter bridge mirroring the on-screen flow buttons for keyboard
- * players, and a pause toggle (freezing the sim is a host-loop concern). No balance
- * or game logic lives here.
+ * The screen flow is DATA (scene `flow`, `tap-emit`, declarative `persist`). This file
+ * keeps ONLY host concerns that have no data primitive: the library audio, the FX
+ * SHOWCASE *screen-level* juice (the per-kill burst is DATA — a local `explosion` at
+ * each dead enemy; the host owns only the screen-shake/flash the frozen renderer can't
+ * do from a behavior: a small shake when the PLAYER is hit, a bigger shake + red flash
+ * on death, a blue flash on level-up), and a pause toggle (freezing the sim is a
+ * host-loop concern). No balance or game logic lives here.
  *
- * 0.4.0 (E2): the per-frame HUD mirror is GONE — the library `format-binding` system
- * in each scene now derives the HUD as DATA (player hp → the bar's `hp`/`maxHp`, the
- * float timer → an integer `clock`, `best` → `bestDisplay`, and the win/lose `outcome`
- * → the game-over headline).
+ * The HUD is DATA too: the library `format-binding` system in each scene derives it
+ * (player hp → the bar's `hp`/`maxHp`, the float timer → an integer `clock`, `best` →
+ * `bestDisplay`, and the win/lose `outcome` → the game-over headline).
  */
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects, throttle } from "@gitcade/library";
@@ -62,8 +58,7 @@ const game = createGame(
 //  - a level-up               → a blue flash (rare, and paired with a sparkle burst).
 const fx = new ScreenEffects();
 fx.bindToEvents(game.world, {
-  // `throttle` (library, 0.3.1) caps the shake to once per 220ms so a swarm pile-on
-  // can't strobe — the shared helper that generalizes this game's audit fix.
+  // `throttle` caps the shake to once per 220ms so a swarm pile-on can't strobe.
   "damage": throttle(220, (f, data) => {
     if ((data as { target?: unknown } | null)?.target !== "player") return;
     f.shake(7, 0.2, 40);
@@ -116,10 +111,10 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
-// on each title/over flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
+// Keyboard flow access (Enter/Space → start/retry) is DATA — a `key-emit` behavior on
+// each title/over flow button, the keyboard companion to `tap-emit`. No host bridge.
 
-// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// --- pause overlay + audio ----------------------------------------------------
 // `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
 // `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
 // forwards the on-screen button to `togglePause`. No setPaused state machine.
@@ -135,8 +130,7 @@ if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// Observation hook for the Stage-4 playthrough harness (audit/harness/survival-arena)
-// — read-only; harmless in production.
+// debug handle: inspect the running game from the devtools console.
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

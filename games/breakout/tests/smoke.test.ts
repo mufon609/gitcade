@@ -12,15 +12,15 @@ import win from "../src/scenes/win.json";
 import over from "../src/scenes/over.json";
 
 /**
- * The headless smoke boot `gitcade validate` defers to. Boots the 0.2.0 six-scene
- * flow (title → level-1 → level-2 → level-3 → win / over) on the full library +
- * custom registry with no canvas and exercises the data-driven transitions: a
- * started run launches the ball and breaks bricks; clearing a level advances to the
- * next via the `level-cleared` flow edge (carrying score/lives/level); clearing the
- * last level wins; draining lives routes to game-over — all without throwing.
+ * The headless smoke boot `gitcade validate` defers to. Boots the six-scene flow
+ * (title → level-1 → level-2 → level-3 → win / over) on the full library + custom
+ * registry with no canvas and exercises the data-driven transitions: a started run
+ * launches the ball and breaks bricks; clearing a level advances to the next via the
+ * `level-cleared` flow edge (carrying score/lives/level); clearing the last level
+ * wins; draining lives routes to game-over — all without throwing.
  *
- * Breakout ships no custom behaviors, so registerCustomBehaviors is a no-op today —
- * but calling it (like the other games + the scaffold) means a remix that vendors a
+ * Breakout ships no custom behaviors, so registerCustomBehaviors is a no-op — but
+ * calling it (like the other games + the scaffold) means a remix that vendors a
  * community part into a breakout fork installs the managed custom-behaviors registry,
  * and THIS smoke test then registers the vendored behavior instead of throwing
  * "unknown behavior type" during ecosystem validation.
@@ -45,7 +45,7 @@ function clearLevel(game: ReturnType<typeof boot>) {
   game.stepFrames(3);
 }
 
-describe("breakout smoke (0.2.0 data flow + levels)", () => {
+describe("breakout smoke (data flow + levels)", () => {
   it("boots the entry (title) scene", () => {
     const game = boot();
     expect(game.scene.id).toBe("title");
@@ -107,12 +107,11 @@ describe("breakout smoke (0.2.0 data flow + levels)", () => {
 });
 
 /**
- * E1 (0.4.0) — the paddle now uses the SDK `keyboard-axis` mover (which natively
- * supports drag-to-move touch), replacing the keyboard-only `move-4dir` + a
- * synthesized-`KeyboardEvent` d-pad. So a real ArrowRight keydown AND a touch/drag
- * to the right both push the paddle right — keyboard play byte-identical, touch free.
+ * The paddle uses the SDK `keyboard-axis` mover, which natively supports drag-to-move
+ * touch. So a real ArrowRight keydown AND a touch/drag to the right both push the
+ * paddle right.
  */
-describe("breakout paddle input (E1)", () => {
+describe("breakout paddle input", () => {
   function bootLevel() {
     const registry = createLibraryRegistry();
     registerCustomBehaviors(registry);

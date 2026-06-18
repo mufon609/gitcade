@@ -1,30 +1,19 @@
 /**
  * Idle Clicker bootstrap (host glue). The GAME is data — game.json + config.json +
  * src/scenes/{title,play}.json composing the library `currency` + `upgrade-tree`
- * (G5 economy) with four small custom economy systems (`click-to-earn`,
- * `auto-income`, `interval-bonus`, `prestige` — the idle loop the action library
- * doesn't cover; logged in LIBRARY-GAPS.md). 100% of the balance is in config.json.
+ * economy with four small custom economy systems (`click-to-earn`, `auto-income`,
+ * `interval-bonus`, `prestige` — the idle loop the action library doesn't cover;
+ * logged in LIBRARY-GAPS.md). 100% of the balance is in config.json. Flow is
+ * `title → play`, also data.
  *
- * 0.2.0 ADOPTION — what used to be host TypeScript is now DATA:
- *   • G2 click-to-earn: the canvas `pointerdown` listener that incremented
- *     `world.state.clicks` is GONE. The `click-to-earn` system reads the SDK click
- *     EDGE (`input.justReleased()` + `entityAt`) on the coin directly.
- *   • G6 persistence: the host save/load/autosave (snapshot/setInterval/visibility/
- *     pagehide) is GONE. `manifest.persist` + the library `persistence` system
- *     round-trip coins/clickPower/autoRate/upgrades/prestigeMult/lastSeen through
- *     the SDK storage bridge.
- *   • G5 purchases & prestige: buying routes through `upgrade-tree`; prestige
- *     economics (bank + multiplier + reset) moved to the data `prestige` system.
- *     The GameShell screen-state machine is GONE — flow is `title → play` data.
- *
- * What REMAINS host (no data primitive covers it):
+ * What lives host-side (no data primitive covers it):
  *   • the HTML shop bar (rich cost labels + affordability dimming) — it only SETS
  *     the data request flags (`upgradeRequest` / `prestigeRequest`);
  *   • a residual host mirror for the prestige-threshold label + conditional hint
- *     (the numeric coins/rate/power/bonus readouts are DATA now — `format-binding`, E2);
+ *     (the numeric coins/rate/power/bonus readouts are DATA — `format-binding`);
  *   • a tiny screen-FX juice bind (flash on click/bonus/denied);
- *   • the OFFLINE-CREDIT shim (OQ-4, out of 0.2.0 scope): a timestamp + a credit
- *     formula on top of G6's value persistence — see `applyOfflineCredit` below.
+ *   • the offline-credit shim: a timestamp + a credit formula on top of the value
+ *     persistence — see `armOfflineCredit` below.
  */
 import { createGame } from "@gitcade/sdk";
 import type { World } from "@gitcade/sdk";
@@ -68,7 +57,7 @@ if (prestigeBtn) {
   });
 }
 
-// IC-2: bind the shop-bar cost labels to config.json + the live growth-scaled cost
+// Bind the shop-bar cost labels to config.json + the live growth-scaled cost
 // (mirrors upgrade-tree's `Math.round(cost * growth^owned)`), so the "100% config-
 // driven" claim holds for the UI and the price tracks purchases. Each label shows
 // the owned level and dims when unaffordable / maxed.
@@ -104,27 +93,25 @@ function updateShop(w: World): void {
   }
 }
 
-// --- OFFLINE-CREDIT shim (OQ-4 — OUT of 0.2.0 scope, deliberately tiny) --------
+// --- offline-credit shim (deliberately tiny) ----------------------------------
 // Computing earnings-while-away needs a saved wall-clock timestamp + a game-specific
 // credit formula — NOT a generic engine primitive, and crucially it needs `Date.now()`,
-// which must stay OUT of the deterministic sim (so it's host-side, never a system). G6
-// persistence handles the VALUE round-trip (incl. `lastSeen`); this shim does only the
-// two things G6 can't:
+// which must stay OUT of the deterministic sim (so it's host-side, never a system). The
+// persistence system handles the VALUE round-trip (incl. `lastSeen`); this shim does only
+// the two things persistence can't:
 //   1. on resume, credit `autoRate × elapsed × mult` (capped at `offlineCapSeconds`) once;
 //   2. heartbeat `world.state.lastSeen = Date.now()` so the next save records "now" as the
 //      away-point (started AFTER step 1 so it can't clobber the read).
 //
 // ORDERING: credit on TOP of the RESTORED `coins`, never a pre-restore (empty) state. We
-// await the deterministic restore signal `world.whenRestored(["coins"])` (0.3.1, IC-9)
-// rather than polling `isPersistPending`. The old poll had to gate on two DURABLE proxies
-// (a play tick having run + the pending flag clearing) because the production bridge store
-// is SYNCHRONOUS — the claim was placed AND released inside the macrotask gap between two
-// rAF frames, so the transient pending=true window was never observed and the credit was
-// silently DROPPED in production. `whenRestored` removes the race: it resolves exactly once
-// the restore has written the saved values and released the claim (or immediately if that
-// already happened), and never trivially before the claim. We ARM it once the play scene is
-// live — so the wait belongs to play, after `loadScene`'s scene-scoped reset — then the
-// restore (which writes the whole key batch, `lastSeen` included) credits once.
+// await the deterministic restore signal `world.whenRestored(["coins"])` rather than polling
+// `isPersistPending`: the production bridge store is SYNCHRONOUS, so the pending claim is
+// placed AND released inside the macrotask gap between two rAF frames, and a poll would never
+// observe the transient pending window. `whenRestored` resolves exactly once the restore has
+// written the saved values and released the claim (or immediately if that already happened),
+// and never trivially before the claim. We ARM it once the play scene is live — so the wait
+// belongs to play, after `loadScene`'s scene-scoped reset — then the restore (which writes
+// the whole key batch, `lastSeen` included) credits once.
 let offlineApplied = false;
 let offlineArmed = false;
 
@@ -141,7 +128,7 @@ function armOfflineCredit(): void {
       const rate = (world.state.autoRate as number) ?? 0;
       const mult = (world.state.prestigeMult as number) ?? 1;
       if (rate > 0) {
-        // The capped-accrual formula is the library `cappedOfflineGain` (0.3.2) —
+        // The capped-accrual formula is the library `cappedOfflineGain` —
         // floor(rate*mult × min(elapsed, cap)). `Date.now()` stays here in host glue
         // (it must never enter the deterministic sim), which is why this is a util.
         const gain = cappedOfflineGain(rate * mult, lastSeen, Date.now(), cfg.offlineCapSeconds);
@@ -162,8 +149,8 @@ function mirror(): void {
     // Arm the offline-earnings credit once play is live; it fires when the persistence
     // restore lands (before the heartbeat below overwrites the saved `lastSeen`).
     armOfflineCredit();
-    // The numeric HUD strings (coins/rate/power/bonus) are DATA now — the library
-    // `format-binding` system in play.json compacts/templates them (E2). Only the
+    // The numeric HUD strings (coins/rate/power/bonus) are DATA — the library
+    // `format-binding` system in play.json compacts/templates them. Only the
     // genuinely host-side bits remain below: the prestige-multiplier threshold label,
     // the conditional hint default (which the offline credit message overrides), the
     // offline `lastSeen` heartbeat, and the HTML shop bar.
@@ -182,10 +169,10 @@ requestAnimationFrame(mirror);
 // SCREEN effects are reserved for the big, infrequent moment. Prestige — a deliberate
 // run-resetting reset-for-a-multiplier — gets the flash + shake; it's rare and major,
 // so it's proportionate (the same bar snake/tower-defense use: screen FX = big moments).
-// The high-frequency actions are now LOCAL instead of full-screen flashes (IC-FX,
-// the audit headline): clicking the coin (the single most frequent action) and the
-// periodic bonus burst particles via the `sparkle` FX systems in play.json, at the
-// tap point / coin — a per-click screen flash read as a strobe.
+// High-frequency actions stay LOCAL instead of full-screen flashes (a per-click screen
+// flash reads as a strobe): clicking the coin (the single most frequent action) and the
+// periodic bonus burst particles via the `sparkle` FX systems in play.json, at the tap
+// point / coin.
 const fx = new ScreenEffects();
 fx.bindToEvents(world, {
   prestige: (f) => {
@@ -193,7 +180,7 @@ fx.bindToEvents(world, {
     f.shake(8, 0.3, 36);
   },
 });
-// IC-3: a rejected buy gets a cue instead of silently no-op'ing — but LOCAL to the
+// A rejected buy gets a cue instead of silently no-op'ing — but LOCAL to the
 // button that was denied (the event carries its id), not a full-screen flash for a
 // minor mis-tap. The shop buttons are HTML, so the cue lives in the DOM next to them.
 world.events.on("upgrade-denied", (data) => {
@@ -252,10 +239,10 @@ window.addEventListener("keydown", (e) => {
 // Mute while the tab is backgrounded (the music loop shouldn't play to an empty room).
 document.addEventListener("visibilitychange", syncAudio);
 
-// Keyboard flow access (Enter/Space → start) is DATA now — a `key-emit` behavior on the
-// title flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
+// Keyboard flow access (Enter/Space → start) is DATA — a `key-emit` behavior on the
+// title flow button, the keyboard companion to `tap-emit`. No host bridge.
 
-// Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
+// debug handle: inspect the running game from the devtools console
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();

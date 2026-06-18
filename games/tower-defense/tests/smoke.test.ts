@@ -12,19 +12,18 @@ import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 type Cfg = Record<string, number>;
 
 /**
- * The headless smoke boot `gitcade validate` defers to. Tower Defense (game #6,
- * 0.2.0) uses every new primitive: a G3 data-tilemap road (towers refused on it),
- * G2 click-to-place, G4 grid-snap, the G5 `transaction` buy, and a G1 data flow
- * (title → play → over). This test exercises the whole loop headlessly AND locks:
+ * The headless smoke boot `gitcade validate` defers to. Tower Defense composes a
+ * data-tilemap road (towers refused on it), click-to-place, grid-snap, the
+ * `transaction` buy, and a data flow (title → play → over). This test exercises the
+ * whole loop headlessly AND locks:
  *   - the headline fix: a tower CANNOT be built on a road/lane tile;
- *   - the TD2 invariant: the WIN is derived from the spawner config (maxWaves + the
- *     live creep count), never a hand-computed creep total;
- *   - E6 (0.4.0): a shared range/cooldown UPGRADE is now the data `stat-modifier`
- *     system — it raises every live tower AND every later-placed tower (the
- *     `restampTowers`/`stampDef` host code is gone);
- *   - E7 (0.4.0): the WIN itself is now data — a `win-lose-conditions@1.1.0`
- *     composite `{ all: [ wavesComplete-flag, creep-count==0 ] }` — so reaching
- *     `outcome:"win"` can ONLY have gone through that composed condition.
+ *   - the invariant: the WIN is derived from the spawner config (maxWaves + the live
+ *     creep count), never a hand-computed creep total;
+ *   - a shared range/cooldown UPGRADE is the data `stat-modifier` system — it raises
+ *     every live tower AND every later-placed tower;
+ *   - the WIN itself is data — a `win-lose-conditions@1.1.0` composite
+ *     `{ all: [ wavesComplete-flag, creep-count==0 ] }` — so reaching `outcome:"win"`
+ *     can ONLY have gone through that composed condition.
  */
 
 function totalCreepsFor(cfg: Cfg): number {
@@ -45,7 +44,7 @@ function boot(cfg: Cfg) {
   return { game, w: game.world };
 }
 
-/** Drive the REAL G2 click edge: push a release at (x,y), then step one tick so the
+/** Drive the REAL click edge: push a release at (x,y), then step one tick so the
  * build system sees it (and a second tick so `transaction` confirms the buy). */
 function clickBuild(game: Game, x: number, y: number): void {
   const released = game.world.input.justReleased() as { id: number; x: number; y: number }[];
@@ -63,7 +62,7 @@ const TOWER_SPOTS = [
 ];
 const UPGRADES = ["firerate", "range", "bounty"];
 
-/** The G1 flow ends a run by transitioning to the `over` scene (which wipes all but
+/** The data flow ends a run by transitioning to the `over` scene (which wipes all but
  * the persisted keys). So "is the game over?" is `scene.id === "over"`, and the
  * outcome/summary are read from play.flow.persist's carried keys. */
 function autoWin(cfg: Cfg, maxFrames = 60000) {
@@ -88,14 +87,14 @@ function autoWin(cfg: Cfg, maxFrames = 60000) {
 }
 
 describe("tower-defense smoke", () => {
-  it("enters play, places a turret on a CLICK (G2), and runs without throwing", () => {
+  it("enters play, places a turret on a CLICK, and runs without throwing", () => {
     const { game, w } = boot(config as Cfg);
     expect(game.scene.id).toBe("play");
 
     game.stepFrames(200);
     expect(w.query("creep").length).toBeGreaterThan(0);
 
-    // A click on buildable ground → the G2 edge + the G5 transaction spends gold.
+    // A click on buildable ground → the click edge + the transaction spends gold.
     const goldBefore = w.state.gold as number;
     clickBuild(game, 100, 60);
     expect(w.query("tower").length).toBe(1);
@@ -104,7 +103,7 @@ describe("tower-defense smoke", () => {
     expect(() => game.stepFrames(500)).not.toThrow();
   });
 
-  it("REFUSES to build on the road (G3 tilemap buildable:false) — the headline fix", () => {
+  it("REFUSES to build on the road (tilemap buildable:false)", () => {
     const { game, w } = boot(config as Cfg);
     game.stepFrames(60);
     const goldBefore = w.state.gold as number;
@@ -119,7 +118,7 @@ describe("tower-defense smoke", () => {
     expect(w.state.gold).toBe(goldBefore - (config as Cfg).towerCost);
   });
 
-  it("has NO standalone win total in config (the TD2 duplicate is gone)", () => {
+  it("has NO standalone win total in config (the win is a composed condition)", () => {
     expect(config).not.toHaveProperty("totalCreeps");
     expect(config).toHaveProperty("maxWaves");
   });
@@ -128,7 +127,7 @@ describe("tower-defense smoke", () => {
     const cfg = config as Cfg;
     const { game, w } = autoWin(cfg);
     expect(game.scene.id).toBe("over"); // the data flow ended the run
-    expect(w.state.outcome).toBe("win"); // E7: only the win-lose-conditions composite can set this now
+    expect(w.state.outcome).toBe("win"); // only the win-lose-conditions composite can set this
     expect(w.state.winner).toBe("player");
     expect(w.state.wave).toBe(cfg.maxWaves);
     expect(w.state.resolved).toBe(totalCreepsFor(cfg));
@@ -172,11 +171,11 @@ describe("tower-defense smoke", () => {
     expect(w.state.leaked as number).toBeGreaterThanOrEqual(cfg.maxLeak);
   });
 
-  // --- E6 (0.4.0): the shared range/cooldown upgrade is the data `stat-modifier` ---
+  // --- the shared range/cooldown upgrade is the data `stat-modifier` ---
   const aimRange = (t: Entity): number =>
     t.behaviors.find((b) => b.type === "ai-aim-and-fire")!.params.range as number;
 
-  it("E6: a range upgrade re-stamps EVERY live tower AND every later-placed one (no host restamp)", () => {
+  it("a range upgrade re-stamps EVERY live tower AND every later-placed one (data stat-modifier)", () => {
     const cfg = config as Cfg;
     const { game, w } = boot(cfg);
     w.state.gold = 1000; // fund the build + upgrade + second build outright
@@ -188,7 +187,7 @@ describe("tower-defense smoke", () => {
     expect(aimRange(first)).toBe(cfg.towerBaseRange);
 
     // Buy a range upgrade → world.state.towerRange climbs → the data stat-modifier
-    // stamps it onto the ALREADY-PLACED tower (the `restampTowers` host loop is gone).
+    // stamps it onto the ALREADY-PLACED tower.
     const before = w.state.towerRange as number;
     w.state.upgradeRequest = "range";
     game.stepFrames(2);
@@ -197,14 +196,14 @@ describe("tower-defense smoke", () => {
     expect(aimRange(first)).toBe(upgraded);
 
     // A tower placed AFTER the upgrade inherits the current range too — the prototype's
-    // $cfg base is corrected the same tick it spawns (the `stampDef` host stamp is gone).
+    // $cfg base is corrected the same tick it spawns.
     clickBuild(game, 180, 60);
     expect(w.query("tower").length).toBe(2);
     for (const t of w.query("tower")) expect(aimRange(t)).toBe(upgraded);
   });
 
-  // --- E7 (0.4.0): the win is the win-lose-conditions@1.1.0 composite ---
-  it("E7: the waves-complete EVENT is bridged to a flag, and the win waits for zero creeps (the composite)", () => {
+  // --- the win is the win-lose-conditions@1.1.0 composite ---
+  it("the waves-complete EVENT is bridged to a flag, and the win waits for zero creeps (the composite)", () => {
     const cfg = config as Cfg;
     const { game, w } = boot(cfg);
     game.stepFrames(200); // past startDelay → creeps are on the field
@@ -216,13 +215,13 @@ describe("tower-defense smoke", () => {
     game.stepFrames(1);
     expect(w.state.wavesComplete).toBe(true);
     // The flag ALONE doesn't win: the composite's `{ tag:"creep", count:"eq" }`
-    // (value defaults to 0) holds the line while creeps are still alive — exactly the
-    // guard the deleted creep-accounting predicate used to enforce, now data.
+    // (value defaults to 0) holds the line while creeps are still alive — the data
+    // guard that keeps the win tied to the field being clear.
     expect(w.state.gameOver).toBeFalsy();
   });
 
-  // --- E10 (0.5.0): scene-scoped listeners — "Play again" doesn't double-fire ---
-  it("E10: a play → over → play round-trip re-attaches creep-accounting cleanly (one kill = +1 resolved)", () => {
+  // --- scene-scoped listeners — "Play again" doesn't double-fire ---
+  it("a play → over → play round-trip re-attaches creep-accounting cleanly (one kill = +1 resolved)", () => {
     const { game, w } = boot(config as Cfg);
     expect(game.scene.id).toBe("play");
 
@@ -242,16 +241,16 @@ describe("tower-defense smoke", () => {
     game.stepFrames(2); // play re-enters; creep-accounting re-attaches via onScene
     expect(game.scene.id).toBe("play");
 
-    // Second visit: ONE creep-killed must STILL bump `resolved` by exactly 1. With the
-    // deleted per-World `attachOnce` WeakMap reintroduced, the first visit's listener
-    // would survive and this delta would be 2 (the double-fire E10 closes).
+    // Second visit: ONE creep-killed must STILL bump `resolved` by exactly 1. If the
+    // first visit's listener survived the scene change, this delta would be 2 — the
+    // double-fire the scene-scoped listener lifecycle prevents.
     const r1 = (w.state.resolved as number) ?? 0;
     w.events.emit("creep-killed");
     expect(((w.state.resolved as number) ?? 0) - r1).toBe(1);
   });
 
-  // --- E9 (0.5.0): the build preview reads world.input.cursor(), not host buildHover ---
-  it("E9: build-preview tracks world.input.cursor() and parks on pointerleave (host hover bridge gone)", () => {
+  // --- the build preview reads world.input.cursor() ---
+  it("build-preview tracks world.input.cursor() and parks on pointerleave", () => {
     const { game, w } = boot(config as Cfg);
     // The headless boot doesn't attach DOM input, so wire the SDK Input to a fake pointer
     // target (no getBoundingClientRect ⇒ client coords map 1:1 to world coords).
@@ -274,8 +273,7 @@ describe("tower-defense smoke", () => {
     expect(cell().x).toBe(80);
     expect(cell().y).toBe(40);
 
-    // pointerleave clears the cursor (the old `pointerleave → delete buildHover` bridge) →
-    // the preview parks again.
+    // pointerleave clears the cursor → the preview parks again.
     ptrL.pointerleave({ pointerId: 1, clientX: 100, clientY: 60 });
     expect(w.input.cursor()).toBeNull();
     game.stepFrames(1);

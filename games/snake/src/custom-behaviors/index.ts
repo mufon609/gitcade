@@ -13,13 +13,11 @@ import { num, str } from "@gitcade/sdk";
  * once — the body segments — and the head's grid stepping (`move-grid-step`) emits
  * no position it can hang a single behavior off of.
  *
- * 0.2.0: the ~60-line hand-rolled free-cell food placement this system used to own
- * (the `spawnFood` helper + occupancy-set + retry + fallback) is GONE. Placement is
- * delegated to the library `place-on-free-cell` system (G4): this system only keeps
- * the "exactly one food on the board" invariant, emitting `placeEvent` whenever the
- * board has no food (covers both the first food and every respawn after an eat).
- * The shared `snake-cell` tag on the head + segments is what `place-on-free-cell`
- * excludes, so food never lands on the snake.
+ * Food placement is delegated to the library `place-on-free-cell` system: this system
+ * only keeps the "exactly one food on the board" invariant, emitting `placeEvent`
+ * whenever the board has no food (covers both the first food and every respawn after
+ * an eat). The shared `snake-cell` tag on the head + segments is what
+ * `place-on-free-cell` excludes, so food never lands on the snake.
  *
  * Params:
  *  - `headTag` / `segmentTag` / `foodTag`: entity tags (structural ids)
@@ -40,7 +38,7 @@ interface SnakeScratch {
   segIds: string[];
   seq: number;
   dead: boolean;
-  imminentId: string | null; // the marker entity at the head's NEXT cell (0.2.1, #2)
+  imminentId: string | null; // the marker entity at the head's NEXT cell
 }
 
 export const snakeBody: SystemFn = (world, params, _dt) => {
@@ -58,11 +56,11 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
   const head = world.query(headTag)[0];
   if (!head) return;
 
-  // 0.2.1 (#2): keep an invisible marker on the cell the head is about to step into,
-  // so `place-on-free-cell` (passed excludeTags:["imminent"]) never drops food on the
-  // single predicted cell — closing the ~0.08% instant-re-eat the old hand-rolled
-  // spawnFood used to exclude. The marker carries no collision/collect behavior and is
-  // NOT a `snake-cell`, so it touches neither self-collision nor food pickup.
+  // Keep an invisible marker on the cell the head is about to step into, so
+  // `place-on-free-cell` (passed excludeTags:["imminent"]) never drops food on the
+  // single predicted cell — without it, the head can instantly re-eat into its next
+  // step. The marker carries no collision/collect behavior and is NOT a `snake-cell`,
+  // so it touches neither self-collision nor food pickup.
   const imminentTag = str(params, "imminentTag", "imminent");
   const dir = (head.state.__gridDir ?? { x: 1, y: 0 }) as { x: number; y: number };
   const nextX = Math.round(head.x / tile) * tile + dir.x * tile;
@@ -132,10 +130,10 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
   }
 
   // Keep exactly one food on the board. Placement geometry is delegated to the
-  // library `place-on-free-cell` system (G4) — we only request a drop when the
-  // board is empty (the first food, and each respawn after an eat). The handler
-  // excludes every live `snake-cell` (head + segments) by construction, so food
-  // never lands on the snake; see games/LIBRARY-GAPS.md for the one residual edge.
+  // library `place-on-free-cell` system — we only request a drop when the board is
+  // empty (the first food, and each respawn after an eat). The handler excludes every
+  // live `snake-cell` (head + segments) by construction, so food never lands on the
+  // snake; see games/LIBRARY-GAPS.md for the one residual edge.
   if (world.query(foodTag).length === 0) {
     world.events.emit(str(params, "placeEvent", "place-food"));
   }
@@ -147,7 +145,7 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
  * tick the step happens. The `snake-body` SYSTEM runs *before* all behaviors
  * (frozen tick order: systems → behaviors), so its own wall/self check necessarily
  * acts on a one-step-stale head and only fires the tick AFTER the head has already
- * stepped off the field — the S3 "death one step late / head off-screen" defect.
+ * stepped off the field — which would show the head a step past death, off-screen.
  *
  * This guard ends the run the instant a step carries the head into a wall or its
  * own body and clamps the head back to its last committed (on-screen) cell, so the

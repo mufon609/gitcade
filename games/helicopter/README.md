@@ -30,9 +30,9 @@ Desktop: **hold Space** to rise. Mobile: **tap-and-hold** the big button.
 | `velocity` | SDK built-in | integrates the pillar motion |
 
 The seamless scrolling starfield backdrop (the sense-of-speed cue) is the SDK
-renderer's declarative **`background.layers`** (0.3.1) — `play.json`'s `background`
-carries a `starfield.png` layer with a `scrollX` drift, tiled and wrapped by the
-renderer. No part, no host scroll glue, and no `$cfg` key (it's presentational).
+renderer's declarative **`background.layers`** — `play.json`'s `background` carries a
+`starfield.png` layer with a `scrollX` drift, tiled and wrapped by the renderer. No
+part, no host scroll glue, and no `$cfg` key (it's presentational).
 
 ### The one custom part
 

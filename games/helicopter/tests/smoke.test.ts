@@ -10,12 +10,12 @@ import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 
 /**
  * The headless smoke boot `gitcade validate` defers to (Helicopter uses the custom
- * `thrust-lift` + `scroll-ramp` behaviors and library parts the default registry
- * can't supply). Boots the 0.2.0 three-scene flow on the full library + custom
- * registry and exercises the data-driven transitions with no canvas — title → play
- * → over → play — asserting the scroller spawns pillars, the survival score
- * accrues, the difficulty ramps, a crash routes to game-over, and a retry returns
- * to play (resetting the run) — all without throwing.
+ * `thrust-lift` behavior and library parts the default registry can't supply).
+ * Boots the three-scene flow on the full library + custom registry and exercises
+ * the data-driven transitions with no canvas — title → play → over → play —
+ * asserting the scroller spawns pillars, the survival score accrues, the difficulty
+ * ramps, a crash routes to game-over, and a retry returns to play (resetting the
+ * run) — all without throwing.
  */
 function boot() {
   const registry = createLibraryRegistry();
@@ -23,7 +23,7 @@ function boot() {
   return createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry });
 }
 
-describe("helicopter smoke (0.2.0 data flow)", () => {
+describe("helicopter smoke (data flow)", () => {
   it("boots the entry (title) scene and runs frames without throwing", () => {
     const game = boot();
     expect(game.scene.id).toBe("title");
@@ -129,12 +129,12 @@ describe("helicopter smoke (0.2.0 data flow)", () => {
 });
 
 /**
- * E1 (0.4.0) — the real play.json wiring: the `input-actions` system binds `thrust`
- * to the Space key AND a full-canvas `rect`, and `thrust-lift{thrustAction:"thrust"}`
- * reads it. So BOTH a real Space keydown AND a bare touch anywhere on the canvas lift
- * the craft — the synthesized-`KeyboardEvent` touch button is gone, with no host glue.
+ * The real play.json input wiring: the `input-actions` system binds `thrust` to the
+ * Space key AND a full-canvas `rect`, and `thrust-lift{thrustAction:"thrust"}` reads
+ * it. So BOTH a real Space keydown AND a bare touch anywhere on the canvas lift the
+ * craft through the same logical action, with no host glue.
  */
-describe("helicopter input action layer (E1)", () => {
+describe("helicopter input action layer", () => {
   function bootPlay() {
     const registry = createLibraryRegistry();
     registerCustomBehaviors(registry);
@@ -173,10 +173,10 @@ describe("helicopter input action layer (E1)", () => {
 });
 
 /**
- * E2 (0.4.0) — the per-frame host mirror that floored the float score is gone; the
- * `format-binding` system in play.json derives the integer display keys as DATA.
+ * The `format-binding` system in play.json derives the integer display keys from the
+ * float score/best as DATA.
  */
-describe("helicopter HUD (E2 format-binding)", () => {
+describe("helicopter HUD (format-binding)", () => {
   it("floors the float score/best into scoreDisplay/bestDisplay as data", () => {
     const game = boot();
     game.world.events.emit("start-pressed");

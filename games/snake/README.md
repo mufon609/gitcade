@@ -7,14 +7,14 @@ with all balance in `config.json` — the way every GitCade game is meant to be.
 ## Play
 
 ```bash
-npm install      # pulls @gitcade/sdk@0.2.0 + @gitcade/library@0.2.0 from npm
+npm install      # pulls @gitcade/sdk + @gitcade/library from npm
 npm run dev      # play standalone (in-memory save shim)
 npm run build    # static /dist the GitCade build worker serves
 npm run validate # the publish gate: schema + no-magic-numbers + storage + smoke
 ```
 
 Desktop: **Arrows / WASD** to turn, **Space/Enter** to start, **Esc/P** to pause.
-Mobile: the on-screen **d-pad** (it synthesizes the same key events the parts read).
+Mobile: the on-screen **d-pad** (it drives the same data `move` action the keyboard does, via `input.setActionVector`).
 
 ## What it's composed of
 
@@ -25,21 +25,20 @@ or an SDK built-in — no engine code:
 |---|---|---|
 | `move-grid-step@1.0.0` | library behavior | the head's continuous grid turning (no 180° reversals) |
 | `collect-on-touch@1.0.0` | library behavior | coins award score + emit `collect` on pickup |
-| `place-on-free-cell` | library system | drops each coin on a verified-free, in-bounds grid cell (0.2.0, G4) |
+| `place-on-free-cell` | library system | drops each coin on a verified-free, in-bounds grid cell |
 | `score@1.0.0` | library system | live score + the running `best` (max) |
-| `persistence` | library system | round-trips `best` through the SDK storage bridge across reloads (0.2.0, G6) |
-| `tap-emit` | library behavior | the canvas title/game-over buttons emit a flow event on tap (0.2.0) |
+| `persistence` | library system | round-trips `best` through the SDK storage bridge across reloads |
+| `tap-emit` | library behavior | the canvas title/game-over buttons emit a flow event on tap |
 | `sprite-animate` | SDK built-in | the head's idle wobble + the coin's spin |
 | `aabb-collision` | SDK built-in | pairs the head with food so pickups register |
 
-### Flow is data (0.2.0)
+### Flow is data
 
 The **title → play → game-over** screens are three JSON scenes
 ([`src/scenes/`](src/scenes/)) wired by per-scene `flow.on` edges:
 `start-pressed → play`, `snake-dead → over`, `retry → play`. The buttons are
 `tap-emit` entities; the run's `score` hands off to the game-over card and `best`
-survives a reload — all declared as data, no host screen code. The 305-line
-`GameShell` screen-state machine + HTML menu overlays that 0.1.x needed are **gone**.
+survives a reload — all declared as data, no host screen code.
 
 ### The custom parts
 
@@ -58,7 +57,7 @@ balance via `$cfg`:
 Both are logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as generalization
 candidates. The remaining host glue in [`src/main.ts`](src/main.ts) is only what
 has no data primitive: audio, screen juice (flash/shake), the mobile d-pad (which
-synthesizes the arrow keys the parts read), and a pause toggle.
+drives the data `move` action via `input.setActionVector`), and a pause toggle.
 
 ## Rebalance it
 

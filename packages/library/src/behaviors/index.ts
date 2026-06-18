@@ -22,6 +22,8 @@ import { triggerZone } from "./trigger-zone.js";
 import { portal } from "./portal.js";
 import { scaleByState } from "./scale-by-state.js";
 import { faceAngle } from "./face-angle.js";
+import { faceVelocity } from "./face-velocity.js";
+import { spriteStateMachine } from "./sprite-state-machine.js";
 
 /**
  * Every library behavior, keyed by the exact `type` string a scene/entity uses to
@@ -51,6 +53,8 @@ export const LIBRARY_BEHAVIORS = {
   portal: portal,
   "scale-by-state": scaleByState,
   "face-angle": faceAngle,
+  "face-velocity": faceVelocity,
+  "sprite-state-machine": spriteStateMachine,
 } as const;
 
 /** The library behavior type ids (for tests / introspection). */
@@ -86,4 +90,6 @@ export {
   portal,
   scaleByState,
   faceAngle,
+  faceVelocity,
+  spriteStateMachine,
 };

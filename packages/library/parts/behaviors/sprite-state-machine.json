@@ -1,0 +1,22 @@
+{
+  "id": "sprite-state-machine",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["sprite", "animation", "platformer", "state-machine", "presentation"],
+  "license": "MIT",
+  "description": "Data-driven platformer animation: maps an entity's motion state (grounded via __onGround, horizontal speed, vertical direction) to a named sheet animation each tick and advances its frames, so a sprite switches idle -> run -> jump -> fall -> land with no hand-wired play param. The land clip is a non-looping one-shot fired on touchdown that holds until it finishes, then returns to idle/run. Each clip name is a param (default to its conventional name; set one to empty to disable that state). No-op for non-sheet sprites; pair with face-velocity for left/right flip. Order it after the collision resolvers.",
+  "dependencies": [],
+  "params": {
+    "idle": { "type": "string", "balance": false, "description": "Animation name for grounded + still (default 'idle')." },
+    "run": { "type": "string", "balance": false, "description": "Animation name for grounded + moving (default 'run')." },
+    "jump": { "type": "string", "balance": false, "description": "Animation name for airborne + rising (default 'jump'; '' to disable)." },
+    "fall": { "type": "string", "balance": false, "description": "Animation name for airborne + falling (default 'fall'; '' to disable)." },
+    "land": { "type": "string", "balance": false, "description": "One-shot animation on touchdown (default 'land'; '' to disable)." },
+    "moveThreshold": { "type": "number", "balance": true, "description": "|vx| (px/sec) above which the entity is 'running' (default 1)." }
+  },
+  "definition": {
+    "type": "sprite-state-machine",
+    "params": { "idle": "idle", "run": "run", "jump": "jump", "fall": "fall", "land": "land" }
+  }
+}

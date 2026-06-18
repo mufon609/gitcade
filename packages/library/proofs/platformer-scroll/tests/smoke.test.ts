@@ -149,4 +149,39 @@ describe("platformer-scroll reuse proof", () => {
     game.stepFrames(180);
     expect(player.y).toBe(424); // fell THROUGH the one-way platform and landed on the floor (448 − 24)
   });
+
+  it("animates idle↔run and flips scaleX to face movement (sprite-state-machine + face-velocity, 0.7.0)", () => {
+    const game = boot();
+    game.stepFrames(120); // settle on the floor, no input
+    const player = game.world.byId("player")!;
+    expect(player.anim.current).toBe("idle"); // grounded + still
+
+    drive(game, { axis: 1 }); // run right
+    game.stepFrames(20);
+    expect(player.anim.current).toBe("run");
+    expect(player.scaleX).toBe(1); // facing right
+
+    drive(game, { axis: -1 }); // run left
+    game.stepFrames(20);
+    expect(player.scaleX).toBe(-1); // flipped to face left
+  });
+
+  it("animates jump while rising and fall while descending (0.7.0)", () => {
+    const game = boot();
+    game.stepFrames(1);
+    const player = game.world.byId("player")!;
+    drive(game, { axis: 0 });
+    // Park mid-air over empty space; the mover only nudges vy by gravity, so the sign holds
+    // for this tick → the state machine reads airborne + rising/descending.
+    player.x = 400;
+    player.y = 200;
+    player.vy = -120; // rising
+    game.stepFrames(1);
+    expect(player.state.__onGround).toBe(false);
+    expect(player.anim.current).toBe("jump");
+
+    player.vy = 120; // now descending
+    game.stepFrames(1);
+    expect(player.anim.current).toBe("fall");
+  });
 });

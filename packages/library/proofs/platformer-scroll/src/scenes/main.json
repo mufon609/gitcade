@@ -780,9 +780,40 @@
     {
       "id": "player",
       "sprite": {
-        "kind": "shape",
-        "shape": "rect",
-        "color": "#ff5d5d"
+        "kind": "sheet",
+        "src": "player.png",
+        "frameWidth": 24,
+        "frameHeight": 24,
+        "frameCount": 10,
+        "fps": 10,
+        "animations": {
+          "idle": {
+            "from": 0,
+            "to": 1,
+            "fps": 4
+          },
+          "run": {
+            "from": 2,
+            "to": 5,
+            "fps": 12
+          },
+          "jump": {
+            "from": 6,
+            "to": 6,
+            "loop": false
+          },
+          "fall": {
+            "from": 7,
+            "to": 7,
+            "loop": false
+          },
+          "land": {
+            "from": 8,
+            "to": 9,
+            "fps": 18,
+            "loop": false
+          }
+        }
       },
       "size": {
         "w": 24,
@@ -827,6 +858,14 @@
           "params": {
             "solidProp": "solid"
           }
+        },
+        {
+          "type": "sprite-state-machine",
+          "params": {}
+        },
+        {
+          "type": "face-velocity",
+          "params": {}
         }
       ]
     },

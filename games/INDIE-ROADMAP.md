@@ -28,12 +28,14 @@ files used to carry engine-capability items, they now point here.
   `platformer-scroll` reuse proof and the entity-solid half by `platformer-solids`
   (`packages/library/proofs/`). A Mario-style traversal — running a level wider than the
   screen, landing on / bonking / riding solid bodies — works today.
-- **What's left before a *full* Mario:** the remaining **Tier-1 platformer-feel polish**
-  below (an animation state machine, slopes + ladders) and richer **two-body dynamics**
-  (movable crates you push, lifts that carry you sideways). The genre-feel mover (variable
-  jump, jump buffering, apex hang, run accel) and **one-way (pass-through) platforms +
-  drop-through** are now in the engine. These are content/feel built on the floor that now
-  exists, not foundation.
+- **What's left before a *full* Mario:** mostly Tier-2 polish (sampled audio, particles/
+  juice, render interpolation, gamepad) plus slopes + ladders and richer **two-body
+  dynamics** (movable crates you push, lifts that carry you sideways). The genre-feel mover
+  (variable jump, jump buffering, apex hang, run accel), **one-way (pass-through) platforms
+  + drop-through**, a **data-driven animation state machine + facing flip**, and **entity
+  opacity/visibility** are now in the engine — so a Mario-lite (run a wide level, animate
+  the character, land on / drop through platforms) composes from the kit today. What's left
+  is content/feel built on the floor that now exists, not foundation.
 - **Is the architecture well-suited to grow further? Yes.** The deterministic fixed-step
   loop, the entity/behavior/system composition, and the data-driven scene model are exactly
   the right bones, and **almost every gap below is purely additive** under the frozen-
@@ -143,19 +145,24 @@ ships today.
 - **Ladders, slopes, moving platforms.** The remaining genre furniture: ladders + slopes
   extend the resolver (slopes need non-AABB contact); moving platforms ride on the two-body
   carry mode below. 🟢
-- **Animation state machine.** `sprite-animate` plays one named clip set via a static
-  `play` param (`runtime/behaviors/sprite-animate.ts`); switching idle→run→jump→fall→land
-  requires hand-wiring the param from custom logic. Indie feel needs a **data-driven state
-  machine** that maps entity state (grounded/vx/vy) → clip, with transition rules and
-  one-shot clips (land, attack). 🟢 new behavior.
-- **A facing/flip convention.** Horizontal flip is *possible* (`scaleX: -1`, honored by the
-  renderer) but there's no convention wiring it to movement direction. 🟢
+- **Animation state machine. ✅ Now in the engine (`sprite-state-machine`).** A data-driven
+  behavior that maps motion state (grounded via the Tier-0 `__onGround` flag, horizontal
+  speed, vertical direction) → a named `sheet` clip each tick: idle → run → jump → fall →
+  land, with `land` as a non-looping one-shot that holds until it completes. Each clip name
+  is a param (defaults to its conventional name; `""` disables a state). Built on the
+  existing `sheet`/`animations` schema; proven by the `platformer-scroll` proof. 🟢
+- **A facing/flip convention. ✅ Now in the engine (`face-velocity`).** Sets `entity.scaleX`
+  sign from horizontal velocity so a side-view sprite faces the way it moves (the renderer
+  already honors a negative `scaleX` as a flip). Preserves scale magnitude, holds facing
+  below a threshold, has an `invert` for left-facing art. Distinct from `face-angle` (which
+  rotates). 🟢
 - **Pixel-perfect rendering option.** The renderer upsamples by `devicePixelRatio`, which
   **blurs pixel art**. Pixel-art indie games need integer scaling +
   `image-rendering: pixelated` + sub-pixel-snapped draws. 🟡 (a render-mode flag).
-- **Honor `opacity`/`alpha`.** Both keys are on the structural whitelist (`whitelist.ts`)
-  but `renderer.drawEntity` never applies `globalAlpha` — a **declared-but-ignored slot**.
-  Fades, ghosts, i-frame flicker, and damage flashes all need it. 🟢 renderer-only.
+- **Honor `opacity`/`alpha`. ✅ Now in the engine.** `renderer.drawEntity` applies an
+  optional `entity.opacity` as `globalAlpha` (multiplied + clamped, skipped at 1) — the
+  whitelisted key it used to ignore. A behavior writes `entity.opacity` at runtime for
+  fades, ghosts, i-frame flicker, and damage flashes. 🟢 renderer-only.
 
 ---
 
@@ -214,10 +221,11 @@ Capabilities for building (and shipping) a game with real *content volume*.
 - **Dialogue / cutscene / trigger-script primitive** for story-driven indie games. 🟡
 - **Localization hook** (string tables, not hardcoded text sprites). 🟢
 - **Genre-unlock library parts** (absorbed here from the older roadmaps; each removes a
-  current workaround or enables content the games can't have): an **entity visibility
-  toggle** (renderer skips `visible:false` — retires the tower-defense
-  `x = -9999` off-screen-park bandaid); **`damage-flash` / i-frames** (on-hit feedback +
-  brief invulnerability); **`spawn-on-event` + a powerup-effect channel** (Breakout
+  current workaround or enables content the games can't have): the **entity visibility
+  toggle** (✅ done — the renderer skips `visible:false`, and tower-defense's `x = -9999`
+  off-screen-park bandaid is retired); **`damage-flash` / i-frames** (on-hit feedback +
+  brief invulnerability — now unblocked by `entity.opacity`); **`spawn-on-event` + a
+  powerup-effect channel** (Breakout
   multiball/powerups, drop-on-death, boss minions); **`shoot-at-pointer` / aim mode** (true
   twin-stick, reads `world.input.cursor()`); **`reflect-on-hit` `forceDir`/bias + total
   speed cap**; **`move-grid-step` turn buffer**; and a **tileset tile-scale** field (scale a
@@ -274,8 +282,11 @@ assumed.
   + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
   *Remaining (Tier 1):* slopes + ladders (a resolver extension) and the optional two-body
   (movable-crate / carrying-lift) mode.
-- **Phase B — it feels like a platformer.** Animation state machine + flip convention,
-  render interpolation, gamepad, pixel-perfect render mode, `opacity`, tween/easing,
+- **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**
+  (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
+  `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense
+  off-screen-park bandaid) — driven end-to-end by the `platformer-scroll` proof.
+  *Remaining:* render interpolation, gamepad, pixel-perfect render mode, tween/easing,
   hitstop.
 - **Phase C — it feels finished.** Sampled audio + music + mixer, data-driven
   particles/screenshake/camera juice, Tiled/`grid-layout` authoring, atlases, spatial-hash

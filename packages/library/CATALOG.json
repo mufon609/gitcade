@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "generatedFrom": "parts/",
   "parts": [
     {
@@ -1156,6 +1156,41 @@
             "y": 40
           },
           "cooldown": "$cfg.portalCooldown"
+        }
+      }
+    },
+    {
+      "id": "ride-platform",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "platformer",
+        "carry",
+        "moving-platform"
+      ],
+      "description": "A rider standing on a moving solid inherits that solid's per-tick world delta — the two-body CARRY half: horizontal carry (a platform sliding sideways takes the rider with it) and descending carry (a sinking platform the rider follows down instead of floating off). Vertical-up carry already works via the solid push-out. Order it FIRST in the rider's behaviors: it probes for a carryTag entity the rider rested on last tick (the carrier's pre-tick top, so a fast-descending platform keeps the rider) and adds the carrier's x/y deltas to the rider, gated on the rider not rising (vy>=0). The rider's solid-collide re-resolves it snug on top and move-platformer composes its walk, so it can walk while being carried. A carrier is any carryTag entity that moves (tween/velocity); tag it solid too so solid-collide keeps the rider on it. Author carriers before riders for zero-lag.",
+      "license": "MIT",
+      "dependencies": [
+        "solid-collide"
+      ],
+      "params": {
+        "carryTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag marking carrier entities to ride (default \"carrier\")."
+        },
+        "stick": {
+          "type": "number",
+          "balance": false,
+          "description": "Feet-probe tolerance in px around the carrier's top (structural; default 2)."
+        }
+      },
+      "definition": {
+        "type": "ride-platform",
+        "params": {
+          "carryTag": "carrier"
         }
       }
     },

@@ -49,6 +49,14 @@ export class Entity {
   /** Velocity in px/sec (integrated by the `velocity` behavior). */
   vx = 0;
   vy = 0;
+  /**
+   * Position at the START of the current tick (0.10.0), snapshotted by the host loop so
+   * `x - prevX` / `y - prevY` is this tick's WORLD delta. Read by carry (`ride-platform`: a
+   * rider inherits a moving platform's per-tick delta) and the groundwork a future render-
+   * interpolation pass needs. Seeded to the spawn position (delta 0 on tick 1).
+   */
+  prevX = 0;
+  prevY = 0;
   rotation = 0;
   scaleX = 1;
   scaleY = 1;
@@ -131,6 +139,8 @@ export class Entity {
     this.id = init.id;
     this.x = init.x;
     this.y = init.y;
+    this.prevX = init.x;
+    this.prevY = init.y;
     this.w = init.w;
     this.h = init.h;
     this.layer = init.layer;

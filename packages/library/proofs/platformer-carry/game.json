@@ -1,0 +1,13 @@
+{
+  "name": "Platformer Carry (moving-platform ride proof)",
+  "slug": "proof-platformer-carry",
+  "description": "Reuse proof for the 0.10.0 resolver carry mode (ride-platform, INDIE-ROADMAP two-body carry half): a player rides a horizontally-tweened solid platform and can walk while carried; a passenger follows a vertically-descending platform down. Built from move-platformer + velocity + solid-collide + ride-platform with no host code.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.10.0",
+  "libraryVersion": "0.10.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

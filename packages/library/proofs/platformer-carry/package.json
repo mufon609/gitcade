@@ -1,0 +1,18 @@
+{
+  "name": "@gitcade-proofs/platformer-carry",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reuse proof — the 0.10.0 resolver CARRY mode (ride-platform): a rider rides a horizontally-moving solid platform (and walks while carried), and a passenger follows a descending platform down.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "validate": "gitcade validate ."
+  },
+  "dependencies": {
+    "@gitcade/sdk": "0.10.0",
+    "@gitcade/library": "0.10.0"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
+  }
+}

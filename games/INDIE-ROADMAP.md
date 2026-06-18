@@ -29,13 +29,14 @@ files used to carry engine-capability items, they now point here.
   (`packages/library/proofs/`). A Mario-style traversal — running a level wider than the
   screen, landing on / bonking / riding solid bodies — works today.
 - **What's left before a *full* Mario:** mostly Tier-2 polish (sampled audio, particles/
-  juice, render interpolation, gamepad) plus slopes + ladders and richer **two-body
-  dynamics** (movable crates you push, lifts that carry you sideways). The genre-feel mover
-  (variable jump, jump buffering, apex hang, run accel), **one-way (pass-through) platforms
-  + drop-through**, a **data-driven animation state machine + facing flip**, and **entity
-  opacity/visibility** are now in the engine — so a Mario-lite (run a wide level, animate
-  the character, land on / drop through platforms) composes from the kit today. What's left
-  is content/feel built on the floor that now exists, not foundation.
+  juice, render interpolation, gamepad) plus **slopes + ladders** and two-body **push**
+  (movable crates). The genre-feel mover (variable jump, jump buffering, apex hang, run
+  accel), **one-way (pass-through) platforms + drop-through**, a **data-driven animation state
+  machine + facing flip**, **entity opacity/visibility**, the **entity hierarchy / transform
+  parenting**, and **moving-platform carry** (`ride-platform`) are now in the engine — so a
+  Mario-lite (run a wide level, animate the character, land on / drop through platforms, ride
+  a moving platform) composes from the kit today. What's left is content/feel built on the
+  floor that now exists, not foundation.
 - **Is the architecture well-suited to grow further? Yes.** The deterministic fixed-step
   loop, the entity/behavior/system composition, and the data-driven scene model are exactly
   the right bones, and **almost every gap below is purely additive** under the frozen-
@@ -116,15 +117,19 @@ physics floor is complete; what's above it (Tier 1) is feel, not foundation.
   that clears any realistic speed), so a fast body won't tunnel a thin platform; a slow body
   runs a single byte-identical pass. Proven end-to-end by the `platformer-solids` reuse proof.
 
-### Two-body dynamics — the remaining Tier-0-adjacent gap 🟢 (open)
+### Two-body dynamics — CARRY ✅ now in the engine; PUSH still open 🟢
 `solid-collide` is a **one-way** push-out: the moving entity is resolved out of solids that
-are themselves immovable (as solid as a tile). True **movable crates** (a player push that
-*moves* the crate) and a lift that **carries** a rider *sideways* are two-body dynamics —
-mass, mutual resolution, and inherited velocity — that sit on top of the primitive.
-
-**Fix:** an optional mutual-resolution mode (split the push by mass and apply the resting
-body's per-tick delta to the rider). Builds on the shared resolver; the one-way solid case
-ships today.
+are themselves immovable. The two halves on top of it:
+- **Carry. ✅ Now in the engine (`ride-platform`, 0.10.0).** A rider standing on a `carryTag`
+  solid inherits that solid's per-tick world delta — **horizontal** carry (a platform sliding
+  sideways takes the rider) and **descending** carry (a sinking platform the rider follows
+  down); vertical-up carry already came from the push-out. Built on a generic first-class
+  `entity.prevX/prevY` (the tick's start position, snapshotted by the loop — also the
+  groundwork render interpolation needs); the behavior probes the carrier's pre-tick top + a
+  `vy>=0` gate, so it's self-contained and a fast-descending platform never leaves the rider.
+  Proven by the `platformer-carry` proof (ride + walk-while-carried + descending follow). 🟢
+- **Push — movable crates** (a player push that *moves* the crate: mass + mutual resolution)
+  remain open. The harder half; carry was the common platformer need. 🟢 (open)
 
 ---
 
@@ -144,9 +149,9 @@ ships today.
   `move-platformer`'s **drop-through** (down + jump, `down`/`dropThroughTime`) falls through
   it. Built on the shared `resolveSolids` primitive (the one-way case is a per-rect flag);
   proven by the `platformer-scroll` proof (land-on + drop-through). 🟢
-- **Ladders, slopes, moving platforms.** The remaining genre furniture: ladders + slopes
-  extend the resolver (slopes need non-AABB contact); moving platforms ride on the two-body
-  carry mode below. 🟢
+- **Moving platforms. ✅ Now in the engine** via the two-body **carry** mode (`ride-platform`,
+  0.10.0) — a rider rides a sliding/sinking solid platform (see Tier-0 two-body below). The
+  remaining genre furniture is **ladders + slopes** (slopes need non-AABB contact). 🟢
 - **Animation state machine. ✅ Now in the engine (`sprite-state-machine`).** A data-driven
   behavior that maps motion state (grounded via the typed `entity.contacts.onGround`, horizontal
   speed, vertical direction) → a named `sheet` clip each tick: idle → run → jump → fall →
@@ -300,8 +305,9 @@ assumed.
   — additively, driven by the `platformer-scroll` proof; and **one-way (pass-through)
   platforms + drop-through** landed on the same primitive (`oneWay` tile flag / `oneWayTag`
   + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
-  *Remaining (Tier 1):* slopes + ladders (a resolver extension) and the optional two-body
-  (movable-crate / carrying-lift) mode.
+  The two-body **carry** mode (`ride-platform`, 0.10.0) lands the moving-platform case.
+  *Remaining (Tier 1):* slopes + ladders (a resolver extension) and two-body **push**
+  (movable crates).
 - **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**
   (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
   `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense

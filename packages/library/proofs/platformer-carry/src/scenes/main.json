@@ -1,0 +1,84 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 480 },
+  "background": "#0d1018",
+  "entities": [
+    {
+      "id": "carrier",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#3a6ea5" },
+      "size": { "w": 120, "h": 16 },
+      "position": { "x": 100, "y": 360 },
+      "layer": 1,
+      "tags": ["solid", "carrier"],
+      "behaviors": [
+        {
+          "type": "tween",
+          "params": {
+            "property": "x",
+            "from": 100,
+            "to": 480,
+            "duration": "$cfg.carrierPeriod",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "player",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#d6e04a" },
+      "size": { "w": 20, "h": 28 },
+      "position": { "x": 120, "y": 332 },
+      "layer": 2,
+      "tags": ["player"],
+      "behaviors": [
+        { "type": "ride-platform", "params": { "carryTag": "carrier" } },
+        {
+          "type": "move-platformer",
+          "params": { "moveSpeed": "$cfg.moveSpeed", "gravity": "$cfg.gravity", "jumpSpeed": "$cfg.jumpSpeed" }
+        },
+        { "type": "velocity", "params": {} },
+        { "type": "solid-collide", "params": { "solidTag": "solid" } }
+      ]
+    },
+    {
+      "id": "descender",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#a53a6e" },
+      "size": { "w": 80, "h": 16 },
+      "position": { "x": 650, "y": 160 },
+      "layer": 1,
+      "tags": ["solid", "carrier"],
+      "behaviors": [
+        {
+          "type": "tween",
+          "params": {
+            "property": "y",
+            "from": 160,
+            "to": 340,
+            "duration": "$cfg.descenderPeriod",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "passenger",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#4ad6c0" },
+      "size": { "w": 16, "h": 16 },
+      "position": { "x": 682, "y": 144 },
+      "layer": 2,
+      "tags": ["rider"],
+      "behaviors": [
+        { "type": "ride-platform", "params": { "carryTag": "carrier" } },
+        {
+          "type": "move-platformer",
+          "params": { "moveSpeed": "$cfg.moveSpeed", "gravity": "$cfg.gravity", "jumpSpeed": "$cfg.jumpSpeed" }
+        },
+        { "type": "velocity", "params": {} },
+        { "type": "solid-collide", "params": { "solidTag": "solid" } }
+      ]
+    }
+  ],
+  "systems": []
+}

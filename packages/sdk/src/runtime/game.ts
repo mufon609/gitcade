@@ -311,7 +311,15 @@ export class Game {
     this.world.frame += 1;
     this.world.time += dt;
 
-    for (const e of this.world.entities) if (e.collisions.length) e.collisions.length = 0;
+    // Snapshot each entity's pre-tick position (0.10.0) and clear its collision list in one
+    // pass. `prevX`/`prevY` let a carry behavior read a moving solid's per-tick world delta
+    // (`x - prevX`) later this tick; clearing collisions readies the list for this tick's
+    // detection. (Done together to avoid a second full sweep of the entity array.)
+    for (const e of this.world.entities) {
+      e.prevX = e.x;
+      e.prevY = e.y;
+      if (e.collisions.length) e.collisions.length = 0;
+    }
 
     for (const sys of this.systems) sys.fn(this.world, sys.params, dt);
 

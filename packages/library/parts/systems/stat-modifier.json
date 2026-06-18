@@ -1,0 +1,26 @@
+{
+  "id": "stat-modifier",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "rules",
+  "tags": ["rules", "upgrade", "stat", "modifier", "shared", "scaling"],
+  "license": "MIT",
+  "description": "Apply a world.state-driven value to a named behavior PARAM across EVERY entity carrying a tag — the shared/global counterpart to the entity-self scale-by-state. Generalizes the hand-rolled 'restamp every tower's range/cooldown on each upgrade' pattern into data. Per modifier the value is base (world.state[from], or a $cfg `base`) optionally scaled by the difficulty factor 1+perLevel*(level-1), multiplied by world.state[multKey], and clamped to [min,max], then written each tick to `param` on the tagged entities' matching behaviors. Self-healing: freshly-spawned entities and live upgrades propagate with no event wiring.",
+  "dependencies": [],
+  "params": {
+    "modifiers": {
+      "type": "array",
+      "balance": false,
+      "description": "Array of { tag, param, behavior?, from?, base?, levelKey?, perLevel?, multKey?, min?, max? } — each writes one behavior param across all tagged entities. Numeric leaves (base/perLevel/min/max) must be $cfg refs."
+    }
+  },
+  "definition": {
+    "type": "stat-modifier",
+    "params": {
+      "modifiers": [
+        { "tag": "tower", "behavior": "ai-aim-and-fire", "param": "range", "from": "towerRange" },
+        { "tag": "tower", "behavior": "ai-aim-and-fire", "param": "cooldown", "from": "towerCooldown", "min": "$cfg.towerMinCooldown" }
+      ]
+    }
+  }
+}

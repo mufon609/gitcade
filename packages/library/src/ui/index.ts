@@ -1,6 +1,6 @@
 import type { Registry } from "@gitcade/sdk";
 import { hudBar } from "./hud.js";
-import { touchDpad, touchButton, tapEmit } from "./touch.js";
+import { touchDpad, touchButton, tapEmit, keyEmit } from "./touch.js";
 
 /**
  * UI half of Phase 2B. Most HUD/menu widgets are pure DATA (entity/scene templates
@@ -16,14 +16,15 @@ export const LIBRARY_UI_BEHAVIORS = {
   "touch-dpad": touchDpad,
   "touch-button": touchButton,
   "tap-emit": tapEmit,
+  "key-emit": keyEmit,
 } as const;
 
 /** UI part ids that are runtime types (the code-backed widgets). */
-export const LIBRARY_UI_RUNTIME_TYPES = ["hud-bar", "touch-dpad", "touch-button", "tap-emit"] as const;
+export const LIBRARY_UI_RUNTIME_TYPES = ["hud-bar", "touch-dpad", "touch-button", "tap-emit", "key-emit"] as const;
 
 export function registerLibraryUi(registry: Registry): void {
   for (const [type, fn] of Object.entries(LIBRARY_UI_BEHAVIORS)) registry.registerBehavior(type, fn);
 }
 
 export { hudBar } from "./hud.js";
-export { touchDpad, touchButton, tapEmit, dpadVector, buttonPressed, type PointerLike, type Zone, type Rect } from "./touch.js";
+export { touchDpad, touchButton, tapEmit, keyEmit, dpadVector, buttonPressed, type PointerLike, type Zone, type Rect } from "./touch.js";

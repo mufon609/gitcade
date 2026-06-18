@@ -100,6 +100,23 @@ describe("move-grid-step", () => {
     expect(e.x).toBe(0);
     expect(e.state.__gridDir).toEqual({ x: 0, y: -1 });
   });
+
+  // --- 1.1.0 (E1): steer by a logical action vector instead of raw keys ---
+  it("steers by `moveAction` actionVector (keyboard/touch unified, no synth keys)", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "snake", x: 100, y: 100 });
+    const params = { tileSize: 20, stepInterval: 0.1, continuous: true, snap: true, moveAction: "move" };
+    // A touch d-pad / keyboard axis deflected right (driven through the action layer).
+    world.input.setActionVector("move", 1, 0);
+    moveGridStep(e, world, params, 0.11);
+    expect(e.x).toBe(120);
+    expect(e.y).toBe(100);
+    // A near-vertical analog deflection turns up (dominant axis wins).
+    world.input.setActionVector("move", 0.2, -0.9);
+    moveGridStep(e, world, params, 0.11);
+    expect(e.y).toBe(80);
+    expect(e.x).toBe(120);
+  });
 });
 
 describe("move-platformer", () => {

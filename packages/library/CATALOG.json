@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "generatedFrom": "parts/",
   "parts": [
     {
@@ -828,7 +828,7 @@
     {
       "id": "move-grid-step",
       "kind": "behavior",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "movement",
       "tags": [
         "movement",
@@ -836,7 +836,7 @@
         "snake",
         "discrete"
       ],
-      "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed.",
+      "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed. 1.1.0 adds an optional `moveAction` that reads a logical input action (input-actions, E1) so keyboard and a touch d-pad steer through one channel — no synthesized key events.",
       "license": "MIT",
       "dependencies": [],
       "params": {
@@ -879,6 +879,11 @@
           "type": "boolean",
           "balance": false,
           "description": "Snap to the tile grid each step."
+        },
+        "moveAction": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional logical-action name (E1) to steer by instead of raw keys — unifies keyboard + touch via input-actions. Unset = key path (default, byte-identical)."
         }
       },
       "definition": {
@@ -1371,6 +1376,119 @@
       }
     },
     {
+      "id": "format-binding",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "hud",
+        "text",
+        "format",
+        "presentation"
+      ],
+      "description": "Derive presentation strings from live state as DATA — the replacement for a per-frame host mirror() loop. Each binding reads a world.state (or entity.state) value and floors/rounds/ceils/compacts/templates/maps it into the world.state key a text or HUD sprite binds to. No schema change (the text-sprite `bind` slot already exists). Covers: flooring a float score, compacting a currency (1.23K/4.5M), 'Wave {v}/{c}' templates, multiplying by a prestige key, reading a child entity's hp, and mapping win/lose to a label.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "bindings": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { from?, fromEntity?, fallback?, mult?, format?(floor|round|ceil|compact|fixed:N), map?, mapDefault?, emptyWhenZero?, template?({v}/{c}), constant?, to } — each writes one display key. Numeric leaves must be $cfg refs."
+        }
+      },
+      "definition": {
+        "type": "format-binding",
+        "params": {
+          "bindings": [
+            {
+              "from": "score",
+              "format": "floor",
+              "to": "scoreDisplay"
+            },
+            {
+              "from": "coins",
+              "format": "compact",
+              "to": "coinsDisplay"
+            },
+            {
+              "from": "wave",
+              "format": "round",
+              "template": "Wave {v}/{c}",
+              "constant": "$cfg.maxWaves",
+              "to": "waveHud"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "input-actions",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "interaction",
+      "tags": [
+        "input",
+        "controls",
+        "touch",
+        "actions",
+        "mobile"
+      ],
+      "description": "Install logical input ACTION bindings (E1): map an action name to keyboard codes and/or an on-screen rect/zone, so movers read world.input.action(...)/actionVector(...) and one action is satisfiable by keyboard OR touch — no synthesized key events. Pure data; idle on desktop with no touch. Pair with a mover's `moveAction`/`thrustAction`-style param.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "bindings": {
+          "type": "object",
+          "balance": false,
+          "description": "Record<actionName, { keys?: string[], rect?: {x,y,w,h}, axisKeys?: {up,down,left,right}, zone?: {x,y,radius} }> — action sources (structural/world-space coords)."
+        }
+      },
+      "definition": {
+        "type": "input-actions",
+        "params": {
+          "bindings": {
+            "move": {
+              "axisKeys": {
+                "up": [
+                  "ArrowUp",
+                  "KeyW"
+                ],
+                "down": [
+                  "ArrowDown",
+                  "KeyS"
+                ],
+                "left": [
+                  "ArrowLeft",
+                  "KeyA"
+                ],
+                "right": [
+                  "ArrowRight",
+                  "KeyD"
+                ]
+              },
+              "zone": {
+                "x": 120,
+                "y": 480,
+                "radius": 90
+              }
+            },
+            "fire": {
+              "keys": [
+                "Space"
+              ],
+              "rect": {
+                "x": 600,
+                "y": 420,
+                "w": 180,
+                "h": 160
+              }
+            }
+          }
+        }
+      }
+    },
+    {
       "id": "level-progression",
       "kind": "system",
       "version": "1.0.0",
@@ -1737,6 +1855,50 @@
       }
     },
     {
+      "id": "stat-modifier",
+      "kind": "system",
+      "version": "1.0.0",
+      "category": "rules",
+      "tags": [
+        "rules",
+        "upgrade",
+        "stat",
+        "modifier",
+        "shared",
+        "scaling"
+      ],
+      "description": "Apply a world.state-driven value to a named behavior PARAM across EVERY entity carrying a tag — the shared/global counterpart to the entity-self scale-by-state. Generalizes the hand-rolled 'restamp every tower's range/cooldown on each upgrade' pattern into data. Per modifier the value is base (world.state[from], or a $cfg `base`) optionally scaled by the difficulty factor 1+perLevel*(level-1), multiplied by world.state[multKey], and clamped to [min,max], then written each tick to `param` on the tagged entities' matching behaviors. Self-healing: freshly-spawned entities and live upgrades propagate with no event wiring.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "modifiers": {
+          "type": "array",
+          "balance": false,
+          "description": "Array of { tag, param, behavior?, from?, base?, levelKey?, perLevel?, multKey?, min?, max? } — each writes one behavior param across all tagged entities. Numeric leaves (base/perLevel/min/max) must be $cfg refs."
+        }
+      },
+      "definition": {
+        "type": "stat-modifier",
+        "params": {
+          "modifiers": [
+            {
+              "tag": "tower",
+              "behavior": "ai-aim-and-fire",
+              "param": "range",
+              "from": "towerRange"
+            },
+            {
+              "tag": "tower",
+              "behavior": "ai-aim-and-fire",
+              "param": "cooldown",
+              "from": "towerCooldown",
+              "min": "$cfg.towerMinCooldown"
+            }
+          ]
+        }
+      }
+    },
+    {
       "id": "timer-countdown",
       "kind": "system",
       "version": "1.0.0",
@@ -2067,7 +2229,7 @@
     {
       "id": "win-lose-conditions",
       "kind": "system",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "rules",
       "tags": [
         "rules",
@@ -2075,14 +2237,14 @@
         "lose",
         "game-over"
       ],
-      "description": "Generalized end-of-game check: a list of conditions with gte/lte/eq comparisons and per-condition win or lose outcomes. The first match ends the game.",
+      "description": "Generalized end-of-game check: a list of conditions, first match ends the game with a win or lose outcome. 1.1.0 (E7) adds — additively — a live entity-count condition ({ tag, count?, value? } via world.query(tag).length), a state truthy/falsy flag check ({ key, truthy|falsy }), and all/any composition, so a win like 'all waves complete AND zero live creeps' is data. The original { key, cmp?, value } state-threshold condition is byte-identical.",
       "license": "MIT",
       "dependencies": [],
       "params": {
         "conditions": {
           "type": "array",
           "balance": false,
-          "description": "Array of { key, cmp?, value, outcome?, winner?, sound? }; each value is a $cfg threshold."
+          "description": "Array of conditions; each is a state-threshold { key, cmp?, value }, a flag { key, truthy|falsy }, an entity-count { tag, count?, value? } (value defaults 0), or a composite { all|any: [...] }, plus { outcome?, winner?, sound? } on top-level entries. Numeric thresholds are $cfg refs."
         }
       },
       "definition": {
@@ -3912,6 +4074,32 @@
           ],
           "layer": 100,
           "behaviors": []
+        }
+      }
+    },
+    {
+      "id": "key-emit",
+      "kind": "ui",
+      "version": "1.0.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "input",
+        "keyboard",
+        "flow",
+        "menu"
+      ],
+      "description": "The keyboard companion to tap-emit (E3): a per-entity behavior that emits a game event on the down-edge of any of `keys`, so title/over screens are keyboard-accessible as pure data with no host keydown bridge. Put it on the same flow-button entity as tap-emit, emitting the same event, and wire it to a scene.flow.on transition. Adopts a key held across the spawning scene change so it only fires on a fresh press.",
+      "license": "MIT",
+      "dependencies": [],
+      "definition": {
+        "type": "key-emit",
+        "params": {
+          "keys": [
+            "Enter",
+            "Space"
+          ],
+          "emitOnKey": "start-pressed"
         }
       }
     },

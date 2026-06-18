@@ -7,13 +7,14 @@
  * 0.2.0 made the screen flow expressible as DATA (scene `flow`, `tap-emit`,
  * declarative `persist`), so the old ~305-line GameShell screen-state machine and
  * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
- * data primitive: the library audio, screen juice (flash/shake on crash), the
- * mobile touch button (which synthesizes the Space key the `thrust-lift` part
- * already reads), a pause toggle (freezing the sim is a host-loop concern), an
- * Enter/Space bridge that mirrors the on-screen flow buttons for keyboard players,
- * and a presentation-only HUD mirror that floors the continuous (float) survival
- * score into an integer display key (the renderer's text `bind` has no formatter,
- * and no library part floors a value). No balance or game logic lives here.
+ * data primitive: the library audio, screen juice (flash/shake on crash), a pause
+ * toggle (freezing the sim is a host-loop concern), and an Enter/Space bridge that
+ * mirrors the on-screen flow buttons for keyboard players. No balance or game logic
+ * lives here.
+ *
+ * 0.4.0 (E2): the per-frame HUD mirror that floored the float score into a display
+ * key is GONE — the library `format-binding` system in each scene now derives
+ * `scoreDisplay`/`bestDisplay` from `score`/`best` as DATA (no host rAF loop).
  */
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
@@ -34,21 +35,8 @@ audio.setVolume(typeof (config as Record<string, number>).volume === "number" ? 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
   { manifest, config, scenes: [title, play, over] },
-  { canvas, registry, audio, storage: makeStorage(manifest.slug) },
+  { canvas, registry, audio, storage: makeStorage(manifest.slug), pauseKeys: ["Escape", "KeyP"], pauseScenes: ["play"] },
 );
-
-// --- HUD mirror (presentation only) -----------------------------------------
-// The survival score is a continuous float (currency passiveIncome); the text
-// `bind` renders raw, so floor it into integer display keys the scenes bind to.
-// No game logic — `score`/`best` (floats) remain the source of truth that the
-// currency / score / level-progression systems read.
-function mirrorScore(): void {
-  const s = game.world.state;
-  if (typeof s.score === "number") s.scoreDisplay = Math.floor(s.score as number);
-  if (typeof s.best === "number") s.bestDisplay = Math.floor(s.best as number);
-  requestAnimationFrame(mirrorScore);
-}
-requestAnimationFrame(mirrorScore);
 
 // --- screen juice (presentation only) ---------------------------------------
 // Bind the crash event → shake/flash; it is the same `crash` the play scene's
@@ -105,81 +93,33 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// --- keyboard bridge to the data-driven flow edges ---------------------------
-// On-screen buttons emit their flow event via the `tap-emit` data part; this only
-// mirrors that for Enter/Space on the title/over screens so they stay
-// keyboard-accessible. It is scene-guarded, so Space during PLAY is pure thrust
-// (the bridge never fires there) — it emits the SAME flow events, no screen state.
-window.addEventListener("keydown", (e) => {
-  if (e.code !== "Enter" && e.code !== "Space") return;
-  if (game.scene.id === "title") {
-    e.preventDefault();
-    game.world.events.emit("start-pressed");
-  } else if (game.scene.id === "over") {
-    e.preventDefault();
-    game.world.events.emit("retry");
-  }
-});
+// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
+// on each title/over flow button (E3); Space during PLAY stays pure thrust (no key-emit
+// on the play scene). No host bridge.
 
-// --- pause (a host-loop concern: no data primitive freezes the world) --------
-let paused = false;
+// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
+// `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
+// forwards the on-screen button to `togglePause`. No setPaused state machine.
 const pauseOverlay = document.getElementById("pause-overlay");
-function setPaused(next: boolean): void {
-  if (game.scene.id !== "play" && !paused) return; // only pause during play
-  paused = next;
-  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
-  // pause()/resume() freeze the sim WITHOUT detaching input, so a held thrust key
-  // survives the pause (stop()/start() would clear it). syncAudio() mutes while paused.
-  if (paused) game.pause();
-  else game.resume();
+game.world.events.on("pause-changed", (e) => {
+  if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
   syncAudio();
-}
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" || e.code === "KeyP") {
-    e.preventDefault();
-    setPaused(!paused);
-  }
 });
 const pauseBtn = document.getElementById("pause-btn");
-if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 
 // The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- mobile touch button (synthesizes the Space key thrust-lift reads) -------
-const held = new Set<string>();
-function synthKey(type: "keydown" | "keyup", code: string): void {
-  if (type === "keydown") {
-    if (held.has(code)) return;
-    held.add(code);
-  } else {
-    held.delete(code);
-  }
-  window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true }));
-}
-const pad = document.getElementById("touch");
-if (pad) {
-  const b = document.createElement("button");
-  b.className = "tbtn";
-  b.textContent = "HOLD TO FLY";
-  b.style.gridArea = "1 / 1 / 4 / 4";
-  b.style.background = "rgba(65,166,246,.45)";
-  const down = (ev: Event): void => {
-    ev.preventDefault();
-    resumeAudio();
-    synthKey("keydown", "Space");
-  };
-  const up = (ev: Event): void => {
-    ev.preventDefault();
-    synthKey("keyup", "Space");
-  };
-  b.addEventListener("pointerdown", down);
-  b.addEventListener("pointerup", up);
-  b.addEventListener("pointercancel", up);
-  b.addEventListener("pointerleave", up);
-  pad.appendChild(b);
-}
+// --- mobile touch: NONE needed (declarative, E1) ----------------------------
+// Touch-to-fly is pure DATA now: the `input-actions` system in play.json binds the
+// `thrust` action to a full-canvas `rect`, so HOLDING ANYWHERE on the canvas lifts
+// (the classic flappy control) and `thrust-lift` reads it via `thrustAction`. The
+// old DOM "HOLD TO FLY" button that synthesized a `Space` key event is GONE — touch
+// reaches the mover through the same logical action the keyboard does, no host glue.
+// (The window `pointerdown` listener above still unlocks audio on the first touch.)
 
 // Observation hook for the Stage-4 playthrough harness (audit/harness/helicopter) —
 // read-only; harmless in production.

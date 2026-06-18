@@ -19,7 +19,9 @@
  * What REMAINS host (no data primitive covers it):
  *   • the HTML upgrade bar (rich cost labels + affordability dimming the canvas
  *     renderer can't do) — it only SETS the data `upgradeRequest` flag;
- *   • presentation HUD mirrors (legible "Gold N", "Wave n/10" readouts);
+ *   • a residual mirror for the two-value outcome summary (the single-value HUD
+ *     readouts — Gold/Wave/Leaked/best/outcome title — are DATA now via the library
+ *     `format-binding` system in each scene, E2);
  *   • a screen-FX juice bind + the audio gesture + a keyboard bridge to the flow.
  */
 import { createGame } from "@gitcade/sdk";
@@ -44,7 +46,7 @@ audio.setVolume(typeof cfg.volume === "number" ? cfg.volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
   { manifest, config, scenes: [title, play, over] },
-  { canvas, registry, audio, storage: makeStorage(manifest.slug) },
+  { canvas, registry, audio, storage: makeStorage(manifest.slug), pauseKeys: ["Escape", "KeyP"], pauseScenes: ["play"] },
 );
 const world = game.world;
 const playing = () => game.scene.id === "play";
@@ -96,18 +98,12 @@ function updateBar(w: World): void {
 // --- HUD mirrors (presentation strings the canvas text sprites bind to) --------
 function mirror(): void {
   const w = world;
-  const best = (w.state.bestWave as number) ?? 0;
-  w.state.bestWaveHud = best > 0 ? `Best: wave ${best}` : "";
-  if (playing()) {
-    w.state.goldHud = `Gold ${Math.round((w.state.gold as number) ?? 0)}  (tower ${cfg.towerCost}g)`;
-    w.state.waveHud = `Wave ${Math.max(1, (w.state.wave as number) ?? 0)}/${cfg.maxWaves}`;
-    w.state.leakHud = `Leaked ${(w.state.leaked as number) ?? 0}/${cfg.maxLeak}`;
-    if (typeof w.state.buildHint !== "string") w.state.buildHint = "Click open ground to build a turret";
-    updateBar(w);
-  }
+  // The HUD strings (gold/wave/leak/bestWave/outcomeTitle/buildHint) are DATA now —
+  // the library `format-binding` system in each scene templates them (E2). Only the
+  // host-bound bits remain: the HTML upgrade bar, and the two-value outcome summary
+  // (one format-binding writes one value; this line interpolates wave AND leaked).
+  if (playing()) updateBar(w);
   if (game.scene.id === "over") {
-    const won = w.state.outcome === "win";
-    w.state.outcomeTitle = won ? "The line held! 🛡️" : "Overrun";
     w.state.outcomeSummary = `Reached wave ${Math.max(1, (w.state.wave as number) ?? 0)} · leaked ${(w.state.leaked as number) ?? 0}`;
   }
   requestAnimationFrame(mirror);
@@ -180,41 +176,20 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// --- keyboard bridge to the data-driven flow edges -----------------------------
-// The title/over full-canvas `tap-emit` covers pointer/touch; this keeps
-// Space/Enter starting/retrying for keyboard players. Scene-guarded so PLAY is
-// untouched (no host pointer/placement glue — placement is the G2 click edge).
-window.addEventListener("keydown", (e) => {
-  if (e.code !== "Space" && e.code !== "Enter") return;
-  if (game.scene.id === "title") {
-    e.preventDefault();
-    world.events.emit("start-pressed");
-  } else if (game.scene.id === "over") {
-    e.preventDefault();
-    world.events.emit("retry");
-  }
-});
+// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
+// on each title/over flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
 
-// --- pause (real-time game: freeze the sim with pause()/resume() so a held input
-// survives, and mute music while paused) -------------------------------------------
-let paused = false;
+// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
+// `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
+// forwards the on-screen button to `togglePause`. No setPaused state machine.
 const pauseOverlay = document.getElementById("pause-overlay");
-function setPaused(next: boolean): void {
-  if (!playing() && !paused) return; // only pause during play
-  paused = next;
-  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
-  if (paused) game.pause();
-  else game.resume();
+game.world.events.on("pause-changed", (e) => {
+  if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
   syncAudio();
-}
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" || e.code === "KeyP") {
-    e.preventDefault();
-    setPaused(!paused);
-  }
 });
 const pauseBtn = document.getElementById("pause-btn");
-if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 
 // The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
 // to an empty room (and comes back on return, unless muted/paused).

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createGame } from "@gitcade/sdk";
+import { createGame, Input } from "@gitcade/sdk";
 import { createLibraryRegistry } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
@@ -125,5 +125,66 @@ describe("helicopter smoke (0.2.0 data flow)", () => {
     game.stepFrames(2);
     expect(game.scene.id).toBe("play");
     expect(game.world.query("player").length).toBe(1);
+  });
+});
+
+/**
+ * E1 (0.4.0) — the real play.json wiring: the `input-actions` system binds `thrust`
+ * to the Space key AND a full-canvas `rect`, and `thrust-lift{thrustAction:"thrust"}`
+ * reads it. So BOTH a real Space keydown AND a bare touch anywhere on the canvas lift
+ * the craft — the synthesized-`KeyboardEvent` touch button is gone, with no host glue.
+ */
+describe("helicopter input action layer (E1)", () => {
+  function bootPlay() {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    const input = new Input();
+    input.setWorldSize(800, 600);
+    const keyL: Record<string, (e: any) => void> = {};
+    const ptrL: Record<string, (e: any) => void> = {};
+    input.attach({
+      keyTarget: { addEventListener: (t: string, f: any) => (keyL[t] = f), removeEventListener: () => {} } as never,
+      pointerTarget: { addEventListener: (t: string, f: any) => (ptrL[t] = f), removeEventListener: () => {} } as never,
+    });
+    const game = createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry, input });
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2);
+    expect(game.scene.id).toBe("play");
+    return { game, keyL, ptrL };
+  }
+
+  it("a real Space keydown lifts the craft via the thrust action (no synth key)", () => {
+    const { game, keyL } = bootPlay();
+    const p = game.world.query("player")[0]!;
+    p.vy = 0;
+    keyL.keydown({ code: "Space", cancelable: true, preventDefault() {} });
+    game.stepFrames(5);
+    expect(p.vy).toBeLessThan(0); // accelerating UP — thrust reached the mover
+  });
+
+  it("a bare touch anywhere on the canvas lifts too (declarative full-canvas rect)", () => {
+    const { game, ptrL } = bootPlay();
+    const p = game.world.query("player")[0]!;
+    p.vy = 0;
+    ptrL.pointerdown({ pointerId: 1, clientX: 400, clientY: 300 }); // hold-anywhere to fly
+    game.stepFrames(5);
+    expect(p.vy).toBeLessThan(0);
+  });
+});
+
+/**
+ * E2 (0.4.0) — the per-frame host mirror that floored the float score is gone; the
+ * `format-binding` system in play.json derives the integer display keys as DATA.
+ */
+describe("helicopter HUD (E2 format-binding)", () => {
+  it("floors the float score/best into scoreDisplay/bestDisplay as data", () => {
+    const game = boot();
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2);
+    game.world.state.score = 142;
+    game.world.state.best = 999.7;
+    game.stepFrames(1);
+    expect(game.world.state.scoreDisplay).toBe("142"); // floor(142 + a hair of passive income)
+    expect(game.world.state.bestDisplay).toBe("999"); // floor(999.7)
   });
 });

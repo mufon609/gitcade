@@ -10,10 +10,15 @@
  * driven by the library `level-progression` system — not host code.
  *
  * This file keeps ONLY host concerns that have no data primitive: the library
- * audio, screen juice (flash/shake), the mobile touch pad (which synthesizes the
- * arrow keys the `move-4dir` paddle already reads), a pause toggle (freezing the
- * sim is a host-loop concern), and an Enter/Space bridge that mirrors the
- * on-screen flow buttons for keyboard players. No balance or game logic lives here.
+ * audio, screen juice (flash/shake), a pause toggle (freezing the sim is a host-
+ * loop concern), and an Enter/Space bridge that mirrors the on-screen flow buttons
+ * for keyboard players. No balance or game logic lives here.
+ *
+ * 0.4.0 (E1): the mobile touch pad that synthesized arrow keys is GONE. The paddle
+ * now uses the SDK `keyboard-axis` mover, which natively supports DRAG-to-move on
+ * touch (move toward the finger) — the right primitive all along; the old keyboard-
+ * only `move-4dir` + a synthesized-`KeyboardEvent` d-pad was a workaround for using
+ * the wrong mover. Desktop keyboard play is byte-identical.
  */
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
@@ -37,7 +42,7 @@ audio.setVolume(typeof (config as Record<string, number>).volume === "number" ? 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
   { manifest, config, scenes: [title, level1, level2, level3, win, over] },
-  { canvas, registry, audio, storage: makeStorage(manifest.slug) },
+  { canvas, registry, audio, storage: makeStorage(manifest.slug), pauseKeys: ["Escape", "KeyP"], pauseScenes: ["level-1", "level-2", "level-3"] },
 );
 
 // --- screen juice (presentation only) ---------------------------------------
@@ -102,91 +107,31 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// --- keyboard bridge to the data-driven flow edges ---------------------------
-// On-screen buttons emit their flow event via the `tap-emit` data part; this only
-// mirrors that for Enter/Space so the title/win/over screens stay keyboard-
-// accessible. It emits the SAME events — it implements no screen state itself.
-const isPlay = (id: string): boolean => id.startsWith("level-");
-window.addEventListener("keydown", (e) => {
-  if (e.code !== "Enter" && e.code !== "Space") return;
-  if (game.scene.id === "title") {
-    e.preventDefault();
-    game.world.events.emit("start-pressed");
-  } else if (game.scene.id === "win" || game.scene.id === "over") {
-    e.preventDefault();
-    game.world.events.emit("retry");
-  }
-});
+// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
+// on each title/win/over flow button (E3), the keyboard companion to `tap-emit`.
 
-// --- pause (a host-loop concern: no data primitive freezes the world) --------
-let paused = false;
+// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
+// `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
+// forwards the on-screen button to `togglePause`. No setPaused state machine.
 const pauseOverlay = document.getElementById("pause-overlay");
-function setPaused(next: boolean): void {
-  if (!isPlay(game.scene.id) && !paused) return; // only pause during a level
-  paused = next;
-  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
-  // pause()/resume() freeze the sim WITHOUT detaching input, so a held paddle key
-  // survives the pause (stop()/start() would clear it). Mute music while paused.
-  if (paused) game.pause();
-  else game.resume();
+game.world.events.on("pause-changed", (e) => {
+  if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
   syncAudio();
-}
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" || e.code === "KeyP") {
-    e.preventDefault();
-    setPaused(!paused);
-  }
 });
 const pauseBtn = document.getElementById("pause-btn");
-if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 
 // The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- mobile touch pad (synthesizes the arrow keys move-4dir reads) -----------
-interface TouchControl {
-  code: string;
-  label: string;
-  cell: string;
-}
-const TOUCH: TouchControl[] = [
-  { code: "ArrowLeft", label: "◀", cell: "2 / 1" },
-  { code: "ArrowRight", label: "▶", cell: "2 / 3" },
-];
-const held = new Set<string>();
-function synthKey(type: "keydown" | "keyup", code: string): void {
-  if (type === "keydown") {
-    if (held.has(code)) return;
-    held.add(code);
-  } else {
-    held.delete(code);
-  }
-  window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true }));
-}
-const pad = document.getElementById("touch");
-if (pad) {
-  for (const t of TOUCH) {
-    const b = document.createElement("button");
-    b.className = "tbtn";
-    b.textContent = t.label;
-    b.style.gridArea = t.cell;
-    const down = (ev: Event): void => {
-      ev.preventDefault();
-      resumeAudio();
-      synthKey("keydown", t.code);
-    };
-    const up = (ev: Event): void => {
-      ev.preventDefault();
-      synthKey("keyup", t.code);
-    };
-    b.addEventListener("pointerdown", down);
-    b.addEventListener("pointerup", up);
-    b.addEventListener("pointercancel", up);
-    b.addEventListener("pointerleave", up);
-    pad.appendChild(b);
-  }
-}
+// --- mobile touch: NONE needed (the paddle's keyboard-axis mover has it) -----
+// The paddle uses the SDK `keyboard-axis` mover with `touch:true`, so touching/
+// dragging on the canvas moves it toward the finger — the classic breakout control.
+// The old DOM left/right buttons that synthesized arrow-key events are GONE; the
+// `#touch` overlay is `pointer-events:none`, so its now-empty region passes touches
+// straight through to the canvas where the mover reads them.
 
 // Observation hook for the Stage-4 playthrough harness (audit/harness/breakout) —
 // read-only; harmless in production.

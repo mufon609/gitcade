@@ -1,5 +1,5 @@
 import type { BehaviorFn } from "@gitcade/sdk";
-import { num, str } from "@gitcade/sdk";
+import { num, str, strArray } from "@gitcade/sdk";
 
 /** A pointer in world coordinates (matches the SDK Input `Pointer`). */
 export interface PointerLike {
@@ -104,4 +104,36 @@ export const tapEmit: BehaviorFn = (entity, world, params) => {
       return; // one emit per entity per frame
     }
   }
+};
+
+/**
+ * `key-emit` — the KEYBOARD companion to `tap-emit` (E3): emit a flow event on the
+ * down-EDGE of any of `keys`, so a title/over screen stays keyboard-accessible as
+ * pure DATA, with no host `keydown` bridge. Put it on the SAME flow-button entity as
+ * `tap-emit`, emitting the SAME event, and both pointer and keyboard drive the scene's
+ * `flow.on` edge.
+ *
+ * Edge-detected per-entity: on its FIRST tick the entity ADOPTS the current held-state
+ * as the baseline and never emits — so a key still HELD across the scene change that
+ * spawned this entity (e.g. a thrust key down at game-over) does not instantly re-fire;
+ * only a fresh press emits. Idle headless (no keys down), so the smoke boot is
+ * unaffected.
+ *
+ * Params:
+ *  - `keys`: `KeyboardEvent.code` values that fire (e.g. `["Enter","Space"]`)
+ *  - `emitOnKey`: event name emitted on a fresh press (default `"key-pressed"`)
+ */
+export const keyEmit: BehaviorFn = (entity, world, params) => {
+  const keys = strArray(params, "keys");
+  if (keys.length === 0) return;
+  const down = world.input.anyDown(keys);
+  const prev = entity.state.__keyEmitDown;
+  if (prev === undefined) {
+    entity.state.__keyEmitDown = down; // first tick: adopt, never emit (ignore a held key)
+    return;
+  }
+  if (down && prev === false) {
+    world.events.emit(str(params, "emitOnKey", "key-pressed"), { id: entity.id });
+  }
+  entity.state.__keyEmitDown = down;
 };

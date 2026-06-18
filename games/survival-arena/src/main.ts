@@ -13,10 +13,13 @@
  * the screen-shake/flash the frozen renderer can't do from a behavior: a small shake
  * when the PLAYER is hit, a bigger shake + red flash on death, a blue flash on
  * level-up), an Enter bridge mirroring the on-screen flow buttons for keyboard
- * players, a pause toggle (freezing the sim is a host-loop concern), and a few
- * presentation-only HUD mirrors (player hp → the bar's `hp`/`maxHp` keys, the float
- * survival timer → an integer `clock`, `best` → `bestDisplay`, and the win/lose
- * `outcome` → the game-over headline text). No balance or game logic lives here.
+ * players, and a pause toggle (freezing the sim is a host-loop concern). No balance
+ * or game logic lives here.
+ *
+ * 0.4.0 (E2): the per-frame HUD mirror is GONE — the library `format-binding` system
+ * in each scene now derives the HUD as DATA (player hp → the bar's `hp`/`maxHp`, the
+ * float timer → an integer `clock`, `best` → `bestDisplay`, and the win/lose `outcome`
+ * → the game-over headline).
  */
 import { createGame } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects, throttle } from "@gitcade/library";
@@ -38,34 +41,8 @@ audio.setVolume(typeof cfg.volume === "number" ? cfg.volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
   { manifest, config, scenes: [title, play, over] },
-  { canvas, registry, audio, storage: makeStorage(manifest.slug) },
+  { canvas, registry, audio, storage: makeStorage(manifest.slug), pauseKeys: ["Escape", "KeyP"], pauseScenes: ["play"] },
 );
-
-// --- HUD + outcome mirrors (presentation only) -------------------------------
-// The hud-bar reads world.state.hp/maxHp, but the player's hp lives on the player
-// entity; the timer is a float; the game-over headline depends on the win/lose
-// outcome. Floor/mirror those into the keys the scenes bind to. No game logic —
-// the parts (health-and-death, timer-countdown, win-lose-conditions, score) remain
-// the source of truth.
-function mirror(): void {
-  const s = game.world.state;
-  if (game.scene.id === "play") {
-    s.maxHp = cfg.playerHp;
-    const player = game.world.byId("player");
-    if (player && typeof player.state.hp === "number") {
-      s.hp = Math.max(0, Math.round(player.state.hp as number));
-    }
-    if (typeof s.timeLeft === "number") s.clock = Math.ceil(s.timeLeft as number);
-  }
-  if (typeof s.best === "number") s.bestDisplay = Math.floor(s.best as number);
-  if (game.scene.id === "over") {
-    const won = s.outcome === "win";
-    s.outcomeText = won ? "YOU SURVIVED" : "OVERWHELMED";
-    s.outcomeSub = won ? "You outlasted the swarm. 🏆" : "The swarm got you.";
-  }
-  requestAnimationFrame(mirror);
-}
-requestAnimationFrame(mirror);
 
 // --- FX showcase: screen juice (presentation only) ---------------------------
 // This game is the FX demo. The per-KILL juice is DATA — a local `explosion` burst
@@ -139,42 +116,20 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// --- keyboard bridge to the data-driven flow edges ---------------------------
-// On-screen buttons emit their flow event via the `tap-emit` data part; this only
-// mirrors that for Enter/Space on the title/over screens so they stay
-// keyboard-accessible. Scene-guarded, so Space/movement during PLAY is untouched.
-window.addEventListener("keydown", (e) => {
-  if (e.code !== "Enter" && e.code !== "Space") return;
-  if (game.scene.id === "title") {
-    e.preventDefault();
-    game.world.events.emit("start-pressed");
-  } else if (game.scene.id === "over") {
-    e.preventDefault();
-    game.world.events.emit("retry");
-  }
-});
+// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
+// on each title/over flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
 
-// --- pause (a host-loop concern: no data primitive freezes the world) --------
-let paused = false;
+// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
+// `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
+// forwards the on-screen button to `togglePause`. No setPaused state machine.
 const pauseOverlay = document.getElementById("pause-overlay");
-function setPaused(next: boolean): void {
-  if (game.scene.id !== "play" && !paused) return; // only pause during play
-  paused = next;
-  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
-  // pause()/resume() freeze the sim WITHOUT detaching input, so a held movement key
-  // survives the pause (stop()/start() would clear it). Mute music while paused.
-  if (paused) game.pause();
-  else game.resume();
+game.world.events.on("pause-changed", (e) => {
+  if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
   syncAudio();
-}
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" || e.code === "KeyP") {
-    e.preventDefault();
-    setPaused(!paused);
-  }
 });
 const pauseBtn = document.getElementById("pause-btn");
-if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 
 // The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
 // to an empty room (and comes back on return, unless muted/paused).

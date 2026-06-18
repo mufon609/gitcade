@@ -1,31 +1,34 @@
 import type { Registry, BehaviorFn } from "@gitcade/sdk";
-import { num, strArray } from "@gitcade/sdk";
+import { num, str, strArray } from "@gitcade/sdk";
 
 /**
  * `thrust-lift` — the one mechanic a one-button flyer needs that no
- * @gitcade/library part provides: hold a key (or the touch button, which
- * synthesizes that key) to accelerate UP against a constant gravity, release to
- * fall. Clamps the vertical speed both ways. Sets `entity.vy` for a following SDK
- * `velocity` integrator; horizontal position is fixed (the world scrolls past).
+ * @gitcade/library part provides: hold the THRUST action to accelerate UP against a
+ * constant gravity, release to fall. Clamps the vertical speed both ways. Sets
+ * `entity.vy` for a following SDK `velocity` integrator; horizontal position is
+ * fixed (the world scrolls past).
  *
  * Written param-driven — all balance via `$cfg`, no magic numbers — and logged in
  * games/LIBRARY-GAPS.md as a generalization candidate ("one-axis thrust /
  * flappy-style control"), since auto-scrollers and jetpack games all want it.
  *
- * 0.2.0 note: the old `flagKey` (a `world.state` boolean touch fallback) was
- * DROPPED — the mobile touch button now synthesizes the same Space keydown/keyup
- * the host already reads (see main.ts), so the key path covers desktop AND touch
- * and the second code path was dead. One fewer param, same feel.
+ * 0.4.0 note (E1): the lift intent is now read through the logical `thrustAction`
+ * when set — so keyboard AND a hold-anywhere touch zone (both declared by the
+ * `input-actions` system in play.json) feed ONE channel, and the host no longer
+ * synthesizes a fake `Space` key event for touch. `thrustKeys` stays as the
+ * fallback when no `thrustAction` is given (byte-identical to before).
  *
  * Params:
- *  - `thrustKeys`: key codes that lift (default `["Space"]`)
+ *  - `thrustAction`: logical action name to read (E1); unset ⇒ read `thrustKeys`
+ *  - `thrustKeys`: key codes that lift (default `["Space"]`); used only when no `thrustAction`
  *  - `thrust`: upward acceleration in px/sec² (balance → `$cfg`)
  *  - `gravity`: downward acceleration in px/sec² (balance → `$cfg`)
  *  - `maxUp` / `maxDown`: vertical speed clamps in px/sec (balance → `$cfg`)
  */
 export const thrustLift: BehaviorFn = (entity, world, params, dt) => {
+  const action = str(params, "thrustAction", "");
   const keys = strArray(params, "thrustKeys");
-  const lifting = world.input.anyDown(keys.length ? keys : ["Space"]);
+  const lifting = action ? world.input.action(action) : world.input.anyDown(keys.length ? keys : ["Space"]);
 
   entity.vy += (lifting ? -num(params, "thrust", 0) : num(params, "gravity", 0)) * dt;
 

@@ -1,0 +1,14 @@
+{
+  "id": "key-emit",
+  "kind": "ui",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "input", "keyboard", "flow", "menu"],
+  "license": "MIT",
+  "description": "The keyboard companion to tap-emit (E3): a per-entity behavior that emits a game event on the down-edge of any of `keys`, so title/over screens are keyboard-accessible as pure data with no host keydown bridge. Put it on the same flow-button entity as tap-emit, emitting the same event, and wire it to a scene.flow.on transition. Adopts a key held across the spawning scene change so it only fires on a fresh press.",
+  "dependencies": [],
+  "definition": {
+    "type": "key-emit",
+    "params": { "keys": ["Enter", "Space"], "emitOnKey": "start-pressed" }
+  }
+}

@@ -31,7 +31,8 @@ npm run validate   # also proves the no-magic-numbers rule: zero balance literal
 | `currency@1.0.0` | library system | the gold economy |
 | `transaction@1.0.0` | library system | the buy-a-turret purchase (afford → deduct → place) |
 | `upgrade-tree@1.0.0` | library system | the Range / Fire-rate / Bounty upgrades (cost growth + max levels, all `$cfg`) |
-| `win-lose-conditions@1.0.0` | library system | win on all creeps resolved, lose on too many leaks |
+| `stat-modifier@1.0.0` | library system | a shared upgrade: writes the upgraded range/cooldown onto **every** tower each tick (E6) |
+| `win-lose-conditions@1.1.0` | library system | win on all waves complete **and** the field cleared (a composed `all` condition, E7); lose on too many leaks |
 | `trigger-zone@1.0.0` | library behavior | the exit that leaks (and removes) a creep |
 | `explosion@1.0.0` | library FX | the burst on every kill |
 
@@ -39,11 +40,14 @@ npm run validate   # also proves the no-magic-numbers rule: zero balance literal
 
 Placement and the objective economy are the only mechanics outside the library, in
 [`src/custom-behaviors/`](src/custom-behaviors/index.ts) — **`tower-build`** (turns
-a map click into a buildable-tile-checked, grid-snapped, upgrade-stamped turret,
-reading the SDK click edge and routing the cost through `transaction`) and
-**`creep-accounting`** (bounty + win/lose counters on each kill/leak). Both are
-fully param-driven (every number a `$cfg`) and restart-safe, and are logged in
-[`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as generalization candidates.
+a map click into a buildable-tile-checked, grid-snapped turret, reading the SDK click
+edge and routing the cost through `transaction`) and **`creep-accounting`** (bounty +
+leak counters on each kill/leak, and the one-line bridge of the spawner's
+`waves-complete` event to a flag). Both are fully param-driven (every number a `$cfg`)
+and restart-safe, and are logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as
+generalization candidates. As of 0.4.0 the shared upgrade-stamp (E6 → `stat-modifier`)
+and the win decision (E7 → `win-lose-conditions@1.1.0`'s composed condition) are no
+longer hand-rolled here — they're library data.
 
 ## Rebalance it — every number is here
 

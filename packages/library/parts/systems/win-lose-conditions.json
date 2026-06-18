@@ -1,14 +1,14 @@
 {
   "id": "win-lose-conditions",
   "kind": "system",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "rules",
   "tags": ["rules", "win", "lose", "game-over"],
   "license": "MIT",
-  "description": "Generalized end-of-game check: a list of conditions with gte/lte/eq comparisons and per-condition win or lose outcomes. The first match ends the game.",
+  "description": "Generalized end-of-game check: a list of conditions, first match ends the game with a win or lose outcome. 1.1.0 (E7) adds — additively — a live entity-count condition ({ tag, count?, value? } via world.query(tag).length), a state truthy/falsy flag check ({ key, truthy|falsy }), and all/any composition, so a win like 'all waves complete AND zero live creeps' is data. The original { key, cmp?, value } state-threshold condition is byte-identical.",
   "dependencies": [],
   "params": {
-    "conditions": { "type": "array", "balance": false, "description": "Array of { key, cmp?, value, outcome?, winner?, sound? }; each value is a $cfg threshold." }
+    "conditions": { "type": "array", "balance": false, "description": "Array of conditions; each is a state-threshold { key, cmp?, value }, a flag { key, truthy|falsy }, an entity-count { tag, count?, value? } (value defaults 0), or a composite { all|any: [...] }, plus { outcome?, winner?, sound? } on top-level entries. Numeric thresholds are $cfg refs." }
   },
   "definition": {
     "type": "win-lose-conditions",

@@ -138,3 +138,21 @@ describe("idle-clicker smoke", () => {
     expect((g2.world.state.upgrades as Record<string, number>).click).toBe(4);
   });
 });
+
+/**
+ * E2 (0.4.0) — the per-frame host `fmt()`/mirror that compacted the HUD is gone; the
+ * `format-binding` system in play.json compacts/templates the numeric readouts as DATA
+ * (the duplicated `formatCompact` bandaid is retired).
+ */
+describe("idle-clicker HUD (E2 format-binding)", () => {
+  it("compacts coins and templates the prestige-scaled rate as data", async () => {
+    const game = boot();
+    await enterPlay(game);
+    game.world.state.coins = 1234;
+    game.world.state.autoRate = 2;
+    game.world.state.prestigeMult = 5;
+    game.stepFrames(1);
+    expect(game.world.state.coinsDisplay).toBe("1.23K"); // formatCompact(1234) as data
+    expect(game.world.state.rateDisplay).toBe("10/sec"); // autoRate(2) * prestigeMult(5), templated
+  });
+});

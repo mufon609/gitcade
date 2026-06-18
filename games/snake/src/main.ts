@@ -7,7 +7,8 @@
  * declarative `persist`), so the old ~305-line GameShell screen-state machine and
  * its HTML menu overlays are GONE. This file keeps ONLY host concerns that have no
  * data primitive: the library audio, screen juice (flash/shake), the mobile touch
- * d-pad (which synthesizes the arrow keys the `move-grid-step` part already reads),
+ * d-pad (which drives the data-defined `move` ACTION via `input.setActionVector`,
+ * NOT synthesized key events — the keyboard half is the `input-actions` system),
  * a pause toggle (freezing the sim is a host-loop concern), and an Enter/Space
  * bridge that mirrors the on-screen flow buttons for keyboard players. No balance
  * or game logic lives here.
@@ -31,7 +32,7 @@ audio.setVolume(typeof (config as Record<string, number>).volume === "number" ? 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
   { manifest, config, scenes: [title, play, over] },
-  { canvas, registry, audio, storage: makeStorage(manifest.slug) },
+  { canvas, registry, audio, storage: makeStorage(manifest.slug), pauseKeys: ["Escape", "KeyP"], pauseScenes: ["play"] },
 );
 
 // --- screen juice (presentation only) ---------------------------------------
@@ -93,68 +94,48 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// --- keyboard bridge to the data-driven flow edges ---------------------------
-// On-screen buttons emit their flow event via the `tap-emit` data part; this only
-// mirrors that for Enter/Space so the title/over screens stay keyboard-accessible.
-// It emits the SAME events — it does not implement any screen state itself.
-window.addEventListener("keydown", (e) => {
-  if (e.code !== "Enter" && e.code !== "Space") return;
-  if (game.scene.id === "title") {
-    e.preventDefault();
-    game.world.events.emit("start-pressed");
-  } else if (game.scene.id === "over") {
-    e.preventDefault();
-    game.world.events.emit("retry");
-  }
-});
+// Keyboard flow access (Enter/Space → start/retry) is DATA now — a `key-emit` behavior
+// on each title/over flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
 
-// --- pause (a host-loop concern: no data primitive freezes the world) --------
-let paused = false;
+// --- pause overlay + audio (the freeze + Esc/P key is the engine's now, E4) -----
+// `pauseKeys`/`pauseScenes` (createGame opts) make the SDK own the freeze; it emits
+// `pause-changed`, and the host just REACTS — show the overlay, re-gate audio — and
+// forwards the on-screen button to `togglePause`. No setPaused state machine.
 const pauseOverlay = document.getElementById("pause-overlay");
-function setPaused(next: boolean): void {
-  if (game.scene.id !== "play" && !paused) return; // only pause during play
-  paused = next;
-  if (pauseOverlay) pauseOverlay.style.display = paused ? "grid" : "none";
-  // pause()/resume() freeze the sim WITHOUT detaching input, so a held direction key
-  // survives the pause (stop()/start() would clear it). Mute music while paused.
-  if (paused) game.pause();
-  else game.resume();
+game.world.events.on("pause-changed", (e) => {
+  if (pauseOverlay) pauseOverlay.style.display = (e as { paused: boolean }).paused ? "grid" : "none";
   syncAudio();
-}
-window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape" || e.code === "KeyP") {
-    e.preventDefault();
-    setPaused(!paused);
-  }
 });
 const pauseBtn = document.getElementById("pause-btn");
-if (pauseBtn) pauseBtn.onclick = () => setPaused(!paused);
+if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 
 // The SDK auto-pauses the sim on tab-hide; re-gate audio so the music loop doesn't play
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- mobile touch d-pad (synthesizes the arrow keys move-grid-step reads) ----
+// --- mobile touch d-pad (drives the data-defined `move` ACTION; no synth keys) ---
+// Each button reports its direction as HELD; we fold the held set into a vector and
+// push it through the SDK input layer (`setActionVector`), which `move-grid-step`
+// reads via its `moveAction:"move"` param — the exact same channel the keyboard
+// `input-actions` binding feeds. This replaces the old `dispatchEvent(KeyboardEvent)`
+// bandaid: touch and keyboard now share one logical action instead of the game
+// faking browser key events to reach a keyboard-only mover.
 interface TouchControl {
-  code: string;
+  dir: "up" | "down" | "left" | "right";
   label: string;
   cell: string;
 }
 const TOUCH: TouchControl[] = [
-  { code: "ArrowUp", label: "▲", cell: "1 / 2" },
-  { code: "ArrowLeft", label: "◀", cell: "2 / 1" },
-  { code: "ArrowRight", label: "▶", cell: "2 / 3" },
-  { code: "ArrowDown", label: "▼", cell: "3 / 2" },
+  { dir: "up", label: "▲", cell: "1 / 2" },
+  { dir: "left", label: "◀", cell: "2 / 1" },
+  { dir: "right", label: "▶", cell: "2 / 3" },
+  { dir: "down", label: "▼", cell: "3 / 2" },
 ];
-const held = new Set<string>();
-function synthKey(type: "keydown" | "keyup", code: string): void {
-  if (type === "keydown") {
-    if (held.has(code)) return;
-    held.add(code);
-  } else {
-    held.delete(code);
-  }
-  window.dispatchEvent(new KeyboardEvent(type, { code, bubbles: true }));
+const heldDirs = new Set<string>();
+function pushMoveVector(): void {
+  const x = (heldDirs.has("right") ? 1 : 0) - (heldDirs.has("left") ? 1 : 0);
+  const y = (heldDirs.has("down") ? 1 : 0) - (heldDirs.has("up") ? 1 : 0);
+  game.world.input.setActionVector("move", x, y);
 }
 const pad = document.getElementById("touch");
 if (pad) {
@@ -166,11 +147,13 @@ if (pad) {
     const down = (ev: Event): void => {
       ev.preventDefault();
       resumeAudio();
-      synthKey("keydown", t.code);
+      heldDirs.add(t.dir);
+      pushMoveVector();
     };
     const up = (ev: Event): void => {
       ev.preventDefault();
-      synthKey("keyup", t.code);
+      heldDirs.delete(t.dir);
+      pushMoveVector();
     };
     b.addEventListener("pointerdown", down);
     b.addEventListener("pointerup", up);

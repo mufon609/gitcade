@@ -9,6 +9,9 @@ import { winLoseConditions } from "../src/systems/win-lose-conditions.js";
 import { simpleInventory } from "../src/systems/simple-inventory.js";
 import { currency } from "../src/systems/currency.js";
 import { upgradeTree } from "../src/systems/upgrade-tree.js";
+import { inputActions } from "../src/systems/input-actions.js";
+import { formatBinding } from "../src/systems/format-binding.js";
+import { statModifier } from "../src/systems/stat-modifier.js";
 
 const DT = 1 / 60;
 const flush = () => Promise.resolve().then(() => Promise.resolve());
@@ -190,6 +193,70 @@ describe("win-lose-conditions", () => {
     winLoseConditions(world, { conditions: [{ key: "coreHp", cmp: "lte", value: 0, outcome: "lose" }] }, DT);
     expect(world.state.outcome).toBe("lose");
   });
+
+  // --- E7 (1.1.0): entity-count, truthy flag, and all/any composition ---
+  it("wins on a live entity-count condition (value defaults to 0 — 'field cleared')", () => {
+    const world = makeWorld();
+    makeEntity(world, { id: "c1", tags: ["creep"] }); // one creep alive → not yet
+    winLoseConditions(world, { conditions: [{ tag: "creep", count: "eq", outcome: "win", winner: "player" }] }, DT);
+    expect(world.state.gameOver).toBeUndefined();
+
+    const cleared = makeWorld(); // none alive → 0 == 0 → win
+    winLoseConditions(cleared, { conditions: [{ tag: "creep", count: "eq", outcome: "win", winner: "player" }] }, DT);
+    expect(cleared.state.outcome).toBe("win");
+  });
+
+  it("supports a state truthy/falsy flag with no numeric literal", () => {
+    const world = makeWorld();
+    world.state.wavesComplete = false;
+    winLoseConditions(world, { conditions: [{ key: "wavesComplete", truthy: true, outcome: "win" }] }, DT);
+    expect(world.state.gameOver).toBeUndefined();
+    world.state.wavesComplete = true;
+    winLoseConditions(world, { conditions: [{ key: "wavesComplete", truthy: true, outcome: "win" }] }, DT);
+    expect(world.state.outcome).toBe("win");
+  });
+
+  it("composes with all: tower-defense's real win (waves complete AND zero creeps)", () => {
+    const world = makeWorld();
+    const tdWin = {
+      conditions: [
+        { key: "leaked", cmp: "gte", value: 15, outcome: "lose", winner: "creeps" },
+        { all: [{ key: "wavesComplete", truthy: true }, { tag: "creep", count: "eq" }], outcome: "win", winner: "player" },
+      ],
+    };
+
+    // Waves complete but a creep still on the field → no win yet (the exact case the
+    // hand-rolled creep-accounting predicate guarded; now it's data).
+    world.state.wavesComplete = true;
+    const lingering = makeEntity(world, { id: "c1", tags: ["creep"] });
+    winLoseConditions(world, tdWin, DT);
+    expect(world.state.gameOver).toBeUndefined();
+
+    // Field clears → both sub-conditions hold → win.
+    world.destroy(lingering);
+    world.prune();
+    winLoseConditions(world, tdWin, DT);
+    expect(world.state.outcome).toBe("win");
+    expect(world.state.winner).toBe("player");
+  });
+
+  it("evaluates conditions in order — a lose fires before a later win composite", () => {
+    const world = makeWorld();
+    world.state.leaked = 15;
+    world.state.wavesComplete = true; // the win composite WOULD match (0 creeps) …
+    winLoseConditions(
+      world,
+      {
+        conditions: [
+          { key: "leaked", cmp: "gte", value: 15, outcome: "lose", winner: "creeps" },
+          { all: [{ key: "wavesComplete", truthy: true }, { tag: "creep", count: "eq" }], outcome: "win", winner: "player" },
+        ],
+      },
+      DT,
+    );
+    expect(world.state.outcome).toBe("lose"); // … but the earlier lose wins the race
+    expect(world.state.winner).toBe("creeps");
+  });
 });
 
 describe("simple-inventory", () => {
@@ -239,5 +306,166 @@ describe("upgrade-tree", () => {
     upgradeTree(world, { currencyKey: "gold", requestKey: "buy", upgrades: [{ id: "dmg", cost: 30 }] }, DT);
     expect(world.state.gold).toBe(10);
     expect(denied).toBe("insufficient-funds");
+  });
+});
+
+describe("input-actions (E1)", () => {
+  it("installs keyboard + touch bindings that the input layer evaluates (no synth keys)", () => {
+    const world = makeWorld();
+    const keyL: Record<string, (e: any) => void> = {};
+    const ptrL: Record<string, (e: any) => void> = {};
+    world.input.setWorldSize(800, 600);
+    world.input.attach({
+      keyTarget: { addEventListener: (t: string, f: any) => (keyL[t] = f), removeEventListener: () => {} } as never,
+      pointerTarget: { addEventListener: (t: string, f: any) => (ptrL[t] = f), removeEventListener: () => {} } as never,
+    });
+    // The scene's binding DATA: thrust = a key OR a hold-anywhere rect.
+    inputActions(world, { bindings: { thrust: { keys: ["Space"], rect: { x: 0, y: 0, w: 800, h: 600 } } } }, DT);
+    expect(world.input.action("thrust")).toBe(false);
+
+    keyL.keydown({ code: "Space", cancelable: true, preventDefault() {} });
+    expect(world.input.action("thrust")).toBe(true);
+    keyL.keyup({ code: "Space" });
+    expect(world.input.action("thrust")).toBe(false);
+
+    // Touch path: a down pointer inside the rect activates the SAME action — the
+    // capability that lets a game delete its synthesized-KeyboardEvent glue.
+    ptrL.pointerdown({ pointerId: 1, clientX: 400, clientY: 300 });
+    expect(world.input.action("thrust")).toBe(true);
+  });
+
+  it("is a no-op for absent/empty bindings", () => {
+    const world = makeWorld();
+    expect(() => inputActions(world, {}, DT)).not.toThrow();
+    expect(world.input.action("anything")).toBe(false);
+  });
+});
+
+describe("format-binding (E2)", () => {
+  it("floors / compacts / templates / scales / maps / reads-entity into display keys", () => {
+    const world = makeWorld();
+    world.state.score = 99.7;
+    world.state.coins = 1234;
+    world.state.wave = 3;
+    world.state.autoRate = 2;
+    world.state.prestigeMult = 5;
+    world.state.bestWave = 0;
+    world.state.outcome = "win";
+    makeEntity(world, { id: "player", state: { hp: 42.7 } });
+
+    formatBinding(
+      world,
+      {
+        bindings: [
+          { from: "score", format: "floor", to: "scoreDisplay" },
+          { from: "coins", format: "compact", to: "coinsDisplay" },
+          { from: "wave", format: "round", template: "Wave {v}/{c}", constant: 10, to: "waveHud" },
+          { from: "autoRate", mult: "prestigeMult", format: "compact", template: "{v}/sec", to: "rateDisplay" },
+          { from: "hp", fromEntity: "player", format: "round", to: "hp" },
+          { from: "outcome", map: { win: "YOU SURVIVED", lose: "OVERWHELMED" }, to: "outcomeText" },
+          { from: "bestWave", emptyWhenZero: true, template: "Best: wave {v}", to: "bestWaveHud" },
+          { constant: 80, to: "maxHp" },
+        ],
+      },
+      DT,
+    );
+
+    expect(world.state.scoreDisplay).toBe("99"); // floor(99.7)
+    expect(world.state.coinsDisplay).toBe("1.23K"); // compact(1234)
+    expect(world.state.waveHud).toBe("Wave 3/10"); // template + config constant via {c}
+    expect(world.state.rateDisplay).toBe("10/sec"); // 2 * prestigeMult(5) = 10
+    expect(world.state.hp).toBe("43"); // round(42.7) read from the player ENTITY's state
+    expect(world.state.outcomeText).toBe("YOU SURVIVED"); // value→label map
+    expect(world.state.bestWaveHud).toBe(""); // hidden because bestWave is 0
+    expect(world.state.maxHp).toBe("80"); // const-only output (a HUD bar's max)
+  });
+
+  it("uses the fallback when the source is absent", () => {
+    const world = makeWorld();
+    formatBinding(world, { bindings: [{ from: "clickPower", fallback: 1, format: "round", to: "powerDisplay" }] }, DT);
+    expect(world.state.powerDisplay).toBe("1");
+  });
+});
+
+describe("stat-modifier (E6)", () => {
+  /** Attach a behavior carrying `params` to an entity (the runtime shape a system writes). */
+  function withBehavior(e: ReturnType<typeof makeEntity>, type: string, params: Record<string, unknown>) {
+    e.behaviors.push({ id: `${e.id}.${type}`, type, fn: () => {}, params });
+    return e;
+  }
+
+  it("stamps a world.state value onto a behavior param across ALL tagged entities (the restampTowers generalization)", () => {
+    const world = makeWorld();
+    world.state.towerRange = 200;
+    world.state.towerCooldown = 0.5;
+    const a = withBehavior(makeEntity(world, { id: "t1", tags: ["tower"] }), "ai-aim-and-fire", { range: 135, cooldown: 0.7 });
+    const b = withBehavior(makeEntity(world, { id: "t2", tags: ["tower"] }), "ai-aim-and-fire", { range: 135, cooldown: 0.7 });
+
+    statModifier(
+      world,
+      {
+        modifiers: [
+          { tag: "tower", behavior: "ai-aim-and-fire", param: "range", from: "towerRange" },
+          { tag: "tower", behavior: "ai-aim-and-fire", param: "cooldown", from: "towerCooldown", min: 0.2 },
+        ],
+      },
+      DT,
+    );
+
+    expect(a.behaviors[0].params.range).toBe(200);
+    expect(b.behaviors[0].params.range).toBe(200); // EVERY tower, not just one
+    expect(a.behaviors[0].params.cooldown).toBe(0.5);
+  });
+
+  it("clamps to [min,max] (the towerMinCooldown floor)", () => {
+    const world = makeWorld();
+    world.state.towerCooldown = 0.05; // below the floor
+    const t = withBehavior(makeEntity(world, { id: "t1", tags: ["tower"] }), "ai-aim-and-fire", { cooldown: 0.7 });
+    statModifier(world, { modifiers: [{ tag: "tower", behavior: "ai-aim-and-fire", param: "cooldown", from: "towerCooldown", min: 0.2 }] }, DT);
+    expect(t.behaviors[0].params.cooldown).toBe(0.2);
+  });
+
+  it("self-heals: an entity spawned AFTER the first tick is stamped on the next tick", () => {
+    const world = makeWorld();
+    world.state.towerRange = 300;
+    const params = { modifiers: [{ tag: "tower", behavior: "ai-aim-and-fire", param: "range", from: "towerRange" }] };
+    statModifier(world, params, DT); // no towers yet — no-op
+    const fresh = withBehavior(makeEntity(world, { id: "t1", tags: ["tower"] }), "ai-aim-and-fire", { range: 135 });
+    statModifier(world, params, DT); // next tick picks it up — no per-spawn stamp needed
+    expect(fresh.behaviors[0].params.range).toBe(300);
+  });
+
+  it("only the named behavior is touched; an unnamed behavior filter touches all", () => {
+    const world = makeWorld();
+    world.state.v = 9;
+    const t = makeEntity(world, { id: "t1", tags: ["tower"] });
+    withBehavior(t, "ai-aim-and-fire", { range: 1 });
+    withBehavior(t, "velocity", { range: 1 }); // an unrelated behavior that happens to share the key
+    statModifier(world, { modifiers: [{ tag: "tower", behavior: "ai-aim-and-fire", param: "range", from: "v" }] }, DT);
+    expect(t.behaviors[0].params.range).toBe(9); // ai-aim-and-fire written
+    expect(t.behaviors[1].params.range).toBe(1); // velocity left alone
+  });
+
+  it("applies the scale-by-state difficulty factor (base × (1+perLevel·(level-1)))", () => {
+    const world = makeWorld();
+    world.state.level = 3;
+    const e = withBehavior(makeEntity(world, { id: "e1", tags: ["enemy"] }), "ai-aim-and-fire", { range: 0 });
+    statModifier(world, { modifiers: [{ tag: "enemy", behavior: "ai-aim-and-fire", param: "range", base: 100, levelKey: "level", perLevel: 0.5 }] }, DT);
+    expect(e.behaviors[0].params.range).toBe(200); // 100 * (1 + 0.5*(3-1))
+  });
+
+  it("applies a shared multiplier (the prestige-style multKey)", () => {
+    const world = makeWorld();
+    world.state.mult = 4;
+    const e = withBehavior(makeEntity(world, { id: "e1", tags: ["src"] }), "auto-fire", { amount: 0 });
+    statModifier(world, { modifiers: [{ tag: "src", behavior: "auto-fire", param: "amount", base: 10, multKey: "mult" }] }, DT);
+    expect(e.behaviors[0].params.amount).toBe(40);
+  });
+
+  it("skips a modifier with no numeric source (writes no NaN)", () => {
+    const world = makeWorld();
+    const e = withBehavior(makeEntity(world, { id: "e1", tags: ["tower"] }), "ai-aim-and-fire", { range: 135 });
+    statModifier(world, { modifiers: [{ tag: "tower", behavior: "ai-aim-and-fire", param: "range", from: "unseeded" }] }, DT);
+    expect(e.behaviors[0].params.range).toBe(135); // untouched, not NaN
   });
 });

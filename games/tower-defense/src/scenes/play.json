@@ -86,6 +86,18 @@
   ],
   "systems": [
     { "type": "persistence", "params": {} },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "gold", "format": "round", "template": "Gold {v}  (tower {c}g)", "constant": "$cfg.towerCost", "to": "goldHud" },
+          { "from": "wave", "format": "round", "template": "Wave {v}/{c}", "constant": "$cfg.maxWaves", "to": "waveHud" },
+          { "from": "leaked", "format": "round", "template": "Leaked {v}/{c}", "constant": "$cfg.maxLeak", "to": "leakHud" },
+          { "constant": "Click open ground to build a turret", "to": "buildHint" }
+        ]
+      }
+    },
     { "type": "aabb-collision", "params": { "pairs": [["creep", "tower-bullet"], ["creep", "exit"]] } },
     {
       "type": "currency",
@@ -116,7 +128,6 @@
         "bountyBonusKey": "bountyBonus",
         "baseRange": "$cfg.towerBaseRange",
         "baseCooldown": "$cfg.towerBaseCooldown",
-        "minCooldown": "$cfg.towerMinCooldown",
         "towerTag": "tower",
         "prototype": {
           "id": "tower",
@@ -164,10 +175,9 @@
         "leakedKey": "leaked",
         "killEvent": "creep-killed",
         "leakEvent": "creep-leaked",
-        "creepTag": "creep",
         "waveKey": "wave",
-        "clearedKey": "clearedWaves",
         "wavesCompleteEvent": "waves-complete",
+        "wavesCompleteKey": "wavesComplete",
         "bestWaveKey": "bestWave"
       }
     },
@@ -182,6 +192,16 @@
           { "id": "range", "cost": "$cfg.upgradeRangeCost", "effectKey": "towerRange", "effectAmount": "$cfg.upgradeRangeAmount", "maxLevel": "$cfg.upgradeRangeMax", "costGrowth": "$cfg.upgradeRangeGrowth" },
           { "id": "firerate", "cost": "$cfg.upgradeFirerateCost", "effectKey": "towerCooldown", "effectAmount": "$cfg.upgradeFirerateAmount", "maxLevel": "$cfg.upgradeFirerateMax", "costGrowth": "$cfg.upgradeFirerateGrowth" },
           { "id": "bounty", "cost": "$cfg.upgradeBountyCost", "effectKey": "bountyBonus", "effectAmount": "$cfg.upgradeBountyAmount", "maxLevel": "$cfg.upgradeBountyMax", "costGrowth": "$cfg.upgradeBountyGrowth" }
+        ]
+      }
+    },
+    {
+      "type": "stat-modifier",
+      "part": "stat-modifier@1.0.0",
+      "params": {
+        "modifiers": [
+          { "tag": "tower", "behavior": "ai-aim-and-fire", "param": "range", "from": "towerRange" },
+          { "tag": "tower", "behavior": "ai-aim-and-fire", "param": "cooldown", "from": "towerCooldown", "min": "$cfg.towerMinCooldown" }
         ]
       }
     },
@@ -232,11 +252,11 @@
     },
     {
       "type": "win-lose-conditions",
-      "part": "win-lose-conditions@1.0.0",
+      "part": "win-lose-conditions@1.1.0",
       "params": {
         "conditions": [
           { "key": "leaked", "cmp": "gte", "value": "$cfg.maxLeak", "outcome": "lose", "winner": "creeps" },
-          { "key": "clearedWaves", "cmp": "gte", "value": "$cfg.maxWaves", "outcome": "win", "winner": "player" }
+          { "all": [{ "key": "wavesComplete", "truthy": true }, { "tag": "creep", "count": "eq" }], "outcome": "win", "winner": "player" }
         ]
       }
     },
@@ -259,6 +279,6 @@
   ],
   "flow": {
     "on": { "gameover": "over" },
-    "persist": ["bestWave", "outcome", "winner", "wave", "leaked", "resolved", "clearedWaves"]
+    "persist": ["bestWave", "outcome", "winner", "wave", "leaked", "resolved"]
   }
 }

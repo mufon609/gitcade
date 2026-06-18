@@ -40,6 +40,17 @@ export interface GameOptions {
   attachInput?: boolean;
   /** Cross-run persistence binding (from `manifest.persist`); surfaced on `world.persist` (G6). */
   persist?: PersistConfig;
+  /**
+   * Keys (`KeyboardEvent.code`) that toggle the manual pause (E4). Detected in the
+   * rAF loop — which keeps running while paused — so a frozen game can still be
+   * UNpaused (a behavior/system can't, since it's frozen). Default: none.
+   */
+  pauseKeys?: string[];
+  /**
+   * Scene ids where {@link togglePause} may PAUSE; omit ⇒ any scene. Unpausing is
+   * always allowed, so a pause can never be stranded by a scene change (E4).
+   */
+  pauseScenes?: string[];
 }
 
 interface SystemInstance {
@@ -81,6 +92,10 @@ export class Game {
   private rafId: number | null = null;
   /** Teardown for the visibilitychange listener installed by start(). */
   private detachLifecycle: (() => void) | null = null;
+  /** Pause-toggle keys + the guard scene set + the loop's edge-detect state (E4). */
+  private readonly pauseKeys: string[];
+  private readonly pauseScenes: string[] | null;
+  private pauseKeyWasDown = false;
   /** Unsubscribers for the active scene's `flow.on` event edges, torn down on scene change (G1). */
   private flowUnsubs: Array<() => void> = [];
 
@@ -97,6 +112,8 @@ export class Game {
     this.fixedDt = opts.fixedDt ?? DEFAULT_FIXED_DT;
     this.canvas = opts.canvas ?? null;
     this.attachInput = opts.attachInput ?? this.canvas != null;
+    this.pauseKeys = opts.pauseKeys ?? [];
+    this.pauseScenes = opts.pauseScenes ?? null;
 
     this.world = new World({
       bounds: { width: this.scene.size.width, height: this.scene.size.height },
@@ -167,6 +184,9 @@ export class Game {
     // it on every transition. Using the dedicated reset (not resolvePersistKeys) means
     // a scene change does NOT emit a spurious "persist-restored" for leftover claims.
     this.world.resetPersistTracking();
+    // Logical-action bindings/overrides are scene-scoped too (E1): the active scene
+    // owns its `input-actions` system, which re-installs them on its first tick.
+    this.world.input.resetActions();
     this.world.tilemap = scene.tilemap;
     this.world.frame = 0;
     this.world.time = 0;
@@ -272,6 +292,9 @@ export class Game {
     this.lastTime = now();
     const loop = (): void => {
       if (!this.running) return;
+      // Poll the pause key(s) BEFORE the paused gate, so a fresh press can UNpause a
+      // frozen game (the DOM key listeners keep the held set live while paused). (E4)
+      this.pollPauseKeys();
       if (this.paused) {
         // Keep the clock current so unpausing doesn't replay the paused span.
         this.lastTime = now();
@@ -314,6 +337,36 @@ export class Game {
   /** True while the simulation is frozen by {@link pause} (or a tab-hidden auto-pause). */
   isPaused(): boolean {
     return this.paused;
+  }
+
+  /**
+   * Toggle the manual pause (E4) — the data-ish pause primitive that replaces each
+   * game's bespoke pause state machine. Honors `pauseScenes` (can't PAUSE a disallowed
+   * scene, but can always UNpause, so a pause is never stranded by a scene change),
+   * flips the sim freeze via {@link pause}/{@link resume}, and emits a `"pause-changed"`
+   * event carrying the new `{ paused }` so a host can react (show an overlay, mute audio)
+   * WITHOUT owning the pause logic. Safe to call from a DOM button, and it's what the
+   * `pauseKeys` loop handler calls. (The toggle itself can't be a behavior/system: those
+   * are frozen while paused and so could never unpause — hence keys-in-the-loop + this.)
+   */
+  togglePause(): void {
+    if (!this.paused && this.pauseScenes && !this.pauseScenes.includes(this.scene.id)) return;
+    if (this.paused) this.resume();
+    else this.pause();
+    this.world.events.emit("pause-changed", { paused: this.paused });
+  }
+
+  /**
+   * Edge-detect the configured `pauseKeys` from the live held-key set and toggle on a
+   * fresh press. Called by the rAF loop BEFORE the paused gate every frame — the DOM
+   * key listeners keep the held set current even while the sim is frozen, so this is the
+   * one place an unpause can originate (E4). No-op when no pauseKeys are configured.
+   */
+  private pollPauseKeys(): void {
+    if (this.pauseKeys.length === 0) return;
+    const down = this.world.input.anyDown(this.pauseKeys);
+    if (down && !this.pauseKeyWasDown) this.togglePause();
+    this.pauseKeyWasDown = down;
   }
 
   /** Stop the loop and detach input. */

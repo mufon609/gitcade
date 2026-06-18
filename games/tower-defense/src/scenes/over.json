@@ -10,7 +10,7 @@
       "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
       "layer": 999,
-      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }]
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }, { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "retry" } }]
     },
     {
       "id": "over-heading",
@@ -34,7 +34,17 @@
     }
   ],
   "systems": [
-    { "type": "persistence", "params": {} }
+    { "type": "persistence", "params": {} },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "bestWave", "emptyWhenZero": true, "template": "Best: wave {v}", "to": "bestWaveHud" },
+          { "from": "outcome", "map": { "win": "The line held! 🛡️" }, "mapDefault": "Overrun", "to": "outcomeTitle" }
+        ]
+      }
+    }
   ],
   "flow": {
     "on": { "retry": "play" },

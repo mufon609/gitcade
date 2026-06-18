@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createGame } from "@gitcade/sdk";
+import { createGame, Input } from "@gitcade/sdk";
 import { createLibraryRegistry } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
@@ -65,5 +65,84 @@ describe("snake smoke (0.2.0 data flow)", () => {
     game.stepFrames(2);
     expect(game.scene.id).toBe("play");
     expect(game.world.query("food").length).toBe(1);
+  });
+});
+
+/**
+ * E1 (0.4.0) — the real play.json wiring end-to-end: the `input-actions` system
+ * installs the `move` action and `move-grid-step{moveAction:"move"}` steers by it,
+ * so BOTH a real keyboard event AND the touch d-pad's `setActionVector` turn the
+ * head — proving the synthesized-`KeyboardEvent` bandaid is fully retired.
+ */
+describe("snake input action layer (E1)", () => {
+  function bootPlay() {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    const input = new Input();
+    const keyL: Record<string, (e: any) => void> = {};
+    input.attach({ keyTarget: { addEventListener: (t: string, f: any) => (keyL[t] = f), removeEventListener: () => {} } as never });
+    const game = createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry, input });
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2); // → play, with the input-actions binding installed
+    expect(game.scene.id).toBe("play");
+    return { game, key: (code: string) => keyL.keydown({ code, cancelable: true, preventDefault() {} }) };
+  }
+
+  it("a real ArrowUp keydown turns the head UP through the move action (no synth key)", () => {
+    const { game, key } = bootPlay();
+    const head = game.world.query("head")[0]!;
+    const y0 = head.y;
+    key("ArrowUp"); // a genuine DOM keydown into the SDK Input, read via the binding
+    game.stepFrames(20); // ~3 grid steps
+    expect(head.y).toBeLessThan(y0); // steered up — the action layer carried the key to the mover
+  });
+
+  it("the touch d-pad's setActionVector steers the head the same way", () => {
+    const { game } = bootPlay();
+    const head = game.world.query("head")[0]!;
+    const y0 = head.y;
+    game.world.input.setActionVector("move", 0, -1); // exactly what main.ts's d-pad pushes
+    game.stepFrames(20);
+    expect(head.y).toBeLessThan(y0);
+  });
+});
+
+/**
+ * E3 (key-emit) + E4 (engine pause) — the keyboard flow bridge and the host pause
+ * state machine are gone: a real Enter on the title fires the flow as DATA, and the
+ * engine owns the pause (guarded by `pauseScenes`, emitting `pause-changed`).
+ */
+describe("snake flow + pause (E3 key-emit / E4 pause)", () => {
+  it("a real Enter on the title fires start-pressed via key-emit → play (no host bridge)", () => {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    const input = new Input();
+    const keyL: Record<string, (e: any) => void> = {};
+    input.attach({ keyTarget: { addEventListener: (t: string, f: any) => (keyL[t] = f), removeEventListener: () => {} } as never });
+    const game = createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry, input });
+    expect(game.scene.id).toBe("title");
+    game.stepFrames(1); // key-emit adopts the (key-up) baseline, no emit
+    keyL.keydown({ code: "Enter", cancelable: true, preventDefault() {} });
+    game.stepFrames(2); // fresh press → start-pressed → flow.on → play
+    expect(game.scene.id).toBe("play");
+  });
+
+  it("togglePause is engine-owned: guarded off the title, works on play, emits pause-changed (E4)", () => {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    // Mirror main.ts's createGame opts: pause only on the play scene.
+    const game = createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry, pauseScenes: ["play"] });
+    expect(game.isPaused()).toBe(false);
+    game.togglePause(); // on "title" — not a pause scene → no-op
+    expect(game.isPaused()).toBe(false);
+
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2);
+    expect(game.scene.id).toBe("play");
+    let evt: unknown;
+    game.world.events.on("pause-changed", (d) => (evt = d));
+    game.togglePause(); // play → pauses
+    expect(game.isPaused()).toBe(true);
+    expect(evt).toEqual({ paused: true });
   });
 });

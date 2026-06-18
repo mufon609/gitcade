@@ -129,7 +129,7 @@
       }
     },
     { "type": "timer-countdown", "part": "timer-countdown@1.0.0", "params": { "duration": "$cfg.surviveTime", "timeKey": "timeLeft", "event": "survived", "onExpire": "win" } },
-    { "type": "win-lose-conditions", "part": "win-lose-conditions@1.0.0", "params": { "conditions": [{ "key": "playerDeaths", "cmp": "gte", "value": "$cfg.deathsToLose", "outcome": "lose", "winner": "swarm" }] } },
+    { "type": "win-lose-conditions", "part": "win-lose-conditions@1.1.0", "params": { "conditions": [{ "key": "playerDeaths", "cmp": "gte", "value": "$cfg.deathsToLose", "outcome": "lose", "winner": "swarm" }] } },
     { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "best", "persist": false } },
     {
       "type": "level-progression",
@@ -147,7 +147,18 @@
     { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "enemy-died", "count": "$cfg.killBurstCount", "speed": "$cfg.killBurstSpeed", "ttl": "$cfg.killBurstTtl", "size": 5 } },
     { "type": "explosion", "part": "explosion@1.0.0", "params": { "event": "player-died", "key": "explosion:player", "count": "$cfg.deathBurstCount", "speed": "$cfg.deathBurstSpeed", "ttl": "$cfg.deathBurstTtl", "size": 7, "colors": ["#b13e53", "#ef7d57", "#ffcd75", "#f4f4f4"] } },
     { "type": "sparkle", "part": "sparkle@1.0.0", "params": { "event": "level-up", "count": "$cfg.levelBurstCount", "speed": "$cfg.levelBurstSpeed", "ttl": "$cfg.levelBurstTtl", "size": 5, "colors": ["#41a6f6", "#73eff7", "#f4f4f4"] } },
-    { "type": "persistence", "params": {} }
+    { "type": "persistence", "params": {} },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "hp", "fromEntity": "player", "format": "round", "to": "hp" },
+          { "constant": "$cfg.playerHp", "to": "maxHp" },
+          { "from": "timeLeft", "format": "ceil", "to": "clock" }
+        ]
+      }
+    }
   ],
   "flow": {
     "on": { "gameover": "over" },

@@ -1,0 +1,27 @@
+{
+  "id": "format-binding",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "hud", "text", "format", "presentation"],
+  "license": "MIT",
+  "description": "Derive presentation strings from live state as DATA — the replacement for a per-frame host mirror() loop. Each binding reads a world.state (or entity.state) value and floors/rounds/ceils/compacts/templates/maps it into the world.state key a text or HUD sprite binds to. No schema change (the text-sprite `bind` slot already exists). Covers: flooring a float score, compacting a currency (1.23K/4.5M), 'Wave {v}/{c}' templates, multiplying by a prestige key, reading a child entity's hp, and mapping win/lose to a label.",
+  "dependencies": [],
+  "params": {
+    "bindings": {
+      "type": "array",
+      "balance": false,
+      "description": "Array of { from?, fromEntity?, fallback?, mult?, format?(floor|round|ceil|compact|fixed:N), map?, mapDefault?, emptyWhenZero?, template?({v}/{c}), constant?, to } — each writes one display key. Numeric leaves must be $cfg refs."
+    }
+  },
+  "definition": {
+    "type": "format-binding",
+    "params": {
+      "bindings": [
+        { "from": "score", "format": "floor", "to": "scoreDisplay" },
+        { "from": "coins", "format": "compact", "to": "coinsDisplay" },
+        { "from": "wave", "format": "round", "template": "Wave {v}/{c}", "constant": "$cfg.maxWaves", "to": "waveHud" }
+      ]
+    }
+  }
+}

@@ -188,7 +188,8 @@
           "params": {
             "emitOnTap": "retry"
           }
-        }
+        },
+        { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "retry" } }
       ]
     }
   ],

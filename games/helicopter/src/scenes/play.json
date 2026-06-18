@@ -14,7 +14,7 @@
       "tags": ["player"],
       "layer": 5,
       "behaviors": [
-        { "type": "thrust-lift", "params": { "thrustKeys": ["Space"], "thrust": "$cfg.thrust", "gravity": "$cfg.gravity", "maxUp": "$cfg.maxUp", "maxDown": "$cfg.maxDown" } },
+        { "type": "thrust-lift", "params": { "thrustAction": "thrust", "thrust": "$cfg.thrust", "gravity": "$cfg.gravity", "maxUp": "$cfg.maxUp", "maxDown": "$cfg.maxDown" } },
         { "type": "velocity", "params": {} },
         { "type": "face-angle", "part": "face-angle@1.0.0", "params": { "mode": "tilt", "axis": "vy", "tiltPerVel": "$cfg.heliTiltPerVel", "maxTilt": "$cfg.heliMaxTilt" } },
         { "type": "trail", "params": { "color": "#ffcd75" } }
@@ -49,7 +49,26 @@
     }
   ],
   "systems": [
+    {
+      "type": "input-actions",
+      "part": "input-actions@1.0.0",
+      "params": {
+        "bindings": {
+          "thrust": { "keys": ["Space"], "rect": { "x": 0, "y": 0, "w": 800, "h": 600 } }
+        }
+      }
+    },
     { "type": "aabb-collision", "params": { "pairs": [["player", "wall"], ["player", "obstacle"]] } },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "score", "format": "floor", "to": "scoreDisplay" },
+          { "from": "best", "format": "floor", "to": "bestDisplay" }
+        ]
+      }
+    },
     {
       "type": "wave-spawner",
       "part": "wave-spawner@1.0.0",

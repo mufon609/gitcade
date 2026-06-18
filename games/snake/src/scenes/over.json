@@ -61,7 +61,7 @@
       "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
       "layer": 999,
-      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }]
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }, { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "retry" } }]
     }
   ],
   "systems": [{ "type": "persistence", "params": {} }],

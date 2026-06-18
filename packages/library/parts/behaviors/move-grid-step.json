@@ -1,11 +1,11 @@
 {
   "id": "move-grid-step",
   "kind": "behavior",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "movement",
   "tags": ["movement", "grid", "snake", "discrete"],
   "license": "MIT",
-  "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed.",
+  "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed. 1.1.0 adds an optional `moveAction` that reads a logical input action (input-actions, E1) so keyboard and a touch d-pad steer through one channel — no synthesized key events.",
   "dependencies": [],
   "params": {
     "tileSize": { "type": "number", "balance": false, "description": "Grid cell size in px (structural)." },
@@ -15,7 +15,8 @@
     "left": { "type": "array", "balance": false, "description": "Left key codes." },
     "right": { "type": "array", "balance": false, "description": "Right key codes." },
     "continuous": { "type": "boolean", "balance": false, "description": "Keep moving without input, Snake-style." },
-    "snap": { "type": "boolean", "balance": false, "description": "Snap to the tile grid each step." }
+    "snap": { "type": "boolean", "balance": false, "description": "Snap to the tile grid each step." },
+    "moveAction": { "type": "string", "balance": false, "description": "Optional logical-action name (E1) to steer by instead of raw keys — unifies keyboard + touch via input-actions. Unset = key path (default, byte-identical)." }
   },
   "definition": {
     "type": "move-grid-step",

@@ -12,6 +12,9 @@ import { upgradeTree } from "./upgrade-tree.js";
 import { transaction } from "./transaction.js";
 import { persistence } from "./persistence.js";
 import { placeOnFreeCell } from "./place-on-free-cell.js";
+import { inputActions } from "./input-actions.js";
+import { formatBinding } from "./format-binding.js";
+import { statModifier } from "./stat-modifier.js";
 
 /**
  * Every library system, keyed by the exact `type` string a scene uses. As with
@@ -31,6 +34,9 @@ export const LIBRARY_SYSTEMS = {
   transaction: transaction,
   persistence: persistence,
   "place-on-free-cell": placeOnFreeCell,
+  "input-actions": inputActions,
+  "format-binding": formatBinding,
+  "stat-modifier": statModifier,
 } as const;
 
 /** The library system type ids (for tests / introspection). */
@@ -56,4 +62,7 @@ export {
   transaction,
   persistence,
   placeOnFreeCell,
+  inputActions,
+  formatBinding,
+  statModifier,
 };

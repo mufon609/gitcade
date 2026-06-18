@@ -54,6 +54,18 @@
   ],
   "systems": [
     { "type": "persistence", "params": {} },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "coins", "format": "compact", "to": "coinsDisplay" },
+          { "from": "autoRate", "mult": "prestigeMult", "format": "compact", "template": "{v}/sec", "to": "rateDisplay" },
+          { "from": "clickPower", "fallback": "$cfg.baseClickPower", "mult": "prestigeMult", "format": "compact", "template": "x{v} / click", "to": "powerDisplay" },
+          { "from": "bonusLeft", "fallback": "$cfg.bonusPeriod", "format": "ceil", "template": "bonus in {v}s", "to": "bonusDisplay" }
+        ]
+      }
+    },
     { "type": "currency", "part": "currency@1.0.0", "params": { "currencyKey": "coins", "startAmount": "$cfg.startCoins", "maxAmount": "$cfg.coinCap" } },
     { "type": "click-to-earn", "params": { "coinsKey": "coins", "targetTag": "coin-button", "powerKey": "clickPower", "basePower": "$cfg.baseClickPower", "multKey": "prestigeMult", "tapEvent": "click" } },
     { "type": "auto-income", "params": { "coinsKey": "coins", "rateKey": "autoRate", "baseRate": "$cfg.baseAutoRate", "multKey": "prestigeMult" } },

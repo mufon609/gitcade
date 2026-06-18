@@ -1,5 +1,5 @@
 import type { BehaviorFn } from "@gitcade/sdk";
-import { num, strArray, bool } from "@gitcade/sdk";
+import { num, str, strArray, bool } from "@gitcade/sdk";
 
 interface Dir {
   x: number;
@@ -23,6 +23,11 @@ interface Dir {
  *  - `up`/`down`/`left`/`right`: key-code arrays (defaults: arrows + WASD)
  *  - `continuous`: keep moving without input, Snake-style (default true)
  *  - `snap`: snap position to the tile grid on each step (default true)
+ *  - `moveAction`: optional logical-action name (E1, 1.1.0). When set, intent is read
+ *    from `world.input.actionVector(moveAction)` (keyboard axis OR a touch d-pad zone,
+ *    unified by the `input-actions` system) and the DOMINANT axis becomes the next
+ *    heading — so a touch player steers without the game synthesizing arrow keys. Unset
+ *    ⇒ the original `up`/`down`/`left`/`right` key path, byte-identical.
  */
 export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
   const tile = num(params, "tileSize", 16);
@@ -44,8 +49,21 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
   const stepped = (entity.state.__gridStep ??= { x: dir.x, y: dir.y }) as Dir;
 
   // Read intent; reject reversals in continuous mode (can't fold the snake back).
+  // With `moveAction` (E1) intent comes from the logical-action VECTOR — keyboard
+  // axis OR a touch d-pad zone, unified — and the dominant axis is the heading; an
+  // axis tie resolves to vertical, preserving the key path's up/down>left/right
+  // precedence. Without it, the original first-match key reading (byte-identical).
+  const moveAction = str(params, "moveAction", "");
   let want: Dir | null = null;
-  if (world.input.anyDown(up)) want = { x: 0, y: -1 };
+  if (moveAction) {
+    const v = world.input.actionVector(moveAction);
+    const TURN_DEADZONE = 0.3; // structural: ignore tiny analog drift, not balance
+    if (Math.abs(v.x) > Math.abs(v.y)) {
+      if (Math.abs(v.x) > TURN_DEADZONE) want = { x: Math.sign(v.x), y: 0 };
+    } else if (Math.abs(v.y) > TURN_DEADZONE) {
+      want = { x: 0, y: Math.sign(v.y) };
+    }
+  } else if (world.input.anyDown(up)) want = { x: 0, y: -1 };
   else if (world.input.anyDown(down)) want = { x: 0, y: 1 };
   else if (world.input.anyDown(left)) want = { x: -1, y: 0 };
   else if (world.input.anyDown(right)) want = { x: 1, y: 0 };

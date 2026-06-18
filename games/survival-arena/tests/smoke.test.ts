@@ -152,3 +152,39 @@ describe("survival-arena smoke (0.2.0 data flow)", () => {
     expect(game.world.query("player").length).toBe(1);
   });
 });
+
+/**
+ * E2 (0.4.0) — the per-frame host mirror is gone; the `format-binding` system in each
+ * scene derives the HUD as DATA: a const max, a child-entity hp source, a ceil, and a
+ * value→label outcome map.
+ */
+describe("survival-arena HUD (E2 format-binding)", () => {
+  it("derives hp/maxHp/clock on play from data (entity-state source + const + ceil)", () => {
+    const game = boot();
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2);
+    // hp is read from the player ENTITY, whose health-and-death BEHAVIOR seeds it in the
+    // phase AFTER the format-binding SYSTEM tick — so one more tick lands the value.
+    game.stepFrames(1);
+    expect(Number(game.world.state.maxHp)).toBe(config.playerHp); // const-only from $cfg.playerHp
+    const player = game.world.byId("player")!;
+    expect(game.world.state.hp).toBe(String(Math.round(player.state.hp as number))); // entity-state source
+    expect(String(game.world.state.clock)).toMatch(/^\d+$/); // ceil(timeLeft) as an int string
+  });
+
+  it("maps the win/lose outcome to the over-screen headline as data", () => {
+    const game = boot();
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2);
+    for (let i = 0; i < 60 && game.scene.id === "play"; i++) {
+      const p = game.world.query("player")[0];
+      if (p) p.state.hp = 0; // fatal
+      game.stepFrames(1);
+    }
+    expect(game.scene.id).toBe("over");
+    expect(game.world.state.outcome).toBe("lose");
+    game.stepFrames(1); // run the over scene's format-binding once so it maps the carried outcome
+    expect(game.world.state.outcomeText).toBe("OVERWHELMED"); // map default for the lose case
+    expect(game.world.state.outcomeSub).toBe("The swarm got you.");
+  });
+});

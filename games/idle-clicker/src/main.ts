@@ -20,7 +20,8 @@
  * What REMAINS host (no data primitive covers it):
  *   • the HTML shop bar (rich cost labels + affordability dimming) — it only SETS
  *     the data request flags (`upgradeRequest` / `prestigeRequest`);
- *   • presentation HUD mirrors (formatted coins/rate/power readouts);
+ *   • a residual host mirror for the prestige-threshold label + conditional hint
+ *     (the numeric coins/rate/power/bonus readouts are DATA now — `format-binding`, E2);
  *   • a tiny screen-FX juice bind (flash on click/bonus/denied);
  *   • the OFFLINE-CREDIT shim (OQ-4, out of 0.2.0 scope): a timestamp + a credit
  *     formula on top of G6's value persistence — see `applyOfflineCredit` below.
@@ -161,12 +162,13 @@ function mirror(): void {
     // Arm the offline-earnings credit once play is live; it fires when the persistence
     // restore lands (before the heartbeat below overwrites the saved `lastSeen`).
     armOfflineCredit();
+    // The numeric HUD strings (coins/rate/power/bonus) are DATA now — the library
+    // `format-binding` system in play.json compacts/templates them (E2). Only the
+    // genuinely host-side bits remain below: the prestige-multiplier threshold label,
+    // the conditional hint default (which the offline credit message overrides), the
+    // offline `lastSeen` heartbeat, and the HTML shop bar.
     const mult = (w.state.prestigeMult as number) ?? 1;
-    w.state.coinsDisplay = fmt(w.state.coins);
-    w.state.rateDisplay = `${fmt(((w.state.autoRate as number) ?? 0) * mult)}/sec`;
-    w.state.powerDisplay = `x${fmt(((w.state.clickPower as number) ?? cfg.baseClickPower) * mult)} / click`;
     w.state.prestigeDisplay = mult > 1 ? `prestige x${mult}` : "";
-    w.state.bonusDisplay = `bonus in ${Math.max(0, Math.ceil((w.state.bonusLeft as number) ?? cfg.bonusPeriod))}s`;
     if (typeof w.state.hint !== "string") w.state.hint = "Tap the coin to earn!";
     // Heartbeat the away-timestamp (only after the offline read, so it can't clobber it).
     if (offlineApplied) w.state.lastSeen = Date.now();
@@ -250,24 +252,10 @@ window.addEventListener("keydown", (e) => {
 // Mute while the tab is backgrounded (the music loop shouldn't play to an empty room).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- keyboard bridge to the data-driven title flow edge -----------------------
-// The title's full-canvas `tap-emit` covers pointer/touch; this keeps Space/Enter
-// starting the game for keyboard players. Scene-guarded so PLAY is untouched.
-window.addEventListener("keydown", (e) => {
-  if ((e.code === "Space" || e.code === "Enter") && game.scene.id === "title") {
-    e.preventDefault();
-    world.events.emit("start-pressed");
-  }
-});
+// Keyboard flow access (Enter/Space → start) is DATA now — a `key-emit` behavior on the
+// title flow button (E3), the keyboard companion to `tap-emit`. No host bridge.
 
 // Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
 (window as unknown as { __game?: unknown }).__game = game;
 
 game.start();
-
-// Compact HUD formatting (0.3.2): the library `formatCompact` turns a climbing
-// balance into 1.23K / 4.5M / 7.89B so an idle game's whole point — watching the
-// number grow — stays readable instead of overrunning the HUD as a digit wall.
-function fmt(v: unknown): string {
-  return formatCompact(typeof v === "number" ? v : Number(v) || 0);
-}

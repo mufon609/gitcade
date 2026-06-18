@@ -58,3 +58,44 @@ describe("ui/touch behaviors (no pointers headless → idle, no throw)", () => {
     expect(world.state.fire).toBe(false);
   });
 });
+
+describe("ui/key-emit (E3)", () => {
+  const DT = 1 / 60;
+  function setKey(world: ReturnType<typeof makeWorld>, down: boolean) {
+    (world.input as unknown as { anyDown: (c: string[]) => boolean }).anyDown = () => down;
+  }
+
+  it("emits a flow event on a fresh key press, edge-detected (held = one emit)", () => {
+    const world = makeWorld();
+    const start = makeEntity(world, { id: "start" });
+    const keyEmit = world.registry.getBehavior("key-emit")!.fn;
+    const params = { keys: ["Enter", "Space"], emitOnKey: "start-pressed" };
+    let fired = 0;
+    world.events.on("start-pressed", () => fired++);
+
+    setKey(world, false);
+    keyEmit(start, world, params, DT); // first tick, key up → baseline, no emit
+    expect(fired).toBe(0);
+    setKey(world, true);
+    keyEmit(start, world, params, DT); // fresh down-edge → emit
+    keyEmit(start, world, params, DT); // still held → no repeat
+    expect(fired).toBe(1);
+    setKey(world, false);
+    keyEmit(start, world, params, DT); // release
+    setKey(world, true);
+    keyEmit(start, world, params, DT); // re-press → another emit
+    expect(fired).toBe(2);
+  });
+
+  it("ignores a key already HELD when the entity spawns (no instant re-fire across a scene change)", () => {
+    const world = makeWorld();
+    const retry = makeEntity(world, { id: "retry-btn" });
+    const keyEmit = world.registry.getBehavior("key-emit")!.fn;
+    let fired = 0;
+    world.events.on("retry", () => fired++);
+    setKey(world, true); // a key still down from the previous scene
+    keyEmit(retry, world, { keys: ["Enter"], emitOnKey: "retry" }, DT); // first tick: adopt, no emit
+    keyEmit(retry, world, { keys: ["Enter"], emitOnKey: "retry" }, DT); // still held: no emit
+    expect(fired).toBe(0);
+  });
+});

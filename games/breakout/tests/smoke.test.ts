@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createGame } from "@gitcade/sdk";
+import { createGame, Input } from "@gitcade/sdk";
 import { createLibraryRegistry } from "@gitcade/library";
 import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 import manifest from "../game.json";
@@ -103,5 +103,48 @@ describe("breakout smoke (0.2.0 data flow + levels)", () => {
       game.stepFrames(1);
     }
     expect(game.scene.id).toBe("over"); // gameover flow edge fired at 0 lives
+  });
+});
+
+/**
+ * E1 (0.4.0) — the paddle now uses the SDK `keyboard-axis` mover (which natively
+ * supports drag-to-move touch), replacing the keyboard-only `move-4dir` + a
+ * synthesized-`KeyboardEvent` d-pad. So a real ArrowRight keydown AND a touch/drag
+ * to the right both push the paddle right — keyboard play byte-identical, touch free.
+ */
+describe("breakout paddle input (E1)", () => {
+  function bootLevel() {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    const input = new Input();
+    input.setWorldSize(800, 600);
+    const keyL: Record<string, (e: any) => void> = {};
+    const ptrL: Record<string, (e: any) => void> = {};
+    input.attach({
+      keyTarget: { addEventListener: (t: string, f: any) => (keyL[t] = f), removeEventListener: () => {} } as never,
+      pointerTarget: { addEventListener: (t: string, f: any) => (ptrL[t] = f), removeEventListener: () => {} } as never,
+    });
+    const game = createGame(
+      { manifest, config, scenes: [title, level1, level2, level3, win, over] },
+      { canvas: null, registry, input },
+    );
+    game.world.events.emit("start-pressed");
+    game.stepFrames(2);
+    expect(game.scene.id).toBe("level-1");
+    return { game, keyL, ptrL };
+  }
+
+  it("a real ArrowRight keydown drives the paddle right", () => {
+    const { game, keyL } = bootLevel();
+    keyL.keydown({ code: "ArrowRight", cancelable: true, preventDefault() {} });
+    game.stepFrames(1);
+    expect(game.world.query("paddle")[0]!.vx).toBeGreaterThan(0);
+  });
+
+  it("a touch/drag to the right of the paddle moves it there (keyboard-axis native touch)", () => {
+    const { game, ptrL } = bootLevel();
+    ptrL.pointerdown({ pointerId: 1, clientX: 720, clientY: 560 }); // finger right of the paddle
+    game.stepFrames(1);
+    expect(game.world.query("paddle")[0]!.vx).toBeGreaterThan(0);
   });
 });

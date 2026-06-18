@@ -11,7 +11,7 @@
       "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
       "layer": 999,
-      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }, { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "start-pressed" } }]
     },
     {
       "id": "title-heading",
@@ -50,7 +50,8 @@
     }
   ],
   "systems": [
-    { "type": "persistence", "params": {} }
+    { "type": "persistence", "params": {} },
+    { "type": "format-binding", "part": "format-binding@1.0.0", "params": { "bindings": [{ "from": "bestWave", "emptyWhenZero": true, "template": "Best: wave {v}", "to": "bestWaveHud" }] } }
   ],
   "flow": {
     "on": { "start-pressed": "play" },

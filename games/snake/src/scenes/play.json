@@ -24,7 +24,7 @@
       "layer": 4,
       "behaviors": [
         { "type": "sprite-animate", "params": { "play": "idle" } },
-        { "type": "move-grid-step", "part": "move-grid-step@1.0.0", "params": { "tileSize": "$cfg.tileSize", "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true } },
+        { "type": "move-grid-step", "part": "move-grid-step@1.1.0", "params": { "tileSize": "$cfg.tileSize", "stepInterval": "$cfg.stepInterval", "continuous": true, "snap": true, "moveAction": "move" } },
         { "type": "snake-guard", "params": { "stateKey": "__snake", "tileSize": "$cfg.tileSize", "gameOverEvent": "snake-dead" } }
       ]
     },
@@ -48,6 +48,15 @@
     }
   ],
   "systems": [
+    {
+      "type": "input-actions",
+      "part": "input-actions@1.0.0",
+      "params": {
+        "bindings": {
+          "move": { "axisKeys": { "up": ["ArrowUp", "KeyW"], "down": ["ArrowDown", "KeyS"], "left": ["ArrowLeft", "KeyA"], "right": ["ArrowRight", "KeyD"] } }
+        }
+      }
+    },
     { "type": "aabb-collision", "params": { "pairs": [["head", "food"]] } },
     {
       "type": "place-on-free-cell",

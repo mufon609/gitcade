@@ -66,10 +66,23 @@
       "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
       "layer": 999,
-      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }]
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "retry" } }, { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "retry" } }]
     }
   ],
-  "systems": [{ "type": "persistence", "params": {} }],
+  "systems": [
+    { "type": "persistence", "params": {} },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "best", "format": "floor", "to": "bestDisplay" },
+          { "from": "outcome", "map": { "win": "YOU SURVIVED" }, "mapDefault": "OVERWHELMED", "to": "outcomeText" },
+          { "from": "outcome", "map": { "win": "You outlasted the swarm. 🏆" }, "mapDefault": "The swarm got you.", "to": "outcomeSub" }
+        ]
+      }
+    }
+  ],
   "flow": {
     "on": { "retry": "play" },
     "persist": ["best", "bestDisplay"]

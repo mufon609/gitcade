@@ -48,28 +48,13 @@ function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
-/** Stamp the current upgraded range/cooldown onto a tower definition's turret. */
-function stampDef(def: Record<string, unknown>, range: number, cooldown: number): void {
-  const behaviors = (def.behaviors ?? []) as Array<{ type: string; params: Record<string, unknown> }>;
-  for (const b of behaviors) {
-    if (b.type === "ai-aim-and-fire") {
-      b.params.range = range;
-      b.params.cooldown = cooldown;
-    }
-  }
-}
-
-/** Re-stamp every live tower when an upgrade is bought (so upgrades are global). */
-function restampTowers(world: World, towerTag: string, range: number, cooldown: number): void {
-  for (const t of world.query(towerTag)) {
-    for (const b of t.behaviors) {
-      if (b.type === "ai-aim-and-fire") {
-        (b.params as Record<string, unknown>).range = range;
-        (b.params as Record<string, unknown>).cooldown = cooldown;
-      }
-    }
-  }
-}
+// E6 (0.4.0): `stampDef`/`restampTowers` are GONE — writing the upgraded
+// range/cooldown onto every live tower is now the library `stat-modifier` SYSTEM
+// in play.json (a data modifier keyed on `world.state.towerRange`/`towerCooldown`).
+// It stamps every tagged tower each tick, so BOTH "an upgrade raises all towers"
+// (this game's `upgrade-purchased` restamp loop) AND "a freshly-spawned tower
+// inherits the current upgrade level" (the per-spawn stamp) fall out for free — no
+// event listener, no spawn-time stamp. The shared counterpart to `scale-by-state`.
 
 /** Is `(gx,gy)` already occupied by a live tower at that grid cell? */
 function cellOccupied(world: World, towerTag: string, gx: number, gy: number, tile: number): boolean {
@@ -89,8 +74,8 @@ function cellOccupied(world: World, towerTag: string, gx: number, gy: number, ti
  *
  * Params: `currencyKey`, `towerCost` ($cfg), `buyRequestKey`, `boughtEvent`,
  * `tileSize` (structural), `rangeKey`/`cooldownKey`/`bountyBonusKey`,
- * `baseRange`/`baseCooldown` ($cfg), `minCooldown` ($cfg), `towerTag`,
- * `prototype` (tower entity-def), `stateKey`.
+ * `baseRange`/`baseCooldown` ($cfg), `towerTag`, `prototype` (tower entity-def),
+ * `stateKey`. (The `towerMinCooldown` floor now lives on the `stat-modifier`, E6.)
  */
 export const towerBuild: SystemFn = (world, params) => {
   const currencyKey = str(params, "currencyKey", "gold");
@@ -101,7 +86,6 @@ export const towerBuild: SystemFn = (world, params) => {
   const rangeKey = str(params, "rangeKey", "towerRange");
   const cooldownKey = str(params, "cooldownKey", "towerCooldown");
   const bountyBonusKey = str(params, "bountyBonusKey", "bountyBonus");
-  const minCooldown = num(params, "minCooldown", 0.1);
   const towerTag = str(params, "towerTag", "tower");
   const stateKey = str(params, "stateKey", "__towerBuild");
 
@@ -117,14 +101,9 @@ export const towerBuild: SystemFn = (world, params) => {
     if (typeof world.state[bountyBonusKey] !== "number") world.state[bountyBonusKey] = 0;
   }
 
-  // Attach once: re-stamp all towers when an upgrade is purchased (global upgrades),
-  // AND spawn the tower when the `transaction` system confirms the purchase.
+  // Attach once: spawn the tower when the `transaction` system confirms the purchase.
+  // (Global upgrades + per-spawn stat inheritance are the data `stat-modifier`'s job now, E6.)
   attachOnce(world, "tower-build-listeners", () => {
-    world.events.on("upgrade-purchased", () => {
-      const range = (world.state[rangeKey] as number) ?? 0;
-      const cd = Math.max(minCooldown, (world.state[cooldownKey] as number) ?? 0);
-      restampTowers(world, towerTag, range, cd);
-    });
     // The money side (afford → deduct) lives in `transaction`; on its OK event we
     // place the tower at the snapped cell we stashed when we issued the request.
     world.events.on(boughtEvent, (data) => {
@@ -138,7 +117,9 @@ export const towerBuild: SystemFn = (world, params) => {
       const w = size.w ?? tile;
       const h = size.h ?? tile;
       def.position = { x: at.x - w / 2, y: at.y - h / 2 };
-      stampDef(def, (world.state[rangeKey] as number) ?? 0, Math.max(minCooldown, (world.state[cooldownKey] as number) ?? 0));
+      // No spawn-time stamp: the data `stat-modifier` system writes the current
+      // upgraded range/cooldown onto this tower the same tick (it runs after this
+      // spawn), so the clone's `$cfg` base params are corrected before it fires (E6).
       const tower = world.spawn(def as never);
       world.events.emit("tower-placed", { id: tower.id, x: at.x, y: at.y });
     });
@@ -181,17 +162,20 @@ export const towerBuild: SystemFn = (world, params) => {
  * `win-lose-conditions` reads. Also tracks the best wave reached (`bestWaveKey`)
  * for the persisted high-water mark (G6).
  *
- * TD2 — WIN is derived, never hand-computed. The `wave-spawner` emits
- * `waves-complete` exactly once after the FINAL wave is fully spawned and the field
- * is cleared; we additionally require the LIVE creep count to be 0 and that the
- * player has not already lost. When all three hold we publish the number of waves
- * actually cleared into `clearedKey`; `win-lose-conditions` then wins on
- * `clearedWaves >= $cfg.maxWaves`. Both sides reference the SAME spawner config, so
- * no config edit can decouple the win from the wave math.
+ * TD2 / E7 — WIN is DATA, not hand-computed here. This system's only job around the
+ * objective is to BRIDGE the `wave-spawner`'s one-shot `waves-complete` EVENT to a
+ * latched `world.state[wavesCompleteKey]` flag (events aren't readable by a pure
+ * per-tick predicate). The actual win — "all waves complete AND zero live creeps AND
+ * not already lost" — now lives in the scene's `win-lose-conditions@1.1.0` as a
+ * composed condition: `{ all: [ {key:"wavesComplete",truthy}, {tag:"creep",count:"eq"} ] }`.
+ * That composition (the entity-count + flag + `all`) is exactly the gap E7 closed, so
+ * the predicate this system used to hand-roll is gone. `wave-spawner` emits the event
+ * only after the FINAL wave is fully spawned and cleared, and the count condition adds
+ * the 0-creeps guard — so no config edit can decouple the win from the wave math.
  *
  * Params: `currencyKey`, `bounty` ($cfg), `bountyBonusKey`, `resolvedKey`,
- * `leakedKey`, `killEvent`, `leakEvent`, `creepTag`, `waveKey`, `clearedKey`,
- * `wavesCompleteEvent`, `bestWaveKey`, `stateKey`.
+ * `leakedKey`, `killEvent`, `leakEvent`, `creepTag`, `waveKey`, `wavesCompleteEvent`,
+ * `wavesCompleteKey`, `bestWaveKey`, `stateKey`.
  */
 export const creepAccounting: SystemFn = (world, params) => {
   const currencyKey = str(params, "currencyKey", "gold");
@@ -201,12 +185,11 @@ export const creepAccounting: SystemFn = (world, params) => {
   const leakedKey = str(params, "leakedKey", "leaked");
   const killEvent = str(params, "killEvent", "creep-killed");
   const leakEvent = str(params, "leakEvent", "creep-leaked");
-  const creepTag = str(params, "creepTag", "creep");
   const waveKey = str(params, "waveKey", "wave");
-  const clearedKey = str(params, "clearedKey", "clearedWaves");
   const wavesCompleteEvent = str(params, "wavesCompleteEvent", "waves-complete");
+  // Public (no underscore) so the data `win-lose-conditions` can read it as a flag.
+  const wavesCompleteKey = str(params, "wavesCompleteKey", "wavesComplete");
   const bestWaveKey = str(params, "bestWaveKey", "bestWave");
-  const completeFlagKey = "__wavesComplete";
 
   attachOnce(world, "creep-accounting", () => {
     const bump = (key: string, by: number): void => {
@@ -220,8 +203,10 @@ export const creepAccounting: SystemFn = (world, params) => {
       bump(leakedKey, 1);
       bump(resolvedKey, 1);
     });
+    // E7 bridge: latch the one-shot event into a flag the win condition reads. The
+    // 0-creeps guard and the win decision itself are the data condition's job now.
     world.events.on(wavesCompleteEvent, () => {
-      world.state[completeFlagKey] = true;
+      world.state[wavesCompleteKey] = true;
     });
   });
 
@@ -229,15 +214,6 @@ export const creepAccounting: SystemFn = (world, params) => {
   const wave = (world.state[waveKey] as number) ?? 0;
   const best = (world.state[bestWaveKey] as number) ?? 0;
   if (wave > best) world.state[bestWaveKey] = wave;
-
-  // Self-consistent win: all waves spawned AND the field is empty AND not already lost.
-  if (
-    !world.state.gameOver &&
-    world.state[completeFlagKey] === true &&
-    world.query(creepTag).length === 0
-  ) {
-    world.state[clearedKey] = (world.state[waveKey] as number) ?? 0;
-  }
 };
 
 /**

@@ -1,0 +1,29 @@
+{
+  "id": "input-actions",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "interaction",
+  "tags": ["input", "controls", "touch", "actions", "mobile"],
+  "license": "MIT",
+  "description": "Install logical input ACTION bindings (E1): map an action name to keyboard codes and/or an on-screen rect/zone, so movers read world.input.action(...)/actionVector(...) and one action is satisfiable by keyboard OR touch — no synthesized key events. Pure data; idle on desktop with no touch. Pair with a mover's `moveAction`/`thrustAction`-style param.",
+  "dependencies": [],
+  "params": {
+    "bindings": {
+      "type": "object",
+      "balance": false,
+      "description": "Record<actionName, { keys?: string[], rect?: {x,y,w,h}, axisKeys?: {up,down,left,right}, zone?: {x,y,radius} }> — action sources (structural/world-space coords)."
+    }
+  },
+  "definition": {
+    "type": "input-actions",
+    "params": {
+      "bindings": {
+        "move": {
+          "axisKeys": { "up": ["ArrowUp", "KeyW"], "down": ["ArrowDown", "KeyS"], "left": ["ArrowLeft", "KeyA"], "right": ["ArrowRight", "KeyD"] },
+          "zone": { "x": 120, "y": 480, "radius": 90 }
+        },
+        "fire": { "keys": ["Space"], "rect": { "x": 600, "y": 420, "w": 180, "h": 160 } }
+      }
+    }
+  }
+}

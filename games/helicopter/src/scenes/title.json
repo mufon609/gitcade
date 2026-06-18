@@ -74,10 +74,13 @@
       "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
       "layer": 999,
-      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }, { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "start-pressed" } }]
     }
   ],
-  "systems": [{ "type": "persistence", "params": {} }],
+  "systems": [
+    { "type": "persistence", "params": {} },
+    { "type": "format-binding", "part": "format-binding@1.0.0", "params": { "bindings": [{ "from": "best", "format": "floor", "to": "bestDisplay" }] } }
+  ],
   "flow": {
     "on": { "start-pressed": "play" },
     "persist": ["best"]

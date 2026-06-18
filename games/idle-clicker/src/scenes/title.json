@@ -10,7 +10,7 @@
       "position": { "x": 0, "y": 0 },
       "tags": ["ui"],
       "layer": 999,
-      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }]
+      "behaviors": [{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }, { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "start-pressed" } }]
     },
     {
       "id": "title-coin",

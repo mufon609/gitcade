@@ -30,24 +30,19 @@
       "layer": 3,
       "behaviors": [
         {
-          "type": "move-4dir",
-          "part": "move-4dir@1.0.0",
+          "type": "keyboard-axis",
           "params": {
-            "speed": "$cfg.paddleSpeed",
-            "up": [
-              "NoUp"
-            ],
-            "down": [
-              "NoDown"
-            ],
-            "left": [
+            "axis": "x",
+            "neg": [
               "ArrowLeft",
               "KeyA"
             ],
-            "right": [
+            "pos": [
               "ArrowRight",
               "KeyD"
-            ]
+            ],
+            "speed": "$cfg.paddleSpeed",
+            "touch": true
           }
         },
         {

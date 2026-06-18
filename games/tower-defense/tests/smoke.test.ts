@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createGame } from "@gitcade/sdk";
-import type { Game } from "@gitcade/sdk";
+import type { Game, Entity } from "@gitcade/sdk";
 import { createLibraryRegistry } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
@@ -18,7 +18,13 @@ type Cfg = Record<string, number>;
  * (title → play → over). This test exercises the whole loop headlessly AND locks:
  *   - the headline fix: a tower CANNOT be built on a road/lane tile;
  *   - the TD2 invariant: the WIN is derived from the spawner config (maxWaves + the
- *     live creep count), never a hand-computed creep total.
+ *     live creep count), never a hand-computed creep total;
+ *   - E6 (0.4.0): a shared range/cooldown UPGRADE is now the data `stat-modifier`
+ *     system — it raises every live tower AND every later-placed tower (the
+ *     `restampTowers`/`stampDef` host code is gone);
+ *   - E7 (0.4.0): the WIN itself is now data — a `win-lose-conditions@1.1.0`
+ *     composite `{ all: [ wavesComplete-flag, creep-count==0 ] }` — so reaching
+ *     `outcome:"win"` can ONLY have gone through that composed condition.
  */
 
 function totalCreepsFor(cfg: Cfg): number {
@@ -122,9 +128,8 @@ describe("tower-defense smoke", () => {
     const cfg = config as Cfg;
     const { game, w } = autoWin(cfg);
     expect(game.scene.id).toBe("over"); // the data flow ended the run
-    expect(w.state.outcome).toBe("win");
+    expect(w.state.outcome).toBe("win"); // E7: only the win-lose-conditions composite can set this now
     expect(w.state.winner).toBe("player");
-    expect(w.state.clearedWaves).toBe(cfg.maxWaves);
     expect(w.state.wave).toBe(cfg.maxWaves);
     expect(w.state.resolved).toBe(totalCreepsFor(cfg));
     expect(((w.state.leaked as number) ?? 0) < cfg.maxLeak).toBe(true);
@@ -137,7 +142,7 @@ describe("tower-defense smoke", () => {
     const { game, w } = autoWin(cfg, 90000);
     expect(game.scene.id).toBe("over");
     expect(w.state.outcome).toBe("win");
-    expect(w.state.clearedWaves).toBe(cfg.maxWaves);
+    expect(w.state.wave).toBe(cfg.maxWaves);
     expect(w.state.resolved).toBe(trueTotal);
   });
 
@@ -148,7 +153,7 @@ describe("tower-defense smoke", () => {
     const { game, w } = autoWin(cfg, 30000);
     expect(game.scene.id).toBe("over");
     expect(w.state.outcome).toBe("win");
-    expect(w.state.clearedWaves).toBe(cfg.maxWaves);
+    expect(w.state.wave).toBe(cfg.maxWaves);
     expect(w.state.resolved).toBe(trueTotal);
   });
 
@@ -165,5 +170,54 @@ describe("tower-defense smoke", () => {
     expect(w.state.outcome).toBe("lose");
     expect(w.state.winner).toBe("creeps");
     expect(w.state.leaked as number).toBeGreaterThanOrEqual(cfg.maxLeak);
+  });
+
+  // --- E6 (0.4.0): the shared range/cooldown upgrade is the data `stat-modifier` ---
+  const aimRange = (t: Entity): number =>
+    t.behaviors.find((b) => b.type === "ai-aim-and-fire")!.params.range as number;
+
+  it("E6: a range upgrade re-stamps EVERY live tower AND every later-placed one (no host restamp)", () => {
+    const cfg = config as Cfg;
+    const { game, w } = boot(cfg);
+    w.state.gold = 1000; // fund the build + upgrade + second build outright
+
+    // A tower placed before any upgrade starts at the $cfg base range.
+    clickBuild(game, 100, 60);
+    expect(w.query("tower").length).toBe(1);
+    const first = w.query("tower")[0];
+    expect(aimRange(first)).toBe(cfg.towerBaseRange);
+
+    // Buy a range upgrade → world.state.towerRange climbs → the data stat-modifier
+    // stamps it onto the ALREADY-PLACED tower (the `restampTowers` host loop is gone).
+    const before = w.state.towerRange as number;
+    w.state.upgradeRequest = "range";
+    game.stepFrames(2);
+    const upgraded = w.state.towerRange as number;
+    expect(upgraded).toBeGreaterThan(before);
+    expect(aimRange(first)).toBe(upgraded);
+
+    // A tower placed AFTER the upgrade inherits the current range too — the prototype's
+    // $cfg base is corrected the same tick it spawns (the `stampDef` host stamp is gone).
+    clickBuild(game, 180, 60);
+    expect(w.query("tower").length).toBe(2);
+    for (const t of w.query("tower")) expect(aimRange(t)).toBe(upgraded);
+  });
+
+  // --- E7 (0.4.0): the win is the win-lose-conditions@1.1.0 composite ---
+  it("E7: the waves-complete EVENT is bridged to a flag, and the win waits for zero creeps (the composite)", () => {
+    const cfg = config as Cfg;
+    const { game, w } = boot(cfg);
+    game.stepFrames(200); // past startDelay → creeps are on the field
+    expect(w.query("creep").length).toBeGreaterThan(0);
+    expect(w.state.wavesComplete).toBeFalsy();
+
+    // creep-accounting bridges the spawner's one-shot event to a latched flag.
+    w.events.emit("waves-complete", { waves: cfg.maxWaves });
+    game.stepFrames(1);
+    expect(w.state.wavesComplete).toBe(true);
+    // The flag ALONE doesn't win: the composite's `{ tag:"creep", count:"eq" }`
+    // (value defaults to 0) holds the line while creeps are still alive — exactly the
+    // guard the deleted creep-accounting predicate used to enforce, now data.
+    expect(w.state.gameOver).toBeFalsy();
   });
 });

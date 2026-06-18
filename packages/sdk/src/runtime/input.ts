@@ -17,6 +17,34 @@ export interface Tap {
   y: number;
 }
 
+/**
+ * A declarative binding for one logical ACTION (0.4.0, E1 input action layer).
+ * A logical action ("thrust", "move") is satisfiable by ANY of its sources, so a
+ * mover reads `world.input.action(name)` / `actionVector(name)` and never cares
+ * whether the player used a key, an on-screen button, or a virtual d-pad. This is
+ * what lets touch feed a keyboard-authored mover WITHOUT the game synthesizing
+ * fake `KeyboardEvent`s (the bandaid this layer retires). All coordinates are in
+ * WORLD space (the same space {@link Pointer} reports), so a binding is plain data:
+ * its numeric leaves use the structural `x`/`y`/`w`/`h`/`radius` keys, so it passes
+ * the validator's no-magic-number gate with no `$cfg` indirection.
+ */
+export interface ActionBinding {
+  /** BUTTON source: active while ANY of these `KeyboardEvent.code` values is held. */
+  keys?: string[];
+  /** BUTTON source: active while a DOWN pointer is inside this world-space rect (an on-screen / hold-anywhere zone). */
+  rect?: { x: number; y: number; w: number; h: number };
+  /** DIRECTIONAL source: key groups → a unit vector ({-1,0,1} per axis); opposed keys cancel. */
+  axisKeys?: { up?: string[]; down?: string[]; left?: string[]; right?: string[] };
+  /** DIRECTIONAL source: an analog d-pad — the first DOWN pointer inside the circular zone yields a vector from its center. */
+  zone?: { x: number; y: number; radius: number };
+}
+
+/** A host-pushed override for one action (e.g. a DOM button reporting "held"). Sticky until changed. */
+interface ActionOverride {
+  active: boolean;
+  vec: { x: number; y: number };
+}
+
 /** Minimal DOM surface so Input is testable and degrades cleanly when absent. */
 interface InputTarget {
   addEventListener(type: string, listener: (ev: any) => void, opts?: any): void;
@@ -64,6 +92,16 @@ export class Input {
   // { click, holdFrames }). These never change the held-pointer contract above.
   private pressedThisFrame: Tap[] = [];
   private releasedThisFrame: Tap[] = [];
+
+  // Logical-action layer (0.4.0, E1). `actionBindings` are declarative (installed
+  // from scene DATA by the library `input-actions` system each tick); `actionOverrides`
+  // are host-pushed (a DOM button calling setAction). Both are SCENE-SCOPED — cleared
+  // by `resetActions()` on every scene change (called from Game.loadScene) — and
+  // evaluated LIVE against the held key/pointer state, so there is no per-frame edge
+  // bookkeeping. Empty for any game that never defines an action, so this whole layer
+  // is inert (byte-identical behavior) unless a game opts in.
+  private actionBindings = new Map<string, ActionBinding>();
+  private actionOverrides = new Map<string, ActionOverride>();
 
   /** True while the given `KeyboardEvent.code` is held. */
   isDown(code: string): boolean {
@@ -121,6 +159,118 @@ export class Input {
     this.releasedThisFrame.length = 0;
   }
 
+  // --- Logical-action layer (0.4.0, E1) --------------------------------------
+
+  /**
+   * Install/merge declarative action bindings. Idempotent — the library
+   * `input-actions` system calls this every tick with the scene's binding DATA, so
+   * a binding is always present by the time the behavior phase runs (systems run
+   * before behaviors). Re-defining a name replaces its binding.
+   */
+  defineActions(defs: Record<string, ActionBinding>): void {
+    for (const [name, b] of Object.entries(defs)) this.actionBindings.set(name, b);
+  }
+
+  /**
+   * Host override: hold or release a logical action externally — e.g. a DOM touch
+   * button's `pointerdown`/`pointerup` calling `setAction("thrust", true/false)`
+   * instead of synthesizing a fake key event. Sticky until changed; cleared on
+   * focus loss, scene change, and detach. The sanctioned replacement for the
+   * synthesized-`KeyboardEvent` pattern when a game keeps DOM controls.
+   */
+  setAction(name: string, active: boolean): void {
+    const o = this.actionOverrides.get(name) ?? { active: false, vec: { x: 0, y: 0 } };
+    o.active = active;
+    this.actionOverrides.set(name, o);
+  }
+
+  /** Host override: drive a directional action's analog vector (e.g. a DOM joystick). Sticky. */
+  setActionVector(name: string, x: number, y: number): void {
+    const o = this.actionOverrides.get(name) ?? { active: false, vec: { x: 0, y: 0 } };
+    o.vec = { x, y };
+    this.actionOverrides.set(name, o);
+  }
+
+  /** Clear any host override on `name` (the binding, if any, still applies). */
+  clearAction(name: string): void {
+    this.actionOverrides.delete(name);
+  }
+
+  /** Drop ALL action bindings and overrides. Scene-scoped: called by `Game.loadScene`. */
+  resetActions(): void {
+    this.actionBindings.clear();
+    this.actionOverrides.clear();
+  }
+
+  /**
+   * Is logical action `name` active this tick? True if a host override holds it, a
+   * bound key is held, a bound rect/zone has a down pointer, or a bound directional
+   * source is deflected. Unknown/undefined action ⇒ `false` (so the layer is inert
+   * for games that don't use it).
+   */
+  action(name: string): boolean {
+    const o = this.actionOverrides.get(name);
+    if (o && (o.active || o.vec.x !== 0 || o.vec.y !== 0)) return true;
+    const b = this.actionBindings.get(name);
+    if (!b) return false;
+    if (b.keys && this.anyDown(b.keys)) return true;
+    if (b.rect && this.pointerInRect(b.rect)) return true;
+    const v = this.bindingVector(b);
+    return v.x !== 0 || v.y !== 0;
+  }
+
+  /**
+   * The directional vector for action `name`: the keyboard axis (digital, ±1) OR
+   * the analog d-pad zone OR a host override. A non-zero host override wins; else
+   * the keyboard axis wins when any directional key is held; else the zone. Unknown
+   * action / no directional source ⇒ `{x:0,y:0}`.
+   */
+  actionVector(name: string): { x: number; y: number } {
+    const o = this.actionOverrides.get(name);
+    if (o && (o.vec.x !== 0 || o.vec.y !== 0)) return { x: o.vec.x, y: o.vec.y };
+    const b = this.actionBindings.get(name);
+    if (!b) return { x: 0, y: 0 };
+    return this.bindingVector(b);
+  }
+
+  /** True if any DOWN pointer falls inside the world-space rect. */
+  private pointerInRect(r: { x: number; y: number; w: number; h: number }): boolean {
+    for (const p of this.pointers.values()) {
+      if (p.down && p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) return true;
+    }
+    return false;
+  }
+
+  /** Combine a binding's directional sources into a vector (keyboard axis first, then analog zone). */
+  private bindingVector(b: ActionBinding): { x: number; y: number } {
+    const ax = b.axisKeys;
+    if (ax) {
+      let x = 0;
+      let y = 0;
+      if (ax.left && this.anyDown(ax.left)) x -= 1;
+      if (ax.right && this.anyDown(ax.right)) x += 1;
+      if (ax.up && this.anyDown(ax.up)) y -= 1;
+      if (ax.down && this.anyDown(ax.down)) y += 1;
+      if (x !== 0 || y !== 0) return { x, y };
+    }
+    const z = b.zone;
+    if (z) {
+      for (const p of this.pointers.values()) {
+        if (!p.down) continue;
+        const dx = p.x - z.x;
+        const dy = p.y - z.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > z.radius * 1.6) continue; // pointer is elsewhere on screen
+        const DEADZONE = 0.25; // structural, source-level — not a balance value
+        if (dist < z.radius * DEADZONE) return { x: 0, y: 0 };
+        const n = Math.max(dist, 0.0001);
+        const mag = Math.min(1, dist / z.radius);
+        return { x: (dx / n) * mag, y: (dy / n) * mag };
+      }
+    }
+    return { x: 0, y: 0 };
+  }
+
   setWorldSize(width: number, height: number): void {
     this.world = { width, height };
   }
@@ -152,6 +302,9 @@ export class Input {
       const onBlur = () => {
         this.down.clear();
         this.pointers.clear();
+        // A held touch-button override (setAction) must release on focus loss too,
+        // just like a held key — otherwise the action sticks "on" forever.
+        this.actionOverrides.clear();
       };
       keyTarget.addEventListener("keydown", onDown);
       keyTarget.addEventListener("keyup", onUp);
@@ -222,5 +375,6 @@ export class Input {
     this.pointers.clear();
     this.pressedThisFrame.length = 0;
     this.releasedThisFrame.length = 0;
+    this.resetActions();
   }
 }

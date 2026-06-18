@@ -209,7 +209,8 @@
           "params": {
             "emitOnTap": "start-pressed"
           }
-        }
+        },
+        { "type": "key-emit", "part": "key-emit@1.0.0", "params": { "keys": ["Enter", "Space"], "emitOnKey": "start-pressed" } }
       ]
     }
   ],

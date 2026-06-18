@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeWorld, makeEntity } from "./helpers.js";
+import { makeWorld, makeEntity, runBehavior } from "./helpers.js";
 import { aiChase } from "../src/behaviors/ai-chase.js";
 import { aiFlee } from "../src/behaviors/ai-flee.js";
 import { aiPatrol } from "../src/behaviors/ai-patrol.js";
@@ -60,9 +60,10 @@ describe("ai-patrol", () => {
     const world = makeWorld();
     const guard = makeEntity(world, { id: "g", x: 95, y: 0, w: 10, h: 10 });
     const params = { points: [{ x: 100, y: 5 }, { x: 300, y: 5 }], speed: 40, waitTime: 0.5, arriveRadius: 8 };
-    aiPatrol(guard, world, params, DT); // at first waypoint → advance + start waiting
-    expect(guard.state.__patrolIdx).toBe(1);
-    expect((guard.state.__patrolWait as number)).toBeGreaterThan(0);
+    const sc: Record<string, unknown> = {};
+    aiPatrol(guard, world, params, DT, sc); // at first waypoint → advance + start waiting
+    expect(sc.patrolIdx).toBe(1);
+    expect((sc.patrolWait as number)).toBeGreaterThan(0);
     expect(guard.vx).toBe(0);
   });
 });
@@ -71,7 +72,7 @@ describe("ai-wander", () => {
   it("picks a unit heading and moves at the wander speed", () => {
     const world = makeWorld({ seed: 42 });
     const critter = makeEntity(world, { id: "c", x: 400, y: 300, w: 10, h: 10 });
-    aiWander(critter, world, { speed: 30, changeInterval: 1 }, DT);
+    runBehavior(aiWander, critter, world, { speed: 30, changeInterval: 1 }, DT);
     expect(Math.hypot(critter.vx, critter.vy)).toBeCloseTo(30, 4);
   });
 });
@@ -88,7 +89,7 @@ describe("ai-aim-and-fire", () => {
       projectileSpeed: 200,
       projectile: { id: "eb", tags: ["enemy-bullet"], size: { w: 6, h: 6 }, sprite: { kind: "none" }, behaviors: [] },
     };
-    aiAimAndFire(turret, world, params, DT);
+    runBehavior(aiAimAndFire, turret, world, params, DT);
     const bullets = world.query("enemy-bullet");
     expect(bullets.length).toBe(1);
     expect(bullets[0]!.vy).toBeGreaterThan(0); // toward the player below
@@ -98,7 +99,7 @@ describe("ai-aim-and-fire", () => {
     const world = makeWorld();
     const turret = makeEntity(world, { id: "t", x: 0, y: 0, w: 16, h: 16 });
     makeEntity(world, { id: "p", x: 700, y: 500, w: 16, h: 16, tags: ["player"] });
-    aiAimAndFire(turret, world, { targetTag: "player", range: 50, cooldown: 1, projectileSpeed: 200, projectile: { id: "eb", tags: ["enemy-bullet"], sprite: { kind: "none" }, behaviors: [] } }, DT);
+    runBehavior(aiAimAndFire, turret, world, { targetTag: "player", range: 50, cooldown: 1, projectileSpeed: 200, projectile: { id: "eb", tags: ["enemy-bullet"], sprite: { kind: "none" }, behaviors: [] } }, DT);
     expect(world.query("enemy-bullet").length).toBe(0);
   });
 });

@@ -25,7 +25,8 @@ import { toward, length, normalize, vec2, spawnFrom } from "../util.js";
  *    (byte-identical to 1.0.0).
  *  - `priorityOrder` (1.1.0): `"high"` (default, prefer the largest value) | `"low"`.
  */
-export const aiAimAndFire: BehaviorFn = (entity, world, params) => {
+export const aiAimAndFire: BehaviorFn = (entity, world, params, _dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): fire cooldown
   const targetTag = str(params, "targetTag");
   const range = num(params, "range", 0);
   const cooldown = num(params, "cooldown", 0);
@@ -34,7 +35,7 @@ export const aiAimAndFire: BehaviorFn = (entity, world, params) => {
   const sound = str(params, "sound", "shoot");
   const priorityKey = str(params, "priorityKey", "");
 
-  const last = (entity.state.__aimCd as number) ?? -Infinity;
+  const last = (s.aimCd as number) ?? -Infinity;
   if (world.time < last + cooldown) return;
 
   // Target selection: by default the NEAREST tagged entity (1.0.0). With a
@@ -68,7 +69,7 @@ export const aiAimAndFire: BehaviorFn = (entity, world, params) => {
   const unit = normalize(delta);
   if (unit.x === 0 && unit.y === 0) return;
 
-  entity.state.__aimCd = world.time;
+  s.aimCd = world.time;
   const bullet = spawnFrom(world, params.projectile, {
     idPrefix: `${entity.id}.shot`,
     position: { x: entity.cx + offset.x, y: entity.cy + offset.y },

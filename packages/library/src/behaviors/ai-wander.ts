@@ -12,29 +12,30 @@ import { num } from "@gitcade/sdk";
  *  - `changeInterval`: seconds between heading changes (balance → `$cfg`)
  *  - `edgePadding`: distance from a wall at which it turns inward (structural; default 16)
  */
-export const aiWander: BehaviorFn = (entity, world, params, dt) => {
+export const aiWander: BehaviorFn = (entity, world, params, dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): heading vector + re-pick timer
   const speed = num(params, "speed", 0);
   const changeInterval = num(params, "changeInterval", 1);
   const edgePadding = num(params, "edgePadding", 16);
 
-  let timer = ((entity.state.__wanderTimer as number) ?? changeInterval) + 0;
+  let timer = ((s.wanderTimer as number) ?? changeInterval) + 0;
   // First tick: pick an initial heading.
-  if (entity.state.__wanderDir === undefined) {
-    pickHeading(entity, world);
-    entity.state.__wanderTimer = changeInterval;
+  if (s.wanderDir === undefined) {
+    pickHeading(s, world);
+    s.wanderTimer = changeInterval;
   }
 
-  timer = (entity.state.__wanderTimer as number) - dt;
+  timer = (s.wanderTimer as number) - dt;
   if (timer <= 0) {
-    pickHeading(entity, world);
+    pickHeading(s, world);
     timer = changeInterval;
   }
-  entity.state.__wanderTimer = timer;
+  s.wanderTimer = timer;
 
   // Steer away from edges.
   const W = world.bounds.width;
   const H = world.bounds.height;
-  const dir = entity.state.__wanderDir as { x: number; y: number };
+  const dir = s.wanderDir as { x: number; y: number };
   if (entity.x < edgePadding && dir.x < 0) dir.x = Math.abs(dir.x);
   else if (entity.x + entity.w > W - edgePadding && dir.x > 0) dir.x = -Math.abs(dir.x);
   if (entity.y < edgePadding && dir.y < 0) dir.y = Math.abs(dir.y);
@@ -44,7 +45,7 @@ export const aiWander: BehaviorFn = (entity, world, params, dt) => {
   entity.vy = dir.y * speed;
 };
 
-function pickHeading(entity: { state: Record<string, unknown> }, world: { rng: () => number }): void {
+function pickHeading(s: Record<string, unknown>, world: { rng: () => number }): void {
   const angle = world.rng() * Math.PI * 2;
-  entity.state.__wanderDir = { x: Math.cos(angle), y: Math.sin(angle) };
+  s.wanderDir = { x: Math.cos(angle), y: Math.sin(angle) };
 }

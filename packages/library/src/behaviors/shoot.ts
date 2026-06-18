@@ -21,7 +21,8 @@ import { vec2, normalize, toward, spawnFrom } from "../util.js";
  *  - `spawnOffset`: `{ x, y }` offset from this entity's center (structural; default `{0,0}`)
  *  - `sound`: sound key on fire (default `"shoot"`)
  */
-export const shoot: BehaviorFn = (entity, world, params) => {
+export const shoot: BehaviorFn = (entity, world, params, _dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): fire cooldown
   const speed = num(params, "projectileSpeed", 0);
   const cooldown = num(params, "cooldown", 0);
   const fireKeys = orDefault(strArray(params, "fireKeys"), ["Space"]);
@@ -30,7 +31,7 @@ export const shoot: BehaviorFn = (entity, world, params) => {
   const offset = vec2(params, "spawnOffset", { x: 0, y: 0 });
   const sound = str(params, "sound", "shoot");
 
-  const last = (entity.state.__shootCd as number) ?? -Infinity;
+  const last = (s.shootCd as number) ?? -Infinity;
   if (world.time < last + cooldown) return;
   if (!auto && !world.input.anyDown(fireKeys)) return;
 
@@ -44,7 +45,7 @@ export const shoot: BehaviorFn = (entity, world, params) => {
   const unit = normalize(dir);
   if (unit.x === 0 && unit.y === 0) return;
 
-  entity.state.__shootCd = world.time;
+  s.shootCd = world.time;
   const bullet = spawnFrom(world, params.projectile, {
     idPrefix: `${entity.id}.shot`,
     position: { x: entity.cx + offset.x, y: entity.cy + offset.y },

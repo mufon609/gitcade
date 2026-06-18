@@ -22,8 +22,9 @@ import { num, str, bool } from "@gitcade/sdk";
  *  - `tallyAmount`: amount added to `tallyKey` (balance → `$cfg`; default 1)
  *  - `destroyOnDeath`: remove the entity on death (default true)
  */
-export const healthAndDeath: BehaviorFn = (entity, world, params, dt) => {
-  if (entity.state.__dead) return;
+export const healthAndDeath: BehaviorFn = (entity, world, params, dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): death latch + lifespan age
+  if (s.dead) return;
 
   if (typeof entity.state.hp !== "number") {
     entity.state.hp = num(params, "hp", 1);
@@ -31,14 +32,14 @@ export const healthAndDeath: BehaviorFn = (entity, world, params, dt) => {
 
   const lifespan = num(params, "lifespan", 0);
   if (lifespan > 0) {
-    entity.state.__age = ((entity.state.__age as number) ?? 0) + dt;
-    if ((entity.state.__age as number) >= lifespan) entity.state.hp = 0;
+    s.age = ((s.age as number) ?? 0) + dt;
+    if ((s.age as number) >= lifespan) entity.state.hp = 0;
   }
 
   if ((entity.state.hp as number) > 0) return;
 
   // --- death ---
-  entity.state.__dead = true;
+  s.dead = true;
   const tallyKey = str(params, "tallyKey", "");
   if (tallyKey) {
     world.state[tallyKey] = ((world.state[tallyKey] as number) ?? 0) + num(params, "tallyAmount", 1);

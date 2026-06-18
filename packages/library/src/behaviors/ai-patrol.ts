@@ -16,7 +16,8 @@ import { points, normalize } from "../util.js";
  *  - `pingPong`: reverse at the ends instead of looping (default true)
  *  - `arriveRadius`: distance at which a waypoint counts as reached (structural; default 4)
  */
-export const aiPatrol: BehaviorFn = (entity, world, params, dt) => {
+export const aiPatrol: BehaviorFn = (entity, world, params, dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): waypoint index, step dir, wait timer
   const wps = points(params, "points");
   const speed = num(params, "speed", 0);
   const waitTime = num(params, "waitTime", 0);
@@ -29,12 +30,12 @@ export const aiPatrol: BehaviorFn = (entity, world, params, dt) => {
     return;
   }
 
-  let i = (entity.state.__patrolIdx as number) ?? 0;
-  let step = (entity.state.__patrolStep as number) ?? 1;
-  let waiting = (entity.state.__patrolWait as number) ?? 0;
+  let i = (s.patrolIdx as number) ?? 0;
+  let step = (s.patrolStep as number) ?? 1;
+  let waiting = (s.patrolWait as number) ?? 0;
 
   if (waiting > 0) {
-    entity.state.__patrolWait = Math.max(0, waiting - dt);
+    s.patrolWait = Math.max(0, waiting - dt);
     entity.vx = 0;
     entity.vy = 0;
     return;
@@ -51,9 +52,9 @@ export const aiPatrol: BehaviorFn = (entity, world, params, dt) => {
     } else {
       i = (i + 1) % wps.length;
     }
-    entity.state.__patrolIdx = i;
-    entity.state.__patrolStep = step;
-    entity.state.__patrolWait = waitTime;
+    s.patrolIdx = i;
+    s.patrolStep = step;
+    s.patrolWait = waitTime;
     entity.vx = 0;
     entity.vy = 0;
     return;

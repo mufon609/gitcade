@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeWorld, makeEntity } from "./helpers.js";
+import { makeWorld, makeEntity, runBehavior } from "./helpers.js";
 import { faceAngle } from "../src/behaviors/face-angle.js";
 import { aiAimAndFire } from "../src/behaviors/ai-aim-and-fire.js";
 import { followPath } from "../src/behaviors/follow-path.js";
@@ -53,7 +53,7 @@ describe("ai-aim-and-fire priority targeting (1.1.0)", () => {
     makeEntity(world, { id: "near", x: 360, y: 100, w: 0, h: 0, tags: ["creep"], state: { __pathProgress: 5 } });
     makeEntity(world, { id: "far", x: 560, y: 100, w: 0, h: 0, tags: ["creep"], state: { __pathProgress: 90 } });
     const proto = { id: "shot", sprite: { kind: "none" }, size: { w: 4, h: 4 }, behaviors: [], tags: ["shot"] };
-    aiAimAndFire(
+    runBehavior(aiAimAndFire, 
       tower,
       world,
       { targetTag: "creep", range: 1000, cooldown: 0, projectileSpeed: 100, projectile: proto, priorityKey: "__pathProgress" },
@@ -69,7 +69,7 @@ describe("ai-aim-and-fire priority targeting (1.1.0)", () => {
     const tower = makeEntity(world, { id: "tower", x: 400, y: 100, w: 0, h: 0 });
     makeEntity(world, { id: "left", x: 300, y: 100, w: 0, h: 0, tags: ["creep"], state: {} });
     const proto = { id: "shot", sprite: { kind: "none" }, size: { w: 4, h: 4 }, behaviors: [], tags: ["shot"] };
-    aiAimAndFire(tower, world, { targetTag: "creep", range: 1000, cooldown: 0, projectileSpeed: 100, projectile: proto }, DT);
+    runBehavior(aiAimAndFire, tower, world, { targetTag: "creep", range: 1000, cooldown: 0, projectileSpeed: 100, projectile: proto }, DT);
     const shot = world.query("shot")[0];
     expect(shot.vx).toBeLessThan(0); // nearest (only) creep is to the left → bullet goes -x
   });
@@ -80,9 +80,9 @@ describe("follow-path __pathProgress (1.1.0)", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "creep", x: 0, y: 300, w: 0, h: 0 });
     const params = { points: [{ x: 800, y: 300 }], speed: 100, arriveRadius: 6 };
-    followPath(e, world, params, DT);
+    runBehavior(followPath, e, world, params, DT);
     const p1 = e.state.__pathProgress as number;
-    followPath(e, world, params, DT);
+    runBehavior(followPath, e, world, params, DT);
     const p2 = e.state.__pathProgress as number;
     expect(p1).toBeCloseTo(100 * DT, 6);
     expect(p2).toBeGreaterThan(p1);

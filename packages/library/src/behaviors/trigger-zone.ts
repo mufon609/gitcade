@@ -17,8 +17,9 @@ import { str, bool } from "@gitcade/sdk";
  *  - `once`: fire only the first time, then go inert (default false)
  *  - `sound`: sound key on entry (optional)
  */
-export const triggerZone: BehaviorFn = (entity, world, params) => {
-  if (entity.state.__triggerSpent) return;
+export const triggerZone: BehaviorFn = (entity, world, params, _dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): once-spent latch + who's inside
+  if (s.triggerSpent) return;
   const tag = str(params, "tag");
   const kill = bool(params, "kill", false);
   const once = bool(params, "once", false);
@@ -27,7 +28,7 @@ export const triggerZone: BehaviorFn = (entity, world, params) => {
   const setStateKey = str(params, "setStateKey", "");
   const sound = str(params, "sound", "");
 
-  const inside = (entity.state.__inside ??= {}) as Record<string, boolean>;
+  const inside = (s.inside ??= {}) as Record<string, boolean>;
   const present = new Set<string>();
 
   for (const other of entity.collisions) {
@@ -39,7 +40,7 @@ export const triggerZone: BehaviorFn = (entity, world, params) => {
       if (sound) world.audio.play(sound);
       if (kill) world.destroy(other);
       if (once) {
-        entity.state.__triggerSpent = true;
+        s.triggerSpent = true;
         if (setStateKey) world.state[setStateKey] = true;
         return;
       }

@@ -29,7 +29,8 @@ interface Dir {
  *    heading — so a touch player steers without the game synthesizing arrow keys. Unset
  *    ⇒ the original `up`/`down`/`left`/`right` key path, byte-identical.
  */
-export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
+export const moveGridStep: BehaviorFn = (entity, world, params, dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): last-stepped heading + step timer
   const tile = num(params, "tileSize", 16);
   const stepInterval = num(params, "stepInterval", 0.15);
   const continuous = bool(params, "continuous", true);
@@ -44,9 +45,9 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
   // the live `dir`. `dir` is mutated the instant a non-reversing turn is accepted,
   // so two perpendicular taps inside one step window each pass the guard against the
   // other's intermediate value and sum to a self-reversing step (the snake folds
-  // into its neck). `__gridStep` is the heading actually stepped last; it only
+  // into its neck). `s.gridStep` is the heading actually stepped last; it only
   // changes when a step fires, so only the committed heading counts. (B-2)
-  const stepped = (entity.state.__gridStep ??= { x: dir.x, y: dir.y }) as Dir;
+  const stepped = (s.gridStep ??= { x: dir.x, y: dir.y }) as Dir;
 
   // Read intent; reject reversals in continuous mode (can't fold the snake back).
   // With `moveAction` (E1) intent comes from the logical-action VECTOR — keyboard
@@ -76,12 +77,12 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt) => {
     }
   }
 
-  const timer = ((entity.state.__gridTimer as number) ?? 0) + dt;
+  const timer = ((s.gridTimer as number) ?? 0) + dt;
   if (timer < stepInterval) {
-    entity.state.__gridTimer = timer;
+    s.gridTimer = timer;
     return;
   }
-  entity.state.__gridTimer = timer - stepInterval;
+  s.gridTimer = timer - stepInterval;
 
   const stepping = continuous ? dir.x !== 0 || dir.y !== 0 : !!want;
   if (!stepping) return;

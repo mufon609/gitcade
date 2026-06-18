@@ -48,10 +48,10 @@ describe("move-grid-step", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "snake", x: 0, y: 0, state: { __gridDir: { x: 1, y: 0 } } });
     // Below the interval: no movement yet.
-    moveGridStep(e, world, { tileSize: 20, stepInterval: 0.1, continuous: true }, 0.05);
+    runBehavior(moveGridStep, e, world, { tileSize: 20, stepInterval: 0.1, continuous: true }, 0.05);
     expect(e.x).toBe(0);
     // Crossing the interval: exactly one cell.
-    moveGridStep(e, world, { tileSize: 20, stepInterval: 0.1, continuous: true }, 0.06);
+    runBehavior(moveGridStep, e, world, { tileSize: 20, stepInterval: 0.1, continuous: true }, 0.06);
     expect(e.x).toBe(20);
   });
 
@@ -59,7 +59,7 @@ describe("move-grid-step", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "snake", state: { __gridDir: { x: 1, y: 0 } } });
     (world.input as unknown as { anyDown: (c: string[]) => boolean }).anyDown = (codes) => codes.includes("ArrowLeft");
-    moveGridStep(e, world, { tileSize: 20, stepInterval: 0.1, continuous: true, left: ["ArrowLeft"] }, DT);
+    runBehavior(moveGridStep, e, world, { tileSize: 20, stepInterval: 0.1, continuous: true, left: ["ArrowLeft"] }, DT);
     const dir = e.state.__gridDir as { x: number; y: number };
     expect(dir).toEqual({ x: 1, y: 0 }); // reversal rejected
   });
@@ -76,12 +76,12 @@ describe("move-grid-step", () => {
     // Left reverses the COMMITTED heading (Right) → it must be rejected, even though
     // it does not reverse the just-accepted intermediate Up.
     setKey("ArrowUp");
-    moveGridStep(e, world, params, 0.03);
+    runBehavior(moveGridStep, e, world, params, 0.03);
     setKey("ArrowLeft");
-    moveGridStep(e, world, params, 0.03);
+    runBehavior(moveGridStep, e, world, params, 0.03);
     // Cross the interval and actually step.
     setKey(null);
-    moveGridStep(e, world, params, 0.05);
+    runBehavior(moveGridStep, e, world, params, 0.05);
 
     const dir = e.state.__gridDir as { x: number; y: number };
     expect(dir).toEqual({ x: 0, y: -1 }); // Left rejected; heading is Up
@@ -95,7 +95,7 @@ describe("move-grid-step", () => {
     const e = makeEntity(world, { id: "snake", x: 0, y: 0, state: { __gridDir: { x: 1, y: 0 } } });
     const params = { tileSize: 20, stepInterval: 0.1, continuous: true, up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };
     (world.input as unknown as { anyDown: (c: string[]) => boolean }).anyDown = (codes) => codes.includes("ArrowUp");
-    moveGridStep(e, world, params, 0.11); // turn Up and step
+    runBehavior(moveGridStep, e, world, params, 0.11); // turn Up and step
     expect(e.y).toBe(-20);
     expect(e.x).toBe(0);
     expect(e.state.__gridDir).toEqual({ x: 0, y: -1 });
@@ -108,12 +108,12 @@ describe("move-grid-step", () => {
     const params = { tileSize: 20, stepInterval: 0.1, continuous: true, snap: true, moveAction: "move" };
     // A touch d-pad / keyboard axis deflected right (driven through the action layer).
     world.input.setActionVector("move", 1, 0);
-    moveGridStep(e, world, params, 0.11);
+    runBehavior(moveGridStep, e, world, params, 0.11);
     expect(e.x).toBe(120);
     expect(e.y).toBe(100);
     // A near-vertical analog deflection turns up (dominant axis wins).
     world.input.setActionVector("move", 0.2, -0.9);
-    moveGridStep(e, world, params, 0.11);
+    runBehavior(moveGridStep, e, world, params, 0.11);
     expect(e.y).toBe(80);
     expect(e.x).toBe(120);
   });
@@ -154,12 +154,13 @@ describe("follow-path", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "creep", x: 0, y: 0, w: 10, h: 10 });
     const params = { points: [{ x: 100, y: 5 }, { x: 100, y: 200 }], speed: 50, arriveRadius: 8 };
-    followPath(e, world, params, DT);
+    const sc: Record<string, unknown> = {};
+    followPath(e, world, params, DT, sc);
     expect(e.vx).toBeGreaterThan(0); // moving toward x=100
     // Teleport onto the first waypoint → it advances and aims at the second.
     e.x = 95;
     e.y = 0;
-    followPath(e, world, params, DT);
-    expect(e.state.__wp).toBe(1);
+    followPath(e, world, params, DT, sc);
+    expect(sc.wp).toBe(1);
   });
 });

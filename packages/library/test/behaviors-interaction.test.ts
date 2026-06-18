@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeWorld, makeEntity, collide } from "./helpers.js";
+import { makeWorld, makeEntity, collide, runBehavior } from "./helpers.js";
 import { collectOnTouch } from "../src/behaviors/collect-on-touch.js";
 import { triggerZone } from "../src/behaviors/trigger-zone.js";
 import { portal } from "../src/behaviors/portal.js";
@@ -36,7 +36,7 @@ describe("trigger-zone", () => {
     let entered = 0;
     world.events.on("hazard", () => (entered += 1));
     collide(zone, player);
-    triggerZone(zone, world, { tag: "player", enterEvent: "hazard", kill: true }, DT);
+    runBehavior(triggerZone, zone, world, { tag: "player", enterEvent: "hazard", kill: true }, DT);
     expect(entered).toBe(1);
     expect(player.alive).toBe(false);
   });
@@ -46,7 +46,7 @@ describe("trigger-zone", () => {
     const zone = makeEntity(world, { id: "z", tags: ["zone"] });
     const player = makeEntity(world, { id: "p", tags: ["player"] });
     collide(zone, player);
-    triggerZone(zone, world, { tag: "player", setStateKey: "inZone" }, DT);
+    runBehavior(triggerZone, zone, world, { tag: "player", setStateKey: "inZone" }, DT);
     expect(world.state.inZone).toBe(true);
   });
 });

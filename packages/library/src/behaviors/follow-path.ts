@@ -19,7 +19,8 @@ import { points, normalize, applyVelocity } from "../util.js";
  *  - `arriveRadius`: distance at which a waypoint counts as reached (structural; default 4)
  *  - `loop`: restart from the first point at the end (default false)
  */
-export const followPath: BehaviorFn = (entity, world, params, dt) => {
+export const followPath: BehaviorFn = (entity, world, params, dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): the waypoint index
   const wps = points(params, "points");
   const speed = num(params, "speed", 0);
   const arriveRadius = num(params, "arriveRadius", 4);
@@ -31,7 +32,7 @@ export const followPath: BehaviorFn = (entity, world, params, dt) => {
     return;
   }
 
-  let i = (entity.state.__wp as number) ?? 0;
+  let i = (s.wp as number) ?? 0;
   if (i >= wps.length) {
     entity.vx = 0;
     entity.vy = 0;
@@ -47,20 +48,20 @@ export const followPath: BehaviorFn = (entity, world, params, dt) => {
     if (i >= wps.length) {
       if (loop) i = 0;
       else {
-        entity.state.__wp = i;
+        s.wp = i;
         entity.vx = 0;
         entity.vy = 0;
         world.events.emit("path-complete", { id: entity.id });
         return;
       }
     }
-    entity.state.__wp = i;
+    s.wp = i;
   } else {
-    entity.state.__wp = i;
+    s.wp = i;
   }
 
   // Maintain a monotonic cumulative-distance metric so other parts can rank movers
-  // by how far ALONG the path they are (1.1.0). `__wp` (waypoint index) doesn't
+  // by how far ALONG the path they are (1.1.0). `s.wp` (waypoint index) doesn't
   // discriminate on a long segment — every creep between two waypoints shares the
   // same index — so `ai-aim-and-fire`'s "first" targeting (`priorityKey:
   // "__pathProgress"`) needs this continuous value, not the integer index.

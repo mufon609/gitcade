@@ -27,7 +27,8 @@ import { num, str, bool } from "@gitcade/sdk";
  *  - `selfDestruct`: destroy this entity after a successful hit (default false — for bullets)
  *  - `sound`: sound key on a successful hit (default `"hit"`)
  */
-export const contactDamage: BehaviorFn = (entity, world, params) => {
+export const contactDamage: BehaviorFn = (entity, world, params, _dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): the per-target hit-cooldown map
   const targetTag = str(params, "targetTag");
   const damage = num(params, "damage", 0);
   const cooldown = num(params, "cooldown", 0);
@@ -36,7 +37,7 @@ export const contactDamage: BehaviorFn = (entity, world, params) => {
   const selfDestruct = bool(params, "selfDestruct", false);
   const sound = str(params, "sound", "hit");
 
-  const cds = (entity.state.__dmgCd ??= {}) as Record<string, number>;
+  const cds = (s.dmgCd ??= {}) as Record<string, number>;
   let hitSomething = false;
 
   for (const other of entity.collisions) {

@@ -18,7 +18,7 @@ export function runBehavior(
   e: Entity,
   world: World,
   params: Record<string, unknown>,
-  dt: number,
+  dt = 0,
 ): void {
   let m = _scratch.get(e);
   if (!m) {

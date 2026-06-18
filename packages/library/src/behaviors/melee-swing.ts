@@ -19,7 +19,8 @@ import { vec2, spawnFrom } from "../util.js";
  *  - `faceVelocity`: place the hitbox in the wielder's movement direction (default true)
  *  - `sound`: sound key on swing (default `"hit"`)
  */
-export const meleeSwing: BehaviorFn = (entity, world, params) => {
+export const meleeSwing: BehaviorFn = (entity, world, params, _dt, scratch) => {
+  const s = scratch!; // per-instance scratch (host-provided): attack cooldown
   const cooldown = num(params, "cooldown", 0);
   const attackKeys = orDefault(strArray(params, "attackKeys"), ["KeyJ", "KeyZ"]);
   const auto = bool(params, "auto", false);
@@ -27,7 +28,7 @@ export const meleeSwing: BehaviorFn = (entity, world, params) => {
   const faceVelocity = bool(params, "faceVelocity", true);
   const sound = str(params, "sound", "hit");
 
-  const last = (entity.state.__meleeCd as number) ?? -Infinity;
+  const last = (s.meleeCd as number) ?? -Infinity;
   if (world.time < last + cooldown) return;
   if (!auto && !world.input.anyDown(attackKeys)) return;
 
@@ -40,7 +41,7 @@ export const meleeSwing: BehaviorFn = (entity, world, params) => {
     oy = (entity.vy / len) * mag;
   }
 
-  entity.state.__meleeCd = world.time;
+  s.meleeCd = world.time;
   const hit = spawnFrom(world, params.hitbox, {
     idPrefix: `${entity.id}.swing`,
     position: { x: entity.cx + ox, y: entity.cy + oy },

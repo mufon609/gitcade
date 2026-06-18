@@ -11,7 +11,7 @@ const DT = 1 / 60;
  * 0.7.0 — the platformer enablers (INDIE-ROADMAP Tier-0):
  *  - camera-follow (0.1): pan the viewport to track a target, clamped to the world.
  *  - tilemap-collide (0.2): resolve an AABB against solid tiles + contact flags.
- *  - move-platformer (1.1.0): honor the tilemap-collide `__onGround` flag.
+ *  - move-platformer (1.1.0): honor the tilemap-collide `contacts.onGround` flag.
  */
 
 describe("camera-follow", () => {
@@ -83,7 +83,7 @@ describe("tilemap-collide", () => {
     return { tileSize: 32, cols, rows, tiles, properties: { "1": { solid: true } } };
   }
 
-  it("lands on a solid floor and flags __onGround", () => {
+  it("lands on a solid floor and flags contacts.onGround", () => {
     const world = makeWorld();
     world.tilemap = boxTilemap();
     const e = makeEntity(world, { id: "p", x: 100, y: 290, w: 16, h: 16 }); // y+h=306 penetrates floor row 9 (288..320)
@@ -91,10 +91,10 @@ describe("tilemap-collide", () => {
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.y).toBe(9 * 32 - 16); // bottom flush with the floor top (288)
     expect(e.vy).toBe(0);
-    expect(e.state.__onGround).toBe(true);
+    expect(e.contacts.onGround).toBe(true);
   });
 
-  it("stops at a wall when moving right and flags __onWallR", () => {
+  it("stops at a wall when moving right and flags contacts.onWallR", () => {
     const world = makeWorld();
     world.tilemap = boxTilemap();
     const e = makeEntity(world, { id: "p", x: 280, y: 100, w: 16, h: 16 }); // x+w=296 penetrates wall col 9 (288..320)
@@ -102,10 +102,10 @@ describe("tilemap-collide", () => {
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.x).toBe(9 * 32 - 16); // pushed left of the wall (272)
     expect(e.vx).toBe(0);
-    expect(e.state.__onWallR).toBe(true);
+    expect(e.contacts.onWallR).toBe(true);
   });
 
-  it("stops at a ceiling when moving up and flags __onCeiling", () => {
+  it("stops at a ceiling when moving up and flags contacts.onCeiling", () => {
     const world = makeWorld();
     world.tilemap = boxTilemap();
     const e = makeEntity(world, { id: "p", x: 100, y: 10, w: 16, h: 16 }); // penetrates ceiling row 0 (0..32)
@@ -113,7 +113,7 @@ describe("tilemap-collide", () => {
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.y).toBe(32); // pushed below the ceiling
     expect(e.vy).toBe(0);
-    expect(e.state.__onCeiling).toBe(true);
+    expect(e.contacts.onCeiling).toBe(true);
   });
 
   it("passes through a non-solid tile and clears the flags", () => {
@@ -123,21 +123,23 @@ describe("tilemap-collide", () => {
     e.vy = 100;
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.y).toBe(150); // unmoved
-    expect(e.state.__onGround).toBe(false);
+    expect(e.contacts.onGround).toBe(false);
   });
 
   it("no tilemap ⇒ flags false, no throw", () => {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", x: 0, y: 0, w: 16, h: 16, state: { __onGround: true } });
+    const e = makeEntity(world, { id: "p", x: 0, y: 0, w: 16, h: 16 });
+    e.contacts.onGround = true; // pre-seed; the no-tilemap path must reset it
     expect(() => tilemapCollide(e, world, {}, DT)).not.toThrow();
-    expect(e.state.__onGround).toBe(false);
+    expect(e.contacts.onGround).toBe(false);
   });
 });
 
 describe("move-platformer — tilemap grounding hook (1.1.0)", () => {
-  it("jumps when a resolver marked __onGround, even off the world floor", () => {
+  it("jumps when a resolver marked contacts.onGround, even off the world floor", () => {
     const world = makeWorld({ bounds: { width: 800, height: 600 } });
-    const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16, state: { __onGround: true } }); // mid-air vs world floor
+    const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16 }); // mid-air vs world floor
+    e.contacts.onGround = true; // a resolver marked us grounded last tick
     (world.input as unknown as { axis: () => number; anyDown: () => boolean }).axis = () => 0;
     (world.input as unknown as { anyDown: () => boolean }).anyDown = () => true; // jump held
     movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
@@ -146,7 +148,7 @@ describe("move-platformer — tilemap grounding hook (1.1.0)", () => {
 
   it("does NOT jump in mid-air when nothing marked it grounded", () => {
     const world = makeWorld({ bounds: { width: 800, height: 600 } });
-    const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16 }); // no __onGround, not on world floor
+    const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16 }); // no contacts.onGround, not on world floor
     (world.input as unknown as { axis: () => number; anyDown: () => boolean }).axis = () => 0;
     (world.input as unknown as { anyDown: () => boolean }).anyDown = () => true;
     movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);

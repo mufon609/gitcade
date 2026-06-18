@@ -1,6 +1,7 @@
 import type { Sprite } from "../schema/sprite.js";
 import type { ResolvedParams } from "./types.js";
 import type { BehaviorFn } from "./types.js";
+import type { SolidContacts } from "./collision.js";
 
 /** A live behavior attached to an entity. `params` are already `$cfg`-resolved. */
 export interface BehaviorInstance {
@@ -55,6 +56,30 @@ export class Entity {
   state: Record<string, unknown>;
   /** Entities overlapping this one this tick (populated by the collision system). */
   collisions: Entity[] = [];
+  /**
+   * Solid-CONTACT sensing for the current tick (0.8.0): which faces touched a solid this
+   * tick. Written by the SDK's {@link applyContacts} (fed by the library `tilemap-collide`/
+   * `solid-collide` resolvers) and read by movers/animators (`move-platformer` jump test,
+   * `sprite-state-machine` grounded state). The FIRST-CLASS, typed home of the platformer
+   * contact protocol, mirroring the typed `collisions`/`anim` runtime fields. Runtime-only
+   * (never serialized); defaults all-false. The flags are MOTION-derived (a face is reported
+   * on the axis the body moved INTO a solid), so a body resting motionless reports none.
+   */
+  contacts: SolidContacts = { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false };
+  /**
+   * Drop-through window remaining in seconds (0.8.0): the mover→resolver half of the contact
+   * protocol. `move-platformer` sets it on a one-way drop (down+jump); the solid resolvers
+   * read it (>0) and drop one-way cells/ledges from the solid set so a standing body falls
+   * through. Runtime-only; default 0 (not dropping).
+   */
+  dropThrough = 0;
+  /**
+   * Internal frame stamp of the last {@link applyContacts} write (0.8.0). Lets multiple
+   * resolvers in ONE tick MERGE their contacts (the first this tick resets {@link contacts},
+   * later ones OR-in) instead of clobbering. Not part of the sensed-contact contract;
+   * touched only by {@link applyContacts}.
+   */
+  contactTick = -1;
   /** False once destroyed; pruned at end of tick. */
   alive = true;
 

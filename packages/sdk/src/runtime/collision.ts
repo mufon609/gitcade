@@ -268,25 +268,30 @@ export function resolveSolids(
 }
 
 /**
- * Merge a solid resolver's contact flags into `state` so MULTIPLE resolvers on one
- * entity COMBINE within a tick instead of clobbering: the FIRST resolver each tick
- * (detected via the `tick` stamp — pass `world.frame`, constant within a tick and unique
- * across ticks) resets the four `__on*` flags to its own contacts; later resolvers OR
+ * Merge a solid resolver's contact flags into the entity's first-class {@link Entity.contacts}
+ * so MULTIPLE resolvers on one entity COMBINE within a tick instead of clobbering: the FIRST
+ * resolver each tick (detected via the `tick` stamp — pass `world.frame`, constant within a
+ * tick and unique across ticks) resets the five flags to its own contacts; later resolvers OR
  * theirs in. So an entity carrying both `tilemap-collide` and `solid-collide` reads
- * `__onGround` as "standing on a tile OR a solid entity", in any behavior order, and a
- * mover (`move-platformer`) sees the union. Writing the flags directly (no stamp) would
- * make whichever resolver ran last win and silently drop the other's contacts.
+ * `contacts.onGround` as "standing on a tile OR a solid entity", in any behavior order, and a
+ * mover (`move-platformer`) sees the union. Writing the flags directly (no stamp) would make
+ * whichever resolver ran last win and silently drop the other's contacts.
  *
- * `__onOneWay` merges the same way (0.7.0): true when ANY resolver this tick grounded the
- * body on a one-way platform. A mover reads it to gate "down+jump drops through"; on mixed
- * one-way + solid ground the drop is a harmless no-op (the solid floor still holds).
+ * `onOneWay` merges the same way: true when ANY resolver this tick grounded the body on a
+ * one-way platform. A mover reads it to gate "down+jump drops through"; on mixed one-way +
+ * solid ground the drop is a harmless no-op (the solid floor still holds).
+ *
+ * Writes the TYPED `entity.contacts`/`entity.contactTick` fields — the contract home of the
+ * contact protocol (0.8.0). The target is typed structurally (just the two fields it touches)
+ * so the runtime {@link Entity} satisfies it and a unit test can pass a minimal stub.
  */
-export function applyContacts(state: Record<string, unknown>, tick: number, c: SolidContacts): void {
-  const fresh = state.__contactTick !== tick;
-  state.__contactTick = tick;
-  state.__onGround = (!fresh && state.__onGround === true) || c.onGround;
-  state.__onCeiling = (!fresh && state.__onCeiling === true) || c.onCeiling;
-  state.__onWallL = (!fresh && state.__onWallL === true) || c.onWallL;
-  state.__onWallR = (!fresh && state.__onWallR === true) || c.onWallR;
-  state.__onOneWay = (!fresh && state.__onOneWay === true) || c.onOneWay;
+export function applyContacts(target: { contacts: SolidContacts; contactTick: number }, tick: number, c: SolidContacts): void {
+  const fresh = target.contactTick !== tick;
+  target.contactTick = tick;
+  const cur = target.contacts;
+  cur.onGround = (!fresh && cur.onGround) || c.onGround;
+  cur.onCeiling = (!fresh && cur.onCeiling) || c.onCeiling;
+  cur.onWallL = (!fresh && cur.onWallL) || c.onWallL;
+  cur.onWallR = (!fresh && cur.onWallR) || c.onWallR;
+  cur.onOneWay = (!fresh && cur.onOneWay) || c.onOneWay;
 }

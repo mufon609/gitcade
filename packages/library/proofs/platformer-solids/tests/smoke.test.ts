@@ -9,7 +9,7 @@ import main from "../src/scenes/main.json";
  * Reuse proof — the 0.7.0 entity-solid enablers end-to-end (INDIE-ROADMAP Tier-0):
  *  - solid-collide (0.3): the player LANDS ON a solid crate entity, is BLOCKED by its
  *    side, BONKS a solid overhead ledge, JUMPS OFF the crate (move-platformer reads
- *    solid-collide's __onGround), and RIDES a vertical lift — all with no host code, a
+ *    solid-collide's contacts.onGround), and RIDES a vertical lift — all with no host code, a
  *    crate exactly as solid as a tile.
  *  - resolveSolids swept sub-stepping (0.4): a fast faller lands ON a thin platform
  *    instead of tunnelling through it.
@@ -41,7 +41,7 @@ describe("platformer-solids reuse proof", () => {
     game.stepFrames(120);
     const player = game.world.byId("player")!;
     expect(player.y).toBe(424);
-    expect(player.state.__onGround).toBe(true);
+    expect(player.contacts.onGround).toBe(true);
   });
 
   it("lands on a solid CRATE entity, not the floor (solid-collide, 0.3)", () => {
@@ -54,10 +54,10 @@ describe("platformer-solids reuse proof", () => {
     drive(game, { axis: 0 });
     game.stepFrames(120);
     expect(player.y).toBe(376); // resting on the crate top (400), NOT the floor (424)
-    expect(player.state.__onGround).toBe(true);
+    expect(player.contacts.onGround).toBe(true);
   });
 
-  it("is blocked by the crate's side when running into it (__onWallR)", () => {
+  it("is blocked by the crate's side when running into it (contacts.onWallR)", () => {
     const game = boot();
     game.stepFrames(120); // settle on the floor first
     const player = game.world.byId("player")!;
@@ -67,10 +67,10 @@ describe("platformer-solids reuse proof", () => {
     drive(game, { axis: 1 }); // run right into the crate
     game.stepFrames(120);
     expect(player.x).toBe(276); // pressed against the crate's left face (300 - 24)
-    expect(player.state.__onWallR).toBe(true);
+    expect(player.contacts.onWallR).toBe(true);
   });
 
-  it("jumps off the crate top (move-platformer reads solid-collide's __onGround)", () => {
+  it("jumps off the crate top (move-platformer reads solid-collide's contacts.onGround)", () => {
     const game = boot();
     game.stepFrames(1);
     const player = game.world.byId("player")!;
@@ -79,13 +79,13 @@ describe("platformer-solids reuse proof", () => {
     player.vy = 0;
     drive(game, { axis: 0 });
     game.stepFrames(120); // land on the crate
-    expect(player.state.__onGround).toBe(true);
+    expect(player.contacts.onGround).toBe(true);
     drive(game, { axis: 0, jump: true }); // fresh jump press
     game.stepFrames(1);
     expect(player.vy).toBeLessThan(0); // launched upward off the crate
   });
 
-  it("bonks its head on a solid overhead ledge when jumping (__onCeiling)", () => {
+  it("bonks its head on a solid overhead ledge when jumping (contacts.onCeiling)", () => {
     const game = boot();
     game.stepFrames(120); // settle on the floor
     const player = game.world.byId("player")!;
@@ -98,7 +98,7 @@ describe("platformer-solids reuse proof", () => {
     let bonked = false;
     for (let i = 0; i < 40; i++) {
       game.stepFrames(1);
-      if (player.state.__onCeiling) {
+      if (player.contacts.onCeiling) {
         bonked = true;
         break;
       }
@@ -118,7 +118,7 @@ describe("platformer-solids reuse proof", () => {
     player.vy = 0;
     drive(game, { axis: 0 });
     game.stepFrames(40);
-    expect(player.state.__onGround).toBe(true); // still standing on the lift
+    expect(player.contacts.onGround).toBe(true); // still standing on the lift
     expect(player.y).toBe(lift.y - player.h); // tracks the lift top exactly
     expect(lift.y).toBeLessThan(startLiftY); // the lift rose and carried the player up
   });
@@ -138,7 +138,7 @@ describe("platformer-solids reuse proof", () => {
     for (let i = 0; i < 6; i++) {
       drive(game, { axis: 1 }); // walk right
       game.stepFrames(1);
-      expect(player.state.__onGround).toBe(true); // never ejected off the lift
+      expect(player.contacts.onGround).toBe(true); // never ejected off the lift
       expect(player.x).toBeGreaterThanOrEqual(lift.x); // not flung to the lift's left (or x<0)
       expect(player.y).toBe(lift.y - player.h); // still riding the lift top
     }

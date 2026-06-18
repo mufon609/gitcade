@@ -6,13 +6,13 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * platformer collision (INDIE-ROADMAP Tier-0 item 0.2). A cell is solid when its
  * tile-index `properties` carry the `solidProp` flag (default `"solid"`). The entity
  * is pushed out of the cell it ran into, the matching velocity component is zeroed,
- * and contact flags are written to `entity.state` for other behaviors to read:
- * `__onGround`, `__onCeiling`, `__onWallL`, `__onWallR`.
+ * and the typed contact flags are written to `entity.contacts` for other behaviors to
+ * read: `onGround`, `onCeiling`, `onWallL`, `onWallR`.
  *
  * ORDER IT AFTER the velocity integrator (e.g. `move-platformer` → `velocity` →
  * `tilemap-collide`): it corrects the position the integrator just produced, in the
  * SAME tick, so there is no one-frame penetration. `move-platformer` reads the
- * `__onGround` flag this writes (so a tile floor satisfies its jump test) — that read
+ * `contacts.onGround` flag this writes (so a tile floor satisfies its jump test) — that read
  * is one tick old, which the part's coyote-time covers. Combines freely with
  * `solid-collide` on the same entity: the contact flags MERGE per tick (so a tile
  * floor and a crate both ground you), regardless of behavior order.
@@ -21,7 +21,7 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * `"oneWay"`) is solid only on its TOP face — a falling body lands on it, but a body
  * jumps up THROUGH it and runs past it sideways, and `move-platformer`'s drop-through
  * (down+jump) lets a standing body fall through it. While the mover's drop-through
- * window is open (`state.__dropThrough > 0`) one-way cells are dropped from the solid
+ * window is open (`entity.dropThrough > 0`) one-way cells are dropped from the solid
  * set entirely, so the body falls; fully solid cells are unaffected by it.
  *
  * The resolution itself is the SDK's shared `resolveSolids` primitive (0.3): this part
@@ -37,7 +37,7 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
 export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const t = world.tilemap;
   if (!t) {
-    applyContacts(entity.state, world.frame, {
+    applyContacts(entity, world.frame, {
       onGround: false,
       onCeiling: false,
       onWallL: false,
@@ -50,7 +50,7 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const oneWayProp = str(params, "oneWayProp", "oneWay");
   // Drop-through: while the mover's window is open, one-way cells are not solid, so a body
   // standing on a one-way platform falls through it (set by `move-platformer`'s down+jump).
-  const dropping = ((entity.state.__dropThrough as number) ?? 0) > 0;
+  const dropping = entity.dropThrough > 0;
   const ts = t.tileSize;
 
   const cellFlag = (col: number, row: number, prop: string): boolean => {
@@ -80,5 +80,5 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   }
 
   const contacts = resolveSolids(entity, rects, dt);
-  applyContacts(entity.state, world.frame, contacts);
+  applyContacts(entity, world.frame, contacts);
 };

@@ -5,10 +5,10 @@ import { num, str } from "@gitcade/sdk";
  * `sprite-state-machine` — data-driven platformer animation (INDIE-ROADMAP Tier-1). Maps
  * an entity's MOTION STATE (grounded / horizontal speed / vertical direction) to a named
  * `sheet` animation each tick and advances its frames, so a sprite switches idle → run →
- * jump → fall → land with no hand-wired `play` param. The grounded test reads the Tier-0
- * contact flag `state.__onGround` (set by `tilemap-collide` / `solid-collide`), so it
- * tracks tile floors and solid bodies for free; `vx`/`vy` come from the mover. No-op for a
- * non-`sheet` sprite.
+ * jump → fall → land with no hand-wired `play` param. The grounded test reads the typed
+ * contact flag `entity.contacts.onGround` (set by `tilemap-collide` / `solid-collide`), so
+ * it tracks tile floors and solid bodies for free; `vx`/`vy` come from the mover. No-op for
+ * a non-`sheet` sprite.
  *
  * State → clip (each clip name is a param, defaulting to a conventional name; set one to
  * `""` to disable that state and fall back):
@@ -22,8 +22,8 @@ import { num, str } from "@gitcade/sdk";
  *
  * Pure per-tick read + writes to `entity.anim` (and its own `__sm*` scratch keys); no RNG
  * or I/O, so determinism + the frozen tick order are preserved. Order it AFTER the
- * resolvers so it reads this tick's `__onGround` (a one-tick-stale read is harmless — the
- * states are visual). Pair with `face-velocity` for left/right flip. The renderer draws
+ * resolvers so it reads this tick's `contacts.onGround` (a one-tick-stale read is harmless —
+ * the states are visual). Pair with `face-velocity` for left/right flip. The renderer draws
  * `entity.anim.frame`; advancement mirrors the built-in `sprite-animate`, but the clip is
  * chosen from state instead of a static param.
  *
@@ -43,7 +43,7 @@ export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt) => {
   const land = str(params, "land", "land");
   const moveThreshold = num(params, "moveThreshold", 1);
 
-  const grounded = entity.state.__onGround === true;
+  const grounded = entity.contacts.onGround;
   const wasAirborne = entity.state.__smAir === true;
   const moving = Math.abs(entity.vx) > moveThreshold;
   const grounderClip = moving ? run : idle;

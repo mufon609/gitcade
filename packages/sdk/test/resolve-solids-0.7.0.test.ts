@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSolids, applyContacts, type AABB, type SolidRect, type MovingBody } from "../src/index.js";
+import { resolveSolids, applyContacts, type AABB, type SolidRect, type MovingBody, type SolidContacts } from "../src/index.js";
 
 /**
  * 0.7.0 — the shared AABB push-out primitive (INDIE-ROADMAP Tier-0 0.3/0.4).
@@ -183,32 +183,41 @@ describe("resolveSolids — one-way (pass-through) platforms (0.7.0)", () => {
 });
 
 describe("applyContacts — per-tick merge of multiple resolvers", () => {
+  /** A minimal target satisfying applyContacts (the runtime Entity supplies these fields). */
+  function target(init?: Partial<SolidContacts> & { contactTick?: number }) {
+    const { contactTick = -1, ...flags } = init ?? {};
+    return {
+      contacts: { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false, ...flags },
+      contactTick,
+    };
+  }
+
   it("the first resolver of a tick resets; later resolvers OR within the same tick", () => {
-    const s: Record<string, unknown> = {};
+    const s = target();
     applyContacts(s, 1, { onGround: false, onCeiling: false, onWallL: true, onWallR: false, onOneWay: false }); // A
-    expect(s.__onWallL).toBe(true);
-    expect(s.__onGround).toBe(false);
+    expect(s.contacts.onWallL).toBe(true);
+    expect(s.contacts.onGround).toBe(false);
     applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false }); // B
-    expect(s.__onGround).toBe(true); // OR'd in
-    expect(s.__onWallL).toBe(true); // A's contact preserved (not clobbered)
+    expect(s.contacts.onGround).toBe(true); // OR'd in
+    expect(s.contacts.onWallL).toBe(true); // A's contact preserved (not clobbered)
   });
 
   it("onOneWay merges and is reset per tick like the other contact flags", () => {
-    const s: Record<string, unknown> = {};
+    const s = target();
     applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: true });
-    expect(s.__onOneWay).toBe(true);
+    expect(s.contacts.onOneWay).toBe(true);
     // a fully-solid resolver later the SAME tick must not clear an earlier one-way ground
     applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
-    expect(s.__onOneWay).toBe(true);
+    expect(s.contacts.onOneWay).toBe(true);
     // next tick with no one-way contact resets it
     applyContacts(s, 2, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
-    expect(s.__onOneWay).toBe(false);
+    expect(s.contacts.onOneWay).toBe(false);
   });
 
   it("a new tick resets stale flags instead of carrying them", () => {
-    const s: Record<string, unknown> = { __onGround: true, __onWallR: true, __contactTick: 1 };
+    const s = target({ onGround: true, onWallR: true, contactTick: 1 });
     applyContacts(s, 2, { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
-    expect(s.__onGround).toBe(false);
-    expect(s.__onWallR).toBe(false);
+    expect(s.contacts.onGround).toBe(false);
+    expect(s.contacts.onWallR).toBe(false);
   });
 });

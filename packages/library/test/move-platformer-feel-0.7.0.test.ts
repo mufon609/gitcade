@@ -60,11 +60,12 @@ describe("move-platformer — run acceleration / friction", () => {
 describe("move-platformer — variable jump height (release-to-cut)", () => {
   function launchThenRelease(jumpCutMultiplier?: number): number {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", state: { __onGround: true } });
+    const e = makeEntity(world, { id: "p" });
+    e.contacts.onGround = true;
     const params = { jumpSpeed: 400, gravity: 1000, ...(jumpCutMultiplier !== undefined ? { jumpCutMultiplier } : {}) };
     setInput(world, { jump: true }); // tick 1: launch while grounded
     movePlatformer(e, world, params, DT);
-    e.state.__onGround = false;
+    e.contacts.onGround = false;
     setInput(world, { jump: false }); // tick 2: release while rising
     movePlatformer(e, world, params, DT);
     return e.vy;
@@ -84,11 +85,11 @@ describe("move-platformer — variable jump height (release-to-cut)", () => {
 describe("move-platformer — jump buffering", () => {
   function pressAirborneThenLand(jumpBuffer?: number): number {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", state: { __onGround: false } });
+    const e = makeEntity(world, { id: "p" }); // airborne (contacts default all-false)
     const params = { jumpSpeed: 400, gravity: 1000, ...(jumpBuffer !== undefined ? { jumpBuffer } : {}) };
     setInput(world, { jump: true }); // tick 1: press while airborne (held through)
     movePlatformer(e, world, params, DT);
-    e.state.__onGround = true; // tick 2: land (jump still held → not a fresh press)
+    e.contacts.onGround = true; // tick 2: land (jump still held → not a fresh press)
     movePlatformer(e, world, params, DT);
     return e.vy;
   }
@@ -136,36 +137,42 @@ describe("move-platformer — drop-through (down + jump on a one-way platform)",
 
   it("down + jump while standing on a ONE-WAY platform opens the drop window and does NOT jump", () => {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", state: { __onGround: true, __onOneWay: true } });
+    const e = makeEntity(world, { id: "p" });
+    e.contacts.onGround = true;
+    e.contacts.onOneWay = true;
     setKeys(world, { held: ["ArrowDown", "Space"] });
     movePlatformer(e, world, params, DT);
-    expect(e.state.__dropThrough).toBeCloseTo(0.2, 6); // window opened
+    expect(e.dropThrough).toBeCloseTo(0.2, 6); // window opened
     expect(e.vy).toBeGreaterThan(0); // fell under gravity — did NOT launch upward
   });
 
   it("on a fully SOLID floor, down + jump jumps normally (no drop window)", () => {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", state: { __onGround: true, __onOneWay: false } });
+    const e = makeEntity(world, { id: "p" });
+    e.contacts.onGround = true; // fully solid floor (onOneWay stays false)
     setKeys(world, { held: ["ArrowDown", "Space"] });
     movePlatformer(e, world, params, DT);
     expect(e.vy).toBeLessThan(0); // jumped
-    expect((e.state.__dropThrough as number) ?? 0).toBe(0);
+    expect(e.dropThrough).toBe(0);
   });
 
   it("the drop window counts down each tick", () => {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", state: { __dropThrough: 0.2 } });
+    const e = makeEntity(world, { id: "p" });
+    e.dropThrough = 0.2;
     setKeys(world, {});
     movePlatformer(e, world, params, DT);
-    expect(e.state.__dropThrough).toBeCloseTo(0.2 - DT, 6);
+    expect(e.dropThrough).toBeCloseTo(0.2 - DT, 6);
   });
 
   it("default mover (no `down`/`dropThroughTime`) never opens a drop window", () => {
     const world = makeWorld();
-    const e = makeEntity(world, { id: "p", state: { __onGround: true, __onOneWay: true } });
+    const e = makeEntity(world, { id: "p" });
+    e.contacts.onGround = true;
+    e.contacts.onOneWay = true;
     setKeys(world, { held: ["Space"] }); // jump only
     movePlatformer(e, world, { jumpSpeed: 400, gravity: 1000 }, DT);
-    expect((e.state.__dropThrough as number) ?? 0).toBe(0);
+    expect(e.dropThrough).toBe(0);
     expect(e.vy).toBeLessThan(0); // a plain jump
   });
 });

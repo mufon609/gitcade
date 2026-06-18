@@ -102,8 +102,10 @@ physics floor is complete; what's above it (Tier 1) is feel, not foundation.
 - **Tilemap collision.** A `solid` tile-property flag + the `tilemap-collide` behavior
   resolve an entity's AABB against solid cells (axis-separated, pre-fall span for the X
   pass so a landing doesn't read the floor as a wall), zero the contacted velocity
-  component, and expose `__onGround`/`__onCeiling`/`__onWallL`/`__onWallR`. `move-platformer`
-  reads `__onGround`, so a tile floor satisfies the jump test.
+  component, and write the **first-class typed `entity.contacts`** (`onGround`/`onCeiling`/
+  `onWallL`/`onWallR`/`onOneWay`) — the contract home of the contact-sensing protocol,
+  alongside the typed `entity.collisions`/`entity.anim`. `move-platformer` reads
+  `entity.contacts.onGround`, so a tile floor satisfies the jump test.
 - **Entity-vs-entity solids + swept collision.** The SDK's shared `resolveSolids` push-out
   primitive (`runtime/collision.ts`) snaps a moving AABB out of solid rects — fed solid
   tile *cells* by `tilemap-collide` and solid *entities* by the new `solid-collide`
@@ -131,8 +133,8 @@ ships today.
 - **A proper platformer mover. ✅ Now in the engine (`move-platformer` 1.2.0).** The mover
   gained the genre-feel layer — **variable jump height** (release-to-cut), **jump
   buffering**, **apex hang** (reduced gravity near the peak), and **run acceleration/
-  friction** (instead of the old instant `vx = axis * speed`) — plus it reads the Tier-0
-  contact flags (`__onGround` off a tile floor or a solid body). Every piece is an OPTIONAL
+  friction** (instead of the old instant `vx = axis * speed`) — plus it reads the typed
+  contact field (`entity.contacts.onGround` off a tile floor or a solid body). Every piece is an OPTIONAL
   param defaulting to the original fixed-impulse/instant behavior, so the bump is additive
   (a game setting none of them is byte-identical); driven end-to-end via `$cfg` by the
   `platformer-scroll` proof.
@@ -146,7 +148,7 @@ ships today.
   extend the resolver (slopes need non-AABB contact); moving platforms ride on the two-body
   carry mode below. 🟢
 - **Animation state machine. ✅ Now in the engine (`sprite-state-machine`).** A data-driven
-  behavior that maps motion state (grounded via the Tier-0 `__onGround` flag, horizontal
+  behavior that maps motion state (grounded via the typed `entity.contacts.onGround`, horizontal
   speed, vertical direction) → a named `sheet` clip each tick: idle → run → jump → fall →
   land, with `land` as a non-looping one-shot that holds until it completes. Each clip name
   is a param (defaults to its conventional name; `""` disables a state). Built on the

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { World } from "@gitcade/sdk";
-import { makeWorld, makeEntity } from "./helpers.js";
+import { makeWorld, makeEntity, runBehavior } from "./helpers.js";
 import { movePlatformer } from "../src/behaviors/move-platformer.js";
 
 const DT = 1 / 60;
@@ -31,7 +31,7 @@ describe("move-platformer — run acceleration / friction", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p" });
     setInput(world, { axis: 1 });
-    movePlatformer(e, world, { moveSpeed: 180 }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 180 }, DT);
     expect(e.vx).toBe(180);
   });
 
@@ -39,11 +39,11 @@ describe("move-platformer — run acceleration / friction", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p" });
     setInput(world, { axis: 1 });
-    movePlatformer(e, world, { moveSpeed: 180, accel: 1200 }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 180, accel: 1200 }, DT);
     expect(e.vx).toBeCloseTo(20, 6); // 1200 * (1/60)
-    movePlatformer(e, world, { moveSpeed: 180, accel: 1200 }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 180, accel: 1200 }, DT);
     expect(e.vx).toBeCloseTo(40, 6);
-    for (let i = 0; i < 20; i++) movePlatformer(e, world, { moveSpeed: 180, accel: 1200 }, DT);
+    for (let i = 0; i < 20; i++) runBehavior(movePlatformer, e, world, { moveSpeed: 180, accel: 1200 }, DT);
     expect(e.vx).toBe(180); // clamped at the target, no overshoot
   });
 
@@ -52,7 +52,7 @@ describe("move-platformer — run acceleration / friction", () => {
     const e = makeEntity(world, { id: "p" });
     e.vx = 180;
     setInput(world, { axis: 0 });
-    movePlatformer(e, world, { moveSpeed: 180, accel: 1200, friction: 600 }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 180, accel: 1200, friction: 600 }, DT);
     expect(e.vx).toBeCloseTo(170, 6); // 180 - 600/60
   });
 });
@@ -64,10 +64,10 @@ describe("move-platformer — variable jump height (release-to-cut)", () => {
     e.body.contacts.onGround = true;
     const params = { jumpSpeed: 400, gravity: 1000, ...(jumpCutMultiplier !== undefined ? { jumpCutMultiplier } : {}) };
     setInput(world, { jump: true }); // tick 1: launch while grounded
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     e.body.contacts.onGround = false;
     setInput(world, { jump: false }); // tick 2: release while rising
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     return e.vy;
   }
 
@@ -88,9 +88,9 @@ describe("move-platformer — jump buffering", () => {
     const e = makeEntity(world, { id: "p" }); // airborne (contacts default all-false)
     const params = { jumpSpeed: 400, gravity: 1000, ...(jumpBuffer !== undefined ? { jumpBuffer } : {}) };
     setInput(world, { jump: true }); // tick 1: press while airborne (held through)
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     e.body.contacts.onGround = true; // tick 2: land (jump still held → not a fresh press)
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     return e.vy;
   }
 
@@ -109,7 +109,7 @@ describe("move-platformer — apex hang", () => {
     const e = makeEntity(world, { id: "p" });
     e.vy = -50; // near apex
     setInput(world, {});
-    movePlatformer(e, world, { gravity: 1000, apexGravityMult: 0.5, apexThreshold: 100 }, DT);
+    runBehavior(movePlatformer, e, world, { gravity: 1000, apexGravityMult: 0.5, apexThreshold: 100 }, DT);
     expect(e.vy).toBeCloseTo(-50 + (1000 * 0.5) / 60, 4); // half gravity ⇒ floatier
   });
 
@@ -118,7 +118,7 @@ describe("move-platformer — apex hang", () => {
     const e = makeEntity(world, { id: "p" });
     e.vy = 300; // |vy| > 100
     setInput(world, {});
-    movePlatformer(e, world, { gravity: 1000, apexGravityMult: 0.5, apexThreshold: 100 }, DT);
+    runBehavior(movePlatformer, e, world, { gravity: 1000, apexGravityMult: 0.5, apexThreshold: 100 }, DT);
     expect(e.vy).toBeCloseTo(300 + 1000 / 60, 4);
   });
 
@@ -127,7 +127,7 @@ describe("move-platformer — apex hang", () => {
     const e = makeEntity(world, { id: "p" });
     e.vy = -50;
     setInput(world, {});
-    movePlatformer(e, world, { gravity: 1000 }, DT);
+    runBehavior(movePlatformer, e, world, { gravity: 1000 }, DT);
     expect(e.vy).toBeCloseTo(-50 + 1000 / 60, 4); // full gravity
   });
 });
@@ -141,7 +141,7 @@ describe("move-platformer — drop-through (down + jump on a one-way platform)",
     e.body.contacts.onGround = true;
     e.body.contacts.onOneWay = true;
     setKeys(world, { held: ["ArrowDown", "Space"] });
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     expect(e.body.dropThrough).toBeCloseTo(0.2, 6); // window opened
     expect(e.vy).toBeGreaterThan(0); // fell under gravity — did NOT launch upward
   });
@@ -151,7 +151,7 @@ describe("move-platformer — drop-through (down + jump on a one-way platform)",
     const e = makeEntity(world, { id: "p" });
     e.body.contacts.onGround = true; // fully solid floor (onOneWay stays false)
     setKeys(world, { held: ["ArrowDown", "Space"] });
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     expect(e.vy).toBeLessThan(0); // jumped
     expect(e.body.dropThrough).toBe(0);
   });
@@ -161,7 +161,7 @@ describe("move-platformer — drop-through (down + jump on a one-way platform)",
     const e = makeEntity(world, { id: "p" });
     e.body.dropThrough = 0.2;
     setKeys(world, {});
-    movePlatformer(e, world, params, DT);
+    runBehavior(movePlatformer, e, world, params, DT);
     expect(e.body.dropThrough).toBeCloseTo(0.2 - DT, 6);
   });
 
@@ -171,7 +171,7 @@ describe("move-platformer — drop-through (down + jump on a one-way platform)",
     e.body.contacts.onGround = true;
     e.body.contacts.onOneWay = true;
     setKeys(world, { held: ["Space"] }); // jump only
-    movePlatformer(e, world, { jumpSpeed: 400, gravity: 1000 }, DT);
+    runBehavior(movePlatformer, e, world, { jumpSpeed: 400, gravity: 1000 }, DT);
     expect(e.body.dropThrough).toBe(0);
     expect(e.vy).toBeLessThan(0); // a plain jump
   });

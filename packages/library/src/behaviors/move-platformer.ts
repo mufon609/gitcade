@@ -54,7 +54,8 @@ import { num, strArray, str } from "@gitcade/sdk";
  *  - `climbSpeed`: climb speed in px/sec (balance → `$cfg`; default 0 = ladders OFF)
  *  - `up`: climb-up key-code array (default `["ArrowUp","KeyW"]`; on a ladder these climb, not jump)
  */
-export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
+export const movePlatformer: BehaviorFn = (entity, world, params, dt, scratch) => {
+  const s = scratch!; // this instance's private timers (coyote, jump buffer, jump-held, climbing)
   const moveSpeed = num(params, "moveSpeed", 0);
   const gravity = num(params, "gravity", 0);
   const jumpSpeed = num(params, "jumpSpeed", 0);
@@ -98,12 +99,12 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
     const tm = world.tilemap;
     const idx = tm ? world.tileAt(entity.cx, entity.cy) : -1;
     const onLadder = idx >= 0 && tm!.properties?.[String(idx)]?.[ladderProp] === true;
-    let climbing = entity.state.__climbing === true;
+    let climbing = s.climbing === true;
     const upHeld = world.input.anyDown(up);
     const downHeldLadder = down.length > 0 && world.input.anyDown(down);
     if (onLadder && (upHeld || downHeldLadder)) climbing = true; // an up/down press grabs the ladder
     if (!onLadder) climbing = false; // off the ladder → resume the normal mover (and gravity)
-    entity.state.__climbing = climbing;
+    s.climbing = climbing;
     if (climbing) {
       // Climb at `climbSpeed`; hang (vy 0) when neither held. `vx` (set above) still applies, so
       // pressing left/right walks off the ladder. Gravity / jump / drop-through are skipped.
@@ -123,17 +124,17 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
     entity.body.contacts.onGround ||
     entity.collisions.some((o) => o.hasTag(groundTag) && entity.cy <= o.cy && entity.vy >= 0);
 
-  let coyoteLeft = (entity.state.__coyote as number) ?? 0;
+  let coyoteLeft = (s.coyote as number) ?? 0;
   coyoteLeft = onGround ? coyote : Math.max(0, coyoteLeft - dt);
-  entity.state.__coyote = coyoteLeft;
+  s.coyote = coyoteLeft;
 
   // Jump-buffer timer: a fresh press starts it, then it counts down, so a press up to
   // `jumpBuffer` seconds before landing still fires the jump on the landing tick. Default
   // `jumpBuffer = 0` keeps the timer at 0, so only a same-tick fresh press jumps (original).
   const jumpHeld = world.input.anyDown(jump);
-  const jumpPrev = (entity.state.__jumpPrev as boolean) ?? false;
+  const jumpPrev = (s.jumpPrev as boolean) ?? false;
   const freshPress = jumpHeld && !jumpPrev;
-  let buffered = (entity.state.__jumpBuf as number) ?? 0;
+  let buffered = (s.jumpBuf as number) ?? 0;
   buffered = freshPress ? (jumpBuffer > 0 ? jumpBuffer : 0) : Math.max(0, buffered - dt);
 
   // Drop-through window: counts down each tick; while > 0 the collision behaviors ignore
@@ -153,17 +154,17 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
   } else if ((freshPress || buffered > 0) && (onGround || coyoteLeft > 0)) {
     // Jump on a fresh OR buffered press while grounded or within the coyote window.
     entity.vy = -jumpSpeed;
-    entity.state.__coyote = 0;
+    s.coyote = 0;
     buffered = 0;
     world.audio.play("jump");
   }
-  entity.state.__jumpBuf = buffered;
+  s.jumpBuf = buffered;
   entity.body.dropThrough = dropLeft;
 
   // Variable jump height (release-to-cut): releasing jump while still rising trims the
   // upward velocity. Default `jumpCutMultiplier = 1` is a no-op (fixed-impulse jump).
   if (jumpCut < 1 && jumpPrev && !jumpHeld && entity.vy < 0) entity.vy *= jumpCut;
-  entity.state.__jumpPrev = jumpHeld;
+  s.jumpPrev = jumpHeld;
 
   // Gravity, with an optional reduced-gravity apex "hang" near the top of the arc (small
   // `|vy|`). Default `apexGravityMult = 1` / `apexThreshold = 0` leaves gravity unchanged.

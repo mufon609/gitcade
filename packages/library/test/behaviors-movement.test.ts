@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeWorld, makeEntity, collide } from "./helpers.js";
+import { makeWorld, makeEntity, collide, runBehavior } from "./helpers.js";
 import { move4dir } from "../src/behaviors/move-4dir.js";
 import { moveTopdown360 } from "../src/behaviors/move-topdown-360.js";
 import { moveGridStep } from "../src/behaviors/move-grid-step.js";
@@ -123,7 +123,7 @@ describe("move-platformer", () => {
   it("applies gravity and clamps to the floor", () => {
     const world = makeWorld({ bounds: { width: 400, height: 300 } });
     const e = makeEntity(world, { id: "p", x: 0, y: 290, w: 16, h: 16 }); // y+h = 306 ≥ 300 → on the floor
-    movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400 }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400 }, DT);
     // On the floor with downward velocity → snapped to floor, vy zeroed.
     expect(e.y).toBe(300 - 16);
     expect(e.vy).toBe(0);
@@ -134,7 +134,7 @@ describe("move-platformer", () => {
     const e = makeEntity(world, { id: "p", x: 0, y: 284, w: 16, h: 16 });
     (world.input as unknown as { axis: () => number; anyDown: () => boolean }).axis = () => 0;
     (world.input as unknown as { anyDown: () => boolean }).anyDown = () => true;
-    movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
     expect(e.vy).toBeLessThan(0); // launched upward
   });
 });

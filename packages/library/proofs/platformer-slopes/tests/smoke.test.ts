@@ -74,6 +74,8 @@ describe("platformer-slopes reuse proof", () => {
     drive(game, { axis: 0, held: ["ArrowUp"] }); // climb up
     game.stepFrames(30);
     expect(player.y).toBeLessThan(y0 - 40); // climbed up the ladder (climbSpeed 120 → ~60px/30f)
-    expect(player.state.__climbing).toBe(true);
+    // the mover's `climbing` flag lives in its INSTANCE scratch (host's per-instance store)
+    const mover = player.behaviors.find((b) => b.type === "move-platformer");
+    expect(mover?.scratch.climbing).toBe(true);
   });
 });

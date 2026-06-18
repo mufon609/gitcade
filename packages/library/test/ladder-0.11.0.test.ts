@@ -7,6 +7,9 @@ import { movePlatformer } from "../src/behaviors/move-platformer.js";
  * 0.11.0 — move-platformer LADDER climb (INDIE-ROADMAP slopes+ladders): when the entity's center
  * is over a `ladder` tile and up/down is held, it climbs (gravity off, vy = ±climbSpeed) and can
  * step off the side. Default (`climbSpeed` 0) is byte-identical to the pre-ladder mover.
+ *
+ * The mover keeps its `climbing` flag in its INSTANCE scratch (the host's per-instance store),
+ * so these direct-call tests pass an explicit `sc` object and assert on `sc.climbing`.
  */
 const DT = 1 / 60;
 
@@ -33,10 +36,11 @@ describe("move-platformer — ladder climb", () => {
     const world = makeWorld();
     world.tilemap = ladderTilemap();
     const e = makeEntity(world, { id: "p", x: 160, y: 160, w: 16, h: 16 }); // center (168,168) → col 5 ladder
+    const sc: Record<string, unknown> = {};
     setKeys(world, ["ArrowUp"]);
-    movePlatformer(e, world, PARAMS, DT);
+    movePlatformer(e, world, PARAMS, DT, sc);
     expect(e.vy).toBe(-100); // climbing up at climbSpeed; NOT gravity (-100 exactly, no +g*dt)
-    expect(e.state.__climbing).toBe(true);
+    expect(sc.climbing).toBe(true);
   });
 
   it("climbs DOWN when down is held", () => {
@@ -44,7 +48,7 @@ describe("move-platformer — ladder climb", () => {
     world.tilemap = ladderTilemap();
     const e = makeEntity(world, { id: "p", x: 160, y: 160, w: 16, h: 16 });
     setKeys(world, ["ArrowDown"]);
-    movePlatformer(e, world, PARAMS, DT);
+    movePlatformer(e, world, PARAMS, DT, {});
     expect(e.vy).toBe(100);
   });
 
@@ -52,12 +56,13 @@ describe("move-platformer — ladder climb", () => {
     const world = makeWorld();
     world.tilemap = ladderTilemap();
     const e = makeEntity(world, { id: "p", x: 160, y: 160, w: 16, h: 16 });
+    const sc: Record<string, unknown> = {};
     setKeys(world, ["ArrowUp"]);
-    movePlatformer(e, world, PARAMS, DT); // grab + climb
+    movePlatformer(e, world, PARAMS, DT, sc); // grab + climb
     setKeys(world, []); // release
-    movePlatformer(e, world, PARAMS, DT);
+    movePlatformer(e, world, PARAMS, DT, sc);
     expect(e.vy).toBe(0); // hangs on the ladder (still climbing, gravity off)
-    expect(e.state.__climbing).toBe(true);
+    expect(sc.climbing).toBe(true);
   });
 
   it("UP on a ladder CLIMBS, it does not jump (even though ArrowUp is a jump key)", () => {
@@ -65,7 +70,7 @@ describe("move-platformer — ladder climb", () => {
     world.tilemap = ladderTilemap();
     const e = makeEntity(world, { id: "p", x: 160, y: 160, w: 16, h: 16 });
     setKeys(world, ["ArrowUp"]);
-    movePlatformer(e, world, PARAMS, DT);
+    movePlatformer(e, world, PARAMS, DT, {});
     expect(e.vy).toBe(-100); // climb speed, NOT -jumpSpeed (-400)
   });
 
@@ -73,14 +78,15 @@ describe("move-platformer — ladder climb", () => {
     const world = makeWorld();
     world.tilemap = ladderTilemap();
     const e = makeEntity(world, { id: "p", x: 160, y: 160, w: 16, h: 16 });
+    const sc: Record<string, unknown> = {};
     setKeys(world, ["ArrowUp"]);
-    movePlatformer(e, world, PARAMS, DT); // climbing
-    expect(e.state.__climbing).toBe(true);
+    movePlatformer(e, world, PARAMS, DT, sc); // climbing
+    expect(sc.climbing).toBe(true);
     e.x = 16; // step off to col 0 (not a ladder)
     e.vy = 0;
     setKeys(world, []);
-    movePlatformer(e, world, PARAMS, DT);
-    expect(e.state.__climbing).toBe(false);
+    movePlatformer(e, world, PARAMS, DT, sc);
+    expect(sc.climbing).toBe(false);
     expect(e.vy).toBeGreaterThan(0); // gravity applied again
   });
 
@@ -88,9 +94,10 @@ describe("move-platformer — ladder climb", () => {
     const world = makeWorld();
     world.tilemap = ladderTilemap();
     const e = makeEntity(world, { id: "p", x: 160, y: 160, w: 16, h: 16 });
+    const sc: Record<string, unknown> = {};
     setKeys(world, ["ArrowUp"]);
-    movePlatformer(e, world, { gravity: 1000, jumpSpeed: 400 }, DT); // no climbSpeed
+    movePlatformer(e, world, { gravity: 1000, jumpSpeed: 400 }, DT, sc); // no climbSpeed
     expect(e.vy).toBeGreaterThan(0); // gravity, not climbing
-    expect(e.state.__climbing).toBeUndefined(); // ladder block never ran
+    expect(sc.climbing).toBeUndefined(); // ladder block never ran
   });
 });

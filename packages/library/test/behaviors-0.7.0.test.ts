@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Tilemap } from "@gitcade/sdk";
-import { makeWorld, makeEntity } from "./helpers.js";
+import { makeWorld, makeEntity, runBehavior } from "./helpers.js";
 import { cameraFollow } from "../src/systems/camera-follow.js";
 import { tilemapCollide } from "../src/behaviors/tilemap-collide.js";
 import { movePlatformer } from "../src/behaviors/move-platformer.js";
@@ -142,7 +142,7 @@ describe("move-platformer — tilemap grounding hook (1.1.0)", () => {
     e.body.contacts.onGround = true; // a resolver marked us grounded last tick
     (world.input as unknown as { axis: () => number; anyDown: () => boolean }).axis = () => 0;
     (world.input as unknown as { anyDown: () => boolean }).anyDown = () => true; // jump held
-    movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
     expect(e.vy).toBeLessThan(0); // launched upward off the tile floor
   });
 
@@ -151,7 +151,7 @@ describe("move-platformer — tilemap grounding hook (1.1.0)", () => {
     const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16 }); // no contacts.onGround, not on world floor
     (world.input as unknown as { axis: () => number; anyDown: () => boolean }).axis = () => 0;
     (world.input as unknown as { anyDown: () => boolean }).anyDown = () => true;
-    movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
+    runBehavior(movePlatformer, e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);
     expect(e.vy).toBeGreaterThan(0); // only gravity — no jump
   });
 });

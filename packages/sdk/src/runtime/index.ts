@@ -28,6 +28,7 @@ export {
   type SlopeCell,
   type SlopeContact,
 } from "./collision.js";
+export { advanceAnim } from "./anim.js";
 export { createDefaultRegistry } from "./defaults.js";
 export type { BehaviorFn, SystemFn, ResolvedParams, ParamSpec } from "./types.js";
 

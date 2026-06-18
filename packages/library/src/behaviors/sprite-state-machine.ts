@@ -1,5 +1,5 @@
-import type { BehaviorFn, Entity, SheetSprite } from "@gitcade/sdk";
-import { num, str } from "@gitcade/sdk";
+import type { BehaviorFn, SheetSprite } from "@gitcade/sdk";
+import { num, str, advanceAnim } from "@gitcade/sdk";
 
 /**
  * `sprite-state-machine` — data-driven platformer animation (INDIE-ROADMAP Tier-1). Maps
@@ -64,51 +64,10 @@ export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt) => {
     target = grounderClip;
   }
 
-  entity.state.__smDone = advanceClip(entity, sheet, target, dt);
+  // Advance via the shared SDK primitive (the same code `sprite-animate` runs), so a
+  // state-driven clip and a static `play` clip advance byte-identically; `__smDone` captures
+  // its one-shot "finished" signal so a non-looping `land` holds until it completes.
+  entity.state.__smDone = advanceAnim(entity.anim, sheet, target, dt);
   entity.state.__smClip = target;
   entity.state.__smAir = !grounded;
 };
-
-/**
- * Advance `entity.anim` for the named clip by `dt`, returning true when a NON-looping
- * clip has reached its final frame (the one-shot "finished" signal). Resets to the clip's
- * first frame when the clip changes. Mirrors the built-in `sprite-animate` advancement so
- * the two read identically; kept local so this library part needs no SDK change.
- */
-function advanceClip(entity: Entity, sheet: SheetSprite, clipName: string, dt: number): boolean {
-  let from = 0;
-  let to = sheet.frameCount - 1;
-  let fps = sheet.fps;
-  let loop = true;
-  const a = clipName ? sheet.animations?.[clipName] : undefined;
-  if (a) {
-    from = a.from;
-    to = a.to;
-    fps = a.fps ?? sheet.fps;
-    loop = a.loop;
-  }
-
-  if (entity.anim.current !== clipName) {
-    entity.anim.current = clipName;
-    entity.anim.frame = from;
-    entity.anim.elapsed = 0;
-  }
-
-  const frameDur = 1 / fps;
-  entity.anim.elapsed += dt;
-  while (entity.anim.elapsed >= frameDur) {
-    entity.anim.elapsed -= frameDur;
-    entity.anim.frame += 1;
-  }
-
-  const span = to - from + 1;
-  if (entity.anim.frame > to) {
-    if (loop) {
-      entity.anim.frame = from + ((entity.anim.frame - from) % span);
-    } else {
-      entity.anim.frame = to;
-      return true; // non-looping clip finished
-    }
-  }
-  return false;
-}

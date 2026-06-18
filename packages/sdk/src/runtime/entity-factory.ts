@@ -29,6 +29,10 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
     tags: def.tags,
     sprite: def.sprite,
     state: def.state ? { ...def.state } : {},
+    // Scene-graph link (0.9.0): `parent` + `local` seed the runtime parenting fields; the
+    // hierarchy phase derives this entity's world transform from the parent each tick.
+    parentId: def.parent,
+    local: def.local,
   });
 
   let i = 0;

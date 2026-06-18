@@ -225,8 +225,17 @@ Capabilities for building (and shipping) a game with real *content volume*.
 - **Hitbox inset / separate collider** (`collisionInset` / `hitbox` on the entity schema):
   fairer collisions than the raw sprite AABB (corner-clip deaths, contact damage). 🟡 new
   optional entity field.
-- **Entity hierarchy / parenting.** Carried items, a turret on a moving platform, multi-part
-  bosses, a player riding a lift — all need a parent transform. None exists today. 🟡
+- **Entity hierarchy / parenting. ✅ Now in the engine (transform hierarchy).** A parented
+  entity (`parent` + `local` schema fields) has its WORLD transform derived each tick from its
+  parent's world transform composed with a parent-frame offset — a `resolveHierarchy()` tick
+  phase (after behaviors, before render; a no-op when no entity has a parent, so parentless
+  scenes stay byte-identical). `entity.x/y/rotation/scaleX/scaleY` stay WORLD-space (renderer/
+  collision/queries unchanged); the offset lives in `entity.local`. Carried items, a turret on a
+  moving platform, multi-part bosses, attached HUD/FX, and a rigid rider all compose; runtime
+  `attachTo`/`detach` pick up / drop without teleport; multi-level chains resolve parent-first,
+  cycle-safe; the validator catches dangling/cyclic parent refs. Proven by the `entity-parent`
+  proof. 🟡 (additive optional schema fields + an additive tick phase). NB a rider that *walks*
+  on a moving platform is the resolver **carry** mode below, not transform parenting.
 - **Save slots, settings, and a pause menu as data** (volume, key/pad remap, multiple
   profiles) — the expected shell of a finished game. 🟢 (builds on the persistence system).
 - **Dialogue / cutscene / trigger-script primitive** for story-driven indie games. 🟡
@@ -302,8 +311,10 @@ assumed.
 - **Phase C — it feels finished.** Sampled audio + music + mixer, data-driven
   particles/screenshake/camera juice, Tiled/`grid-layout` authoring, atlases, spatial-hash
   broadphase, `collisionInset`, save slots / settings / pause menu.
-- **Phase D — depth & story.** Entity hierarchy, dialogue/cutscene primitive,
-  localization, and the remaining genre-unlock parts.
+- **Phase D — depth & story.** *Shipped:* the **entity hierarchy / transform parenting**
+  (`parent`/`local` + `resolveHierarchy()` + `attachTo`/`detach`), proven by the `entity-parent`
+  proof. *Remaining:* dialogue/cutscene primitive, localization, and the remaining genre-unlock
+  parts.
 
 ---
 
@@ -316,8 +327,9 @@ assumed.
 | 🔴 **Semantics change** | Reshapes a frozen contract or the tick order. | STOP → human decision. |
 
 Items needing a human sign-off, collected: **pixel-perfect render mode**,
-**`collisionInset`/hitbox**, **entity hierarchy**, the **`reflect-on-hit` total-speed cap**,
-and the **tileset tile-scale** field. (The camera/world decouple — the one near-load-bearing
+**`collisionInset`/hitbox**, the **`reflect-on-hit` total-speed cap**, and the **tileset
+tile-scale** field. (**Entity hierarchy / parenting** shipped as a sign-off-gated 🟡 — additive
+`parent`/`local` schema fields + an additive `resolveHierarchy()` tick phase, no frozen reshape.) (The camera/world decouple — the one near-load-bearing
 change — shipped additively via the optional `scene.world` field, so it needed no frozen
 reshape.) Everything else is 🟢.
 

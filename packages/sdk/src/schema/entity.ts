@@ -8,8 +8,8 @@ import { BehaviorDefSchema } from "./behavior.js";
  *
  * `{ id, sprite, size, position, behaviors[], tags[], layer }` is the FROZEN
  * Phase 1 shape. Optional presentational/transform fields (`rotation`, `scale`,
- * `zIndex`, `opacity`, `visible`) and an optional initial `state` bag are additive
- * and do not change the frozen core.
+ * `zIndex`, `opacity`, `visible`), an optional initial `state` bag, and the optional
+ * scene-graph link (`parent` + `local`) are additive and do not change the frozen core.
  *
  * - `id` is unique within a scene; tag queries and `world.byId` use it.
  * - `behaviors[]` are behavior instances run every tick (see {@link BehaviorDefSchema}).
@@ -47,6 +47,32 @@ export const EntityDefSchema = z.object({
    *  without parking it off-screen. Visual only — a hidden entity still simulates. */
   visible: z.boolean().optional(),
   state: z.record(z.string(), z.unknown()).optional(),
+
+  // Scene-graph link (0.9.0 additive). Absent ⇒ a root entity (every pre-0.9 entity):
+  // `position`/`rotation`/`scale` are its WORLD transform exactly as before, so a scene
+  // with no parenting is byte-identical. When `parent` is set, the runtime derives this
+  // entity's WORLD transform each tick from the parent's world transform composed with
+  // `local` (a transform-resolution phase after behaviors), so a carried item / turret /
+  // multi-part body / attached HUD tracks its parent. `position` stays world-space (the
+  // initial/fallback world transform); the parent-relative offset lives in `local` — NOT
+  // overloaded onto `position`, so no frozen field changes meaning.
+  /** Id of the parent entity (within the resolved scene) whose transform this one rides. */
+  parent: z.string().min(1).optional(),
+  /**
+   * This entity's transform in the PARENT's frame (only meaningful with `parent` set).
+   * `x`/`y` are the offset in parent-local px (default 0); `rotation` (radians) and `scale`
+   * (uniform) reuse the `rotation`/`scale` conventions above (defaults 0 / 1). Absent ⇒ the
+   * child sits exactly at the parent's origin, unrotated, unscaled.
+   */
+  local: z
+    .object({
+      x: z.number().default(0),
+      y: z.number().default(0),
+      rotation: z.number().optional(),
+      scale: z.number().optional(),
+    })
+    .optional(),
+
   /** Catalog provenance for this entity, e.g. `"enemy-chaser@1.0.0"`. */
   part: z.string().optional(),
 });

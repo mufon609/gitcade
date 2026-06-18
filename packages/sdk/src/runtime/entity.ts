@@ -19,6 +19,19 @@ export interface AnimationState {
 }
 
 /**
+ * A transform in a PARENT entity's frame (0.9.0 scene graph): `x`/`y` offset in parent-local
+ * px, `rotation` in radians, `scale` uniform. The hierarchy-resolution phase composes this
+ * with the parent's WORLD transform to derive a parented entity's world transform each tick.
+ * Identity (`{0,0,0,1}`) for a root entity.
+ */
+export interface LocalTransform {
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+}
+
+/**
  * A runtime entity. Position/size/velocity are first-class fields (the
  * transform + velocity built-in primitive); arbitrary per-entity scratch data
  * lives in {@link Entity.state}. Behaviors mutate these directly each tick — this
@@ -80,6 +93,20 @@ export class Entity {
    * touched only by {@link applyContacts}.
    */
   contactTick = -1;
+  /**
+   * Id of the PARENT entity this one's world transform is derived from (0.9.0 scene graph);
+   * undefined ⇒ a root entity whose `x`/`y`/`rotation`/`scaleX`/`scaleY` are authoritative.
+   * Set from the `parent` schema field at build or by {@link attachTo} at runtime; read by
+   * the hierarchy-resolution phase ({@link World.resolveHierarchy}).
+   */
+  parentId?: string;
+  /**
+   * This entity's transform in its PARENT's frame (0.9.0). Only consulted when
+   * {@link parentId} is set: the hierarchy phase composes the parent's WORLD transform with
+   * this to WRITE this entity's world `x`/`y`/`rotation`/`scaleX`/`scaleY`. Identity (origin,
+   * unrotated, ×1) by default — seeded from the `local` schema field for a parented entity.
+   */
+  local: LocalTransform = { x: 0, y: 0, rotation: 0, scale: 1 };
   /** False once destroyed; pruned at end of tick. */
   alive = true;
 
@@ -98,6 +125,8 @@ export class Entity {
     tags?: string[];
     sprite: Sprite;
     state?: Record<string, unknown>;
+    parentId?: string;
+    local?: Partial<LocalTransform>;
   }) {
     this.id = init.id;
     this.x = init.x;
@@ -114,6 +143,15 @@ export class Entity {
     this.tags = new Set(init.tags ?? []);
     this.sprite = init.sprite;
     this.state = init.state ?? {};
+    this.parentId = init.parentId;
+    if (init.local) {
+      this.local = {
+        x: init.local.x ?? 0,
+        y: init.local.y ?? 0,
+        rotation: init.local.rotation ?? 0,
+        scale: init.local.scale ?? 1,
+      };
+    }
   }
 
   hasTag(tag: string): boolean {
@@ -138,5 +176,49 @@ export class Entity {
     const before = this.behaviors.length;
     this.behaviors = this.behaviors.filter((b) => b.id !== idOrType && b.type !== idOrType);
     return before - this.behaviors.length;
+  }
+
+  /**
+   * Attach to `parent` so this entity's WORLD transform is derived from the parent's each tick
+   * (0.9.0 scene graph — carried items, riders, multi-part bodies, attached HUD/FX). With
+   * `local` given, that becomes the parent-frame offset; with it OMITTED, the entity's CURRENT
+   * world gap to the parent is captured as the offset (the inverse of the hierarchy compose),
+   * so a runtime pickup holds the child's on-screen position with no teleport. Takes effect on
+   * the next {@link World.resolveHierarchy} phase.
+   */
+  attachTo(parent: Entity, local?: Partial<LocalTransform>): void {
+    this.parentId = parent.id;
+    if (local) {
+      this.local = {
+        x: local.x ?? 0,
+        y: local.y ?? 0,
+        rotation: local.rotation ?? 0,
+        scale: local.scale ?? 1,
+      };
+      return;
+    }
+    // Capture the current world delta in the parent's local frame: inverse-rotate the world
+    // gap by the parent's rotation, then unscale per axis. Exactly inverts the compose the
+    // hierarchy phase applies, so `world = parent ∘ local` reproduces today's on-screen pose.
+    const sx = parent.scaleX || 1;
+    const sy = parent.scaleY || 1;
+    const cosP = Math.cos(parent.rotation);
+    const sinP = Math.sin(parent.rotation);
+    const dx = this.x - parent.x;
+    const dy = this.y - parent.y;
+    this.local = {
+      x: (dx * cosP + dy * sinP) / sx,
+      y: (-dx * sinP + dy * cosP) / sy,
+      rotation: this.rotation - parent.rotation,
+      scale: this.scaleX / sx,
+    };
+  }
+
+  /**
+   * Detach from a parent (0.9.0), leaving the entity at its current WORLD transform so it
+   * becomes a root again (no snap-back) — the drop half of a pickup/drop. Safe if unparented.
+   */
+  detach(): void {
+    this.parentId = undefined;
   }
 }

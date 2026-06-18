@@ -182,13 +182,66 @@ export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): 
 
   // Inheritance cycles: the runtime resolver throws; surface it as a clean error
   // here instead of a smoke crash. Unknown extends targets are already reported
-  // above, so only re-report a genuine cycle.
+  // above, so only re-report a genuine cycle. On success the RESOLVED scenes also
+  // drive the entity-parent checks below (a child may parent to a base-scene entity).
+  let resolved: Scene[] | null = null;
   try {
-    resolveSceneInheritance(scenes);
+    resolved = resolveSceneInheritance(scenes);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (/cycle/.test(msg)) {
       issues.push({ level: "error", code: "scene-inheritance-cycle", message: msg });
+    }
+  }
+
+  // Entity PARENT refs (0.9.0 scene graph): every `entity.parent` must name an entity in the
+  // SAME inheritance-resolved scene, and the parent graph must be acyclic. At runtime a dangling
+  // parent silently orphans the child and a cycle is ignored (members treated as roots) — both
+  // pass the 60-frame smoke boot, so catch them at the publish gate instead, like the flow/extends
+  // ref checks above.
+  for (const scene of resolved ?? []) {
+    const entityIds = new Set(scene.entities.map((e) => e.id));
+    const parentOf = new Map<string, string>();
+    scene.entities.forEach((e, ei) => {
+      if (e.parent === undefined) return;
+      const where = `${scene.id}.entities[${ei}:${e.id}].parent`;
+      if (!entityIds.has(e.parent)) {
+        issues.push({
+          level: "error",
+          code: "parent-entity-missing",
+          message: `entity "${e.id}" sets parent "${e.parent}", which is not an entity in scene "${scene.id}"`,
+          where,
+        });
+        return;
+      }
+      if (e.parent === e.id) {
+        issues.push({ level: "error", code: "parent-cycle", message: `entity "${e.id}" is its own parent`, where });
+        return;
+      }
+      parentOf.set(e.id, e.parent);
+    });
+    // Acyclicity: follow each chain to a root; a revisited id is a cycle. Report each distinct
+    // cycle once (mark every id on the walked path) rather than once per member.
+    const cycleReported = new Set<string>();
+    for (const start of parentOf.keys()) {
+      if (cycleReported.has(start)) continue;
+      const seen = new Set<string>();
+      const path: string[] = [];
+      let cur: string | undefined = start;
+      while (cur !== undefined && !seen.has(cur)) {
+        seen.add(cur);
+        path.push(cur);
+        cur = parentOf.get(cur);
+      }
+      if (cur !== undefined && seen.has(cur)) {
+        issues.push({
+          level: "error",
+          code: "parent-cycle",
+          message: `scene "${scene.id}" has an entity parent cycle through "${cur}"`,
+          where: `${scene.id}.entities (${cur}).parent`,
+        });
+        for (const id of path) cycleReported.add(id);
+      }
     }
   }
 

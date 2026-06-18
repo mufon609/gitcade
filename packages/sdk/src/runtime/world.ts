@@ -393,4 +393,74 @@ export class World {
     for (const e of this.entities) this.byIdIndex.set(e.id, e);
     this.spawnedThisTick = false;
   }
+
+  /**
+   * Resolve the entity HIERARCHY (0.9.0 scene graph): for every entity with a
+   * {@link Entity.parentId}, derive its WORLD transform from the parent's world transform
+   * composed with its {@link Entity.local} offset (carried items, riders, multi-part bodies,
+   * attached HUD/FX). The host runs this as a tick PHASE AFTER behaviors + prune, so a child
+   * reads its parent's settled position this tick. Resolution is parent-FIRST (a turret on a
+   * platform on a lift resolves the lift, then the platform, then the turret), deterministic
+   * (entities walked in array order, parents pulled in on demand via {@link byId}), and
+   * cycle-safe (a cycle member is treated as a root — its world transform left as-is); a
+   * missing/dead parent leaves the child at its last world transform (orphan in place).
+   *
+   * FAST PATH: with no parented entity this returns before any allocation, so a scene with no
+   * parenting is byte-identical to a flat world — the whole frozen-safety guarantee. NOTE the
+   * child's world `x`/`y` are written here, AFTER this tick's collision detection ran, so a
+   * parented child's collision/pick box is ONE TICK stale — the same idiom `solid-collide`
+   * tolerates when riding a lift. Parenting controls the TRANSFORM, not draw order (z is still
+   * `layer`/`zIndex`).
+   */
+  resolveHierarchy(): void {
+    let hasParent = false;
+    for (const e of this.entities) {
+      if (e.parentId !== undefined) {
+        hasParent = true;
+        break;
+      }
+    }
+    if (!hasParent) return;
+
+    const resolved = new Set<Entity>();
+    const visiting = new Set<Entity>();
+    const resolve = (e: Entity): void => {
+      if (resolved.has(e)) return;
+      const pid = e.parentId;
+      if (pid === undefined) {
+        resolved.add(e); // root: its world transform is authoritative
+        return;
+      }
+      if (visiting.has(e)) {
+        resolved.add(e); // cycle (incl. self-parent): treat as a root, leave world as-is
+        return;
+      }
+      const parent = this.byId(pid);
+      if (!parent) {
+        resolved.add(e); // missing/dead parent: orphan in place at its last world transform
+        return;
+      }
+      visiting.add(e);
+      resolve(parent); // ensure the parent's world transform is final BEFORE composing
+      visiting.delete(e);
+      // If resolving the parent walked a cycle back through this entity, it was already marked
+      // a root (its world transform left as-is) — don't then compose it against the cycle.
+      if (resolved.has(e)) return;
+      // world = parentTranslate · parentRotate · parentScale · local (standard 2D TRS), about
+      // the parent's top-left origin. Per-axis parent scale FIRST (so a flipped parent, scaleX<0,
+      // mirrors the child's offset + facing), then rotate by the parent's rotation, then translate.
+      const l = e.local;
+      const cosP = Math.cos(parent.rotation);
+      const sinP = Math.sin(parent.rotation);
+      const lx = l.x * parent.scaleX;
+      const ly = l.y * parent.scaleY;
+      e.x = parent.x + (lx * cosP - ly * sinP);
+      e.y = parent.y + (lx * sinP + ly * cosP);
+      e.rotation = parent.rotation + l.rotation;
+      e.scaleX = parent.scaleX * l.scale;
+      e.scaleY = parent.scaleY * l.scale;
+      resolved.add(e);
+    };
+    for (const e of this.entities) resolve(e);
+  }
 }

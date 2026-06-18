@@ -78,7 +78,9 @@ interface SystemInstance {
  *   1. clear per-entity collision lists
  *   2. run systems in scene order (collision detection first)
  *   3. run each entity's behaviors in array order
- *   4. prune destroyed entities; advance time/frame
+ *   4. prune destroyed entities
+ *   5. resolve the entity hierarchy — parented entities' world transforms (0.9.0; no-op when
+ *      no entity has a parent, so the frozen 1–4 order is unchanged for every pre-0.9 scene)
  * Rendering (interpolation-free) happens once per animation frame, after updates.
  */
 export class Game {
@@ -321,6 +323,11 @@ export class Game {
     }
 
     this.world.prune();
+    // Resolve the entity hierarchy (0.9.0 scene graph): derive each parented entity's WORLD
+    // transform from its parent's settled position THIS tick. Appended after prune (operates on
+    // live entities) — it does NOT reorder the frozen 1–4 in-tick sequence, and no-ops entirely
+    // when no entity has a parent, so a parentless scene renders byte-identically.
+    this.world.resolveHierarchy();
     this.world.events.clear();
     // Clear the one-frame pointer edge buffers (G2) — an edge lives exactly one tick.
     this.world.input.endFrame();

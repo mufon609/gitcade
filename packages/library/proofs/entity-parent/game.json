@@ -1,0 +1,13 @@
+{
+  "name": "Entity Parenting (transform hierarchy proof)",
+  "slug": "proof-entity-parent",
+  "description": "Reuse proof for the 0.9.0 entity hierarchy / transform parenting (scene graph): a tween-driven platform carries a crate, a turret, and a multi-level turret tip; a spinning hub carries an orbiting satellite (rotation composition); and a free entity is picked up onto the platform at runtime via attachTo/detach.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.9.0",
+  "libraryVersion": "0.9.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

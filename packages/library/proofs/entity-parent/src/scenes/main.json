@@ -1,0 +1,91 @@
+{
+  "id": "main",
+  "size": { "width": 800, "height": 480 },
+  "background": "#0d1018",
+  "entities": [
+    {
+      "id": "platform",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#3a6ea5" },
+      "size": { "w": 96, "h": 16 },
+      "position": { "x": 200, "y": 360 },
+      "layer": 1,
+      "behaviors": [
+        {
+          "type": "tween",
+          "params": {
+            "property": "x",
+            "from": 200,
+            "to": 520,
+            "duration": "$cfg.platformPeriod",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "crate",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#b5793a" },
+      "size": { "w": 24, "h": 24 },
+      "position": { "x": 208, "y": 336 },
+      "layer": 2,
+      "parent": "platform",
+      "local": { "x": 8, "y": -24 }
+    },
+    {
+      "id": "turret",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#6ea53a" },
+      "size": { "w": 16, "h": 16 },
+      "position": { "x": 264, "y": 344 },
+      "layer": 2,
+      "parent": "platform",
+      "local": { "x": 64, "y": -16 }
+    },
+    {
+      "id": "turret-tip",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#d6e04a" },
+      "size": { "w": 8, "h": 8 },
+      "position": { "x": 268, "y": 334 },
+      "layer": 3,
+      "parent": "turret",
+      "local": { "x": 4, "y": -10 }
+    },
+    {
+      "id": "hub",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#a53a6e" },
+      "size": { "w": 24, "h": 24 },
+      "position": { "x": 600, "y": 200 },
+      "layer": 1,
+      "behaviors": [
+        {
+          "type": "tween",
+          "params": {
+            "property": "rotation",
+            "from": 0,
+            "to": 6.2832,
+            "duration": "$cfg.hubSpinPeriod",
+            "easing": "linear",
+            "loop": "loop"
+          }
+        }
+      ]
+    },
+    {
+      "id": "satellite",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#4ad6c0" },
+      "size": { "w": 12, "h": 12 },
+      "position": { "x": 640, "y": 200 },
+      "layer": 2,
+      "parent": "hub",
+      "local": { "x": 40, "y": 0 }
+    },
+    {
+      "id": "pickup",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#e0e0e0" },
+      "size": { "w": 16, "h": 16 },
+      "position": { "x": 100, "y": 100 },
+      "layer": 2
+    }
+  ],
+  "systems": []
+}

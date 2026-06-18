@@ -36,7 +36,7 @@ describe("sprite-state-machine — motion → clip", () => {
   it("idle when grounded and still", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
-    e.contacts.onGround = true;
+    e.body.contacts.onGround = true;
     e.vx = 0;
     spriteStateMachine(e, world, {}, DT);
     expect(e.anim.current).toBe("idle");
@@ -45,7 +45,7 @@ describe("sprite-state-machine — motion → clip", () => {
   it("run when grounded and moving past the threshold", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
-    e.contacts.onGround = true;
+    e.body.contacts.onGround = true;
     e.vx = 120;
     spriteStateMachine(e, world, {}, DT);
     expect(e.anim.current).toBe("run");
@@ -54,7 +54,7 @@ describe("sprite-state-machine — motion → clip", () => {
   it("stays idle below the move threshold", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
-    e.contacts.onGround = true;
+    e.body.contacts.onGround = true;
     e.vx = 0.5; // < default threshold 1
     spriteStateMachine(e, world, {}, DT);
     expect(e.anim.current).toBe("idle");
@@ -83,7 +83,7 @@ describe("sprite-state-machine — motion → clip", () => {
     spriteStateMachine(e, world, {}, DT); // airborne → fall (marks __smAir)
     expect(e.anim.current).toBe("fall");
 
-    e.contacts.onGround = true; // touchdown
+    e.body.contacts.onGround = true; // touchdown
     e.vy = 0;
     e.vx = 0;
     spriteStateMachine(e, world, {}, DT);
@@ -109,7 +109,7 @@ describe("sprite-state-machine — motion → clip", () => {
   it("no-op for a non-sheet sprite", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: { kind: "shape", shape: "rect", color: "#fff" } });
-    e.contacts.onGround = true;
+    e.body.contacts.onGround = true;
     expect(() => spriteStateMachine(e, world, {}, DT)).not.toThrow();
     expect(e.anim.current).toBeNull(); // untouched
   });

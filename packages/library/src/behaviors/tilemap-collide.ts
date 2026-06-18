@@ -6,7 +6,7 @@ import { str, resolveSolids, resolveSlopes, applyContacts } from "@gitcade/sdk";
  * platformer collision (INDIE-ROADMAP Tier-0 item 0.2). A cell is solid when its
  * tile-index `properties` carry the `solidProp` flag (default `"solid"`). The entity
  * is pushed out of the cell it ran into, the matching velocity component is zeroed,
- * and the typed contact flags are written to `entity.contacts` for other behaviors to
+ * and the typed contact flags are written to `entity.body.contacts` for other behaviors to
  * read: `onGround`, `onCeiling`, `onWallL`, `onWallR`.
  *
  * ORDER IT AFTER the velocity integrator (e.g. `move-platformer` → `velocity` →
@@ -21,7 +21,7 @@ import { str, resolveSolids, resolveSlopes, applyContacts } from "@gitcade/sdk";
  * `"oneWay"`) is solid only on its TOP face — a falling body lands on it, but a body
  * jumps up THROUGH it and runs past it sideways, and `move-platformer`'s drop-through
  * (down+jump) lets a standing body fall through it. While the mover's drop-through
- * window is open (`entity.dropThrough > 0`) one-way cells are dropped from the solid
+ * window is open (`entity.body.dropThrough > 0`) one-way cells are dropped from the solid
  * set entirely, so the body falls; fully solid cells are unaffected by it.
  *
  * The resolution itself is the SDK's shared `resolveSolids` primitive (0.3): this part
@@ -43,7 +43,7 @@ import { str, resolveSolids, resolveSlopes, applyContacts } from "@gitcade/sdk";
 export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const t = world.tilemap;
   if (!t) {
-    applyContacts(entity, world.frame, {
+    applyContacts(entity.body, world.frame, {
       onGround: false,
       onCeiling: false,
       onWallL: false,
@@ -56,7 +56,7 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const oneWayProp = str(params, "oneWayProp", "oneWay");
   // Drop-through: while the mover's window is open, one-way cells are not solid, so a body
   // standing on a one-way platform falls through it (set by `move-platformer`'s down+jump).
-  const dropping = entity.dropThrough > 0;
+  const dropping = entity.body.dropThrough > 0;
   const ts = t.tileSize;
 
   const cellFlag = (col: number, row: number, prop: string): boolean => {
@@ -114,7 +114,7 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   }
 
   const contacts = resolveSolids(entity, rects, dt);
-  applyContacts(entity, world.frame, contacts);
+  applyContacts(entity.body, world.frame, contacts);
 
   // Slope pass (0.11.0): a SECOND, non-AABB pass that rests the body's bottom on any floor-slope
   // surface under it, AFTER the solid pass settled X (so a wall at a slope's base has clamped the
@@ -123,7 +123,7 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   if (slopeCells.length > 0) {
     const slope = resolveSlopes(entity, slopeCells, dt);
     if (slope.onGround) {
-      applyContacts(entity, world.frame, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
+      applyContacts(entity.body, world.frame, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
     }
   }
 };

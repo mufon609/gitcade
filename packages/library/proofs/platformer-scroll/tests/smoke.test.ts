@@ -58,7 +58,7 @@ describe("platformer-scroll reuse proof", () => {
     const player = game.world.byId("player")!;
     expect(player.y).toBe(424); // bottom (448) flush with the floor top
     expect(player.vy).toBe(0);
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
     expect(game.world.camera.x).toBe(0); // player near the left → camera pinned at origin
   });
 
@@ -72,14 +72,14 @@ describe("platformer-scroll reuse proof", () => {
     drive(game, { axis: 0 });
     game.stepFrames(120);
     expect(player.y).toBe(200); // resting on the platform top (224), NOT the floor (424)
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
   });
 
   it("jumps off the tile floor when grounded (move-platformer 1.1.0 hook)", () => {
     const game = boot();
     game.stepFrames(120); // land first
     const player = game.world.byId("player")!;
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
     drive(game, { axis: 0, jump: true }); // fresh jump press
     game.stepFrames(1);
     expect(player.vy).toBeLessThan(0); // launched upward
@@ -94,7 +94,7 @@ describe("platformer-scroll reuse proof", () => {
     game.stepFrames(700); // ~11.6s — enough to cross the world and reach the far wall
     const player = game.world.byId("player")!;
     expect(player.x).toBe(1544); // pressed against the right wall (col 49)
-    expect(player.contacts.onWallR).toBe(true);
+    expect(player.body.contacts.onWallR).toBe(true);
     expect(game.world.camera.x).toBe(800); // viewport clamped to the world's right edge (maxX)
   });
 
@@ -105,7 +105,7 @@ describe("platformer-scroll reuse proof", () => {
       const game = boot();
       game.stepFrames(120); // settle on the floor
       const player = game.world.byId("player")!;
-      expect(player.contacts.onGround).toBe(true);
+      expect(player.body.contacts.onGround).toBe(true);
       drive(game, { axis: 0, jump: true }); // press
       game.stepFrames(1);
       if (!hold) drive(game, { axis: 0, jump: false }); // tap: release after one tick → jumpCut trims it
@@ -129,8 +129,8 @@ describe("platformer-scroll reuse proof", () => {
     driveKeys(game, {}); // no input → fall straight onto it
     game.stepFrames(120);
     expect(player.y).toBe(168); // resting on the one-way platform top (192), not the floor
-    expect(player.contacts.onGround).toBe(true);
-    expect(player.contacts.onOneWay).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onOneWay).toBe(true);
   });
 
   it("drops through the one-way platform on down+jump, landing on the floor below", () => {
@@ -177,7 +177,7 @@ describe("platformer-scroll reuse proof", () => {
     player.y = 200;
     player.vy = -120; // rising
     game.stepFrames(1);
-    expect(player.contacts.onGround).toBe(false);
+    expect(player.body.contacts.onGround).toBe(false);
     expect(player.anim.current).toBe("jump");
 
     player.vy = 120; // now descending

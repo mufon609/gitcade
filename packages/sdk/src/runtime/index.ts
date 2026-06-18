@@ -6,7 +6,7 @@
  */
 export { Game, DEFAULT_FIXED_DT, type GameOptions } from "./game.js";
 export { World, type WorldOptions, type Camera } from "./world.js";
-export { Entity, type BehaviorInstance, type AnimationState } from "./entity.js";
+export { Entity, type BehaviorInstance, type AnimationState, type BodyComponent } from "./entity.js";
 export { Registry, type BehaviorRegistration, type SystemRegistration } from "./registry.js";
 export { EventBus, type GameEvent } from "./eventbus.js";
 export { Input, type Pointer, type Tap, type ActionBinding } from "./input.js";

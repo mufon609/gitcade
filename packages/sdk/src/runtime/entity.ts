@@ -32,6 +32,45 @@ export interface LocalTransform {
 }
 
 /**
+ * A physics body's per-tick runtime state — the engine-INTERNAL collision + motion scratch
+ * grouped off the flat {@link Entity} into one typed component. Runtime-only: never serialized,
+ * never authored, and not part of what games read off the `(entity, world, params, dt)` behavior
+ * surface (the resolvers/movers write and read it; the seed games do not touch it). Every entity
+ * carries one, so a resolver can write contacts and a mover can read them with no allocation.
+ */
+export interface BodyComponent {
+  /**
+   * Position at the START of the current tick, snapshotted by the host loop so `x - body.prevX` /
+   * `y - body.prevY` is this tick's WORLD delta — read by carry (a rider inherits a moving
+   * platform's per-tick delta) and the groundwork render interpolation needs. Seeded to the spawn
+   * position (delta 0 on the first tick).
+   */
+  prevX: number;
+  prevY: number;
+  /**
+   * Solid-CONTACT sensing for the current tick: which faces touched a solid. Written by
+   * {@link applyContacts} (fed by the `tilemap-collide` / `solid-collide` resolvers) and read by
+   * movers/animators (`move-platformer` jump test, `sprite-state-machine` grounded state). The
+   * flags are MOTION-derived (a face is reported on the axis the body moved INTO a solid), so a
+   * body resting motionless reports none.
+   */
+  contacts: SolidContacts;
+  /**
+   * Frame stamp of the last {@link applyContacts} write. Lets multiple resolvers in ONE tick
+   * MERGE their contacts (the first this tick resets {@link BodyComponent.contacts}, later ones
+   * OR-in) instead of clobbering. Not part of the sensed-contact contract; touched only by
+   * {@link applyContacts}.
+   */
+  contactTick: number;
+  /**
+   * Drop-through window remaining in seconds: the mover→resolver half of the contact protocol.
+   * `move-platformer` sets it on a one-way drop (down+jump); the solid resolvers read it (>0) and
+   * drop one-way cells/ledges from the solid set so a standing body falls through.
+   */
+  dropThrough: number;
+}
+
+/**
  * A runtime entity. Position/size/velocity are first-class fields (the
  * transform + velocity built-in primitive); arbitrary per-entity scratch data
  * lives in {@link Entity.state}. Behaviors mutate these directly each tick — this
@@ -49,14 +88,6 @@ export class Entity {
   /** Velocity in px/sec (integrated by the `velocity` behavior). */
   vx = 0;
   vy = 0;
-  /**
-   * Position at the START of the current tick (0.10.0), snapshotted by the host loop so
-   * `x - prevX` / `y - prevY` is this tick's WORLD delta. Read by carry (`ride-platform`: a
-   * rider inherits a moving platform's per-tick delta) and the groundwork a future render-
-   * interpolation pass needs. Seeded to the spawn position (delta 0 on tick 1).
-   */
-  prevX = 0;
-  prevY = 0;
   rotation = 0;
   scaleX = 1;
   scaleY = 1;
@@ -78,29 +109,18 @@ export class Entity {
   /** Entities overlapping this one this tick (populated by the collision system). */
   collisions: Entity[] = [];
   /**
-   * Solid-CONTACT sensing for the current tick (0.8.0): which faces touched a solid this
-   * tick. Written by the SDK's {@link applyContacts} (fed by the library `tilemap-collide`/
-   * `solid-collide` resolvers) and read by movers/animators (`move-platformer` jump test,
-   * `sprite-state-machine` grounded state). The FIRST-CLASS, typed home of the platformer
-   * contact protocol, mirroring the typed `collisions`/`anim` runtime fields. Runtime-only
-   * (never serialized); defaults all-false. The flags are MOTION-derived (a face is reported
-   * on the axis the body moved INTO a solid), so a body resting motionless reports none.
+   * Physics-body runtime state — contacts, drop-through, and the pre-tick position — grouped
+   * off the flat transform into one typed unit (see {@link BodyComponent}). The home of the
+   * platformer contact protocol + the carry/interpolation motion history; runtime-only (never
+   * serialized), so a parentless arcade scene never touches it.
    */
-  contacts: SolidContacts = { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false };
-  /**
-   * Drop-through window remaining in seconds (0.8.0): the mover→resolver half of the contact
-   * protocol. `move-platformer` sets it on a one-way drop (down+jump); the solid resolvers
-   * read it (>0) and drop one-way cells/ledges from the solid set so a standing body falls
-   * through. Runtime-only; default 0 (not dropping).
-   */
-  dropThrough = 0;
-  /**
-   * Internal frame stamp of the last {@link applyContacts} write (0.8.0). Lets multiple
-   * resolvers in ONE tick MERGE their contacts (the first this tick resets {@link contacts},
-   * later ones OR-in) instead of clobbering. Not part of the sensed-contact contract;
-   * touched only by {@link applyContacts}.
-   */
-  contactTick = -1;
+  body: BodyComponent = {
+    prevX: 0,
+    prevY: 0,
+    contacts: { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false },
+    contactTick: -1,
+    dropThrough: 0,
+  };
   /**
    * Id of the PARENT entity this one's world transform is derived from (0.9.0 scene graph);
    * undefined ⇒ a root entity whose `x`/`y`/`rotation`/`scaleX`/`scaleY` are authoritative.
@@ -139,8 +159,8 @@ export class Entity {
     this.id = init.id;
     this.x = init.x;
     this.y = init.y;
-    this.prevX = init.x;
-    this.prevY = init.y;
+    this.body.prevX = init.x;
+    this.body.prevY = init.y;
     this.w = init.w;
     this.h = init.h;
     this.layer = init.layer;

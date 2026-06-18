@@ -11,8 +11,8 @@ import { ridePlatform } from "../src/behaviors/ride-platform.js";
 /** A carrier that MOVED this tick: set its pre-tick position, then its current position. */
 function carrier(world: ReturnType<typeof makeWorld>, from: { x: number; y: number }, to: { x: number; y: number }) {
   const c = makeEntity(world, { id: "carrier", x: to.x, y: to.y, w: 96, h: 16, tags: ["solid", "carrier"] });
-  c.prevX = from.x;
-  c.prevY = from.y;
+  c.body.prevX = from.x;
+  c.body.prevY = from.y;
   return c;
 }
 

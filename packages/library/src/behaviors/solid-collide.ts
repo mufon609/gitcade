@@ -6,7 +6,7 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * half of platformer collision (INDIE-ROADMAP Tier-0 item 0.3), so a crate, a ledge, or
  * a moving lift is exactly as solid as a tile. The carrying entity is pushed out of any
  * `solidTag` body it ran into, the contacted velocity component is zeroed, and it writes
- * the SAME typed contact flags as `tilemap-collide` (`entity.contacts.onGround`/`onCeiling`/
+ * the SAME typed contact flags as `tilemap-collide` (`entity.body.contacts.onGround`/`onCeiling`/
  * `onWallL`/`onWallR`) — so `move-platformer` can jump off a crate top, and a lift the
  * entity rests on raises it each tick (the resolver re-grounds it against the lift's new
  * position).
@@ -24,7 +24,7 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  *
  * ONE-WAY (pass-through) LEDGES (0.7.0): entities tagged `oneWayTag` (default off) are
  * solid only on their TOP face — a body lands on the ledge from above but jumps up
- * THROUGH it and passes it sideways, and the mover's drop-through (`entity.dropThrough`)
+ * THROUGH it and passes it sideways, and the mover's drop-through (`entity.body.dropThrough`)
  * suppresses it so a standing body can fall through. The entity-side mirror of a one-way
  * tile; leave `oneWayTag` empty to skip the extra query entirely.
  *
@@ -36,7 +36,7 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
 export const solidCollide: BehaviorFn = (entity, world, params, dt) => {
   const solidTag = str(params, "solidTag", "solid");
   const oneWayTag = str(params, "oneWayTag", "");
-  const dropping = entity.dropThrough > 0;
+  const dropping = entity.body.dropThrough > 0;
   const rects: SolidRect[] = [];
   for (const s of world.query(solidTag)) {
     if (s === entity) continue;
@@ -49,5 +49,5 @@ export const solidCollide: BehaviorFn = (entity, world, params, dt) => {
     }
   }
   const contacts = resolveSolids(entity, rects, dt);
-  applyContacts(entity, world.frame, contacts);
+  applyContacts(entity.body, world.frame, contacts);
 };

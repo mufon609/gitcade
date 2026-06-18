@@ -10,10 +10,10 @@ import { num, str } from "@gitcade/sdk";
  *
  * Order it FIRST in the rider's behaviors (before `move-platformer`/`velocity`/`solid-collide`).
  * Each tick, if the rider is NOT rising (`vy >= 0`), it probes for a `carryTag` entity it was
- * RESTING ON last tick — the carrier's top at this tick's start is `carrier.prevY`, so a rider
+ * RESTING ON last tick — the carrier's top at this tick's start is `carrier.body.prevY`, so a rider
  * whose bottom sat there (within `stick`px) and whose x-span overlaps is riding it. It then adds
- * the carrier's per-tick world delta to its position: `carrier.x - carrier.prevX` (always) and
- * `carrier.y - carrier.prevY` (only when DESCENDING, > 0 — upward is the push-out's job). Probing
+ * the carrier's per-tick world delta to its position: `carrier.x - carrier.body.prevX` (always) and
+ * `carrier.y - carrier.body.prevY` (only when DESCENDING, > 0 — upward is the push-out's job). Probing
  * the carrier's PRE-tick top (not its current one) means even a fast-descending platform keeps the
  * rider. The rider's own `solid-collide` (later) re-resolves it snug on top, and its walk
  * (`move-platformer` + `velocity`) composes on top — so it can walk while being carried.
@@ -38,11 +38,11 @@ export const ridePlatform: BehaviorFn = (entity, world, params) => {
   const right = entity.x + entity.w;
   for (const c of world.query(carryTag)) {
     if (c === entity) continue;
-    // Rested on c's top last tick (c.prevY = c's top at the start of this tick) and overlapping
+    // Rested on c's top last tick (c.body.prevY = c's top at the start of this tick) and overlapping
     // in x. Using the PRE-tick top keeps a fast-descending carrier from leaving the rider behind.
-    if (bottom >= c.prevY - stick && bottom <= c.prevY + stick && right > c.x && left < c.x + c.w) {
-      entity.x += c.x - c.prevX; // horizontal carry (always)
-      const dy = c.y - c.prevY;
+    if (bottom >= c.body.prevY - stick && bottom <= c.body.prevY + stick && right > c.x && left < c.x + c.w) {
+      entity.x += c.x - c.body.prevX; // horizontal carry (always)
+      const dy = c.y - c.body.prevY;
       if (dy > 0) entity.y += dy; // descending carry only — upward is handled by the push-out
       return; // ride the first carrier found
     }

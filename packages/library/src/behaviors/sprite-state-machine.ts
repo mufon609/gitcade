@@ -6,7 +6,7 @@ import { num, str, advanceAnim } from "@gitcade/sdk";
  * an entity's MOTION STATE (grounded / horizontal speed / vertical direction) to a named
  * `sheet` animation each tick and advances its frames, so a sprite switches idle → run →
  * jump → fall → land with no hand-wired `play` param. The grounded test reads the typed
- * contact flag `entity.contacts.onGround` (set by `tilemap-collide` / `solid-collide`), so
+ * contact flag `entity.body.contacts.onGround` (set by `tilemap-collide` / `solid-collide`), so
  * it tracks tile floors and solid bodies for free; `vx`/`vy` come from the mover. No-op for
  * a non-`sheet` sprite.
  *
@@ -43,7 +43,7 @@ export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt) => {
   const land = str(params, "land", "land");
   const moveThreshold = num(params, "moveThreshold", 1);
 
-  const grounded = entity.contacts.onGround;
+  const grounded = entity.body.contacts.onGround;
   const wasAirborne = entity.state.__smAir === true;
   const moving = Math.abs(entity.vx) > moveThreshold;
   const grounderClip = moving ? run : idle;

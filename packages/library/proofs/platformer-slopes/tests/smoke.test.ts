@@ -38,7 +38,7 @@ describe("platformer-slopes reuse proof", () => {
     game.stepFrames(30); // no input → fall/settle on the floor
     const player = game.world.byId("player")!;
     expect(player.y).toBe(388); // floor top 416 − h 28
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
   });
 
   it("walks UP the ascending ramp to the peak, then DOWN the far side back to the floor", () => {
@@ -53,13 +53,13 @@ describe("platformer-slopes reuse proof", () => {
     for (let i = 0; i < 230; i++) {
       game.stepFrames(1);
       minY = Math.min(minY, player.y);
-      if (!player.contacts.onGround) airTicks++;
+      if (!player.body.contacts.onGround) airTicks++;
       maxStepUp = Math.max(maxStepUp, prevY - player.y); // upward jump this tick
       prevY = player.y;
     }
     expect(minY).toBeLessThanOrEqual(300); // climbed up to the peak (~292)
     expect(player.y).toBe(388); // descended the far ramp back to the floor (top 416 − h 28)
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
     expect(airTicks).toBeLessThan(15); // stayed grounded across the slopes (no fall-offs)
     expect(maxStepUp).toBeLessThan(12); // no LAUNCH over the peak (smooth, ~vx*dt per tick)
   });

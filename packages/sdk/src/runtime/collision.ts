@@ -268,7 +268,7 @@ export function resolveSolids(
 }
 
 /**
- * Merge a solid resolver's contact flags into the entity's first-class {@link Entity.contacts}
+ * Merge a solid resolver's contact flags into the entity's body component {@link BodyComponent.contacts}
  * so MULTIPLE resolvers on one entity COMBINE within a tick instead of clobbering: the FIRST
  * resolver each tick (detected via the `tick` stamp — pass `world.frame`, constant within a
  * tick and unique across ticks) resets the five flags to its own contacts; later resolvers OR
@@ -281,9 +281,9 @@ export function resolveSolids(
  * one-way platform. A mover reads it to gate "down+jump drops through"; on mixed one-way +
  * solid ground the drop is a harmless no-op (the solid floor still holds).
  *
- * Writes the TYPED `entity.contacts`/`entity.contactTick` fields — the contract home of the
- * contact protocol (0.8.0). The target is typed structurally (just the two fields it touches)
- * so the runtime {@link Entity} satisfies it and a unit test can pass a minimal stub.
+ * Writes the TYPED `entity.body.contacts`/`entity.body.contactTick` fields — the home of the
+ * contact protocol. The target is typed structurally (just the two fields it touches) so
+ * `entity.body` satisfies it and a unit test can pass a minimal stub.
  */
 export function applyContacts(target: { contacts: SolidContacts; contactTick: number }, tick: number, c: SolidContacts): void {
   const fresh = target.contactTick !== tick;

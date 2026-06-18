@@ -6,7 +6,7 @@ import { num, strArray, str } from "@gitcade/sdk";
  * with adjustable strength, and coyote-time (a short grace window after leaving a ledge
  * during which a jump still registers). "Grounded" is true when resting on the world
  * floor OR touching an entity tagged `groundTag` from above OR marked grounded by a
- * resolver (the typed `entity.contacts.onGround`, e.g. `tilemap-collide`/`solid-collide`
+ * resolver (the typed `entity.body.contacts.onGround`, e.g. `tilemap-collide`/`solid-collide`
  * from a tile floor or a crate). SETS velocity each tick — order a `velocity` behavior
  * AFTER this one.
  *
@@ -21,8 +21,8 @@ import { num, strArray, str } from "@gitcade/sdk";
  *  - **apex hang** (`apexGravityMult`/`apexThreshold`): lighter gravity near the top of
  *    the arc for a floatier, more controllable peak.
  *  - **drop-through** (`down`/`dropThroughTime`): down + jump while standing on a one-way
- *    platform (`tilemap-collide`/`solid-collide` set `entity.contacts.onOneWay`) opens a
- *    brief window (`entity.dropThrough`) in which those resolvers ignore one-way solids,
+ *    platform (`tilemap-collide`/`solid-collide` set `entity.body.contacts.onOneWay`) opens a
+ *    brief window (`entity.body.dropThrough`) in which those resolvers ignore one-way solids,
  *    so the body falls through.
  *
  * Params:
@@ -113,14 +113,14 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
   }
 
   // Grounded test: on the world floor, OR standing on a `groundTag` entity from above,
-  // OR a resolver marked us grounded last tick via the typed `entity.contacts.onGround`
+  // OR a resolver marked us grounded last tick via the typed `entity.body.contacts.onGround`
   // flag — the hook that lets the library `tilemap-collide`/`solid-collide` behaviors
   // (ordered AFTER this one) satisfy the jump test off a TILE floor or a solid body without
   // this part knowing about them. With nothing setting contacts, `onGround` is false.
   const onFloor = entity.y + entity.h >= world.bounds.height && entity.vy >= 0;
   const onGround =
     onFloor ||
-    entity.contacts.onGround ||
+    entity.body.contacts.onGround ||
     entity.collisions.some((o) => o.hasTag(groundTag) && entity.cy <= o.cy && entity.vy >= 0);
 
   let coyoteLeft = (entity.state.__coyote as number) ?? 0;
@@ -139,14 +139,14 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
   // Drop-through window: counts down each tick; while > 0 the collision behaviors ignore
   // one-way platforms so a standing body falls through. Default off (no `down` keys or
   // dropThroughTime = 0) keeps it at 0, so the mover is byte-identical to before.
-  let dropLeft = Math.max(0, entity.dropThrough - dt);
+  let dropLeft = Math.max(0, entity.body.dropThrough - dt);
   const downHeld = down.length > 0 && world.input.anyDown(down);
 
   // down + jump while standing on a ONE-WAY platform (a resolver set `contacts.onOneWay`
   // last tick) opens the drop-through window INSTEAD of jumping. On fully solid ground this
   // branch is skipped, so down+jump there jumps normally; even a mis-trigger is harmless
   // (the solid floor still catches the body, so nothing falls).
-  const dropInitiated = freshPress && downHeld && dropThroughTime > 0 && entity.contacts.onOneWay;
+  const dropInitiated = freshPress && downHeld && dropThroughTime > 0 && entity.body.contacts.onOneWay;
   if (dropInitiated) {
     dropLeft = dropThroughTime;
     buffered = 0; // consume the press so the buffer can't fire a jump next tick
@@ -158,7 +158,7 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
     world.audio.play("jump");
   }
   entity.state.__jumpBuf = buffered;
-  entity.dropThrough = dropLeft;
+  entity.body.dropThrough = dropLeft;
 
   // Variable jump height (release-to-cut): releasing jump while still rising trims the
   // upward velocity. Default `jumpCutMultiplier = 1` is a no-op (fixed-impulse jump).

@@ -32,7 +32,7 @@ describe("solid-collide — entity-vs-entity solids", () => {
     solidCollide(e, world, { solidTag: "solid" }, DT);
     expect(e.y).toBe(200 - 16); // 184 — rests on the crate top
     expect(e.vy).toBe(0);
-    expect(e.contacts.onGround).toBe(true);
+    expect(e.body.contacts.onGround).toBe(true);
   });
 
   it("is blocked by a solid entity's side moving right (contacts.onWallR)", () => {
@@ -43,7 +43,7 @@ describe("solid-collide — entity-vs-entity solids", () => {
     solidCollide(e, world, { solidTag: "solid" }, DT);
     expect(e.x).toBe(100 - 16); // 84
     expect(e.vx).toBe(0);
-    expect(e.contacts.onWallR).toBe(true);
+    expect(e.body.contacts.onWallR).toBe(true);
   });
 
   it("bonks a solid entity's underside moving up (contacts.onCeiling)", () => {
@@ -54,16 +54,16 @@ describe("solid-collide — entity-vs-entity solids", () => {
     solidCollide(e, world, { solidTag: "solid" }, DT);
     expect(e.y).toBe(40);
     expect(e.vy).toBe(0);
-    expect(e.contacts.onCeiling).toBe(true);
+    expect(e.body.contacts.onCeiling).toBe(true);
   });
 
   it("no solid entities ⇒ flags false, body untouched, no throw", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", x: 0, y: 0, w: 16, h: 16 });
-    e.contacts.onGround = true; // pre-seed grounded; the resolver must reset it
+    e.body.contacts.onGround = true; // pre-seed grounded; the resolver must reset it
     e.vy = 600;
     expect(() => solidCollide(e, world, { solidTag: "solid" }, DT)).not.toThrow();
-    expect(e.contacts.onGround).toBe(false);
+    expect(e.body.contacts.onGround).toBe(false);
     expect(e.y).toBe(0); // solid-collide does not integrate; nothing to resolve against
   });
 
@@ -72,7 +72,7 @@ describe("solid-collide — entity-vs-entity solids", () => {
     const e = makeEntity(world, { id: "p", x: 0, y: 0, w: 16, h: 16, tags: ["solid"] });
     e.vy = 600;
     solidCollide(e, world, { solidTag: "solid" }, DT);
-    expect(e.contacts.onGround).toBe(false); // did not resolve against itself
+    expect(e.body.contacts.onGround).toBe(false); // did not resolve against itself
   });
 });
 
@@ -85,7 +85,7 @@ describe("tilemap-collide + solid-collide — contact flags merge per tick", () 
     e.vy = 100;
     tilemapCollide(e, world, { solidProp: "solid" }, DT); // grounds on the tile floor
     solidCollide(e, world, { solidTag: "solid" }, DT); // no solids → must NOT clobber contacts.onGround
-    expect(e.contacts.onGround).toBe(true);
+    expect(e.body.contacts.onGround).toBe(true);
     expect(e.y).toBe(9 * 32 - 16);
   });
 
@@ -98,7 +98,7 @@ describe("tilemap-collide + solid-collide — contact flags merge per tick", () 
     e.vy = 600;
     tilemapCollide(e, world, { solidProp: "solid" }, DT); // interior — no tile contact, resets flags
     solidCollide(e, world, { solidTag: "solid" }, DT); // lands on the crate, OR's contacts.onGround back true
-    expect(e.contacts.onGround).toBe(true);
+    expect(e.body.contacts.onGround).toBe(true);
     expect(e.y).toBe(200 - 16);
   });
 });
@@ -130,8 +130,8 @@ describe("tilemap-collide — one-way tiles", () => {
     e.vy = 300;
     tilemapCollide(e, world, {}, DT);
     expect(e.y).toBe(5 * 32 - 16); // 144 — rests on the platform top (160)
-    expect(e.contacts.onGround).toBe(true);
-    expect(e.contacts.onOneWay).toBe(true);
+    expect(e.body.contacts.onGround).toBe(true);
+    expect(e.body.contacts.onOneWay).toBe(true);
   });
 
   it("lets a rising body pass UP through a one-way tile (no ceiling bonk)", () => {
@@ -142,7 +142,7 @@ describe("tilemap-collide — one-way tiles", () => {
     e.vy = -300;
     tilemapCollide(e, world, {}, DT);
     expect(e.vy).toBe(-300); // not stopped
-    expect(e.contacts.onCeiling).toBe(false);
+    expect(e.body.contacts.onCeiling).toBe(false);
   });
 
   it("ignores one-way tiles while a drop-through window is open (falls through)", () => {
@@ -150,10 +150,10 @@ describe("tilemap-collide — one-way tiles", () => {
     world.tilemap = oneWayTilemap();
     world.frame = 3;
     const e = makeEntity(world, { id: "p", x: 100, y: 148, w: 16, h: 16 });
-    e.dropThrough = 0.1;
+    e.body.dropThrough = 0.1;
     e.vy = 300;
     tilemapCollide(e, world, {}, DT);
-    expect(e.contacts.onGround).toBe(false); // not caught — passes through
+    expect(e.body.contacts.onGround).toBe(false); // not caught — passes through
     expect(e.vy).toBe(300); // velocity untouched
   });
 });
@@ -166,8 +166,8 @@ describe("solid-collide — one-way ledge entities (oneWayTag)", () => {
     e.vy = 300;
     solidCollide(e, world, { oneWayTag: "ledge" }, DT);
     expect(e.y).toBe(200 - 16); // 184 — rests on the ledge top
-    expect(e.contacts.onGround).toBe(true);
-    expect(e.contacts.onOneWay).toBe(true);
+    expect(e.body.contacts.onGround).toBe(true);
+    expect(e.body.contacts.onOneWay).toBe(true);
   });
 
   it("passes UP through a one-way ledge entity", () => {
@@ -177,7 +177,7 @@ describe("solid-collide — one-way ledge entities (oneWayTag)", () => {
     e.vy = -300;
     solidCollide(e, world, { oneWayTag: "ledge" }, DT);
     expect(e.vy).toBe(-300);
-    expect(e.contacts.onCeiling).toBe(false);
+    expect(e.body.contacts.onCeiling).toBe(false);
   });
 
   it("default mover off: no oneWayTag means the ledge query is skipped (no contact)", () => {
@@ -186,6 +186,6 @@ describe("solid-collide — one-way ledge entities (oneWayTag)", () => {
     const e = makeEntity(world, { id: "p", x: 50, y: 188, w: 16, h: 16 });
     e.vy = 300;
     solidCollide(e, world, {}, DT); // default solidTag "solid", no oneWayTag
-    expect(e.contacts.onGround).toBe(false);
+    expect(e.body.contacts.onGround).toBe(false);
   });
 });

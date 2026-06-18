@@ -91,7 +91,7 @@ describe("tilemap-collide", () => {
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.y).toBe(9 * 32 - 16); // bottom flush with the floor top (288)
     expect(e.vy).toBe(0);
-    expect(e.contacts.onGround).toBe(true);
+    expect(e.body.contacts.onGround).toBe(true);
   });
 
   it("stops at a wall when moving right and flags contacts.onWallR", () => {
@@ -102,7 +102,7 @@ describe("tilemap-collide", () => {
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.x).toBe(9 * 32 - 16); // pushed left of the wall (272)
     expect(e.vx).toBe(0);
-    expect(e.contacts.onWallR).toBe(true);
+    expect(e.body.contacts.onWallR).toBe(true);
   });
 
   it("stops at a ceiling when moving up and flags contacts.onCeiling", () => {
@@ -113,7 +113,7 @@ describe("tilemap-collide", () => {
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.y).toBe(32); // pushed below the ceiling
     expect(e.vy).toBe(0);
-    expect(e.contacts.onCeiling).toBe(true);
+    expect(e.body.contacts.onCeiling).toBe(true);
   });
 
   it("passes through a non-solid tile and clears the flags", () => {
@@ -123,15 +123,15 @@ describe("tilemap-collide", () => {
     e.vy = 100;
     tilemapCollide(e, world, { solidProp: "solid" }, DT);
     expect(e.y).toBe(150); // unmoved
-    expect(e.contacts.onGround).toBe(false);
+    expect(e.body.contacts.onGround).toBe(false);
   });
 
   it("no tilemap ⇒ flags false, no throw", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", x: 0, y: 0, w: 16, h: 16 });
-    e.contacts.onGround = true; // pre-seed; the no-tilemap path must reset it
+    e.body.contacts.onGround = true; // pre-seed; the no-tilemap path must reset it
     expect(() => tilemapCollide(e, world, {}, DT)).not.toThrow();
-    expect(e.contacts.onGround).toBe(false);
+    expect(e.body.contacts.onGround).toBe(false);
   });
 });
 
@@ -139,7 +139,7 @@ describe("move-platformer — tilemap grounding hook (1.1.0)", () => {
   it("jumps when a resolver marked contacts.onGround, even off the world floor", () => {
     const world = makeWorld({ bounds: { width: 800, height: 600 } });
     const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16 }); // mid-air vs world floor
-    e.contacts.onGround = true; // a resolver marked us grounded last tick
+    e.body.contacts.onGround = true; // a resolver marked us grounded last tick
     (world.input as unknown as { axis: () => number; anyDown: () => boolean }).axis = () => 0;
     (world.input as unknown as { anyDown: () => boolean }).anyDown = () => true; // jump held
     movePlatformer(e, world, { moveSpeed: 0, gravity: 1000, jumpSpeed: 400, jump: ["Space"] }, DT);

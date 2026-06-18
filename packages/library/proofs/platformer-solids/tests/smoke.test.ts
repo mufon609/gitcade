@@ -41,7 +41,7 @@ describe("platformer-solids reuse proof", () => {
     game.stepFrames(120);
     const player = game.world.byId("player")!;
     expect(player.y).toBe(424);
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
   });
 
   it("lands on a solid CRATE entity, not the floor (solid-collide, 0.3)", () => {
@@ -54,7 +54,7 @@ describe("platformer-solids reuse proof", () => {
     drive(game, { axis: 0 });
     game.stepFrames(120);
     expect(player.y).toBe(376); // resting on the crate top (400), NOT the floor (424)
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
   });
 
   it("is blocked by the crate's side when running into it (contacts.onWallR)", () => {
@@ -67,7 +67,7 @@ describe("platformer-solids reuse proof", () => {
     drive(game, { axis: 1 }); // run right into the crate
     game.stepFrames(120);
     expect(player.x).toBe(276); // pressed against the crate's left face (300 - 24)
-    expect(player.contacts.onWallR).toBe(true);
+    expect(player.body.contacts.onWallR).toBe(true);
   });
 
   it("jumps off the crate top (move-platformer reads solid-collide's contacts.onGround)", () => {
@@ -79,7 +79,7 @@ describe("platformer-solids reuse proof", () => {
     player.vy = 0;
     drive(game, { axis: 0 });
     game.stepFrames(120); // land on the crate
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
     drive(game, { axis: 0, jump: true }); // fresh jump press
     game.stepFrames(1);
     expect(player.vy).toBeLessThan(0); // launched upward off the crate
@@ -98,7 +98,7 @@ describe("platformer-solids reuse proof", () => {
     let bonked = false;
     for (let i = 0; i < 40; i++) {
       game.stepFrames(1);
-      if (player.contacts.onCeiling) {
+      if (player.body.contacts.onCeiling) {
         bonked = true;
         break;
       }
@@ -118,7 +118,7 @@ describe("platformer-solids reuse proof", () => {
     player.vy = 0;
     drive(game, { axis: 0 });
     game.stepFrames(40);
-    expect(player.contacts.onGround).toBe(true); // still standing on the lift
+    expect(player.body.contacts.onGround).toBe(true); // still standing on the lift
     expect(player.y).toBe(lift.y - player.h); // tracks the lift top exactly
     expect(lift.y).toBeLessThan(startLiftY); // the lift rose and carried the player up
   });
@@ -138,7 +138,7 @@ describe("platformer-solids reuse proof", () => {
     for (let i = 0; i < 6; i++) {
       drive(game, { axis: 1 }); // walk right
       game.stepFrames(1);
-      expect(player.contacts.onGround).toBe(true); // never ejected off the lift
+      expect(player.body.contacts.onGround).toBe(true); // never ejected off the lift
       expect(player.x).toBeGreaterThanOrEqual(lift.x); // not flung to the lift's left (or x<0)
       expect(player.y).toBe(lift.y - player.h); // still riding the lift top
     }

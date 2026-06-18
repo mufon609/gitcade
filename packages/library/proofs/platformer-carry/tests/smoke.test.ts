@@ -39,13 +39,13 @@ describe("platformer-carry reuse proof", () => {
     const carrier = game.world.byId("carrier")!;
     const player = game.world.byId("player")!;
     expect(player.y).toBe(carrier.y - player.h); // 332 — resting on the carrier top
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
     const offset = player.x - carrier.x;
     const cx1 = carrier.x;
     game.stepFrames(40);
     expect(Math.abs(carrier.x - cx1)).toBeGreaterThan(1); // the carrier actually tweened
     expect(player.x - carrier.x).toBeCloseTo(offset, 2); // carried with no drift (rigid x)
-    expect(player.contacts.onGround).toBe(true);
+    expect(player.body.contacts.onGround).toBe(true);
   });
 
   it("the player can WALK while being carried (moves right relative to the platform)", () => {
@@ -57,7 +57,7 @@ describe("platformer-carry reuse proof", () => {
     drive(game, { axis: 1 }); // walk right
     game.stepFrames(10);
     expect(player.x - carrier.x).toBeGreaterThan(rel0 + 10); // walked right ON the moving platform
-    expect(player.contacts.onGround).toBe(true); // never fell off
+    expect(player.body.contacts.onGround).toBe(true); // never fell off
   });
 
   it("the passenger stays glued to the descending platform's top through descent and rise", () => {

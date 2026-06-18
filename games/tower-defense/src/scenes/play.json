@@ -271,7 +271,6 @@
         "currencyKey": "gold",
         "towerCost": "$cfg.towerCost",
         "towerTag": "tower",
-        "hoverKey": "buildHover",
         "ringTag": "build-preview",
         "cellTag": "build-cell"
       }

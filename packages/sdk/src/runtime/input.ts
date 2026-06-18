@@ -85,6 +85,17 @@ export class Input {
   /** Bounds used to clamp/scale pointer coordinates into world space. */
   private world = { width: 0, height: 0 };
 
+  // Button-less hover CURSOR (0.5.0, E9). The held-pointer set above tracks pressed
+  // pointers (for the G2 click edge); this is the LAST pointer position whether or not a
+  // button is down — the channel a desktop hover affordance (TD's build preview) needs.
+  // Driven by bare `pointermove` (desktop hover has no button) plus pointerdown/up, in the
+  // SAME world space as every other pointer channel. null until the first pointer event and
+  // cleared on pointerleave / focus loss / detach, so a cursor that left the canvas reports
+  // "no position" — exactly the old host `pointerleave → delete world.state.buildHover`
+  // bridge this retires. Touch has no hover (a tap ends in pointerleave), so it stays null
+  // there, and headless never sees a pointer event, so it stays null in tests/validate.
+  private lastCursor: { x: number; y: number } | null = null;
+
   // One-frame pointer edge buffers (G2). Real pointer events arrive asynchronously
   // BETWEEN fixed ticks; they are captured here and exposed for exactly the next
   // tick, then cleared by endFrame() at tick end — so a behavior/system sees a
@@ -148,6 +159,20 @@ export class Input {
   /** Convenience: true if any pointer went down this frame. */
   clicked(): boolean {
     return this.pressedThisFrame.length > 0;
+  }
+
+  /**
+   * The last known pointer position in WORLD coordinates, button held or NOT — the
+   * button-less hover channel (0.5.0, E9). Desktop mouse-move drives it (a bare
+   * `pointermove` with no button is exactly this), so a hover affordance can track the
+   * cursor without the game hand-rolling its own `pointermove` listener + screen→world
+   * transform. Returns `null` until the first pointer event and after the cursor leaves
+   * the canvas (`pointerleave`), focus is lost, or input is detached — so touch (a tap
+   * ends in pointerleave) and headless both report `null`, and a consumer simply gets no
+   * hover there (the prior behavior). Additive: nothing else reads it.
+   */
+  cursor(): { x: number; y: number } | null {
+    return this.lastCursor;
   }
 
   /**
@@ -305,6 +330,8 @@ export class Input {
         // A held touch-button override (setAction) must release on focus loss too,
         // just like a held key — otherwise the action sticks "on" forever.
         this.actionOverrides.clear();
+        // The cursor is no longer over the game — drop the hover position (E9).
+        this.lastCursor = null;
       };
       keyTarget.addEventListener("keydown", onDown);
       keyTarget.addEventListener("keyup", onUp);
@@ -327,6 +354,9 @@ export class Input {
       const upsert = (e: PointerEvent, down: boolean) => {
         const { x, y } = toWorld(e.clientX, e.clientY);
         this.pointers.set(e.pointerId, { id: e.pointerId, x, y, down });
+        // The held pointer's position is also the live cursor position (E9) — so a drag
+        // keeps the hover cursor fresh, not just a button-less mouse-move.
+        this.lastCursor = { x, y };
       };
       const onPDown = (e: PointerEvent) => {
         upsert(e, true);
@@ -346,7 +376,13 @@ export class Input {
         if (p) this.pressedThisFrame.push({ id: p.id, x: p.x, y: p.y });
       };
       const onPMove = (e: PointerEvent) => {
-        if (this.pointers.has(e.pointerId)) upsert(e, this.pointers.get(e.pointerId)!.down);
+        if (this.pointers.has(e.pointerId)) {
+          upsert(e, this.pointers.get(e.pointerId)!.down); // tracked (held) pointer — also refreshes lastCursor
+        } else {
+          // A button-less hover move (E9): no held pointer to update, but the cursor
+          // position still advances for world.input.cursor().
+          this.lastCursor = toWorld(e.clientX, e.clientY);
+        }
       };
       const onPUp = (e: PointerEvent) => {
         // Record the release EDGE BEFORE deleting from the held map (the :delete
@@ -355,15 +391,25 @@ export class Input {
         this.releasedThisFrame.push({ id: p.id, x: p.x, y: p.y });
         this.pointers.delete(e.pointerId);
       };
+      // The cursor left the canvas — drop the hover position so a hover-driven affordance
+      // (build preview) hides, matching the old host `pointerleave → delete buildHover`
+      // bridge (E9). Boundary events are suppressed while a pointer is captured, so a drag
+      // OFF the canvas keeps lastCursor live; this fires on a true leave or after a touch
+      // releases capture (pointerup → leave), so touch reports null after its tap.
+      const onPLeave = () => {
+        this.lastCursor = null;
+      };
       pointerTarget.addEventListener("pointerdown", onPDown);
       pointerTarget.addEventListener("pointermove", onPMove);
       pointerTarget.addEventListener("pointerup", onPUp);
       pointerTarget.addEventListener("pointercancel", onPUp);
+      pointerTarget.addEventListener("pointerleave", onPLeave);
       this.detachers.push(() => {
         pointerTarget.removeEventListener("pointerdown", onPDown);
         pointerTarget.removeEventListener("pointermove", onPMove);
         pointerTarget.removeEventListener("pointerup", onPUp);
         pointerTarget.removeEventListener("pointercancel", onPUp);
+        pointerTarget.removeEventListener("pointerleave", onPLeave);
       });
     }
   }
@@ -375,6 +421,7 @@ export class Input {
     this.pointers.clear();
     this.pressedThisFrame.length = 0;
     this.releasedThisFrame.length = 0;
+    this.lastCursor = null; // E9: no listeners ⇒ no live cursor
     this.resetActions();
   }
 }

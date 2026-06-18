@@ -195,23 +195,10 @@ if (pauseBtn) pauseBtn.onclick = () => game.togglePause();
 // to an empty room (and comes back on return, unless muted/paused).
 document.addEventListener("visibilitychange", syncAudio);
 
-// --- desktop build-preview hover bridge ----------------------------------------
-// The SDK Input tracks PRESSED pointers (for the G2 click edge), not a button-less
-// hover, so feed the cursor's world-space cell to the data `build-preview` system as
-// game state: a pointermove during play writes `buildHover`; leaving the canvas
-// clears it. Touch never hovers (it taps), so this stays desktop-only — the preview
-// is simply absent on touch and placement itself is unchanged. (world.state is wiped
-// on scene change, so the hover auto-clears when leaving PLAY.)
-canvas.addEventListener("pointermove", (e) => {
-  if (!playing()) return;
-  const rect = canvas.getBoundingClientRect();
-  const sx = rect.width > 0 ? world.bounds.width / rect.width : 1;
-  const sy = rect.height > 0 ? world.bounds.height / rect.height : 1;
-  world.state.buildHover = { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
-});
-canvas.addEventListener("pointerleave", () => {
-  delete world.state.buildHover;
-});
+// The desktop build-preview hover bridge is GONE (E9): the data `build-preview` system
+// reads the SDK's button-less cursor channel (`world.input.cursor()`) directly, so the
+// host `pointermove → world.state.buildHover` listener and its manual screen→world
+// transform are no longer needed. The SDK already does that transform for every pointer.
 
 // Observation hook for the Stage-4 playthrough harness — read-only; harmless in prod.
 (window as unknown as { __game?: unknown }).__game = game;

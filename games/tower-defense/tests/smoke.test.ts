@@ -220,4 +220,65 @@ describe("tower-defense smoke", () => {
     // guard the deleted creep-accounting predicate used to enforce, now data.
     expect(w.state.gameOver).toBeFalsy();
   });
+
+  // --- E10 (0.5.0): scene-scoped listeners — "Play again" doesn't double-fire ---
+  it("E10: a play → over → play round-trip re-attaches creep-accounting cleanly (one kill = +1 resolved)", () => {
+    const { game, w } = boot(config as Cfg);
+    expect(game.scene.id).toBe("play");
+
+    // First visit: one creep-killed event bumps `resolved` by exactly 1 (the listener,
+    // registered via world.events.onScene, fires once). Measured as a DELTA around the
+    // emit so live gameplay can't skew it.
+    const r0 = (w.state.resolved as number) ?? 0;
+    w.events.emit("creep-killed");
+    expect(((w.state.resolved as number) ?? 0) - r0).toBe(1);
+
+    // Round-trip play → over → play (the "Play again" path). loadScene clears the
+    // scene-scoped listeners leaving play, so the second visit starts from a clean bus.
+    w.requestScene("over");
+    game.stepFrames(2);
+    expect(game.scene.id).toBe("over");
+    w.requestScene("play");
+    game.stepFrames(2); // play re-enters; creep-accounting re-attaches via onScene
+    expect(game.scene.id).toBe("play");
+
+    // Second visit: ONE creep-killed must STILL bump `resolved` by exactly 1. With the
+    // deleted per-World `attachOnce` WeakMap reintroduced, the first visit's listener
+    // would survive and this delta would be 2 (the double-fire E10 closes).
+    const r1 = (w.state.resolved as number) ?? 0;
+    w.events.emit("creep-killed");
+    expect(((w.state.resolved as number) ?? 0) - r1).toBe(1);
+  });
+
+  // --- E9 (0.5.0): the build preview reads world.input.cursor(), not host buildHover ---
+  it("E9: build-preview tracks world.input.cursor() and parks on pointerleave (host hover bridge gone)", () => {
+    const { game, w } = boot(config as Cfg);
+    // The headless boot doesn't attach DOM input, so wire the SDK Input to a fake pointer
+    // target (no getBoundingClientRect ⇒ client coords map 1:1 to world coords).
+    const ptrL: Record<string, (e: { pointerId: number; clientX: number; clientY: number }) => void> = {};
+    w.input.attach({
+      pointerTarget: { addEventListener: (t: string, f: never) => (ptrL[t] = f), removeEventListener: () => {} } as never,
+    });
+    const cell = (): Entity => w.query("build-cell")[0];
+
+    // No hover yet → cursor() is null → the preview cell sits parked off-screen.
+    game.stepFrames(1);
+    expect(w.input.cursor()).toBeNull();
+    expect(cell().x).toBe(-9999);
+
+    // Hover an open cell at world (100,60) → cursor() reports it → build-preview snaps the
+    // cell highlight to that grid cell (x = cellCenter - tile/2 = 100 - 20 = 80).
+    ptrL.pointermove({ pointerId: 1, clientX: 100, clientY: 60 });
+    expect(w.input.cursor()).toEqual({ x: 100, y: 60 });
+    game.stepFrames(1);
+    expect(cell().x).toBe(80);
+    expect(cell().y).toBe(40);
+
+    // pointerleave clears the cursor (the old `pointerleave → delete buildHover` bridge) →
+    // the preview parks again.
+    ptrL.pointerleave({ pointerId: 1, clientX: 100, clientY: 60 });
+    expect(w.input.cursor()).toBeNull();
+    game.stepFrames(1);
+    expect(cell().x).toBe(-9999);
+  });
 });

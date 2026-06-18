@@ -29,20 +29,14 @@ import { snapToGrid } from "@gitcade/library";
  *     GameShell is deleted and the game runs the real `game.start()` loop (so the
  *     click edge clears every frame — the Idle Clicker lesson).
  *
- * RESTART SAFETY: `loadScene` clears `world.state` and entities but NOT the event
- * bus, so a listener re-attached on every run would double-fire. Both systems
- * attach their listeners exactly once per World (see `attachOnce`) and read live
- * `world.state` on each event, so a "Play again" never double-counts.
+ * RESTART SAFETY (E10, 0.5.0): `loadScene` now clears the event bus's SCENE-SCOPED
+ * listeners on every transition (`world.events.clearSceneListeners()`), so both systems
+ * register their listeners via `world.events.onScene` — once per scene ENTRY, guarded by
+ * a scene-scoped `world.state` flag — and read live `world.state` on each event. A "Play
+ * again" starts from a clean bus, so nothing double-counts. This retires the per-World
+ * `attachOnce`/`ATTACHED` WeakMap dedup every event-driven part used to hand-roll: the
+ * engine owns the listener lifecycle now.
  */
-
-const ATTACHED = new WeakMap<World, Set<string>>();
-function attachOnce(world: World, key: string, attach: () => void): void {
-  let set = ATTACHED.get(world);
-  if (!set) ATTACHED.set(world, (set = new Set()));
-  if (set.has(key)) return;
-  set.add(key);
-  attach();
-}
 
 function clone<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
@@ -89,7 +83,9 @@ export const towerBuild: SystemFn = (world, params) => {
   const towerTag = str(params, "towerTag", "tower");
   const stateKey = str(params, "stateKey", "__towerBuild");
 
-  // Seed upgrade-affected stats once per run (idempotent; survives restart).
+  // Seed upgrade-affected stats once per run (idempotent; survives restart), and attach
+  // the bought-event listener the same once-per-scene-entry guard. The seed flag lives in
+  // `world.state` (wiped on a scene change), so re-entering `play` re-runs this block.
   const s = (world.state[stateKey] ??= { seeded: false, pending: null }) as {
     seeded: boolean;
     pending: { x: number; y: number } | null;
@@ -99,14 +95,14 @@ export const towerBuild: SystemFn = (world, params) => {
     if (typeof world.state[rangeKey] !== "number") world.state[rangeKey] = num(params, "baseRange", 0);
     if (typeof world.state[cooldownKey] !== "number") world.state[cooldownKey] = num(params, "baseCooldown", 0);
     if (typeof world.state[bountyBonusKey] !== "number") world.state[bountyBonusKey] = 0;
-  }
 
-  // Attach once: spawn the tower when the `transaction` system confirms the purchase.
-  // (Global upgrades + per-spawn stat inheritance are the data `stat-modifier`'s job now, E6.)
-  attachOnce(world, "tower-build-listeners", () => {
-    // The money side (afford → deduct) lives in `transaction`; on its OK event we
-    // place the tower at the snapped cell we stashed when we issued the request.
-    world.events.on(boughtEvent, (data) => {
+    // Spawn the tower when the `transaction` system confirms the purchase. Registered via
+    // `onScene` (E10), so it's auto-removed on the next scene change — "Play again" starts
+    // from a clean bus, no per-World WeakMap dedup. (Global upgrades + per-spawn stat
+    // inheritance are the data `stat-modifier`'s job now, E6.) The money side (afford →
+    // deduct) lives in `transaction`; on its OK event we place the tower at the snapped
+    // cell we stashed when we issued the request.
+    world.events.onScene(boughtEvent, (data) => {
       const id = (data as { id?: string } | undefined)?.id;
       if (id !== "tower") return;
       const at = s.pending;
@@ -123,7 +119,7 @@ export const towerBuild: SystemFn = (world, params) => {
       const tower = world.spawn(def as never);
       world.events.emit("tower-placed", { id: tower.id, x: at.x, y: at.y });
     });
-  });
+  }
 
   // G2: consume this frame's click-release edge. The host placeRequest path is gone.
   for (const tap of world.input.justReleased()) {
@@ -157,10 +153,10 @@ export const towerBuild: SystemFn = (world, params) => {
 
 /**
  * `creep-accounting` — the objective economy AND the self-consistent win signal.
- * Attaches once per World and, on each creep death/leak, awards the bounty
- * (+ the `bountyBonus` upgrade) and ratchets the `resolved`/`leaked` counters that
- * `win-lose-conditions` reads. Also tracks the best wave reached (`bestWaveKey`)
- * for the persisted high-water mark (G6).
+ * Attaches its listeners once per scene ENTRY (E10, via `world.events.onScene`) and, on
+ * each creep death/leak, awards the bounty (+ the `bountyBonus` upgrade) and ratchets the
+ * `resolved`/`leaked` counters that `win-lose-conditions` reads. Also tracks the best wave
+ * reached (`bestWaveKey`) for the persisted high-water mark (G6).
  *
  * TD2 / E7 — WIN is DATA, not hand-computed here. This system's only job around the
  * objective is to BRIDGE the `wave-spawner`'s one-shot `waves-complete` EVENT to a
@@ -190,25 +186,32 @@ export const creepAccounting: SystemFn = (world, params) => {
   // Public (no underscore) so the data `win-lose-conditions` can read it as a flag.
   const wavesCompleteKey = str(params, "wavesCompleteKey", "wavesComplete");
   const bestWaveKey = str(params, "bestWaveKey", "bestWave");
+  const stateKey = str(params, "stateKey", "__creepAccounting");
 
-  attachOnce(world, "creep-accounting", () => {
+  // Attach the economy/objective listeners once per scene ENTRY (E10): the guard flag
+  // lives in `world.state` (wiped on a scene change), and `onScene` auto-removes the
+  // listeners on the next transition — so "Play again" re-attaches against a clean bus and
+  // never double-counts. The listeners read live `world.state` on each event.
+  const s = (world.state[stateKey] ??= { attached: false }) as { attached: boolean };
+  if (!s.attached) {
+    s.attached = true;
     const bump = (key: string, by: number): void => {
       world.state[key] = ((world.state[key] as number) ?? 0) + by;
     };
-    world.events.on(killEvent, () => {
+    world.events.onScene(killEvent, () => {
       bump(currencyKey, bounty + ((world.state[bountyBonusKey] as number) ?? 0));
       bump(resolvedKey, 1);
     });
-    world.events.on(leakEvent, () => {
+    world.events.onScene(leakEvent, () => {
       bump(leakedKey, 1);
       bump(resolvedKey, 1);
     });
     // E7 bridge: latch the one-shot event into a flag the win condition reads. The
     // 0-creeps guard and the win decision itself are the data condition's job now.
-    world.events.on(wavesCompleteEvent, () => {
+    world.events.onScene(wavesCompleteEvent, () => {
       world.state[wavesCompleteKey] = true;
     });
-  });
+  }
 
   // Track the best wave reached this and across runs (persisted via manifest.persist).
   const wave = (world.state[waveKey] as number) ?? 0;
@@ -217,21 +220,22 @@ export const creepAccounting: SystemFn = (world, params) => {
 };
 
 /**
- * `build-preview` — the placement affordance (0.3.0 sharp-pointer maximize). A host
- * `pointermove` writes the desktop cursor (world coords) to `world.state[hoverKey]`;
- * this system snaps it to a grid cell and parks a pre-declared range RING + CELL
- * highlight there, recolored GREEN when a turret could go there (buildable tile,
- * cell free, gold ≥ cost) and RED when it could not — so the player sees the reach
- * and the cost-validity BEFORE committing the click. The ring tracks `rangeKey`, so
- * a range upgrade grows the preview too.
+ * `build-preview` — the placement affordance (0.3.0 sharp-pointer maximize). Reads the
+ * SDK's button-less cursor channel (`world.input.cursor()`, E9) — the desktop hover in
+ * world coords — snaps it to a grid cell, and parks a pre-declared range RING + CELL
+ * highlight there, recolored GREEN when a turret could go there (buildable tile, cell
+ * free, gold ≥ cost) and RED when it could not — so the player sees the reach and the
+ * cost-validity BEFORE committing the click. The ring tracks `rangeKey`, so a range
+ * upgrade grows the preview too.
  *
- * Presentation only — it owns no game state and never blocks a build (the real
- * placement is still the `tower-build` click edge). Touch has no hover and headless
- * has no pointer, so `hoverKey` is unset there and both preview entities sit
- * off-screen — smoke tests and touch taps are untouched.
+ * Presentation only — it owns no game state and never blocks a build (the real placement
+ * is still the `tower-build` click edge). Touch has no hover (`cursor()` is null after a
+ * tap) and headless has no pointer, so `cursor()` is null there and both preview entities
+ * sit off-screen — smoke tests and touch taps are untouched. (The host `pointermove →
+ * world.state.buildHover` bridge + its manual screen→world transform are gone, E9.)
  *
  * Params: `tileSize` (structural), `rangeKey`, `currencyKey`, `towerCost` ($cfg),
- * `towerTag`, `hoverKey`, `ringTag`, `cellTag`.
+ * `towerTag`, `ringTag`, `cellTag`.
  */
 export const buildPreview: SystemFn = (world, params) => {
   const tile = num(params, "tileSize", 40);
@@ -239,14 +243,14 @@ export const buildPreview: SystemFn = (world, params) => {
   const currencyKey = str(params, "currencyKey", "gold");
   const cost = num(params, "towerCost", 0);
   const towerTag = str(params, "towerTag", "tower");
-  const hoverKey = str(params, "hoverKey", "buildHover");
   const ring = world.query(str(params, "ringTag", "build-preview"))[0];
   const cell = world.query(str(params, "cellTag", "build-cell"))[0];
   if (!ring && !cell) return;
 
-  const hover = world.state[hoverKey] as { x?: unknown; y?: unknown } | undefined;
-  if (!hover || typeof hover.x !== "number" || typeof hover.y !== "number") {
-    // Not hovering (touch, blur, off-canvas) — park both previews off-screen.
+  // E9: the engine's button-less cursor (world coords), null on touch/headless/off-canvas.
+  const hover = world.input.cursor();
+  if (!hover) {
+    // Not hovering — park both previews off-screen.
     for (const e of [ring, cell]) if (e) { e.x = -9999; e.y = -9999; }
     return;
   }

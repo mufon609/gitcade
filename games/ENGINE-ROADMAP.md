@@ -60,8 +60,8 @@ are the findings below.
 | E6 | **No shared/global stat modifier** ✅ shipped 0.4.0 | tower-defense | ~~`restampTowers` rewrites every tower's params~~ → `stat-modifier` system | 🟢 |
 | E7 | **Win conditions can't query live entities / compose** ✅ shipped 0.4.0 | tower-defense | ~~hand-rolled win in `creep-accounting`~~ → composed `win-lose-conditions@1.1.0` | 🟢 |
 | E8 | **No entity show/hide** | tower-defense | park preview entities at `x:-9999` | 🟡 |
-| E9 | **No hover/cursor input channel** | tower-defense | host `pointermove` → `world.state.buildHover` + manual screen→world transform | 🟢 |
-| E10 | **No scene-scoped event listeners** | tower-defense (+ any event-driven part) | per-part `WeakMap` `attachOnce` dedup | 🟢 |
+| E9 | **No hover/cursor input channel** ✅ shipped 0.5.0 | tower-defense | ~~host `pointermove` → `world.state.buildHover` + manual screen→world transform~~ → `world.input.cursor()` | 🟢 |
+| E10 | **No scene-scoped event listeners** ✅ shipped 0.5.0 | tower-defense (+ any event-driven part) | ~~per-part `WeakMap` `attachOnce` dedup~~ → `world.events.onScene` | 🟢 |
 
 ---
 
@@ -259,28 +259,54 @@ off-screen to fake hide: `for (const e of [ring, cell]) e.x = -9999`
 as a new optional schema field (🟡 — schema addition), or 🟢 via a behavior that swaps the
 sprite to `kind:"none"`.
 
-### E9 — No hover / cursor input channel 🟢
+### E9 — No hover / cursor input channel 🟢 — ✅ SHIPPED in 0.5.0
 **Affected:** tower-defense (desktop build preview).
 
-`Input` exposes held pointers + click edges (`justReleased`) but **no button-less cursor
-position**, so TD hand-rolls hover with its own `pointermove` listener and a manual
+> **✅ SHIPPED (0.5.0, additive SDK method).** `Input` gained **`world.input.cursor()`** —
+> the last pointer position in WORLD coords, button held or NOT — backed by a `lastCursor`
+> updated on every `pointermove` (the desktop hover case the held-pointer set ignored) plus
+> pointerdown/up, reusing the same screen→world transform every other pointer channel uses.
+> It returns `null` until the first pointer event and after `pointerleave` / focus loss /
+> detach, so touch (a tap ends in `pointerleave`) and headless both report `null`. **Adopted:**
+> tower-defense — the `build-preview` system reads `world.input.cursor()` directly (the
+> `hoverKey` param is gone), and the host `pointermove → world.state.buildHover` listener +
+> its manual `(clientX-rect.left)*sx` transform are **deleted** from `main.ts`. Verified by an
+> e2e (a hover moves the preview to the snapped cell; `pointerleave` parks it) plus the cursor
+> world-transform unit tests. This also unblocks the Track-B aim modes (shoot-at-pointer /
+> twin-stick), which need a button-less aim channel.
+
+`Input` exposed held pointers + click edges (`justReleased`) but **no button-less cursor
+position**, so TD hand-rolled hover with its own `pointermove` listener and a manual
 screen→world transform:
 
 ```
-games/tower-defense/src/main.ts:230-239  // world.state.buildHover = { (clientX-rect.left)*sx, ... }
+games/tower-defense/src/main.ts:205-214  // world.state.buildHover = { (clientX-rect.left)*sx, ... }
 ```
 
 **Fix sketch:** add `world.input.cursor()` (last pointer position in world coords, down or
 not). Additive SDK method; replaces the per-game listener + transform.
 
-### E10 — No scene-scoped event listeners 🟢
+### E10 — No scene-scoped event listeners 🟢 — ✅ SHIPPED in 0.5.0
 **Affected:** tower-defense, and any event-driven part.
 
-`Game.loadScene` clears `world.state` and entities but **not** the event bus
-(`game.ts:158-164`), so a system that listens to events double-attaches on "Play again."
-Every event-driven part reimplements a per-World `WeakMap` "attach once" dedup
-(`games/tower-defense/src/custom-behaviors/index.ts:39-45`); idle-clicker sidesteps it by
-being purely poll-based (itself a workaround).
+> **✅ SHIPPED (0.5.0, additive).** The `EventBus` gained **`onScene(evt, fn)`** — identical
+> to `on`, but the subscription is auto-removed on the next scene transition: `Game.loadScene`
+> now calls a new **`clearSceneListeners()`** right next to its existing `flow.on` edge teardown
+> (the proven scene-scoped-listener pattern, generalized). `on` is byte-identical, and the
+> event queue / `clear()` are untouched. **Adopted:** tower-defense — both `tower-build` and
+> `creep-accounting` register their listeners via `world.events.onScene`, attached once per
+> scene ENTRY by a scene-scoped `world.state` guard flag (the same seed-once idiom they
+> already used), and the per-World `attachOnce`/`ATTACHED` `WeakMap` dedup is **deleted**. A
+> "Play again" re-enters `play` against a clean bus, so nothing double-counts. Verified by an
+> e2e (a `play → over → play` round-trip: one `creep-killed` still bumps `resolved` by exactly
+> 1, not 2) plus EventBus unit tests. idle-clicker stays poll-based (its current clean approach;
+> the optional events conversion was left out to keep scope tight).
+
+`Game.loadScene` cleared `world.state` and entities but **not** the event bus, so a system
+that listens to events double-attached on "Play again." Every event-driven part reimplemented
+a per-World `WeakMap` "attach once" dedup
+(`games/tower-defense/src/custom-behaviors/index.ts`); idle-clicker sidestepped it by being
+purely poll-based (itself a workaround).
 **Fix sketch:** a scene-scoped `world.events.onScene(evt, fn)` (auto-removed on
 transition), or document a built-in once-per-world helper. Additive.
 
@@ -307,8 +333,11 @@ deferred list, surfaced here so the sequencing is one picture.
    0.4.0** — TD's shared range/cooldown upgrade (`stat-modifier`) and its real win
    (`win-lose-conditions@1.1.0` composite) are now data; `restampTowers`/`stampDef` and
    the hand-rolled win predicate are deleted.
-5. **Scene-scoped listeners (E10) + cursor channel (E9) + entity visibility (E8).** 🟢/🟡
-   Cleanups; E8 wants the schema-field decision or the behavior workaround.
+5. **Scene-scoped listeners (E10) + cursor channel (E9).** 🟢 ✅ **SHIPPED in 0.5.0** —
+   TD's event-driven systems now use `world.events.onScene` (the `attachOnce` WeakMap is
+   gone) and `build-preview` reads `world.input.cursor()` (the host hover bridge is gone).
+   **Entity visibility (E8)** is the last Track-A item — 🟡, wants the schema-field
+   decision or the `kind:"none"` behavior workaround.
 
 (E5 — a post-step tick hook for snake's instant-death-on-step — was dropped: it touches the
 frozen tick order for a single game whose `snake-guard` workaround already produces correct

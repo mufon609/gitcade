@@ -174,6 +174,11 @@ export class Game {
     // re-entering a scene never accumulates duplicate listeners on the shared bus.
     for (const off of this.flowUnsubs) off();
     this.flowUnsubs = [];
+    // Drop every SCENE-SCOPED event listener (world.events.onScene, E10) the same way —
+    // the engine generalization of the per-part "attach once" WeakMap dedup, so an
+    // event-driven system re-attaching on "Play again" can't double-fire. Game-lifetime
+    // `on` listeners (the flow edges torn down just above, host glue) are untouched.
+    this.world.events.clearSceneListeners();
 
     // Reset world contents, then restore the kept slice.
     this.world.entities = [];

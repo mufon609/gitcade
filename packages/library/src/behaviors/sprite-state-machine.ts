@@ -20,7 +20,7 @@ import { num, str, advanceAnim } from "@gitcade/sdk";
  *    holds until its clip finishes, then control returns to idle/run. Set `land` to `""`
  *    to skip it.
  *
- * Pure per-tick read + writes to `entity.anim` (and its own `__sm*` scratch keys); no RNG
+ * Pure per-tick read + writes to `entity.anim` (and its own per-instance `scratch`); no RNG
  * or I/O, so determinism + the frozen tick order are preserved. Order it AFTER the
  * resolvers so it reads this tick's `contacts.onGround` (a one-tick-stale read is harmless —
  * the states are visual). Pair with `face-velocity` for left/right flip. The renderer draws
@@ -32,9 +32,10 @@ import { num, str, advanceAnim } from "@gitcade/sdk";
  *    `"jump"`/`"fall"`/`"land"`; `""` disables that state)
  *  - `moveThreshold`: `|vx|` (px/sec) above which the entity is "running" (default 1)
  */
-export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt) => {
+export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt, scratch) => {
   if (entity.sprite.kind !== "sheet") return;
   const sheet = entity.sprite as SheetSprite;
+  const s = scratch!; // this instance's private state (air flag, current clip, one-shot-done)
 
   const idle = str(params, "idle", "idle");
   const run = str(params, "run", "run");
@@ -44,14 +45,14 @@ export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt) => {
   const moveThreshold = num(params, "moveThreshold", 1);
 
   const grounded = entity.body.contacts.onGround;
-  const wasAirborne = entity.state.__smAir === true;
+  const wasAirborne = s.smAir === true;
   const moving = Math.abs(entity.vx) > moveThreshold;
   const grounderClip = moving ? run : idle;
 
   // A `land` one-shot is mid-play while it's the active clip and hasn't finished yet
-  // (`__smDone`, set by the advance below when a non-looping clip reaches its last frame).
-  const playing = entity.state.__smClip as string | undefined;
-  const landActive = land !== "" && playing === land && entity.state.__smDone !== true;
+  // (`s.smDone`, set by the advance below when a non-looping clip reaches its last frame).
+  const playing = s.smClip as string | undefined;
+  const landActive = land !== "" && playing === land && s.smDone !== true;
 
   let target: string;
   if (landActive) {
@@ -65,9 +66,9 @@ export const spriteStateMachine: BehaviorFn = (entity, _world, params, dt) => {
   }
 
   // Advance via the shared SDK primitive (the same code `sprite-animate` runs), so a
-  // state-driven clip and a static `play` clip advance byte-identically; `__smDone` captures
+  // state-driven clip and a static `play` clip advance byte-identically; `s.smDone` captures
   // its one-shot "finished" signal so a non-looping `land` holds until it completes.
-  entity.state.__smDone = advanceAnim(entity.anim, sheet, target, dt);
-  entity.state.__smClip = target;
-  entity.state.__smAir = !grounded;
+  s.smDone = advanceAnim(entity.anim, sheet, target, dt);
+  s.smClip = target;
+  s.smAir = !grounded;
 };

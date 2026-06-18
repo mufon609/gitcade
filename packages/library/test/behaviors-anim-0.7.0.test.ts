@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import type { Sprite } from "@gitcade/sdk";
-import { makeWorld, makeEntity } from "./helpers.js";
+import { makeWorld, makeEntity, runBehavior } from "./helpers.js";
 import { spriteStateMachine } from "../src/behaviors/sprite-state-machine.js";
 import { faceVelocity } from "../src/behaviors/face-velocity.js";
 
@@ -38,7 +38,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.body.contacts.onGround = true;
     e.vx = 0;
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("idle");
   });
 
@@ -47,7 +47,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.body.contacts.onGround = true;
     e.vx = 120;
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("run");
   });
 
@@ -56,7 +56,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.body.contacts.onGround = true;
     e.vx = 0.5; // < default threshold 1
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("idle");
   });
 
@@ -64,7 +64,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.vy = -200;
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("jump");
   });
 
@@ -72,7 +72,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.vy = 200;
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("fall");
   });
 
@@ -80,21 +80,21 @@ describe("sprite-state-machine — motion → clip", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.vy = 200;
-    spriteStateMachine(e, world, {}, DT); // airborne → fall (marks __smAir)
+    runBehavior(spriteStateMachine, e, world, {}, DT); // airborne → fall (marks scratch.smAir)
     expect(e.anim.current).toBe("fall");
 
     e.body.contacts.onGround = true; // touchdown
     e.vy = 0;
     e.vx = 0;
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("land"); // one-shot fired
 
     // It HOLDS land for the next couple of ticks (not yet finished)...
-    spriteStateMachine(e, world, {}, DT);
+    runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("land");
 
     // ...then completes and falls back to idle once the non-looping clip ends.
-    for (let i = 0; i < 12; i++) spriteStateMachine(e, world, {}, DT);
+    for (let i = 0; i < 12; i++) runBehavior(spriteStateMachine, e, world, {}, DT);
     expect(e.anim.current).toBe("idle");
   });
 
@@ -102,7 +102,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: sheet() });
     e.vy = -200; // rising, but no jump clip configured
-    spriteStateMachine(e, world, { jump: "" }, DT);
+    runBehavior(spriteStateMachine, e, world, { jump: "" }, DT);
     expect(e.anim.current).toBe("fall");
   });
 
@@ -110,7 +110,7 @@ describe("sprite-state-machine — motion → clip", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p", sprite: { kind: "shape", shape: "rect", color: "#fff" } });
     e.body.contacts.onGround = true;
-    expect(() => spriteStateMachine(e, world, {}, DT)).not.toThrow();
+    expect(() => runBehavior(spriteStateMachine, e, world, {}, DT)).not.toThrow();
     expect(e.anim.current).toBeNull(); // untouched
   });
 });

@@ -1,6 +1,37 @@
 import { World, Entity, createDefaultRegistry, type Config } from "@gitcade/sdk";
 import { registerLibrary } from "../src/registry.js";
-import type { Sprite } from "@gitcade/sdk";
+import type { Sprite, BehaviorFn } from "@gitcade/sdk";
+
+// Persistent per-(entity, behavior) scratch for DIRECT unit-test calls — the host hands a
+// behavior its instance's `scratch` each tick; this reproduces that store for tests that call
+// a behavior function directly across ticks (coyote timers, an anim state machine's clip, etc.).
+const _scratch = new WeakMap<Entity, Map<BehaviorFn, Record<string, unknown>>>();
+
+/**
+ * Invoke a behavior with a stable per-(entity, behavior) `scratch`, so a test that drives a
+ * stateful behavior directly across several ticks gets the same persistence the host's
+ * per-instance store gives in production. Use it in place of calling the behavior function
+ * directly whenever the behavior keeps private state in `scratch`.
+ */
+export function runBehavior(
+  fn: BehaviorFn,
+  e: Entity,
+  world: World,
+  params: Record<string, unknown>,
+  dt: number,
+): void {
+  let m = _scratch.get(e);
+  if (!m) {
+    m = new Map();
+    _scratch.set(e, m);
+  }
+  let sc = m.get(fn);
+  if (!sc) {
+    sc = {};
+    m.set(fn, sc);
+  }
+  fn(e, world, params, dt, sc);
+}
 
 /** Deterministic seedable RNG (mulberry32) so wander/spread tests are stable. */
 export function mulberry32(seed: number): () => number {

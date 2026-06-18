@@ -9,6 +9,14 @@ export interface BehaviorInstance {
   type: string;
   fn: BehaviorFn;
   params: ResolvedParams;
+  /**
+   * This instance's PRIVATE per-tick-persistent working state (coyote/jump-buffer timers, an
+   * animation state machine's current clip, an AI's patrol index) — isolated from other
+   * behaviors and from the entity's shared `state` bag, and handed to the behavior each tick.
+   * Distinct from {@link Entity.state} (a cross-behavior channel) and {@link Entity.local}
+   * (the parenting transform). Starts empty.
+   */
+  scratch: Record<string, unknown>;
 }
 
 /** Sprite-sheet animation playback state, advanced by the `sprite-animate` behavior. */

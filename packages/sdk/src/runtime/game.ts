@@ -327,7 +327,7 @@ export class Game {
     const entities = this.world.entities.slice();
     for (const e of entities) {
       if (!e.alive) continue;
-      for (const b of e.behaviors) b.fn(e, this.world, b.params, dt);
+      for (const b of e.behaviors) b.fn(e, this.world, b.params, dt, b.scratch);
     }
 
     this.world.prune();

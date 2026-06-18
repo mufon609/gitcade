@@ -46,6 +46,7 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
       type: b.type,
       fn: reg.fn,
       params: resolveParams(b.params, config),
+      scratch: {},
     };
     entity.addBehavior(instance);
   }

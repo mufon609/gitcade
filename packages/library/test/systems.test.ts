@@ -427,7 +427,7 @@ describe("format-binding (E2)", () => {
 describe("stat-modifier (E6)", () => {
   /** Attach a behavior carrying `params` to an entity (the runtime shape a system writes). */
   function withBehavior(e: ReturnType<typeof makeEntity>, type: string, params: Record<string, unknown>) {
-    e.behaviors.push({ id: `${e.id}.${type}`, type, fn: () => {}, params });
+    e.behaviors.push({ id: `${e.id}.${type}`, type, fn: () => {}, params, scratch: {} });
     return e;
   }
 

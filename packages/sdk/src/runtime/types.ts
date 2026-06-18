@@ -9,20 +9,38 @@ import type { World } from "./world.js";
 export type ResolvedParams = Record<string, unknown>;
 
 /**
- * THE BEHAVIOR CONTRACT — frozen at the end of Phase 1.
+ * THE BEHAVIOR CONTRACT.
  *
  * A behavior is a "pure-ish" function invoked once per entity per fixed update:
  * it reads `entity`/`world` and mutates them (and only them) in place. It must
- * not retain module-level mutable state, perform I/O, or schedule timers — all
+ * not retain MODULE-level mutable state, perform I/O, or schedule timers — all
  * side effects go through the `world` API (spawn/destroy/events/audio/storage),
  * which keeps behaviors deterministic and unit-testable.
  *
- * @param entity The entity this behavior is attached to.
- * @param world  The shared world API (entities, input, events, audio, storage, config).
- * @param params The `$cfg`-resolved params for THIS behavior instance.
- * @param dt     Fixed timestep delta in seconds.
+ * PER-INSTANCE private working state (coyote/jump-buffer timers, an animation
+ * state-machine's current clip, an AI's patrol index) lives in `scratch` — the
+ * behavior instance's own `Record`, isolated from every other behavior and from
+ * the entity's shared `state` bag. The host passes `instance.scratch` each tick,
+ * so it persists across ticks deterministically (not module state). Reach for
+ * `entity.state` only for data that genuinely crosses the behavior boundary — a
+ * value another part reads via an authored `stateKey`/`priorityKey`, or that a
+ * game's own code consumes. `scratch` is optional in the signature so a behavior
+ * with no private state ignores it; a behavior that uses it is always handed a
+ * real object by the host (a standalone/unit invocation must pass one too).
+ *
+ * @param entity  The entity this behavior is attached to.
+ * @param world   The shared world API (entities, input, events, audio, storage, config).
+ * @param params  The `$cfg`-resolved params for THIS behavior instance.
+ * @param dt      Fixed timestep delta in seconds.
+ * @param scratch This behavior INSTANCE's private per-tick-persistent store.
  */
-export type BehaviorFn = (entity: Entity, world: World, params: ResolvedParams, dt: number) => void;
+export type BehaviorFn = (
+  entity: Entity,
+  world: World,
+  params: ResolvedParams,
+  dt: number,
+  scratch?: Record<string, unknown>,
+) => void;
 
 /**
  * THE SYSTEM CONTRACT — frozen at the end of Phase 1.

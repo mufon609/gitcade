@@ -201,7 +201,7 @@
   ],
   "flow": {
     "on": {
-      "retry": "level-1"
+      "retry": "@first"
     },
     "persist": [
       "best"

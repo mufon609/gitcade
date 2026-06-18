@@ -5,6 +5,7 @@ import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 import manifest from "../game.json";
 import config from "../config.json";
 import title from "../src/scenes/title.json";
+import playBase from "../src/scenes/play-base.json";
 import level1 from "../src/scenes/level-1.json";
 import level2 from "../src/scenes/level-2.json";
 import level3 from "../src/scenes/level-3.json";
@@ -12,12 +13,15 @@ import win from "../src/scenes/win.json";
 import over from "../src/scenes/over.json";
 
 /**
- * The headless smoke boot `gitcade validate` defers to. Boots the six-scene flow
+ * The headless smoke boot `gitcade validate` defers to. Boots the flow
  * (title → level-1 → level-2 → level-3 → win / over) on the full library + custom
- * registry with no canvas and exercises the data-driven transitions: a started run
- * launches the ball and breaks bricks; clearing a level advances to the next via the
- * `level-cleared` flow edge (carrying score/lives/level); clearing the last level
- * wins; draining lives routes to game-over — all without throwing.
+ * registry with no canvas and exercises the data-driven transitions. The three play
+ * levels `extends` a shared `play-base` scene (so the shell — paddle/ball/HUD/system
+ * stack — is authored once) and the manifest's `levels` sequence + the reserved
+ * `@next`/`@first` flow tokens drive progression: a started run launches the ball and
+ * breaks bricks; clearing a level advances via `level-cleared → @next` (carrying
+ * score/lives); clearing the last level wins; draining lives routes to game-over —
+ * all without throwing.
  *
  * Breakout ships no custom behaviors, so registerCustomBehaviors is a no-op — but
  * calling it (like the other games + the scaffold) means a remix that vendors a
@@ -29,7 +33,7 @@ function boot() {
   const registry = createLibraryRegistry();
   registerCustomBehaviors(registry);
   return createGame(
-    { manifest, config, scenes: [title, level1, level2, level3, win, over] },
+    { manifest, config, scenes: [title, playBase, level1, level2, level3, win, over] },
     { canvas: null, registry },
   );
 }
@@ -90,6 +94,29 @@ describe("breakout smoke (data flow + levels)", () => {
     expect(game.scene.id).toBe("win");
   });
 
+  it("ramps the ball launch speed by stage and shows a dynamic LEVEL label (E11 unified counter)", () => {
+    // Both come from `world.state.level`, which the runtime sets to the 1-based stage
+    // index — no per-level config. scale-by-state(once) seeds vx/vy × (1+0.1·(level-1)).
+    const ballSpeed = (g: ReturnType<typeof boot>): number => {
+      const b = g.world.query("ball")[0]!;
+      return Math.hypot(b.vx, b.vy);
+    };
+    const g1 = boot();
+    start(g1);
+    g1.stepFrames(1);
+    expect(g1.world.state.levelDisplay).toBe("LEVEL 1");
+    const s1 = ballSpeed(g1);
+
+    const g2 = boot();
+    start(g2);
+    clearLevel(g2); // → level-2
+    g2.stepFrames(1);
+    expect(g2.scene.id).toBe("level-2");
+    expect(g2.world.state.level).toBe(2);
+    expect(g2.world.state.levelDisplay).toBe("LEVEL 2");
+    expect(ballSpeed(g2)).toBeGreaterThan(s1); // faster launch on a later stage
+  });
+
   it("draining lives decrements then routes level-1 → over", () => {
     const game = boot();
     start(game);
@@ -124,7 +151,7 @@ describe("breakout paddle input", () => {
       pointerTarget: { addEventListener: (t: string, f: any) => (ptrL[t] = f), removeEventListener: () => {} } as never,
     });
     const game = createGame(
-      { manifest, config, scenes: [title, level1, level2, level3, win, over] },
+      { manifest, config, scenes: [title, playBase, level1, level2, level3, win, over] },
       { canvas: null, registry, input },
     );
     game.world.events.emit("start-pressed");

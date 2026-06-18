@@ -71,7 +71,7 @@
     },
     {
       "type": "wave-spawner",
-      "part": "wave-spawner@1.0.0",
+      "part": "wave-spawner@1.1.0",
       "params": {
         "interval": "$cfg.spawnInterval",
         "waveSize": "$cfg.waveSize",
@@ -83,6 +83,8 @@
         "countTag": "obstacle",
         "waveKey": "wave",
         "advanceOnClear": false,
+        "levelKey": "level",
+        "intervalPerLevel": "$cfg.densityRampPerLevel",
         "spawnPoints": [{ "x": 820, "y": 60 }, { "x": 820, "y": 420 }, { "x": 820, "y": 220 }, { "x": 820, "y": 90 }, { "x": 820, "y": 360 }],
         "prototype": {
           "id": "obstacle",

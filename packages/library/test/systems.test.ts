@@ -128,6 +128,43 @@ describe("wave-spawner", () => {
     const ys = world.query("enemy").map((e) => e.y).sort((a, b) => a - b);
     expect(ys).toEqual([10, 10, 20, 30]); // cursor 0,1,2,0 → all three points used, first reused
   });
+
+  // --- E11: level-aware density ramp (the spawn-pressure half of difficulty) ---
+  it("scales wave size by the level counter via densityPerLevel", () => {
+    const world = makeWorld();
+    world.state.level = 3; // factor = 1 + 0.5*(3-1) = 2
+    const params = {
+      interval: 0.01,
+      waveSize: 2,
+      waveSizeGrowth: 0,
+      waveDelay: 0,
+      maxWaves: 1,
+      advanceOnClear: false,
+      countTag: "enemy",
+      densityPerLevel: 0.5,
+      prototype: { id: "enemy", tags: ["enemy"], size: { w: 10, h: 10 }, position: { x: 0, y: 0 }, layer: 0, sprite: { kind: "none" }, behaviors: [] },
+    };
+    for (let i = 0; i < 50; i++) waveSpawner(world, params, DT);
+    expect(world.query("enemy").length).toBe(4); // 2 base × factor 2
+  });
+
+  it("leaves wave size unchanged at level 1 / when density params are absent (additivity)", () => {
+    const world = makeWorld();
+    world.state.level = 1; // factor = 1
+    const params = {
+      interval: 0.01,
+      waveSize: 2,
+      waveSizeGrowth: 0,
+      waveDelay: 0,
+      maxWaves: 1,
+      advanceOnClear: false,
+      countTag: "enemy",
+      densityPerLevel: 0.5, // present but inert at level 1
+      prototype: { id: "enemy", tags: ["enemy"], size: { w: 10, h: 10 }, position: { x: 0, y: 0 }, layer: 0, sprite: { kind: "none" }, behaviors: [] },
+    };
+    for (let i = 0; i < 50; i++) waveSpawner(world, params, DT);
+    expect(world.query("enemy").length).toBe(2);
+  });
 });
 
 describe("lives-respawn", () => {

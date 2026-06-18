@@ -17,4 +17,5 @@ export * from "./behavior.js";
 export * from "./system.js";
 export * from "./entity.js";
 export * from "./scene.js";
+export * from "./scene-inheritance.js";
 export * from "./manifest.js";

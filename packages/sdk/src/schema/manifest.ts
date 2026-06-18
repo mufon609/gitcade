@@ -96,6 +96,20 @@ export const GameManifestSchema = z
     persist: PersistSchema.optional(),
     /** Machine-readable control hints for the platform UI (additive); absent ⇒ none shown. */
     controls: z.array(ControlHintSchema).optional(),
+    /**
+     * Ordered level sequence (0.6.0 additive, E11). Scene ids that make up the
+     * game's playable progression, in order. Makes "this game is a campaign of N
+     * levels" a FIRST-CLASS, introspectable fact (a platform can show a level
+     * count / level-select; the validator can prove the chain resolves) instead of
+     * an emergent chain of `flow.on` string events. Enables the reserved flow
+     * targets `"@next"`/`"@first"` (no per-level destination wiring) and makes the
+     * runtime set `world.state.level` to the 1-based index of the active level, so
+     * the difficulty counter that `scale-by-state` reads tracks the stage for free.
+     * Absent ⇒ no campaign concept (every 0.x game), so the field is purely additive.
+     */
+    levels: z.array(z.string().min(1)).optional(),
+    /** Scene id to route to when `"@next"` advances past the last level (e.g. a win screen). */
+    levelsComplete: z.string().min(1).optional(),
   })
   .superRefine((m, ctx) => {
     if (m.tier === "ecosystem" && !m.libraryVersion) {

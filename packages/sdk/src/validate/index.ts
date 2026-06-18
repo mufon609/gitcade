@@ -9,6 +9,7 @@ import { createGame } from "../load.js";
 import {
   type Issue,
   checkParams,
+  checkSceneRefs,
   collectPartRefs,
   checkPartRefs,
   checkAdvisories,
@@ -39,6 +40,8 @@ const SMOKE_FRAMES = 60;
  *  3. scene schema validation (every `src/scenes/*.json`)
  *  4. the storage rule — ecosystem games must not touch raw localStorage/indexedDB
  *  5. the mechanical no-magic-numbers rule + `$cfg` resolution
+ *  5b. cross-scene reference integrity — flow.on targets, `extends`, `levels`,
+ *     `levelsComplete`, and `entryPoint` must resolve to a real scene id (E11)
  *  6. `partId@version` catalog resolution against the pinned libraryVersion
  *  7. the smoke boot — build the entry scene and run {@link SMOKE_FRAMES} fixed
  *     frames headless (falls back to the game's own `npm test` when the game
@@ -115,6 +118,13 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
   // 5. No-magic-numbers + $cfg resolution
   if (scenes.length > 0) {
     issues.push(...checkParams(scenes, config));
+  }
+
+  // 5b. Cross-scene reference integrity (E11): flow.on targets, scene `extends`,
+  //     manifest `levels`/`levelsComplete`, and `entryPoint` must all resolve to a
+  //     real scene id — a broken link used to slip through to runtime.
+  if (scenes.length > 0) {
+    issues.push(...checkSceneRefs(scenes, manifest));
   }
 
   // 6. Part catalog resolution
@@ -275,18 +285,23 @@ function scanRawStorage(dir: string): Issue[] {
 }
 
 function loadLibraryCatalog(gameDir: string): LibraryCatalog | null {
-  // Phase 1: no @gitcade/library exists. From Phase 2 on, the pinned library is
-  // installed in node_modules and ships CATALOG.json. Resolve from the game's
-  // own node_modules (the build worker installs the pin there).
-  const candidates = [
-    path.join(gameDir, "node_modules", "@gitcade", "library", "CATALOG.json"),
-  ];
-  for (const c of candidates) {
+  // The pinned library ships CATALOG.json in its package root. Resolve it the way
+  // Node resolves a dependency: check the game's own node_modules first (the build
+  // worker installs the pin there), then walk UP each parent's node_modules. The
+  // walk-up matters in a workspace, where npm HOISTS @gitcade/library to the repo
+  // root node_modules and leaves the game-local folder empty — without it, a
+  // freshly-installed monorepo would report every part as `catalog-unavailable`.
+  let dir = path.resolve(gameDir);
+  for (;;) {
+    const candidate = path.join(dir, "node_modules", "@gitcade", "library", "CATALOG.json");
     try {
-      if (fs.existsSync(c)) return JSON.parse(fs.readFileSync(c, "utf8")) as LibraryCatalog;
+      if (fs.existsSync(candidate)) return JSON.parse(fs.readFileSync(candidate, "utf8")) as LibraryCatalog;
     } catch {
-      /* fall through */
+      /* fall through to the next parent */
     }
+    const parent = path.dirname(dir);
+    if (parent === dir) break; // reached the filesystem root
+    dir = parent;
   }
   return null;
 }

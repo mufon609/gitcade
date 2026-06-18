@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "generatedFrom": "parts/",
   "parts": [
     {
@@ -2061,7 +2061,7 @@
     {
       "id": "wave-spawner",
       "kind": "system",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "spawning",
       "tags": [
         "spawning",
@@ -2069,7 +2069,7 @@
         "enemy",
         "reuse-proof"
       ],
-      "description": "Spawn entities in escalating waves over time from a prototype definition, with per-wave growth, max-alive cap, and spawn points. One of the four reuse-proof parts.",
+      "description": "Spawn entities in escalating waves over time from a prototype definition, with per-wave growth, max-alive cap, spawn points, and an optional level-driven density ramp (the spawn-pressure half of difficulty). One of the four reuse-proof parts.",
       "license": "MIT",
       "dependencies": [
         "ai-chase",
@@ -2157,6 +2157,21 @@
           "type": "string",
           "balance": false,
           "description": "Tag marking occupied cells for free-cell placement (default = countTag)."
+        },
+        "levelKey": {
+          "type": "string",
+          "balance": false,
+          "description": "world.state key holding the 1-based difficulty level read by the density ramp (default \"level\")."
+        },
+        "densityPerLevel": {
+          "type": "number",
+          "balance": true,
+          "description": "Fractional increase to wave size per level above 1 (factor 1 + perLevel·(level-1)); 0 = no ramp."
+        },
+        "intervalPerLevel": {
+          "type": "number",
+          "balance": true,
+          "description": "Fractional shortening of the whole spawn cadence (both interval and waveDelay) per level above 1; 0 = no ramp."
         }
       },
       "definition": {

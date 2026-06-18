@@ -95,7 +95,7 @@
     { "type": "aabb-collision", "params": { "pairs": [["player", "enemy"], ["enemy", "bullet"]] } },
     {
       "type": "wave-spawner",
-      "part": "wave-spawner@1.0.0",
+      "part": "wave-spawner@1.1.0",
       "params": {
         "interval": "$cfg.spawnInterval",
         "waveSize": "$cfg.waveSize",

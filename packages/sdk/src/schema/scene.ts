@@ -47,6 +47,24 @@ export const SceneFlowSchema = z.object({
   persist: z.array(z.string()).default([]),
 });
 
+/**
+ * Reserved `flow.on` targets (0.6.0, E11). A flow edge may name one of these tokens
+ * instead of a literal scene id; the runtime resolves it against the manifest's
+ * `levels` sequence at emit time:
+ *  - `"@next"` — advance to the level after the active one (or `levelsComplete` past
+ *    the last; or the first level when emitted from a non-level scene like a title).
+ *  - `"@first"` — (re)start at the first level (e.g. a game-over "retry" edge).
+ * Using a token means a level never hard-wires its successor, so reordering or
+ * inserting levels is a `manifest.levels` edit, not a per-scene rewire.
+ */
+export const RESERVED_FLOW_TARGETS = ["@next", "@first"] as const;
+export type ReservedFlowTarget = (typeof RESERVED_FLOW_TARGETS)[number];
+
+/** True if a `flow.on` target is a reserved level-sequence token rather than a scene id. */
+export function isReservedFlowTarget(target: string): target is ReservedFlowTarget {
+  return (RESERVED_FLOW_TARGETS as readonly string[]).includes(target);
+}
+
 /** Scene background: a solid CSS color or a layered descriptor (parallax in 2B). */
 export const BackgroundSchema = z.union([
   z.string(),
@@ -63,9 +81,19 @@ export const BackgroundSchema = z.union([
  * size. `{ id, entities[], systems[], tilemap?, background, music? }` is the
  * FROZEN Phase 1 shape; `size` (the world/canvas bounds) is additive and defaults
  * to 800x600.
+ *
+ * `extends` (0.6.0, E11 scene inheritance): a scene may name a BASE scene id whose
+ * shell (entities, systems, size, background, music, tilemap, flow) it inherits, so
+ * a multi-level game authors the shared stage ONCE and each level is a thin override
+ * that only declares its own content (the layout) + a `$cfg` difficulty slice. The
+ * runtime resolves the chain at boot (see `resolveSceneInheritance`); the merge is
+ * additive — base entities/systems come first, then the child's, overriding by `id`.
+ * Absent ⇒ a standalone scene (every 0.x scene), so the field is purely additive.
  */
 export const SceneSchema = z.object({
   id: z.string().min(1),
+  /** Base scene id to inherit the shared stage from (0.6.0 additive, E11). */
+  extends: z.string().min(1).optional(),
   entities: z.array(EntityDefSchema).default([]),
   systems: z.array(SystemDefSchema).default([]),
   tilemap: TilemapSchema.optional(),
@@ -80,6 +108,9 @@ export const SceneSchema = z.object({
   /** Data-driven scene transitions + in-session state hand-off (0.2.0 additive, G1). */
   flow: SceneFlowSchema.optional(),
 });
+
+/** The schema default for `scene.size` — used by inheritance to detect an unset size. */
+export const DEFAULT_SCENE_SIZE = { width: 800, height: 600 } as const;
 
 export type Scene = z.infer<typeof SceneSchema>;
 export type Tilemap = z.infer<typeof TilemapSchema>;

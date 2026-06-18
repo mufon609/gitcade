@@ -19,6 +19,7 @@
   "levelThresholdGrowth": 120,
   "maxLevel": 8,
   "speedRampPerLevel": 0.14,
+  "densityRampPerLevel": 0.12,
   "heliTiltPerVel": 0.001,
   "heliMaxTilt": 0.4
 }

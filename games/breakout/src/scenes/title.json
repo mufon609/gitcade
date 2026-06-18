@@ -222,7 +222,7 @@
   ],
   "flow": {
     "on": {
-      "start-pressed": "level-1"
+      "start-pressed": "@next"
     },
     "persist": [
       "best"

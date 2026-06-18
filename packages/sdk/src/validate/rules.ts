@@ -1,4 +1,6 @@
 import type { Scene } from "../schema/scene.js";
+import { isReservedFlowTarget, resolveSceneInheritance } from "../schema/index.js";
+import type { GameManifest } from "../schema/manifest.js";
 import type { Config } from "../schema/config.js";
 import { isWhitelistedNumericKey } from "../schema/whitelist.js";
 import { isCfgRef, cfgRefPath, resolveConfigPath } from "../schema/config.js";
@@ -84,6 +86,110 @@ export function checkParams(scenes: Scene[], config: Config): Issue[] {
     scene.systems.forEach((s, si) => {
       walkParams(s.params, `${scene.id}.systems[${si}:${s.type}].params`, onNumber, onCfgRef);
     });
+  }
+
+  return issues;
+}
+
+/**
+ * Cross-scene REFERENCE integrity (E11). The schema validates each scene file in
+ * isolation, so until now a reference to a scene that does not exist — a typo'd
+ * `flow.on` destination, an `extends` base, a `manifest.levels` entry, or the
+ * `entryPoint` — passed `gitcade validate` and only surfaced at runtime (a no-op
+ * transition or a thrown "scene not found"). This rule resolves all four reference
+ * kinds against the actual scene-id set so a broken link fails the publish gate.
+ *
+ * It also enforces the level-sequence invariants the reserved flow tokens depend on:
+ * a `"@next"`/`"@first"` edge requires `manifest.levels`, and every id in `levels`
+ * (plus `levelsComplete`) must name a real scene. Inheritance cycles (which the
+ * runtime resolver throws on) are reported here as a clean error rather than a smoke
+ * crash.
+ */
+export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): Issue[] {
+  const issues: Issue[] = [];
+  const ids = new Set(scenes.map((s) => s.id));
+  const hasLevels = Boolean(manifest?.levels && manifest.levels.length > 0);
+
+  for (const scene of scenes) {
+    if (scene.extends !== undefined && !ids.has(scene.extends)) {
+      issues.push({
+        level: "error",
+        code: "extends-target-missing",
+        message: `scene "${scene.id}" extends "${scene.extends}", which is not a scene in src/scenes/`,
+        where: `${scene.id}.extends`,
+      });
+    }
+    for (const [evt, target] of Object.entries(scene.flow?.on ?? {})) {
+      if (isReservedFlowTarget(target)) {
+        if (!hasLevels) {
+          issues.push({
+            level: "error",
+            code: "flow-token-without-levels",
+            message: `flow edge "${evt}" → "${target}" uses a reserved level token but game.json declares no \`levels\` sequence`,
+            where: `${scene.id}.flow.on.${evt}`,
+          });
+        }
+        continue;
+      }
+      if (!ids.has(target)) {
+        issues.push({
+          level: "error",
+          code: "flow-target-missing",
+          message: `flow edge "${evt}" → "${target}" names a scene that does not exist in src/scenes/`,
+          where: `${scene.id}.flow.on.${evt}`,
+        });
+      }
+    }
+  }
+
+  if (manifest?.levels) {
+    manifest.levels.forEach((id, i) => {
+      if (!ids.has(id)) {
+        issues.push({
+          level: "error",
+          code: "level-scene-missing",
+          message: `game.json levels[${i}] = "${id}" is not a scene in src/scenes/`,
+          where: `game.json:levels.${i}`,
+        });
+      }
+    });
+  }
+  if (manifest?.levelsComplete && !ids.has(manifest.levelsComplete)) {
+    issues.push({
+      level: "error",
+      code: "levels-complete-missing",
+      message: `game.json levelsComplete = "${manifest.levelsComplete}" is not a scene in src/scenes/`,
+      where: "game.json:levelsComplete",
+    });
+  }
+
+  // entryPoint resolves to a scene id by basename (the same rule createGame uses);
+  // a typo silently boots the wrong scene without this check.
+  if (manifest) {
+    const base = manifest.entryPoint
+      .split(/[\\/]/)
+      .pop()
+      ?.replace(/\.json$/i, "");
+    if (!base || !ids.has(base)) {
+      issues.push({
+        level: "error",
+        code: "entry-scene-missing",
+        message: `entryPoint "${manifest.entryPoint}" does not resolve to a scene id (basename "${base ?? ""}" not found in src/scenes/)`,
+        where: "game.json:entryPoint",
+      });
+    }
+  }
+
+  // Inheritance cycles: the runtime resolver throws; surface it as a clean error
+  // here instead of a smoke crash. Unknown extends targets are already reported
+  // above, so only re-report a genuine cycle.
+  try {
+    resolveSceneInheritance(scenes);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/cycle/.test(msg)) {
+      issues.push({ level: "error", code: "scene-inheritance-cycle", message: msg });
+    }
   }
 
   return issues;
@@ -330,6 +436,11 @@ function checkBehaviorOrder(behaviors: BehaviorLike[], where: string): Issue[] {
     for (let bi = firstVelocityIdx + 1; bi < behaviors.length; bi++) {
       const b = behaviors[bi];
       if (b.type !== "scale-by-state") continue;
+      // Mode "once" legitimately runs AFTER the seeder (it sets the field a single
+      // time, e.g. a per-level launch-speed bump) — the part's own docs prescribe
+      // that order — so it is NOT the consumed-each-tick footgun this advisory flags.
+      const mode = typeof b.params?.mode === "string" ? (b.params.mode as string) : "set";
+      if (mode === "once") continue;
       const target = typeof b.params?.target === "string" ? (b.params.target as string) : "velocity";
       if (target === "velocity" || target === "vx" || target === "vy") {
         issues.push({

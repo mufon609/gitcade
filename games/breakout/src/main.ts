@@ -1,12 +1,14 @@
 /**
  * Breakout bootstrap (host glue). The GAME is data — game.json + config.json + the
- * six JSON scenes (title → level-1 → level-2 → level-3 → win / over) wired by
- * `flow.on` edges, composing only @gitcade/library + SDK parts (no custom code).
+ * scenes, composing only @gitcade/library + SDK parts (no custom code).
  *
- * The screen flow and the level progression are DATA (scene `flow`, `tap-emit`,
- * declarative `persist`): the level-to-level advance is a `flow.on` edge per level
- * scene (`level-cleared → level-2`, etc.), driven by the library `level-progression`
- * system — not host code.
+ * Levels are DATA via scene inheritance (E11): the three play levels each
+ * `extends` a single `play-base` scene (the paddle, ball, killzone, HUD, and the
+ * whole system stack — authored ONCE), declaring only their own brick layout. The
+ * manifest's `levels` sequence + the reserved `@next`/`@first` flow tokens drive the
+ * progression (no per-level destination wiring), and the runtime sets
+ * `world.state.level` to the active stage, so the HUD label and the per-level ball-
+ * speed ramp (`scale-by-state`) come from the stage index for free — no host code.
  *
  * This file keeps ONLY host concerns that have no data primitive: the library
  * audio, screen juice (flash/shake), a pause toggle (freezing the sim is a host-
@@ -22,6 +24,7 @@ import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenE
 import manifest from "../game.json";
 import config from "../config.json";
 import title from "./scenes/title.json";
+import playBase from "./scenes/play-base.json";
 import level1 from "./scenes/level-1.json";
 import level2 from "./scenes/level-2.json";
 import level3 from "./scenes/level-3.json";
@@ -38,7 +41,7 @@ const audio = new LibraryAudioPlayer();
 audio.setVolume(typeof (config as Record<string, number>).volume === "number" ? (config as Record<string, number>).volume : 0.6);
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const game = createGame(
-  { manifest, config, scenes: [title, level1, level2, level3, win, over] },
+  { manifest, config, scenes: [title, playBase, level1, level2, level3, win, over] },
   { canvas, registry, audio, storage: makeStorage(manifest.slug), pauseKeys: ["Escape", "KeyP"], pauseScenes: ["level-1", "level-2", "level-3"] },
 );
 

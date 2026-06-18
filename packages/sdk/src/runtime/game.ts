@@ -1,5 +1,7 @@
 import type { Config } from "../schema/config.js";
 import type { Scene } from "../schema/scene.js";
+import { isReservedFlowTarget, type ReservedFlowTarget } from "../schema/scene.js";
+import { resolveSceneInheritance } from "../schema/scene-inheritance.js";
 import type { PersistConfig } from "../schema/manifest.js";
 import { World } from "./world.js";
 import { Registry } from "./registry.js";
@@ -40,6 +42,14 @@ export interface GameOptions {
   attachInput?: boolean;
   /** Cross-run persistence binding (from `manifest.persist`); surfaced on `world.persist` (G6). */
   persist?: PersistConfig;
+  /**
+   * Ordered level sequence (from `manifest.levels`, E11). Enables the reserved
+   * `flow.on` targets `"@next"`/`"@first"` and makes the runtime set
+   * `world.state.level` to the active scene's 1-based position in this list.
+   */
+  levels?: string[];
+  /** Scene to route to when `"@next"` advances past the last level (`manifest.levelsComplete`). */
+  levelsComplete?: string;
   /**
    * Keys (`KeyboardEvent.code`) that toggle the manual pause (E4). Detected in the
    * rAF loop — which keeps running while paused — so a frozen game can still be
@@ -98,13 +108,21 @@ export class Game {
   private pauseKeyWasDown = false;
   /** Unsubscribers for the active scene's `flow.on` event edges, torn down on scene change (G1). */
   private flowUnsubs: Array<() => void> = [];
+  /** Ordered level sequence + completion target (E11); empty list ⇒ no campaign concept. */
+  private readonly levels: string[];
+  private readonly levelsComplete?: string;
 
   constructor(opts: GameOptions) {
     if (opts.scenes.length === 0) throw new Error("Game requires at least one scene");
-    this.scenes = new Map(opts.scenes.map((s) => [s.id, s]));
+    // Resolve scene inheritance (E11) BEFORE indexing, so the map, the entry scene,
+    // and every transition see fully-merged scenes — `extends` is invisible past here.
+    const scenes = resolveSceneInheritance(opts.scenes);
+    this.scenes = new Map(scenes.map((s) => [s.id, s]));
+    this.levels = opts.levels ?? [];
+    this.levelsComplete = opts.levelsComplete;
     const entry = opts.entrySceneId
       ? this.scenes.get(opts.entrySceneId)
-      : opts.scenes[0];
+      : scenes[0];
     if (!entry) throw new Error(`entry scene "${opts.entrySceneId}" not found`);
     this.scene = entry;
 
@@ -184,6 +202,13 @@ export class Game {
     this.world.entities = [];
     for (const key of Object.keys(this.world.state)) delete this.world.state[key];
     Object.assign(this.world.state, carried);
+    // Unify the difficulty counter with the stage index (E11): when the entered
+    // scene is part of the manifest's `levels` sequence, `world.state.level` is its
+    // 1-based position. So advancing a stage bumps the same `level` that
+    // `scale-by-state`/`level-progression` read — a per-stage difficulty ramp comes
+    // for free, with no per-scene config. Games without `levels` never see this key.
+    const levelIdx = this.levels.indexOf(scene.id);
+    if (levelIdx >= 0) this.world.state.level = levelIdx + 1;
     // The persistence-restore tracking (0.2.1 claim set + 0.3.1 restored set/waiters)
     // is scene-scoped — the active scene owns its persistence/seed systems — so reset
     // it on every transition. Using the dedicated reset (not resolvePersistKeys) means
@@ -213,9 +238,48 @@ export class Game {
 
     // Install the data-driven flow edges: emitting `evt` queues a transition to
     // `target` (drained between ticks, like any requestScene). No host JS needed.
+    // A reserved token (`@next`/`@first`, E11) is resolved against `levels` at emit
+    // time so a level never hard-wires its successor.
     for (const [evt, target] of Object.entries(scene.flow?.on ?? {})) {
-      this.flowUnsubs.push(this.world.events.on(evt, () => this.world.requestScene(target)));
+      this.flowUnsubs.push(
+        this.world.events.on(evt, () => {
+          const dest = isReservedFlowTarget(target) ? this.resolveLevelTarget(target) : target;
+          if (dest) this.world.requestScene(dest);
+        }),
+      );
     }
+  }
+
+  /**
+   * Resolve a reserved level-sequence flow target (E11) against `manifest.levels`,
+   * keyed on the ACTIVE scene. `"@first"` ⇒ the first level. `"@next"` ⇒ the level
+   * after the active one, or `levelsComplete` past the last, or the first level when
+   * emitted from a non-level scene (a title/menu "start" edge). Returns `null` (a
+   * no-op transition) when there is no level sequence or no resolvable destination —
+   * e.g. clearing the last level with no `levelsComplete` set, which instead emits a
+   * `"levels-complete"` event so a host/part can react.
+   */
+  private resolveLevelTarget(token: ReservedFlowTarget): string | null {
+    if (this.levels.length === 0) return null;
+    if (token === "@first") return this.levels[0];
+    const here = this.levels.indexOf(this.scene.id);
+    if (here < 0) return this.levels[0];
+    const next = this.levels[here + 1];
+    if (next) return next;
+    if (this.levelsComplete) return this.levelsComplete;
+    this.world.events.emit("levels-complete", { levels: this.levels.length });
+    return null;
+  }
+
+  /**
+   * Advance to the next level in the manifest sequence (E11) — the programmatic
+   * companion to the `"@next"` flow token, for a host driving progression directly.
+   * Queues the transition like any {@link World.requestScene}; no-op without a
+   * resolvable next level.
+   */
+  requestNextLevel(): void {
+    const dest = this.resolveLevelTarget("@next");
+    if (dest) this.world.requestScene(dest);
   }
 
   /** Run exactly one fixed-update step. */

@@ -73,17 +73,21 @@ describe("helicopter smoke (data flow)", () => {
     const speedL1 = Math.abs(o1!.vx);
     const lvl1 = game.world.state.level as number;
     game.world.state.score = 100000; // force level-progression scoreGte to ramp
-    for (let i = 0; i < 200; i++) {
-      park();
-      game.stepFrames(1);
-    }
+    // Sample as soon as the level ramps: scale-by-state(set) re-applies the new
+    // speed to LIVE obstacles each tick, so a moving obstacle reflects the higher
+    // speed within a frame or two — well before the now-faster, denser pillars
+    // (the E11 density ramp) can reach and crash the parked player. (Surviving a
+    // long window here is the wrong strategy — the difficulty is supposed to bite.)
     let o2;
-    for (let i = 0; i < 200 && !o2; i++) {
+    for (let i = 0; i < 90 && !o2 && game.scene.id === "play"; i++) {
       park();
       game.stepFrames(1);
-      o2 = game.world.query("obstacle").find((o) => Math.abs(o.vx) > 0);
+      if ((game.world.state.level as number) > lvl1) {
+        o2 = game.world.query("obstacle").find((o) => Math.abs(o.vx) > 0);
+      }
     }
     expect((game.world.state.level as number) > lvl1).toBe(true);
+    expect(o2).toBeDefined();
     expect(Math.abs(o2!.vx) > speedL1).toBe(true);
   });
 

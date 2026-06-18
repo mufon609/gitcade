@@ -45,18 +45,42 @@ interface SpawnerState extends Record<string, unknown> {
  *  - `advanceOnClear`: start the next wave as soon as all `countTag` are gone (default true)
  *  - `stateKey`: `world.state` scratch key for this spawner (default `"__waveSpawner"`)
  *  - `waveKey`: `world.state` key exposing the current wave number for a HUD (default `"wave"`)
+ *
+ * Level-aware DENSITY ramp (0.6.0, E11 — the spawn-pressure half of difficulty, the
+ * companion to per-entity `scale-by-state` which ramps the SPEED half). Reads the
+ * same 1-based difficulty counter `scale-by-state`/`level-progression` use (and that
+ * the runtime sets per stage when a game declares `manifest.levels`), so a wave's
+ * size and cadence tighten as the level climbs — with the factor
+ * `1 + perLevel * max(0, level - 1)`. Both default to 0 ⇒ no ramp, exactly the
+ * pre-0.6.0 behavior:
+ *  - `levelKey`: `world.state` key holding the 1-based level (default `"level"`)
+ *  - `densityPerLevel`: fractional add to `waveSize` per level above 1 (balance → `$cfg`; default 0)
+ *  - `intervalPerLevel`: fractional SHORTENING of the inter-spawn `interval` per level (balance → `$cfg`; default 0)
  */
 export const waveSpawner: SystemFn = (world, params, dt) => {
-  const interval = num(params, "interval", 1);
+  const baseInterval = num(params, "interval", 1);
   const baseWaveSize = num(params, "waveSize", 1);
   const growth = num(params, "waveSizeGrowth", 0);
-  const waveDelay = num(params, "waveDelay", 0);
+  const baseWaveDelay = num(params, "waveDelay", 0);
   const maxWaves = num(params, "maxWaves", 0);
   const maxAlive = num(params, "maxAlive", 0);
   const startDelay = num(params, "startDelay", 0);
   const advanceOnClear = bool(params, "advanceOnClear", true);
   const stateKey = str(params, "stateKey", "__waveSpawner");
   const waveKey = str(params, "waveKey", "wave");
+
+  // Level-aware density ramp (E11). `factor(per)` = 1 + per·(level-1), level≥1, so
+  // it is ≥1 (a denominator-safe shortener for the timers). Read live each tick, so
+  // a mid-run level-up tightens the very next spawn. `intervalPerLevel` shortens the
+  // WHOLE spawn cadence — both the intra-wave `interval` and the inter-wave
+  // `waveDelay` — so it works for dense waves (tower-defense) and the one-per-wave
+  // pillar stream (helicopter, where `waveDelay` is the only live spacing knob) alike.
+  const level = (world.state[str(params, "levelKey", "level")] as number) ?? 1;
+  const factor = (per: number): number => 1 + per * Math.max(0, level - 1);
+  const densityFactor = factor(num(params, "densityPerLevel", 0));
+  const cadenceFactor = factor(num(params, "intervalPerLevel", 0));
+  const interval = baseInterval / cadenceFactor;
+  const waveDelay = baseWaveDelay / cadenceFactor;
 
   const proto = params.prototype as { tags?: string[]; size?: { w?: number; h?: number } } | undefined;
   const countTag = str(params, "countTag", "") || proto?.tags?.[0] || "";
@@ -82,7 +106,8 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
   if (s.done) return;
 
   const aliveOfTag = countTag ? world.query(countTag).length : 0;
-  const waveSizeFor = (wave: number): number => Math.max(0, Math.round(baseWaveSize + growth * (wave - 1)));
+  const waveSizeFor = (wave: number): number =>
+    Math.max(0, Math.round((baseWaveSize + growth * (wave - 1)) * densityFactor));
 
   // Between waves: wait out the delay (or the clear) before opening the next wave.
   if (s.betweenWaves) {

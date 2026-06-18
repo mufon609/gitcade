@@ -58,8 +58,11 @@ Cross-referenced from `GAME-IMPROVEMENTS.md`'s deferred list:
   (reads the `world.input.cursor()` aim channel).
 - **`damage-flash` / i-frames** → on-hit feedback + brief invulnerability
   (survival, snake, TD, breakout).
-- **Level-aware `wave-spawner` density** → the *density* half of difficulty ramping
-  (helicopter pillar cadence, survival swarm pressure); the *speed* half is `scale-by-state`.
+- **`grid-layout` spawner** → expand a compact `{ prototype, rows, cols, spacing }`
+  into entities at scene load, so an authored level's layout isn't N verbose entity
+  blocks. Surfaced by the Breakout `extends` conversion: the level files are now thin
+  (shell inherited via `extends`), but each brick is still a full entity block — a
+  grid-layout part would collapse a brick wall to a few lines.
 - **`reflect-on-hit` `forceDir`/bias + total-speed cap** → Breakout side-paddle bounce (B7)
   and edge-english over-speed; 🔴 the total-speed cap changes reflect feel for every consumer
   (Pong + Breakout) → human decision.

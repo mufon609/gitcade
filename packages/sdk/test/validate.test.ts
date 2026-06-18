@@ -170,4 +170,112 @@ describe("validateGame", () => {
     expect(r.ok).toBe(false);
     expect(r.issues.some((i) => i.code === "catalog-unavailable")).toBe(true);
   });
+
+  // -------------------------------------------------------------------------
+  // E11 — cross-scene reference integrity
+  // -------------------------------------------------------------------------
+  it("fails a flow.on target that names a missing scene", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": GOOD_MANIFEST,
+        "config.json": {},
+        "src/scenes/main.json": {
+          id: "main",
+          entities: [],
+          systems: [],
+          flow: { on: { go: "nowhere" } },
+        },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "flow-target-missing")).toBe(true);
+  });
+
+  it("fails an extends target that names a missing scene", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": GOOD_MANIFEST,
+        "config.json": {},
+        "src/scenes/main.json": { id: "main", entities: [], systems: [], extends: "ghost" },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "extends-target-missing")).toBe(true);
+  });
+
+  it("fails a manifest levels entry that names a missing scene", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": { ...GOOD_MANIFEST, levels: ["main", "level-9"] },
+        "config.json": {},
+        "src/scenes/main.json": { id: "main", entities: [], systems: [] },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "level-scene-missing")).toBe(true);
+  });
+
+  it("fails an entryPoint that does not resolve to a scene id", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": { ...GOOD_MANIFEST, entryPoint: "src/scenes/typo.json" },
+        "config.json": {},
+        "src/scenes/main.json": { id: "main", entities: [], systems: [] },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "entry-scene-missing")).toBe(true);
+  });
+
+  it("fails a reserved flow token when no levels sequence is declared", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": GOOD_MANIFEST,
+        "config.json": {},
+        "src/scenes/main.json": { id: "main", entities: [], systems: [], flow: { on: { go: "@next" } } },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "flow-token-without-levels")).toBe(true);
+  });
+
+  it("passes a valid extends + levels + @next campaign", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": {
+          ...GOOD_MANIFEST,
+          entryPoint: "src/scenes/title.json",
+          levels: ["level-1", "level-2"],
+          levelsComplete: "win",
+        },
+        "config.json": { speed: 100 },
+        "src/scenes/title.json": { id: "title", entities: [], systems: [], flow: { on: { start: "@next" } } },
+        "src/scenes/base.json": {
+          id: "base",
+          entities: [
+            {
+              id: "ball",
+              sprite: { kind: "none" },
+              size: { w: 10, h: 10 },
+              position: { x: 10, y: 10 },
+              behaviors: [{ type: "velocity", params: { vx: "$cfg.speed" } }],
+            },
+          ],
+          systems: [],
+          flow: { on: { cleared: "@next" } },
+        },
+        "src/scenes/level-1.json": { id: "level-1", extends: "base", entities: [] },
+        "src/scenes/level-2.json": { id: "level-2", extends: "base", entities: [] },
+        "src/scenes/win.json": { id: "win", entities: [], systems: [] },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(true);
+    expect(r.framesRun).toBe(60);
+  });
 });

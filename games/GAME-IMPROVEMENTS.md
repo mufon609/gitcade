@@ -35,8 +35,7 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | # | Sev | Class | Item |
 |---|-----|-------|------|
 | H1 | **med** | data/host | **Crash explosion never renders.** The `explosion` FX is bound to `crash`, which *also* routes `flow.on.crash → over`; `loadScene` wipes the freshly-spawned particles before a frame draws. Bind the burst on the **destination** (`over`) scene, or delay the route. (Convention added to CONVENTIONS.md §7.) |
-| H2 | med | data | **Difficulty ramps speed, not density.** `scale-by-state` speeds the scroll, but pillar spacing stays a flat `waveDelay`; best-in-class flyers tighten the gap *and* cadence. Density-by-level is **needs-engine** (level-aware `wave-spawner`); until then, hand-tune `waveDelay`/`spawnPoints`. |
-| H3 | low | data | **Dead spacing knob.** `waveSize:1` makes `spawnInterval` inert — actual spacing is governed entirely by `waveDelay`. Document `waveDelay` as *the* live knob (a config tweak to `spawnInterval` currently does nothing). |
+| H3 | low | data | **Dead spacing knob.** `waveSize:1` makes `spawnInterval` inert — actual spacing is governed entirely by `waveDelay` (now ramped per level by `wave-spawner`'s `intervalPerLevel`). Document `waveDelay` as *the* live knob (a config tweak to `spawnInterval` currently does nothing). |
 | H4 | low | data | **Spawn points cluster near the top** (`y: [60,420,220,90,360]` — two within 30px at the top). Spread vertically for varied threading. |
 | H5 | low | asset | **No heli/rotor or pillar art.** The game named "Helicopter" reuses `player-ship.png`; obstacles are flat `#3b5dc9` rects. A heli sprite (animatable rotor via `sheet`) + a tileable pillar/cave-wall sprite would lift identity. Distinct crash SFX too. |
 
@@ -47,8 +46,7 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | # | Sev | Class | Item |
 |---|-----|-------|------|
 | B1 | **med** | data | **Brick variety is cosmetic.** All four colors share `hp:1`/`blockScore:50`. Real Breakout grades bricks — give the top rows `hp:2`/higher score via new config keys (`health-and-death` already supports per-entity `hp`; the per-color readability is intentional per CONVENTIONS §6). Biggest zero-engine win. |
-| B2 | med | data | **No cross-level difficulty ramp.** `ballSpeed*`/`paddleSpeedup`/`ballMaxSpeed` are identical in L1–L3 (only the layout changes). Seed faster initial velocity / narrower paddle per level (each level is its own scene). |
-| B3 | low | data | **L2/L3 are sparser (30/26 bricks) than L1 (40)** — easier as you progress. Densify or structure them. |
+| B3 | low | data | **L2/L3 are sparser (30/26 bricks) than L1 (40)** — fewer bricks as you progress, though the per-level ball-speed ramp (`scale-by-state` on `world.state.level`) now compensates. Densify or structure the later layouts. |
 | B4 | low | data | Drop the dead `"solid"` tag on every brick (no system references it). |
 | B5 | low | data | **No ball/paddle juice.** Add the library `trail` behavior to the ball (data-only); a paddle "squash on hit" needs the new `entity.scale` rendering (now available — could adopt). |
 | B6 | low | needs-engine | **Same-tick last-brick-clear + ball-loss charges a life** (`lives-respawn` vs `level-progression` ordering). Rare edge; clean fix is a `lives-respawn` "suspend on clear/win" param (deferred list). |
@@ -115,6 +113,5 @@ up; cross-referenced from the per-game items above.
 - **`damage-flash` / i-frames** behavior → on-hit feedback + brief invulnerability (survival-arena, snake, TD, breakout).
 - **`lives-respawn` "suspend on clear/win"** param → fixes Breakout's same-tick life-on-clear edge (B6).
 - **`reflect-on-hit` `forceDir`/`bias`** param → fixes Breakout's side-paddle down-bounce (B7); Pong benefits.
-- **Level-aware `wave-spawner` density** (re-resolve a small set of prototype `$cfg` multipliers per wave) → helicopter/survival difficulty *density* ramp (the second half of LIBRARY-GAPS #8).
 - **`move-grid-step` turn buffer** (one-slot queued next-turn) → snake/any grid mover corner precision.
 - **Promote the proven custom parts** still logged in LIBRARY-GAPS: `trailing-body` + `post-step-death-guard` (snake), `thrust-lift` (helicopter), `build-on-request` + `event-counters` + `build-preview` (TD), the idle trio + `prestige` (idle-clicker). All additive; promote when a second consumer appears.

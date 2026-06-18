@@ -56,18 +56,38 @@ bridge postMessage protocol, the validator's rules, and the artifact-server's
 URL convention + headers are all load-bearing — six standalone game repos, every
 user fork, and the build worker depend on them being stable.
 
-**Frozen ≠ unfixable — the patch-release protocol:**
+**Frozen ≠ unfixable — the release protocol:**
 - A bug fix that changes **no contract** (no schema shape, exported type,
   function signature, param shape, message protocol, or header convention) →
   fix it, bump the **PATCH** version, run `npm pack --dry-run`, and note that a
   republish + consumer repin is needed. This is exactly how `sdk@0.1.1` /
   `library@0.1.1` shipped.
-- A fix that **requires** a contract change → **STOP** and get a human decision.
-  Do not quietly reshape a frozen contract; you will silently break published
-  games that pin the old version.
+- An **additive** change — a NEW *optional* schema field, a new optional SDK
+  method, a new behavior/system part, or new *optional* params on an existing
+  part — is sanctioned as a **MINOR** bump. Old games stay byte-valid (they never
+  set the new field / never pass the new param), so there is no silent break. A
+  part that gains optional params bumps its **own** semver (e.g. `wave-spawner`
+  `1.0.0 → 1.1.0`) and consumers repin to the new part version. This is how
+  `sdk@0.6.0` / `library@0.6.0` shipped scene `extends`, the manifest `levels`
+  sequence, and the level-aware `wave-spawner` density ramp.
+- A change that **reshapes or removes** a frozen shape (renames/retypes a field,
+  changes a function signature, alters the message protocol or header convention,
+  or changes the frozen tick order) → **STOP** and get a human decision. Do not
+  quietly reshape a frozen contract; you will silently break published games that
+  pin the old version.
 - The Phase 4A queue schema (`BuildJob` / `Build` in `platform/worker`) is
   likewise frozen — `platform/web` extends the database **additively** and never
   reshapes those tables.
+
+**Authored layout is scene data, not config.** A multi-level game shares its
+stage via scene **`extends`** (the common shell — entities, systems, HUD, flow —
+authored ONCE; each level is a thin override of its own layout + a `$cfg`
+difficulty slice). Do NOT express levels as duplicated full scenes (the old
+Breakout L1/L2/L3), and do NOT push per-level *layout* into `config.json` —
+`config.json` stays **balance-only** (the numbers the validator forces off
+`$cfg`). Difficulty that scales with the stage rides `world.state.level`, which
+the runtime sets to the 1-based index of the active `manifest.levels` entry, so
+`scale-by-state` / `wave-spawner` density ramps track the stage for free.
 
 When in doubt about whether something is a contract: treat it as one.
 

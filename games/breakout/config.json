@@ -12,5 +12,6 @@
   "blockHp": 1,
   "blockScore": 50,
   "startLives": 3,
-  "respawnDelay": 1.1
+  "respawnDelay": 1.1,
+  "ballSpeedPerLevel": 0.1
 }

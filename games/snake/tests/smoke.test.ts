@@ -16,10 +16,28 @@ import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
  * food appears, a death routes to the game-over scene, score hands off, and a
  * retry returns to play, all without throwing.
  */
+/**
+ * A tiny deterministic PRNG (mulberry32). Snake's food/coin placement draws from
+ * `world.rng` (the library `place-on-free-cell` system → `randomFreeCell`), which
+ * defaults to `Math.random` — so an unseeded boot can randomly drop a coin into a
+ * test's path and flake an exact-score assertion (the "hands off the score" case).
+ * Seeding the boot makes placement reproducible, so the suite is deterministic.
+ */
+function seededRng(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function boot() {
   const registry = createLibraryRegistry();
   registerCustomBehaviors(registry);
-  return createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry });
+  // Deterministic RNG so coin/food placement is reproducible across runs (see seededRng).
+  return createGame({ manifest, config, scenes: [title, play, over] }, { canvas: null, registry, rng: seededRng(0x5eed) });
 }
 
 describe("snake smoke (0.2.0 data flow)", () => {

@@ -101,3 +101,89 @@ describe("tilemap-collide + solid-collide — contact flags merge per tick", () 
     expect(e.y).toBe(200 - 16);
   });
 });
+
+/**
+ * 0.7.0 — one-way (pass-through) platforms: solid on the TOP face only. A falling body
+ * lands; a rising body and a sideways body pass; the mover's drop-through window suppresses
+ * them. Tile flavour via `tilemap-collide` (a `oneWay` tile-prop), entity flavour via
+ * `solid-collide` (an `oneWayTag`).
+ */
+
+/** A 10x10 grid of 32px tiles whose row 5 is a ONE-WAY platform (tile index 2). */
+function oneWayTilemap(): Tilemap {
+  const cols = 10;
+  const rows = 10;
+  const tiles: number[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) tiles.push(r === 5 ? 2 : -1);
+  }
+  return { tileSize: 32, cols, rows, tiles, properties: { "2": { oneWay: true } } };
+}
+
+describe("tilemap-collide — one-way tiles", () => {
+  it("lands a falling body on a one-way tile from above (__onGround + __onOneWay)", () => {
+    const world = makeWorld();
+    world.tilemap = oneWayTilemap();
+    world.frame = 3;
+    const e = makeEntity(world, { id: "p", x: 100, y: 148, w: 16, h: 16 }); // pre-fall bottom 159 ≤ top 160
+    e.vy = 300;
+    tilemapCollide(e, world, {}, DT);
+    expect(e.y).toBe(5 * 32 - 16); // 144 — rests on the platform top (160)
+    expect(e.state.__onGround).toBe(true);
+    expect(e.state.__onOneWay).toBe(true);
+  });
+
+  it("lets a rising body pass UP through a one-way tile (no ceiling bonk)", () => {
+    const world = makeWorld();
+    world.tilemap = oneWayTilemap();
+    world.frame = 3;
+    const e = makeEntity(world, { id: "p", x: 100, y: 180, w: 16, h: 16 }); // inside the band, rising
+    e.vy = -300;
+    tilemapCollide(e, world, {}, DT);
+    expect(e.vy).toBe(-300); // not stopped
+    expect(e.state.__onCeiling).toBe(false);
+  });
+
+  it("ignores one-way tiles while a drop-through window is open (falls through)", () => {
+    const world = makeWorld();
+    world.tilemap = oneWayTilemap();
+    world.frame = 3;
+    const e = makeEntity(world, { id: "p", x: 100, y: 148, w: 16, h: 16, state: { __dropThrough: 0.1 } });
+    e.vy = 300;
+    tilemapCollide(e, world, {}, DT);
+    expect(e.state.__onGround).toBe(false); // not caught — passes through
+    expect(e.vy).toBe(300); // velocity untouched
+  });
+});
+
+describe("solid-collide — one-way ledge entities (oneWayTag)", () => {
+  it("lands on a one-way ledge entity from above", () => {
+    const world = makeWorld();
+    makeEntity(world, { id: "ledge", x: 0, y: 200, w: 200, h: 16, tags: ["ledge"] });
+    const e = makeEntity(world, { id: "p", x: 50, y: 188, w: 16, h: 16 }); // pre-fall bottom 199 ≤ top 200
+    e.vy = 300;
+    solidCollide(e, world, { oneWayTag: "ledge" }, DT);
+    expect(e.y).toBe(200 - 16); // 184 — rests on the ledge top
+    expect(e.state.__onGround).toBe(true);
+    expect(e.state.__onOneWay).toBe(true);
+  });
+
+  it("passes UP through a one-way ledge entity", () => {
+    const world = makeWorld();
+    makeEntity(world, { id: "ledge", x: 0, y: 200, w: 200, h: 16, tags: ["ledge"] });
+    const e = makeEntity(world, { id: "p", x: 50, y: 195, w: 16, h: 16 }); // overlapping, rising
+    e.vy = -300;
+    solidCollide(e, world, { oneWayTag: "ledge" }, DT);
+    expect(e.vy).toBe(-300);
+    expect(e.state.__onCeiling).toBe(false);
+  });
+
+  it("default mover off: no oneWayTag means the ledge query is skipped (no contact)", () => {
+    const world = makeWorld();
+    makeEntity(world, { id: "ledge", x: 0, y: 200, w: 200, h: 16, tags: ["ledge"] });
+    const e = makeEntity(world, { id: "p", x: 50, y: 188, w: 16, h: 16 });
+    e.vy = 300;
+    solidCollide(e, world, {}, DT); // default solidTag "solid", no oneWayTag
+    expect(e.state.__onGround).toBe(false);
+  });
+});

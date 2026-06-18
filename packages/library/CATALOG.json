@@ -907,7 +907,7 @@
         "gravity",
         "jump"
       ],
-      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator. 1.1.0 treats entity.state.__onGround (set by a later tilemap-collide/solid-collide behavior) as grounded, so a tile floor or solid body satisfies the jump test. 1.2.0 adds the genre-feel layer as OPTIONAL params, each defaulting to the original behavior: run acceleration/friction (accel/friction), variable jump height (jumpCutMultiplier), jump buffering (jumpBuffer), and apex hang (apexGravityMult/apexThreshold).",
+      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator. 1.1.0 treats entity.state.__onGround (set by a later tilemap-collide/solid-collide behavior) as grounded, so a tile floor or solid body satisfies the jump test. 1.2.0 adds the genre-feel layer as OPTIONAL params, each defaulting to the original behavior: run acceleration/friction (accel/friction), variable jump height (jumpCutMultiplier), jump buffering (jumpBuffer), apex hang (apexGravityMult/apexThreshold), and drop-through (down + jump on a one-way platform falls through it, via down/dropThroughTime).",
       "license": "MIT",
       "dependencies": [
         "velocity"
@@ -967,6 +967,16 @@
           "type": "number",
           "balance": true,
           "description": "|vy| in px/sec under which apexGravityMult applies (0 = off)."
+        },
+        "down": {
+          "type": "array",
+          "balance": false,
+          "description": "Drop-through modifier key codes (empty = drop-through off)."
+        },
+        "dropThroughTime": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds the drop-through window stays open after down+jump on a one-way platform (0 = off)."
         },
         "left": {
           "type": "array",
@@ -1309,7 +1319,7 @@
         "platformer",
         "entity"
       ],
-      "description": "Resolves an entity's AABB against OTHER entities tagged solid — a crate, ledge, or moving lift becomes as solid as a tile: stops at their sides, lands on their tops, bonks their undersides, and writes the same contact flags as tilemap-collide (__onGround/__onCeiling/__onWallL/__onWallR), so move-platformer can jump off them and a vertical lift carries a resting entity. Order it AFTER the velocity integrator; combine freely with tilemap-collide (the flags merge per tick). Swept sub-stepping keeps a fast body from tunnelling a thin solid up to a bounded speed. The entity-vs-entity counterpart to tilemap-collide.",
+      "description": "Resolves an entity's AABB against OTHER entities tagged solid — a crate, ledge, or moving lift becomes as solid as a tile: stops at their sides, lands on their tops, bonks their undersides, and writes the same contact flags as tilemap-collide (__onGround/__onCeiling/__onWallL/__onWallR), so move-platformer can jump off them and a vertical lift carries a resting entity. An entity tagged via oneWayTag is a one-way (pass-through) ledge — solid on its top face only (land from above, jump up through, drop through during the mover's drop-through window). Order it AFTER the velocity integrator; combine freely with tilemap-collide (the flags merge per tick). Swept sub-stepping keeps a fast body from tunnelling a thin solid up to a bounded speed. The entity-vs-entity counterpart to tilemap-collide.",
       "license": "MIT",
       "dependencies": [
         "velocity"
@@ -1318,7 +1328,12 @@
         "solidTag": {
           "type": "string",
           "balance": false,
-          "description": "Tag marking solid entities to resolve against (default \"solid\"); the entity carrying this behavior is skipped."
+          "description": "Tag marking fully-solid entities to resolve against (default \"solid\"); the entity carrying this behavior is skipped."
+        },
+        "oneWayTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag marking one-way (top-only) ledge entities (default \"\" = off)."
         }
       },
       "definition": {
@@ -1340,7 +1355,7 @@
         "platformer",
         "solid"
       ],
-      "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). Order it AFTER the velocity integrator. The terrain half of platformer collision.",
+      "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). A cell flagged oneWay:true is a one-way (pass-through) platform — solid on its top face only: a body lands on it from above but jumps up through it, runs past it sideways, and drops through it during move-platformer's drop-through window. Order it AFTER the velocity integrator. The terrain half of platformer collision.",
       "license": "MIT",
       "dependencies": [
         "velocity"
@@ -1349,7 +1364,12 @@
         "solidProp": {
           "type": "string",
           "balance": false,
-          "description": "Tile-property flag marking a solid cell (default \"solid\")."
+          "description": "Tile-property flag marking a fully solid cell (default \"solid\")."
+        },
+        "oneWayProp": {
+          "type": "string",
+          "balance": false,
+          "description": "Tile-property flag marking a one-way (top-only) platform cell (default \"oneWay\")."
         }
       },
       "definition": {

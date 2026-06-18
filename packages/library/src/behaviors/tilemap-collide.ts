@@ -1,4 +1,4 @@
-import type { BehaviorFn, AABB } from "@gitcade/sdk";
+import type { BehaviorFn, SolidRect } from "@gitcade/sdk";
 import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
 
 /**
@@ -17,6 +17,13 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * `solid-collide` on the same entity: the contact flags MERGE per tick (so a tile
  * floor and a crate both ground you), regardless of behavior order.
  *
+ * ONE-WAY (pass-through) platforms (0.7.0): a cell flagged `oneWayProp` (default
+ * `"oneWay"`) is solid only on its TOP face — a falling body lands on it, but a body
+ * jumps up THROUGH it and runs past it sideways, and `move-platformer`'s drop-through
+ * (down+jump) lets a standing body fall through it. While the mover's drop-through
+ * window is open (`state.__dropThrough > 0`) one-way cells are dropped from the solid
+ * set entirely, so the body falls; fully solid cells are unaffected by it.
+ *
  * The resolution itself is the SDK's shared `resolveSolids` primitive (0.3): this part
  * just gathers the solid CELLS the body could touch this tick into rects and hands them
  * over — `solid-collide` feeds it solid ENTITIES the same way, so a crate is exactly as
@@ -24,22 +31,33 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * between ticks (0.4); at typical speeds it is a single byte-identical pass.
  *
  * Params:
- *  - `solidProp`: tile-property flag marking a solid cell (default `"solid"`)
+ *  - `solidProp`: tile-property flag marking a fully solid cell (default `"solid"`)
+ *  - `oneWayProp`: tile-property flag marking a one-way (top-only) platform cell (default `"oneWay"`)
  */
 export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const t = world.tilemap;
   if (!t) {
-    applyContacts(entity.state, world.frame, { onGround: false, onCeiling: false, onWallL: false, onWallR: false });
+    applyContacts(entity.state, world.frame, {
+      onGround: false,
+      onCeiling: false,
+      onWallL: false,
+      onWallR: false,
+      onOneWay: false,
+    });
     return;
   }
   const solidProp = str(params, "solidProp", "solid");
+  const oneWayProp = str(params, "oneWayProp", "oneWay");
+  // Drop-through: while the mover's window is open, one-way cells are not solid, so a body
+  // standing on a one-way platform falls through it (set by `move-platformer`'s down+jump).
+  const dropping = ((entity.state.__dropThrough as number) ?? 0) > 0;
   const ts = t.tileSize;
 
-  const isSolid = (col: number, row: number): boolean => {
+  const cellFlag = (col: number, row: number, prop: string): boolean => {
     if (col < 0 || row < 0 || col >= t.cols || row >= t.rows) return false; // OOB: world bounds handle edges
     const idx = t.tiles[row * t.cols + col] ?? -1;
     if (idx < 0) return false;
-    return t.properties?.[String(idx)]?.[solidProp] === true;
+    return t.properties?.[String(idx)]?.[prop] === true;
   };
 
   // Broadphase: the solid cells overlapping the body's SWEPT span this tick (its box
@@ -52,10 +70,12 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const c1 = Math.min(t.cols - 1, Math.floor((Math.max(x0, entity.x) + entity.w) / ts) + 1);
   const r0 = Math.max(0, Math.floor(Math.min(y0, entity.y) / ts) - 1);
   const r1 = Math.min(t.rows - 1, Math.floor((Math.max(y0, entity.y) + entity.h) / ts) + 1);
-  const rects: AABB[] = [];
+  const rects: SolidRect[] = [];
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {
-      if (isSolid(c, r)) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts });
+      if (cellFlag(c, r, solidProp)) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts });
+      else if (!dropping && cellFlag(c, r, oneWayProp))
+        rects.push({ x: c * ts, y: r * ts, w: ts, h: ts, oneWay: true });
     }
   }
 

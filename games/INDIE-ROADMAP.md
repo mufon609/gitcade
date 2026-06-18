@@ -28,10 +28,12 @@ files used to carry engine-capability items, they now point here.
   `platformer-scroll` reuse proof and the entity-solid half by `platformer-solids`
   (`packages/library/proofs/`). A Mario-style traversal — running a level wider than the
   screen, landing on / bonking / riding solid bodies — works today.
-- **What's left before a *full* Mario:** the **Tier-1 platformer-feel polish** below
-  (variable jump, jump buffering, one-way platforms, an animation state machine) and
-  richer **two-body dynamics** (movable crates you push, lifts that carry you sideways).
-  These are content/feel built on the floor that now exists, not foundation.
+- **What's left before a *full* Mario:** the remaining **Tier-1 platformer-feel polish**
+  below (an animation state machine, slopes + ladders) and richer **two-body dynamics**
+  (movable crates you push, lifts that carry you sideways). The genre-feel mover (variable
+  jump, jump buffering, apex hang, run accel) and **one-way (pass-through) platforms +
+  drop-through** are now in the engine. These are content/feel built on the floor that now
+  exists, not foundation.
 - **Is the architecture well-suited to grow further? Yes.** The deterministic fixed-step
   loop, the entity/behavior/system composition, and the data-driven scene model are exactly
   the right bones, and **almost every gap below is purely additive** under the frozen-
@@ -132,10 +134,15 @@ ships today.
   param defaulting to the original fixed-impulse/instant behavior, so the bump is additive
   (a game setting none of them is byte-identical); driven end-to-end via `$cfg` by the
   `platformer-scroll` proof.
-- **One-way platforms, ladders, slopes, moving platforms.** The defining furniture of the
-  genre, all enabled by tile-property flags + the resolver — the remaining Tier-1
-  collision work (one-way pass-through is a `tilemap-collide`/`solid-collide` flag; slopes
-  extend the resolver). 🟢
+- **One-way (pass-through) platforms. ✅ Now in the engine.** A `oneWay` tile-property flag
+  (and a `solid-collide` `oneWayTag` for ledge entities) makes a cell/body solid on its TOP
+  face only: a falling body lands on it, but jumps up through it, runs past it sideways, and
+  `move-platformer`'s **drop-through** (down + jump, `down`/`dropThroughTime`) falls through
+  it. Built on the shared `resolveSolids` primitive (the one-way case is a per-rect flag);
+  proven by the `platformer-scroll` proof (land-on + drop-through). 🟢
+- **Ladders, slopes, moving platforms.** The remaining genre furniture: ladders + slopes
+  extend the resolver (slopes need non-AABB contact); moving platforms ride on the two-body
+  carry mode below. 🟢
 - **Animation state machine.** `sprite-animate` plays one named clip set via a static
   `play` param (`runtime/behaviors/sprite-animate.ts`); switching idle→run→jump→fall→land
   requires hand-wiring the param from custom logic. Indie feel needs a **data-driven state
@@ -260,10 +267,12 @@ assumed.
   `tilemap-collide` + the `move-platformer` grounding hook), validated by the
   `platformer-scroll` proof; **the shared `resolveSolids` push-out primitive with
   entity-vs-entity solids (`solid-collide`) and swept sub-stepping**, validated by the
-  `platformer-solids` proof. The whole physics floor is in, and `move-platformer` 1.2.0
+  `platformer-solids` proof. The whole physics floor is in; `move-platformer` 1.2.0
   added the Tier-1 feel layer (variable jump, jump buffering, apex hang, run accel/friction)
-  — additively, driven by the `platformer-scroll` proof. *Remaining (Tier 1):* one-way
-  platforms + slopes (a resolver/tile-flag extension) and the optional two-body
+  — additively, driven by the `platformer-scroll` proof; and **one-way (pass-through)
+  platforms + drop-through** landed on the same primitive (`oneWay` tile flag / `oneWayTag`
+  + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
+  *Remaining (Tier 1):* slopes + ladders (a resolver extension) and the optional two-body
   (movable-crate / carrying-lift) mode.
 - **Phase B — it feels like a platformer.** Animation state machine + flip convention,
   render interpolation, gamepad, pixel-perfect render mode, `opacity`, tween/easing,

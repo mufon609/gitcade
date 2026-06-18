@@ -10,5 +10,6 @@
   "jumpCut": 0.5,
   "jumpBuffer": 0.1,
   "apexGravityMult": 0.6,
-  "apexThreshold": 90
+  "apexThreshold": 90,
+  "dropThroughTime": 0.4
 }

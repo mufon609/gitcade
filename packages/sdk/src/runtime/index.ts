@@ -21,6 +21,7 @@ export {
   resolveSolids,
   applyContacts,
   type AABB,
+  type SolidRect,
   type MovingBody,
   type SolidContacts,
 } from "./collision.js";

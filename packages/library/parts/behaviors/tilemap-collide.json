@@ -5,10 +5,11 @@
   "category": "movement",
   "tags": ["movement", "collision", "tilemap", "platformer", "solid"],
   "license": "MIT",
-  "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). Order it AFTER the velocity integrator. The terrain half of platformer collision.",
+  "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). A cell flagged oneWay:true is a one-way (pass-through) platform — solid on its top face only: a body lands on it from above but jumps up through it, runs past it sideways, and drops through it during move-platformer's drop-through window. Order it AFTER the velocity integrator. The terrain half of platformer collision.",
   "dependencies": ["velocity"],
   "params": {
-    "solidProp": { "type": "string", "balance": false, "description": "Tile-property flag marking a solid cell (default \"solid\")." }
+    "solidProp": { "type": "string", "balance": false, "description": "Tile-property flag marking a fully solid cell (default \"solid\")." },
+    "oneWayProp": { "type": "string", "balance": false, "description": "Tile-property flag marking a one-way (top-only) platform cell (default \"oneWay\")." }
   },
   "definition": {
     "type": "tilemap-collide",

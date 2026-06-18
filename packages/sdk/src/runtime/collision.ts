@@ -30,6 +30,19 @@ export function overlapAxis(a: Entity, b: Entity): "x" | "y" {
 }
 
 /**
+ * A solid rect fed to {@link resolveSolids}. Extends {@link AABB} with an optional
+ * `oneWay` flag: a one-way (pass-through) platform is solid ONLY when a body LANDS on
+ * it from above — the body jumps up THROUGH it (no head-bonk), is never blocked by it
+ * sideways, and (with the mover's drop-through) can fall down through it, but rests on
+ * its top when falling onto it. Omitted/false ⇒ a fully solid rect (every face blocks),
+ * so a plain {@link AABB} is a valid `SolidRect` and existing callers are unchanged
+ * (0.7.0 one-way platforms).
+ */
+export interface SolidRect extends AABB {
+  oneWay?: boolean;
+}
+
+/**
  * A moving AABB resolved against solid rects (INDIE-ROADMAP Tier-0 0.3/0.4). Position
  * + size + velocity, MUTATED in place by {@link resolveSolids}. A runtime {@link Entity}
  * already has these fields, so a solid-collision behavior passes the entity itself.
@@ -49,6 +62,13 @@ export interface SolidContacts {
   onCeiling: boolean;
   onWallL: boolean;
   onWallR: boolean;
+  /**
+   * The ground contact this resolve came from a ONE-WAY platform (not a fully solid
+   * floor) — lets a mover offer "down+jump to drop through" only when standing on
+   * pass-through terrain. False whenever `onGround` is false OR the floor was fully
+   * solid (0.7.0 one-way platforms).
+   */
+  onOneWay: boolean;
 }
 
 /**
@@ -74,12 +94,18 @@ const MAX_SOLID_SUBSTEPS = 16;
  * a solid the body is sitting IN that its own fall did NOT create (a lift risen into it, a
  * body placed/teleported overlapping). Without it, a body standing on such a solid while
  * moving horizontally would be ejected sideways off a surface it should just stand on.
+ *
+ * A ONE-WAY rect (`r.oneWay`) is solid on a SINGLE face: it participates only in the
+ * downward Y pass, and only when the body's PRE-fall bottom was at/above its top (a true
+ * land-from-above). Both X passes and the upward Y pass skip it — so a body runs past it
+ * sideways and jumps up THROUGH it freely. Resting on one reports `onOneWay`.
  */
-function resolveSolidStep(body: MovingBody, rects: readonly AABB[], subDt: number, eps: number): SolidContacts {
+function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: number, eps: number): SolidContacts {
   let onGround = false;
   let onCeiling = false;
   let onWallL = false;
   let onWallR = false;
+  let onOneWay = false;
 
   // Current overlap depth of the body with rect `r` on each axis (>0 while overlapping).
   // The X pass compares them to tell a wall (shallower in X) from a floor/ceiling the body
@@ -95,6 +121,7 @@ function resolveSolidStep(body: MovingBody, rects: readonly AABB[], subDt: numbe
     const edge = body.x + body.w - eps; // leading right edge
     let stop = Infinity;
     for (const r of rects) {
+      if (r.oneWay) continue; // one-way platforms never block horizontally
       if (!(r.y < spanBot && r.y + r.h > spanTop && r.x <= edge && edge < r.x + r.w)) continue;
       if (ovY(r) < ovX(r)) continue; // a floor/ceiling the body sits in, not a wall — the Y pass owns it
       if (r.x < stop) stop = r.x;
@@ -108,6 +135,7 @@ function resolveSolidStep(body: MovingBody, rects: readonly AABB[], subDt: numbe
     const edge = body.x; // leading left edge
     let stop = -Infinity;
     for (const r of rects) {
+      if (r.oneWay) continue; // one-way platforms never block horizontally
       const right = r.x + r.w;
       if (!(r.y < spanBot && r.y + r.h > spanTop && r.x <= edge && edge < right)) continue;
       if (ovY(r) < ovX(r)) continue; // a floor/ceiling the body sits in, not a wall — the Y pass owns it
@@ -125,19 +153,30 @@ function resolveSolidStep(body: MovingBody, rects: readonly AABB[], subDt: numbe
   const spanR = body.x + body.w - eps;
   if (body.vy > 0) {
     const edge = body.y + body.h - eps; // leading bottom edge
+    const prevBot = prevY + body.h; // body bottom BEFORE this slice's fall
     let stop = Infinity;
+    let stopOneWay = false;
     for (const r of rects) {
-      if (r.x < spanR && r.x + r.w > spanL && r.y <= edge && edge < r.y + r.h && r.y < stop) stop = r.y;
+      if (!(r.x < spanR && r.x + r.w > spanL && r.y <= edge && edge < r.y + r.h)) continue;
+      // One-way: solid only when LANDING from above — the body's pre-fall bottom was at/above
+      // its top. A body rising through it, or already overlapping it from below, passes freely.
+      if (r.oneWay && prevBot > r.y + eps) continue;
+      if (r.y < stop) {
+        stop = r.y;
+        stopOneWay = r.oneWay === true;
+      }
     }
     if (stop < Infinity) {
       body.y = stop - body.h;
       body.vy = 0;
       onGround = true;
+      onOneWay = stopOneWay;
     }
   } else if (body.vy < 0) {
     const edge = body.y; // leading top edge
     let stop = -Infinity;
     for (const r of rects) {
+      if (r.oneWay) continue; // can't bonk your head on a one-way platform
       const bottom = r.y + r.h;
       if (r.x < spanR && r.x + r.w > spanL && r.y <= edge && edge < bottom && bottom > stop) stop = bottom;
     }
@@ -148,7 +187,7 @@ function resolveSolidStep(body: MovingBody, rects: readonly AABB[], subDt: numbe
     }
   }
 
-  return { onGround, onCeiling, onWallL, onWallR };
+  return { onGround, onCeiling, onWallL, onWallR, onOneWay };
 }
 
 /**
@@ -177,7 +216,7 @@ function resolveSolidStep(body: MovingBody, rects: readonly AABB[], subDt: numbe
  */
 export function resolveSolids(
   body: MovingBody,
-  rects: readonly AABB[],
+  rects: readonly SolidRect[],
   dt: number,
   opts?: { eps?: number },
 ): SolidContacts {
@@ -186,7 +225,8 @@ export function resolveSolids(
   // `steps` NaN; treat it as 0 so the resolver degrades safely instead of propagating it.
   if (!Number.isFinite(body.vx)) body.vx = 0;
   if (!Number.isFinite(body.vy)) body.vy = 0;
-  if (rects.length === 0) return { onGround: false, onCeiling: false, onWallL: false, onWallR: false };
+  if (rects.length === 0)
+    return { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false };
 
   let minDim = Infinity;
   for (const r of rects) {
@@ -213,6 +253,7 @@ export function resolveSolids(
   let onCeiling = false;
   let onWallL = false;
   let onWallR = false;
+  let onOneWay = false;
   for (let i = 0; i < steps; i++) {
     body.x += body.vx * subDt;
     body.y += body.vy * subDt;
@@ -221,8 +262,9 @@ export function resolveSolids(
     onCeiling = onCeiling || c.onCeiling;
     onWallL = onWallL || c.onWallL;
     onWallR = onWallR || c.onWallR;
+    onOneWay = onOneWay || c.onOneWay;
   }
-  return { onGround, onCeiling, onWallL, onWallR };
+  return { onGround, onCeiling, onWallL, onWallR, onOneWay };
 }
 
 /**
@@ -234,6 +276,10 @@ export function resolveSolids(
  * `__onGround` as "standing on a tile OR a solid entity", in any behavior order, and a
  * mover (`move-platformer`) sees the union. Writing the flags directly (no stamp) would
  * make whichever resolver ran last win and silently drop the other's contacts.
+ *
+ * `__onOneWay` merges the same way (0.7.0): true when ANY resolver this tick grounded the
+ * body on a one-way platform. A mover reads it to gate "down+jump drops through"; on mixed
+ * one-way + solid ground the drop is a harmless no-op (the solid floor still holds).
  */
 export function applyContacts(state: Record<string, unknown>, tick: number, c: SolidContacts): void {
   const fresh = state.__contactTick !== tick;
@@ -242,4 +288,5 @@ export function applyContacts(state: Record<string, unknown>, tick: number, c: S
   state.__onCeiling = (!fresh && state.__onCeiling === true) || c.onCeiling;
   state.__onWallL = (!fresh && state.__onWallL === true) || c.onWallL;
   state.__onWallR = (!fresh && state.__onWallR === true) || c.onWallR;
+  state.__onOneWay = (!fresh && state.__onOneWay === true) || c.onOneWay;
 }

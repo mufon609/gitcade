@@ -17,6 +17,15 @@ function setInput(world: World, opts: { axis?: number; jump?: boolean }): void {
   input.anyDown = () => opts.jump ?? false;
 }
 
+/** Key-aware stub: `anyDown(keys)` is true iff one of `keys` is in the held set (drop-through
+ *  needs `jump` vs `down` keys distinguished, which the fixed-value `setInput` can't do). */
+function setKeys(world: World, opts: { axis?: number; held?: string[] }): void {
+  const held = new Set(opts.held ?? []);
+  const input = world.input as unknown as { axis: () => number; anyDown: (keys: string[]) => boolean };
+  input.axis = () => opts.axis ?? 0;
+  input.anyDown = (keys: string[]) => keys.some((k) => held.has(k));
+}
+
 describe("move-platformer — run acceleration / friction", () => {
   it("with no accel, vx snaps to the target (original instant feel)", () => {
     const world = makeWorld();
@@ -119,5 +128,44 @@ describe("move-platformer — apex hang", () => {
     setInput(world, {});
     movePlatformer(e, world, { gravity: 1000 }, DT);
     expect(e.vy).toBeCloseTo(-50 + 1000 / 60, 4); // full gravity
+  });
+});
+
+describe("move-platformer — drop-through (down + jump on a one-way platform)", () => {
+  const params = { jumpSpeed: 400, gravity: 1000, jump: ["Space"], down: ["ArrowDown"], dropThroughTime: 0.2 };
+
+  it("down + jump while standing on a ONE-WAY platform opens the drop window and does NOT jump", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "p", state: { __onGround: true, __onOneWay: true } });
+    setKeys(world, { held: ["ArrowDown", "Space"] });
+    movePlatformer(e, world, params, DT);
+    expect(e.state.__dropThrough).toBeCloseTo(0.2, 6); // window opened
+    expect(e.vy).toBeGreaterThan(0); // fell under gravity — did NOT launch upward
+  });
+
+  it("on a fully SOLID floor, down + jump jumps normally (no drop window)", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "p", state: { __onGround: true, __onOneWay: false } });
+    setKeys(world, { held: ["ArrowDown", "Space"] });
+    movePlatformer(e, world, params, DT);
+    expect(e.vy).toBeLessThan(0); // jumped
+    expect((e.state.__dropThrough as number) ?? 0).toBe(0);
+  });
+
+  it("the drop window counts down each tick", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "p", state: { __dropThrough: 0.2 } });
+    setKeys(world, {});
+    movePlatformer(e, world, params, DT);
+    expect(e.state.__dropThrough).toBeCloseTo(0.2 - DT, 6);
+  });
+
+  it("default mover (no `down`/`dropThroughTime`) never opens a drop window", () => {
+    const world = makeWorld();
+    const e = makeEntity(world, { id: "p", state: { __onGround: true, __onOneWay: true } });
+    setKeys(world, { held: ["Space"] }); // jump only
+    movePlatformer(e, world, { jumpSpeed: 400, gravity: 1000 }, DT);
+    expect((e.state.__dropThrough as number) ?? 0).toBe(0);
+    expect(e.vy).toBeLessThan(0); // a plain jump
   });
 });

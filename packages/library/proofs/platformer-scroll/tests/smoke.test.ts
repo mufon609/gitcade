@@ -16,7 +16,8 @@ import main from "../src/scenes/main.json";
  *
  * Scene facts: viewport 800x480, world 1600x480, 32px tiles. Floor top y=448 (player
  * h=24 → rests at y=424). Right wall stops the player at x=1544. Camera maxX=800.
- * Platform at cols 22–25 row 7 → top y=224 (a lander rests at y=200).
+ * Platform at cols 22–25 row 7 → top y=224 (a lander rests at y=200). ONE-WAY platform
+ * at cols 4–7 row 6 → top y=192 (a lander rests at y=168), clear column down to the floor.
  */
 function boot(): Game {
   return createGame({ manifest, config, scenes: [main] }, { canvas: null, registry: createLibraryRegistry() });
@@ -27,6 +28,14 @@ function drive(game: Game, opts: { axis?: number; jump?: boolean }): void {
   const input = game.world.input as unknown as { axis: () => number; anyDown: () => boolean };
   input.axis = () => opts.axis ?? 0;
   input.anyDown = () => opts.jump ?? false;
+}
+
+/** Key-aware stub (drop-through needs `down` vs `jump` keys distinguished). */
+function driveKeys(game: Game, opts: { axis?: number; held?: string[] }): void {
+  const held = new Set(opts.held ?? []);
+  const input = game.world.input as unknown as { axis: () => number; anyDown: (keys: string[]) => boolean };
+  input.axis = () => opts.axis ?? 0;
+  input.anyDown = (keys: string[]) => keys.some((k) => held.has(k));
 }
 
 describe("platformer-scroll reuse proof", () => {
@@ -108,5 +117,36 @@ describe("platformer-scroll reuse proof", () => {
       return minY;
     }
     expect(apexY(true)).toBeLessThan(apexY(false)); // a held jump reaches a smaller y (higher)
+  });
+
+  it("lands on a ONE-WAY platform from above (tilemap-collide oneWay tile, 0.7.0)", () => {
+    const game = boot();
+    game.stepFrames(1);
+    const player = game.world.byId("player")!;
+    player.x = 160; // over the cols 4–7 one-way platform (x 128–256)
+    player.y = 64;
+    player.vy = 0;
+    driveKeys(game, {}); // no input → fall straight onto it
+    game.stepFrames(120);
+    expect(player.y).toBe(168); // resting on the one-way platform top (192), not the floor
+    expect(player.state.__onGround).toBe(true);
+    expect(player.state.__onOneWay).toBe(true);
+  });
+
+  it("drops through the one-way platform on down+jump, landing on the floor below", () => {
+    const game = boot();
+    game.stepFrames(1);
+    const player = game.world.byId("player")!;
+    player.x = 160;
+    player.y = 64;
+    player.vy = 0;
+    driveKeys(game, {});
+    game.stepFrames(120);
+    expect(player.y).toBe(168); // settled on the one-way platform
+    driveKeys(game, { held: ["ArrowDown", "Space"] }); // down + jump → open the drop-through window
+    game.stepFrames(2);
+    driveKeys(game, {}); // release; the window carries the body clear of the platform
+    game.stepFrames(180);
+    expect(player.y).toBe(424); // fell THROUGH the one-way platform and landed on the floor (448 − 24)
   });
 });

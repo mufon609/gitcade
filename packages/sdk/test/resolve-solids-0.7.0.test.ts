@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveSolids, applyContacts, type AABB, type MovingBody } from "../src/index.js";
+import { resolveSolids, applyContacts, type AABB, type SolidRect, type MovingBody } from "../src/index.js";
 
 /**
  * 0.7.0 — the shared AABB push-out primitive (INDIE-ROADMAP Tier-0 0.3/0.4).
@@ -128,20 +128,86 @@ describe("resolveSolids — a body sitting in a solid is not ejected sideways (0
   });
 });
 
+describe("resolveSolids — one-way (pass-through) platforms (0.7.0)", () => {
+  it("lands ON a one-way platform when falling from above (onGround + onOneWay)", () => {
+    const plat: SolidRect = { x: 0, y: 100, w: 200, h: 16, oneWay: true };
+    const b = body({ x: 50, y: 90, vy: 600 }); // pre-fall bottom (96) ≤ top (100) → a true land-from-above
+    const c = resolveSolids(b, [plat], DT);
+    expect(b.y).toBe(100 - 16); // 84 — resting flush on the platform top
+    expect(b.vy).toBe(0);
+    expect(c.onGround).toBe(true);
+    expect(c.onOneWay).toBe(true);
+  });
+
+  it("passes UP through a one-way platform when rising (no head-bonk)", () => {
+    const plat: SolidRect = { x: 0, y: 100, w: 200, h: 16, oneWay: true };
+    const b = body({ x: 50, y: 96, vy: -600 }); // rising into it from below
+    const c = resolveSolids(b, [plat], DT);
+    expect(b.vy).toBe(-600); // velocity untouched
+    expect(c.onCeiling).toBe(false);
+  });
+
+  it("is NOT blocked sideways by a one-way platform", () => {
+    const plat: SolidRect = { x: 100, y: 0, w: 40, h: 200, oneWay: true };
+    const b = body({ x: 88, y: 50, vx: 600 }); // would hit a solid wall, but a one-way passes
+    const c = resolveSolids(b, [plat], DT);
+    expect(c.onWallR).toBe(false);
+    expect(b.vx).toBe(600);
+  });
+
+  it("does NOT catch a body whose pre-fall bottom was already below the top (rising through)", () => {
+    const plat: SolidRect = { x: 0, y: 100, w: 200, h: 16, oneWay: true };
+    const b = body({ x: 50, y: 96, vy: 60 }); // bottom (112) already past the top; pre-fall bottom (111) > 100
+    const c = resolveSolids(b, [plat], DT);
+    expect(c.onGround).toBe(false); // not snapped up onto it
+  });
+
+  it("a fully solid floor reports onOneWay = false even when grounded", () => {
+    const floor: AABB = { x: 0, y: 100, w: 200, h: 32 };
+    const b = body({ x: 50, y: 90, vy: 600 });
+    const c = resolveSolids(b, [floor], DT);
+    expect(c.onGround).toBe(true);
+    expect(c.onOneWay).toBe(false);
+  });
+
+  it("a fast faller still lands on a thin one-way platform (swept, no tunnelling)", () => {
+    const plat: SolidRect = { x: 0, y: 200, w: 400, h: 8, oneWay: true };
+    // Integrated position 210 (bottom 226) is already BELOW the 8px platform — a single pass
+    // would tunnel; the sweep starts from y=160 (bottom 176, above the top) and catches it.
+    const b = body({ x: 100, y: 210, vy: 3000 });
+    const c = resolveSolids(b, [plat], DT);
+    expect(c.onGround).toBe(true);
+    expect(c.onOneWay).toBe(true);
+    expect(b.y).toBe(200 - 16); // caught on top, not tunnelled through
+  });
+});
+
 describe("applyContacts — per-tick merge of multiple resolvers", () => {
   it("the first resolver of a tick resets; later resolvers OR within the same tick", () => {
     const s: Record<string, unknown> = {};
-    applyContacts(s, 1, { onGround: false, onCeiling: false, onWallL: true, onWallR: false }); // resolver A
+    applyContacts(s, 1, { onGround: false, onCeiling: false, onWallL: true, onWallR: false, onOneWay: false }); // A
     expect(s.__onWallL).toBe(true);
     expect(s.__onGround).toBe(false);
-    applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false }); // resolver B, SAME tick
+    applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false }); // B
     expect(s.__onGround).toBe(true); // OR'd in
     expect(s.__onWallL).toBe(true); // A's contact preserved (not clobbered)
   });
 
+  it("onOneWay merges and is reset per tick like the other contact flags", () => {
+    const s: Record<string, unknown> = {};
+    applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: true });
+    expect(s.__onOneWay).toBe(true);
+    // a fully-solid resolver later the SAME tick must not clear an earlier one-way ground
+    applyContacts(s, 1, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
+    expect(s.__onOneWay).toBe(true);
+    // next tick with no one-way contact resets it
+    applyContacts(s, 2, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
+    expect(s.__onOneWay).toBe(false);
+  });
+
   it("a new tick resets stale flags instead of carrying them", () => {
     const s: Record<string, unknown> = { __onGround: true, __onWallR: true, __contactTick: 1 };
-    applyContacts(s, 2, { onGround: false, onCeiling: false, onWallL: false, onWallR: false });
+    applyContacts(s, 2, { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
     expect(s.__onGround).toBe(false);
     expect(s.__onWallR).toBe(false);
   });

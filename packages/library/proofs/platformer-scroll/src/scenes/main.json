@@ -318,10 +318,10 @@
       -1,
       -1,
       -1,
-      -1,
-      -1,
-      -1,
-      -1,
+      2,
+      2,
+      2,
+      2,
       -1,
       -1,
       -1,
@@ -769,6 +769,10 @@
       "1": {
         "solid": true,
         "color": "#2f3a4a"
+      },
+      "2": {
+        "oneWay": true,
+        "color": "#3a7d5a"
       }
     }
   },
@@ -806,7 +810,12 @@
             "jumpCutMultiplier": "$cfg.jumpCut",
             "jumpBuffer": "$cfg.jumpBuffer",
             "apexGravityMult": "$cfg.apexGravityMult",
-            "apexThreshold": "$cfg.apexThreshold"
+            "apexThreshold": "$cfg.apexThreshold",
+            "down": [
+              "ArrowDown",
+              "KeyS"
+            ],
+            "dropThroughTime": "$cfg.dropThroughTime"
           }
         },
         {

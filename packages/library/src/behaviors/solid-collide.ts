@@ -1,4 +1,4 @@
-import type { BehaviorFn, AABB } from "@gitcade/sdk";
+import type { BehaviorFn, SolidRect } from "@gitcade/sdk";
 import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
 
 /**
@@ -22,16 +22,31 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * are two-body dynamics for a later tier; standing/landing/blocking/riding-a-vertical-
  * lift all work from push-out alone.
  *
+ * ONE-WAY (pass-through) LEDGES (0.7.0): entities tagged `oneWayTag` (default off) are
+ * solid only on their TOP face — a body lands on the ledge from above but jumps up
+ * THROUGH it and passes it sideways, and the mover's drop-through (`state.__dropThrough`)
+ * suppresses it so a standing body can fall through. The entity-side mirror of a one-way
+ * tile; leave `oneWayTag` empty to skip the extra query entirely.
+ *
  * Params:
- *  - `solidTag`: tag marking solid entities to resolve against (default `"solid"`); the
- *    entity carrying this behavior is skipped, so it may itself carry the tag.
+ *  - `solidTag`: tag marking fully-solid entities to resolve against (default `"solid"`);
+ *    the entity carrying this behavior is skipped, so it may itself carry the tag.
+ *  - `oneWayTag`: tag marking one-way (top-only) ledge entities (default `""` = off)
  */
 export const solidCollide: BehaviorFn = (entity, world, params, dt) => {
   const solidTag = str(params, "solidTag", "solid");
-  const rects: AABB[] = [];
+  const oneWayTag = str(params, "oneWayTag", "");
+  const dropping = ((entity.state.__dropThrough as number) ?? 0) > 0;
+  const rects: SolidRect[] = [];
   for (const s of world.query(solidTag)) {
     if (s === entity) continue;
     rects.push({ x: s.x, y: s.y, w: s.w, h: s.h });
+  }
+  if (oneWayTag && !dropping) {
+    for (const s of world.query(oneWayTag)) {
+      if (s === entity) continue;
+      rects.push({ x: s.x, y: s.y, w: s.w, h: s.h, oneWay: true });
+    }
   }
   const contacts = resolveSolids(entity, rects, dt);
   applyContacts(entity.state, world.frame, contacts);

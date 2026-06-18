@@ -5,13 +5,18 @@
   "category": "movement",
   "tags": ["movement", "collision", "solid", "platformer", "entity"],
   "license": "MIT",
-  "description": "Resolves an entity's AABB against OTHER entities tagged solid — a crate, ledge, or moving lift becomes as solid as a tile: stops at their sides, lands on their tops, bonks their undersides, and writes the same contact flags as tilemap-collide (__onGround/__onCeiling/__onWallL/__onWallR), so move-platformer can jump off them and a vertical lift carries a resting entity. Order it AFTER the velocity integrator; combine freely with tilemap-collide (the flags merge per tick). Swept sub-stepping keeps a fast body from tunnelling a thin solid up to a bounded speed. The entity-vs-entity counterpart to tilemap-collide.",
+  "description": "Resolves an entity's AABB against OTHER entities tagged solid — a crate, ledge, or moving lift becomes as solid as a tile: stops at their sides, lands on their tops, bonks their undersides, and writes the same contact flags as tilemap-collide (__onGround/__onCeiling/__onWallL/__onWallR), so move-platformer can jump off them and a vertical lift carries a resting entity. An entity tagged via oneWayTag is a one-way (pass-through) ledge — solid on its top face only (land from above, jump up through, drop through during the mover's drop-through window). Order it AFTER the velocity integrator; combine freely with tilemap-collide (the flags merge per tick). Swept sub-stepping keeps a fast body from tunnelling a thin solid up to a bounded speed. The entity-vs-entity counterpart to tilemap-collide.",
   "dependencies": ["velocity"],
   "params": {
     "solidTag": {
       "type": "string",
       "balance": false,
-      "description": "Tag marking solid entities to resolve against (default \"solid\"); the entity carrying this behavior is skipped."
+      "description": "Tag marking fully-solid entities to resolve against (default \"solid\"); the entity carrying this behavior is skipped."
+    },
+    "oneWayTag": {
+      "type": "string",
+      "balance": false,
+      "description": "Tag marking one-way (top-only) ledge entities (default \"\" = off)."
     }
   },
   "definition": {

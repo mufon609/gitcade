@@ -17,6 +17,11 @@ export const TilePropsSchema = z
      *  against any cell flagged this (the platformer floor/wall/ceiling). A named
      *  convenience over the catchall — purely additive (0.7.0). */
     solid: z.boolean().optional(),
+    /** One-way (pass-through) platform: `tilemap-collide` lands a FALLING body on a cell
+     *  flagged this but lets the body jump up THROUGH it and (with the mover's drop-through)
+     *  fall down through it — solid on its top face only. A named convenience over the
+     *  catchall — purely additive (0.7.0). */
+    oneWay: z.boolean().optional(),
   })
   .catchall(z.union([z.boolean(), z.number(), z.string()]));
 

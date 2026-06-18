@@ -147,6 +147,15 @@ describe("0.7.0 Renderer — camera transform", () => {
     new Renderer(ctx as never).render(worldWithBox(0, 0));
     expect(calls.translate).toHaveLength(0);
   });
+
+  it("adds the camera shake offset to the translate (camera juice)", () => {
+    const { ctx, calls } = recordingCtx();
+    const world = worldWithBox(0, 0); // camera base at the origin
+    world.camera.shakeX = 5.4;
+    world.camera.shakeY = -3.6;
+    new Renderer(ctx as never).render(world);
+    expect(calls.translate).toContainEqual([-5, 4]); // -round(0 + 5.4), -round(0 + -3.6)
+  });
 });
 
 /** A ctx stub that records the `globalAlpha` IN EFFECT at each fillRect (so we can assert

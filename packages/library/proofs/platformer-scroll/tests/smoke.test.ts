@@ -185,6 +185,25 @@ describe("platformer-scroll reuse proof", () => {
     expect(player.anim.current).toBe("fall");
   });
 
+  it("shakes the camera on a 'shake' event, then settles (camera-shake, 0.7.0)", () => {
+    const game = boot();
+    game.stepFrames(2); // let the system subscribe and the camera settle
+    const cam = game.world.camera;
+    expect(cam.shakeX ?? 0).toBe(0);
+
+    game.world.events.emit("shake", { magnitude: 14, duration: 0.3 });
+    let shook = false;
+    for (let i = 0; i < 4; i++) {
+      game.stepFrames(1);
+      if ((cam.shakeX ?? 0) !== 0 || (cam.shakeY ?? 0) !== 0) shook = true;
+    }
+    expect(shook).toBe(true); // the camera is offset during the shake
+
+    game.stepFrames(40); // past the 0.3s duration → settled back to the base
+    expect(cam.shakeX).toBe(0);
+    expect(cam.shakeY).toBe(0);
+  });
+
   it("pulses the goal flag via a scale tween (visual only — physics untouched, 0.7.0)", () => {
     const game = boot();
     const goal = game.world.byId("goal")!;

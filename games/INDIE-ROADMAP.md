@@ -184,11 +184,17 @@ product."
   declared slot the synth player maps to a generative track. A professional indie feel
   leans on **recorded SFX + composed music + a mixer** (buses, ducking, crossfade). 🟢
   additive (a sampled `AudioPlayer` subclass + an asset-audio convention).
-- **Juice primitives as data.** Screenshake is currently a **host-side hack** (each game's
-  `main.ts` drives `ScreenEffects` against the DOM because the renderer can't move the
-  camera — see `survival-arena/src/main.ts`). Once a camera exists, make **screenshake,
-  hitstop/time-scale, knockback, and squash-stretch** first-class, data-triggered effects.
-  🟢
+- **Juice primitives as data. Screenshake ✅ done (`camera-shake`).** A data-triggered
+  system that, on a named event (`world.events.emit("shake", { magnitude, duration })`),
+  writes a decaying random offset to the runtime `camera.shakeX`/`shakeY` (added by the
+  renderer, kept separate from the follow base so it never disturbs `camera-follow` or
+  pointer mapping). Deterministic off `world.rng`; proven by the `platformer-scroll` proof.
+  This is the engine replacement for the host-side `ScreenEffects` DOM canvas-translate
+  shake — **the survival-arena adoption is a post-publish one-liner** (it pins `0.6.0` in
+  `package.json` and resolves the installed catalog, so it can't reference the 0.7.0
+  `camera-shake` part until 0.7.0 ships; the swap is `emit("shake", …)` + the system in
+  `play.json`, with flash staying a host overlay). Still open: **hitstop/time-scale,
+  knockback, squash-stretch** (hitstop touches the fixed-step loop → handle carefully). 🟢
 - **Tweening / easing primitive. ✅ Now in the engine (`tween`).** A behavior that animates
   one numeric property (`x`/`y`/`scale`/`scaleX`/`scaleY`/`rotation`/`opacity`) from a start
   to a target over a duration with an easing curve (linear / in-out-quad / `out-back`

@@ -42,13 +42,16 @@ export class Renderer {
     // backdrop stays fixed behind the scrolling world.
     this.drawBackground(ctx, world, background, vw, vh);
 
-    // Camera transform (0.7.0): pan the world under the viewport. Skipped at the
-    // origin so a non-scrolling scene takes the exact pre-0.7 path (no save/translate),
-    // and rounded to whole px so tiles/sprites stay crisp while scrolling.
-    const scrolled = cam != null && (cam.x !== 0 || cam.y !== 0);
+    // Camera transform (0.7.0): pan the world under the viewport, including any transient
+    // shake OFFSET (`shakeX`/`shakeY`, kept separate from the follow base). Skipped at the
+    // origin so a non-scrolling, non-shaking scene takes the exact pre-0.7 path (no save/
+    // translate), and rounded to whole px so tiles/sprites stay crisp while scrolling/shaking.
+    const camX = cam ? cam.x + (cam.shakeX ?? 0) : 0;
+    const camY = cam ? cam.y + (cam.shakeY ?? 0) : 0;
+    const scrolled = cam != null && (camX !== 0 || camY !== 0);
     if (scrolled) {
       ctx.save();
-      ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+      ctx.translate(-Math.round(camX), -Math.round(camY));
     }
 
     this.drawTilemap(ctx, world);

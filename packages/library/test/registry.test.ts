@@ -11,8 +11,8 @@ describe("library registration", () => {
     expect(LIBRARY_BEHAVIOR_TYPES).toHaveLength(25);
     // 9 (0.1.x) + 3 0.2.0 economy/spawning (transaction, persistence, place-on-free-cell)
     // + input-actions + format-binding (0.4.0, E1/E2) + stat-modifier (0.4.0, E6)
-    // + camera-follow (0.7.0, INDIE-ROADMAP 0.1).
-    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(16);
+    // + camera-follow + camera-shake (0.7.0, INDIE-ROADMAP).
+    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(17);
 
     const registry = createDefaultRegistry();
     registerLibrary(registry);

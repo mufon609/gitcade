@@ -16,6 +16,7 @@ import { inputActions } from "./input-actions.js";
 import { formatBinding } from "./format-binding.js";
 import { statModifier } from "./stat-modifier.js";
 import { cameraFollow } from "./camera-follow.js";
+import { cameraShake } from "./camera-shake.js";
 
 /**
  * Every library system, keyed by the exact `type` string a scene uses. As with
@@ -39,6 +40,7 @@ export const LIBRARY_SYSTEMS = {
   "format-binding": formatBinding,
   "stat-modifier": statModifier,
   "camera-follow": cameraFollow,
+  "camera-shake": cameraShake,
 } as const;
 
 /** The library system type ids (for tests / introspection). */
@@ -68,4 +70,5 @@ export {
   formatBinding,
   statModifier,
   cameraFollow,
+  cameraShake,
 };

@@ -1,0 +1,20 @@
+{
+  "id": "camera-shake",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "world",
+  "tags": ["world", "camera", "shake", "juice", "presentation"],
+  "license": "MIT",
+  "description": "Data-triggered screenshake: on a named event it starts a decaying shake, writing a transient random offset to world.camera.shakeX/shakeY each tick (the renderer adds it, SDK 0.7.0), so the view shakes whether or not the scene scrolls. Kept separate from the camera base, so it never disturbs camera-follow or pointer mapping. Emit the event with an optional { magnitude, duration } payload to trigger it as data; a stronger shake refreshes a weaker active one. Deterministic (offset drawn from world.rng). The engine replacement for host-side DOM canvas-translate shake.",
+  "dependencies": [],
+  "params": {
+    "event": { "type": "string", "balance": false, "description": "Event name that triggers a shake (default 'shake')." },
+    "magnitude": { "type": "number", "balance": true, "description": "Default amplitude in px when the payload omits one (default 0)." },
+    "duration": { "type": "number", "balance": true, "description": "Default length in seconds when the payload omits one (default 0)." },
+    "falloff": { "type": "number", "balance": true, "description": "Amplitude decay exponent over the duration; 1 = linear, >1 = faster initial settle (default 1)." }
+  },
+  "definition": {
+    "type": "camera-shake",
+    "params": { "event": "shake" }
+  }
+}

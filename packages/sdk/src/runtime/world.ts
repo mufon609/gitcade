@@ -37,6 +37,14 @@ export interface Camera {
   y: number;
   width: number;
   height: number;
+  /**
+   * Transient render-only OFFSET added to `x`/`y` by the renderer (0.7.0 camera juice) —
+   * the home for screenshake and the like. Kept SEPARATE from `x`/`y` so a `camera-shake`
+   * system can jitter the view without corrupting a `camera-follow` base or the
+   * pointer→world mapping; both default to 0 (absent ⇒ no offset, byte-identical).
+   */
+  shakeX?: number;
+  shakeY?: number;
 }
 
 /**

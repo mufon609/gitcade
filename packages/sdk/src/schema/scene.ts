@@ -22,6 +22,17 @@ export const TilePropsSchema = z
      *  fall down through it — solid on its top face only. A named convenience over the
      *  catchall — purely additive (0.7.0). */
     oneWay: z.boolean().optional(),
+    /** Floor-SLOPE surface heights (0.11.0): the walkable surface height in px UP FROM THE
+     *  CELL BOTTOM at the cell's LEFT (`slopeL`) / RIGHT (`slopeR`) edge (0 = bottom, tileSize =
+     *  top). A cell with either set is a slope (NOT also `solid`): `tilemap-collide` rests an
+     *  entity's bottom on the line between them — `0`→`tileSize` is a 45° ramp, gentler pairs are
+     *  shallower, and adjacent cells sharing an edge height tile into one ramp. Purely additive. */
+    slopeL: z.number().optional(),
+    slopeR: z.number().optional(),
+    /** Ladder (0.11.0): a cell flagged this is climbable — `move-platformer` (with `climbSpeed`
+     *  set) suspends gravity and climbs vertically by `up`/`down` input while the entity's center
+     *  is over it. Not solid. A named convenience over the catchall — purely additive. */
+    ladder: z.boolean().optional(),
   })
   .catchall(z.union([z.boolean(), z.number(), z.string()]));
 

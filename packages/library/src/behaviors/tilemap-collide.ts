@@ -1,5 +1,5 @@
-import type { BehaviorFn, SolidRect } from "@gitcade/sdk";
-import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
+import type { BehaviorFn, SolidRect, SlopeCell } from "@gitcade/sdk";
+import { str, resolveSolids, resolveSlopes, applyContacts } from "@gitcade/sdk";
 
 /**
  * Resolve an entity's AABB against SOLID tilemap cells — the terrain half of
@@ -29,6 +29,12 @@ import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
  * over — `solid-collide` feeds it solid ENTITIES the same way, so a crate is exactly as
  * solid as a tile. `resolveSolids` sub-steps a fast body so it can't tunnel a thin floor
  * between ticks (0.4); at typical speeds it is a single byte-identical pass.
+ *
+ * SLOPES (0.11.0): a cell whose props carry `slopeL`/`slopeR` (surface heights up from the cell
+ * bottom) is a floor slope, NOT a solid box. Those cells are gathered separately and resolved by
+ * the SDK's `resolveSlopes` primitive in a SECOND pass AFTER the solid one — it rests the body's
+ * bottom on the per-column surface so an entity walks up/down a ramp. A map with no slope cells
+ * skips the pass entirely (byte-identical).
  *
  * Params:
  *  - `solidProp`: tile-property flag marking a fully solid cell (default `"solid"`)
@@ -60,6 +66,28 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
     return t.properties?.[String(idx)]?.[prop] === true;
   };
 
+  // A floor-slope cell (0.11.0): a cell whose props carry `slopeL`/`slopeR` (surface heights up
+  // from the cell bottom). A slope cell is NOT a solid rect — it's resolved by the separate slope
+  // pass. An absent edge defaults to 0 (cell bottom), so a single set edge is a valid wedge.
+  const slopeCellAt = (col: number, row: number): SlopeCell | null => {
+    if (col < 0 || row < 0 || col >= t.cols || row >= t.rows) return null;
+    const idx = t.tiles[row * t.cols + col] ?? -1;
+    if (idx < 0) return null;
+    const props = t.properties?.[String(idx)];
+    if (!props) return null;
+    const hasL = typeof props.slopeL === "number";
+    const hasR = typeof props.slopeR === "number";
+    if (!hasL && !hasR) return null;
+    return {
+      x: col * ts,
+      y: row * ts,
+      w: ts,
+      h: ts,
+      slopeL: hasL ? (props.slopeL as number) : 0,
+      slopeR: hasR ? (props.slopeR as number) : 0,
+    };
+  };
+
   // Broadphase: the solid cells overlapping the body's SWEPT span this tick (its box
   // from before the move to after it), padded one cell so an edge resting flush on a
   // seam still sees the neighbour. A small candidate set keeps the shared resolver's
@@ -71,8 +99,14 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
   const r0 = Math.max(0, Math.floor(Math.min(y0, entity.y) / ts) - 1);
   const r1 = Math.min(t.rows - 1, Math.floor((Math.max(y0, entity.y) + entity.h) / ts) + 1);
   const rects: SolidRect[] = [];
+  const slopeCells: SlopeCell[] = [];
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {
+      const slope = slopeCellAt(c, r);
+      if (slope) {
+        slopeCells.push(slope); // a slope cell is resolved by the slope pass, not as a solid rect
+        continue;
+      }
       if (cellFlag(c, r, solidProp)) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts });
       else if (!dropping && cellFlag(c, r, oneWayProp))
         rects.push({ x: c * ts, y: r * ts, w: ts, h: ts, oneWay: true });
@@ -81,4 +115,15 @@ export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
 
   const contacts = resolveSolids(entity, rects, dt);
   applyContacts(entity, world.frame, contacts);
+
+  // Slope pass (0.11.0): a SECOND, non-AABB pass that rests the body's bottom on any floor-slope
+  // surface under it, AFTER the solid pass settled X (so a wall at a slope's base has clamped the
+  // sample x). Skipped entirely — and thus byte-identical — when the map has no slope cells. The
+  // slope `onGround` merges into the same-tick contacts via the frame stamp.
+  if (slopeCells.length > 0) {
+    const slope = resolveSlopes(entity, slopeCells, dt);
+    if (slope.onGround) {
+      applyContacts(entity, world.frame, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
+    }
+  }
 };

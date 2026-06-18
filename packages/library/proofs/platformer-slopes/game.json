@@ -1,0 +1,13 @@
+{
+  "name": "Platformer Slopes & Ladders (terrain proof)",
+  "slug": "proof-platformer-slopes",
+  "description": "Reuse proof for the 0.11.0 platformer terrain (INDIE-ROADMAP slopes + ladders): a player walks UP a 45 ramp to a plateau and DOWN the far side (floor slopes via resolveSlopes in tilemap-collide), and CLIMBS a ladder (move-platformer climb mode). Built from move-platformer + velocity + tilemap-collide with no host code.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.11.0",
+  "libraryVersion": "0.11.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

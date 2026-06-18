@@ -44,10 +44,15 @@ import { num, strArray, str } from "@gitcade/sdk";
  *  - `apexThreshold`: `|vy|` (px/sec) under which `apexGravityMult` applies (balance →
  *    `$cfg`; default 0 = off)
  *  - `left`/`right`/`jump`: key-code arrays (defaults: arrows/WASD + Space)
- *  - `down`: key-code array for the drop-through modifier (default none = drop-through off)
+ *  - `down`: key-code array for the drop-through modifier AND ladder climb-down (default none)
  *  - `dropThroughTime`: seconds the drop-through window stays open after down+jump on a
  *    one-way platform (balance → `$cfg`; default 0 = off)
  *  - `groundTag`: tag of solid ground entities (default `"ground"`)
+ *  - **ladder climb (0.11.0)** — when the entity's center is over a `ladderProp` tile and `up`/
+ *    `down` is held, it climbs (gravity off, `vy = ±climbSpeed`), and can step off the side:
+ *  - `ladderProp`: tile-property flag marking a climbable cell (default `"ladder"`)
+ *  - `climbSpeed`: climb speed in px/sec (balance → `$cfg`; default 0 = ladders OFF)
+ *  - `up`: climb-up key-code array (default `["ArrowUp","KeyW"]`; on a ladder these climb, not jump)
  */
 export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
   const moveSpeed = num(params, "moveSpeed", 0);
@@ -67,6 +72,9 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
   const down = strArray(params, "down"); // default [] = drop-through off
   const dropThroughTime = num(params, "dropThroughTime", 0);
   const groundTag = str(params, "groundTag", "ground");
+  const ladderProp = str(params, "ladderProp", "ladder");
+  const climbSpeed = num(params, "climbSpeed", 0); // 0 = ladders off (byte-identical)
+  const up = orDefault(strArray(params, "up"), ["ArrowUp", "KeyW"]);
 
   // Horizontal control. Default (`accel <= 0`) snaps to the target speed — the original
   // instant feel. With `accel > 0`, ramp `vx` toward the target; when there's no input,
@@ -78,6 +86,30 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt) => {
     const rate = (target === 0 && friction > 0 ? friction : accel) * dt;
     if (entity.vx < target) entity.vx = Math.min(entity.vx + rate, target);
     else if (entity.vx > target) entity.vx = Math.max(entity.vx - rate, target);
+  }
+
+  // Ladder climb (optional, 0.11.0). When the entity's CENTER is over a `ladderProp` tile and the
+  // player presses up/down, it CLIMBS: gravity suspended, `vy` driven by up/down, horizontal still
+  // free (so it can step off the side). Climbing persists until the entity leaves the ladder. The
+  // up keys default to the jump keys, but on a ladder they climb (this branch returns BEFORE the
+  // jump logic). Default (`climbSpeed` 0 / no ladder tiles) skips this whole block → byte-identical
+  // to the pre-ladder mover.
+  if (climbSpeed > 0) {
+    const tm = world.tilemap;
+    const idx = tm ? world.tileAt(entity.cx, entity.cy) : -1;
+    const onLadder = idx >= 0 && tm!.properties?.[String(idx)]?.[ladderProp] === true;
+    let climbing = entity.state.__climbing === true;
+    const upHeld = world.input.anyDown(up);
+    const downHeldLadder = down.length > 0 && world.input.anyDown(down);
+    if (onLadder && (upHeld || downHeldLadder)) climbing = true; // an up/down press grabs the ladder
+    if (!onLadder) climbing = false; // off the ladder → resume the normal mover (and gravity)
+    entity.state.__climbing = climbing;
+    if (climbing) {
+      // Climb at `climbSpeed`; hang (vy 0) when neither held. `vx` (set above) still applies, so
+      // pressing left/right walks off the ladder. Gravity / jump / drop-through are skipped.
+      entity.vy = climbSpeed * ((downHeldLadder ? 1 : 0) - (upHeld ? 1 : 0));
+      return;
+    }
   }
 
   // Grounded test: on the world floor, OR standing on a `groundTag` entity from above,

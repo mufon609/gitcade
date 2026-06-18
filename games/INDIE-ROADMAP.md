@@ -29,8 +29,8 @@ files used to carry engine-capability items, they now point here.
   (`packages/library/proofs/`). A Mario-style traversal — running a level wider than the
   screen, landing on / bonking / riding solid bodies — works today.
 - **What's left before a *full* Mario:** mostly Tier-2 polish (sampled audio, particles/
-  juice, render interpolation, gamepad) plus **slopes + ladders** and two-body **push**
-  (movable crates). The genre-feel mover (variable jump, jump buffering, apex hang, run
+  juice, render interpolation, gamepad) plus two-body **push** (movable crates) — **slopes +
+  ladders** now compose from the kit (0.11.0). The genre-feel mover (variable jump, jump buffering, apex hang, run
   accel), **one-way (pass-through) platforms + drop-through**, a **data-driven animation state
   machine + facing flip**, **entity opacity/visibility**, the **entity hierarchy / transform
   parenting**, and **moving-platform carry** (`ride-platform`) are now in the engine — so a
@@ -150,8 +150,16 @@ are themselves immovable. The two halves on top of it:
   it. Built on the shared `resolveSolids` primitive (the one-way case is a per-rect flag);
   proven by the `platformer-scroll` proof (land-on + drop-through). 🟢
 - **Moving platforms. ✅ Now in the engine** via the two-body **carry** mode (`ride-platform`,
-  0.10.0) — a rider rides a sliding/sinking solid platform (see Tier-0 two-body below). The
-  remaining genre furniture is **ladders + slopes** (slopes need non-AABB contact). 🟢
+  0.10.0) — a rider rides a sliding/sinking solid platform (see Tier-0 two-body below). 🟢
+- **Ladders + slopes. ✅ Now in the engine (0.11.0).** **Floor slopes** are a `slopeL`/`slopeR`
+  tile-property pair (surface heights up from the cell bottom — 45° and gentler linear ramps,
+  tiling seamlessly), resolved by a NEW SDK `resolveSlopes` primitive run as a second non-AABB
+  pass after `resolveSolids` inside `tilemap-collide`: it rests a body's bottom on the per-column
+  surface (sampled at the body center), sticks downhill, and lets a jump pass up through —
+  no-op when a map has no slope cells. **Ladders** are a `ladder` tile flag + a `move-platformer`
+  climb mode (`climbSpeed`/`up`/`down`): over a ladder tile, up/down climbs with gravity off, and
+  the player steps off the side. Both additive (optional params default off). Proven by the
+  `platformer-slopes` proof (walk up/down a chevron ramp, climb a ladder). 🟢
 - **Animation state machine. ✅ Now in the engine (`sprite-state-machine`).** A data-driven
   behavior that maps motion state (grounded via the typed `entity.contacts.onGround`, horizontal
   speed, vertical direction) → a named `sheet` clip each tick: idle → run → jump → fall →
@@ -305,9 +313,9 @@ assumed.
   — additively, driven by the `platformer-scroll` proof; and **one-way (pass-through)
   platforms + drop-through** landed on the same primitive (`oneWay` tile flag / `oneWayTag`
   + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
-  The two-body **carry** mode (`ride-platform`, 0.10.0) lands the moving-platform case.
-  *Remaining (Tier 1):* slopes + ladders (a resolver extension) and two-body **push**
-  (movable crates).
+  The two-body **carry** mode (`ride-platform`, 0.10.0) lands the moving-platform case, and
+  **floor slopes + ladders** (`resolveSlopes` + `move-platformer` climb, 0.11.0) the terrain.
+  *Remaining (Tier 1):* two-body **push** (movable crates).
 - **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**
   (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
   `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense

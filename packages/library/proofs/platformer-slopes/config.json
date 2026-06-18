@@ -1,0 +1,6 @@
+{
+  "moveSpeed": 150,
+  "gravity": 1400,
+  "jumpSpeed": 480,
+  "climbSpeed": 120
+}

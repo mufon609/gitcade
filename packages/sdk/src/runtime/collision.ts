@@ -295,3 +295,70 @@ export function applyContacts(target: { contacts: SolidContacts; contactTick: nu
   cur.onWallR = (!fresh && cur.onWallR) || c.onWallR;
   cur.onOneWay = (!fresh && cur.onOneWay) || c.onOneWay;
 }
+
+/**
+ * A floor-SLOPE cell fed to {@link resolveSlopes} (0.11.0). `x`/`y`/`w`/`h` are the cell's AABB
+ * (top-left + size, exactly as `tilemap-collide` builds for solids); `slopeL`/`slopeR` are the
+ * walkable surface height in px UP FROM THE CELL BOTTOM at the cell's left/right edge (0 = the
+ * cell bottom, `h` = the cell top). The surface is the straight line between them; the cell is
+ * solid floor below it. Covers 45° (`0`→`h`) and gentler linear ramps, and tiles seamlessly
+ * (adjacent cells that share an edge height form one continuous ramp).
+ */
+export interface SlopeCell extends AABB {
+  slopeL: number;
+  slopeR: number;
+}
+
+/** The contact a {@link resolveSlopes} pass reports (0.11.0): grounded on a slope surface. */
+export interface SlopeContact {
+  onGround: boolean;
+}
+
+/**
+ * Rest a moving AABB's BOTTOM on a tilemap floor-SLOPE surface (INDIE-ROADMAP slopes, 0.11.0) —
+ * the non-AABB companion to {@link resolveSolids}, which can't express a surface whose height
+ * varies across the body's x-span. `tilemap-collide` runs it as a SECOND pass AFTER the solid
+ * AABB pass, so it samples the body's already-settled x (a wall at a slope's base has clamped it).
+ *
+ * It evaluates the surface Y under the body's CENTER x (the standard AABB-on-slope sample point —
+ * predictable, with at most a half-body clip/float on the steepest 45° ramp). If the body is NOT
+ * rising (`vy >= 0`) and its bottom is at/below that surface OR within a small **downhill-stick**
+ * band above it, it snaps the bottom flush to the surface, zeroes a downward `vy`, and reports
+ * `onGround`. The stick band = `|vx|*dt` (the most a body drops walking down a ≤45° slope in one
+ * tick) + a 1px margin, so a body walking downhill sticks to the ramp instead of stair-stepping
+ * into the air. A RISING body (`vy < 0`, a jump) is never snapped — floor slopes have no underside
+ * in v1, so a jump passes up through.
+ *
+ * Only `body.y`/`body.vy` are ever changed (never `body.x`), so it composes cleanly with the X the
+ * solid pass already settled. Empty `slopeCells` ⇒ no contact, body untouched — so a map with no
+ * slope cells is byte-identical (the caller should skip this pass entirely in that case).
+ */
+export function resolveSlopes(body: MovingBody, slopeCells: readonly SlopeCell[], dt: number): SlopeContact {
+  if (slopeCells.length === 0) return { onGround: false };
+  if (!Number.isFinite(body.vy)) body.vy = 0;
+  if (body.vy < 0) return { onGround: false }; // rising — pass up through a floor slope
+
+  // Sample the surface under the body's center x. At most one cell contains it (cells don't
+  // overlap); a body straddling a seam matches both, which share the edge height, so `min` is safe.
+  const sampleX = body.x + body.w / 2;
+  let surfaceY = Infinity;
+  for (const cell of slopeCells) {
+    const right = cell.x + cell.w;
+    if (sampleX < cell.x || sampleX > right) continue;
+    const t = (sampleX - cell.x) / cell.w; // 0..1 across the cell (sampleX is in range here)
+    const heightPx = cell.slopeL + (cell.slopeR - cell.slopeL) * t;
+    const sy = cell.y + cell.h - heightPx;
+    if (sy < surfaceY) surfaceY = sy;
+  }
+  if (!Number.isFinite(surfaceY)) return { onGround: false }; // no slope cell under the body's center
+
+  const bottom = body.y + body.h;
+  // Downhill-stick band, capped at one tile so a fast-horizontal FALLER doesn't snap from far above.
+  const snapDown = Math.min(slopeCells[0].h, Math.abs(body.vx) * dt + 1);
+  if (bottom - surfaceY >= -snapDown) {
+    body.y = surfaceY - body.h;
+    if (body.vy > 0) body.vy = 0;
+    return { onGround: true };
+  }
+  return { onGround: false };
+}

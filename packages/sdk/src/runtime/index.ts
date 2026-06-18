@@ -19,11 +19,14 @@ export {
   entitiesOverlap,
   overlapAxis,
   resolveSolids,
+  resolveSlopes,
   applyContacts,
   type AABB,
   type SolidRect,
   type MovingBody,
   type SolidContacts,
+  type SlopeCell,
+  type SlopeContact,
 } from "./collision.js";
 export { createDefaultRegistry } from "./defaults.js";
 export type { BehaviorFn, SystemFn, ResolvedParams, ParamSpec } from "./types.js";

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "generatedFrom": "parts/",
   "parts": [
     {
@@ -930,16 +930,17 @@
     {
       "id": "move-platformer",
       "kind": "behavior",
-      "version": "1.2.0",
+      "version": "1.3.0",
       "category": "movement",
       "tags": [
         "movement",
         "player",
         "platformer",
         "gravity",
-        "jump"
+        "jump",
+        "ladder"
       ],
-      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator. 1.1.0 treats entity.state.__onGround (set by a later tilemap-collide/solid-collide behavior) as grounded, so a tile floor or solid body satisfies the jump test. 1.2.0 adds the genre-feel layer as OPTIONAL params, each defaulting to the original behavior: run acceleration/friction (accel/friction), variable jump height (jumpCutMultiplier), jump buffering (jumpBuffer), apex hang (apexGravityMult/apexThreshold), and drop-through (down + jump on a one-way platform falls through it, via down/dropThroughTime).",
+      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator. Treats entity.contacts.onGround (set by a later tilemap-collide/solid-collide behavior) as grounded, so a tile floor or solid body satisfies the jump test. The genre-feel layer is OPTIONAL params, each defaulting to the original behavior: run acceleration/friction (accel/friction), variable jump height (jumpCutMultiplier), jump buffering (jumpBuffer), apex hang (apexGravityMult/apexThreshold), and drop-through (down + jump on a one-way platform falls through it, via down/dropThroughTime). 1.3.0 adds LADDER climb: with climbSpeed set, when the entity's center is over a ladderProp tile and up/down is held it climbs (gravity off, vy = ±climbSpeed) and can step off the side.",
       "license": "MIT",
       "dependencies": [
         "velocity"
@@ -1029,6 +1030,21 @@
           "type": "string",
           "balance": false,
           "description": "Tag of solid ground entities."
+        },
+        "ladderProp": {
+          "type": "string",
+          "balance": false,
+          "description": "Tile-property flag marking a climbable ladder cell (default \"ladder\")."
+        },
+        "climbSpeed": {
+          "type": "number",
+          "balance": true,
+          "description": "Ladder climb speed in px/sec (0 = ladders off)."
+        },
+        "up": {
+          "type": "array",
+          "balance": false,
+          "description": "Ladder climb-up key codes (default ArrowUp/W; on a ladder these climb, not jump)."
         }
       },
       "definition": {
@@ -1471,16 +1487,17 @@
     {
       "id": "tilemap-collide",
       "kind": "behavior",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "movement",
       "tags": [
         "movement",
         "collision",
         "tilemap",
         "platformer",
-        "solid"
+        "solid",
+        "slope"
       ],
-      "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). A cell flagged oneWay:true is a one-way (pass-through) platform — solid on its top face only: a body lands on it from above but jumps up through it, runs past it sideways, and drops through it during move-platformer's drop-through window. Order it AFTER the velocity integrator. The terrain half of platformer collision.",
+      "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and writes the typed entity.contacts (onGround/onCeiling/onWallL/onWallR). A cell flagged oneWay:true is a one-way (pass-through) platform — solid on its top face only: a body lands on it from above but jumps up through it, runs past it sideways, and drops through it during move-platformer's drop-through window. 1.1.0: a cell whose props carry slopeL/slopeR (surface heights up from the cell bottom) is a floor SLOPE — resolved by a second non-AABB pass (resolveSlopes) that rests the body's bottom on the per-column surface so an entity walks up/down a ramp. Order it AFTER the velocity integrator. The terrain half of platformer collision.",
       "license": "MIT",
       "dependencies": [
         "velocity"

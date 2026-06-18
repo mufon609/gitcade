@@ -129,7 +129,12 @@ are themselves immovable. The two halves on top of it:
   `vy>=0` gate, so it's self-contained and a fast-descending platform never leaves the rider.
   Proven by the `platformer-carry` proof (ride + walk-while-carried + descending follow). 🟢
 - **Push — movable crates** (a player push that *moves* the crate: mass + mutual resolution)
-  remain open. The harder half; carry was the common platformer need. 🟢 (open)
+  remain open. The harder half; carry was the common platformer need. Deferred to a deliberate
+  **unified-resolution** effort: a single ordered phase that resolves coupled touching bodies
+  (carry + push) *and* re-resolves them against solids in the same pass. A naive post-behavior
+  carry phase is a regression (it applies carry AFTER the rider's `solid-collide`, so a carrier
+  shoving a rider into a wall penetrates it — whereas `ride-platform` runs FIRST and re-resolves
+  same-tick), so carry-as-a-phase and push land together here, not separately. 🟢 (open)
 
 ---
 

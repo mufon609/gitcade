@@ -1,22 +1,17 @@
 # GAME-IMPROVEMENTS.md — per-game, isolated work (handle separately)
 
-This report is the **game-isolated** half of the 0.3.2 games+engine audit. The
-ecosystem-wide work (engine/library bug fixes + new capabilities that streamline
-*multiple* games) shipped in 0.3.2 and is recorded in
-[`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md). Everything below changes **one game only**
-— its balance, content, feel, or assets — and is deliberately **not** done in the
-ecosystem pass. Each item is tagged:
+This report is the **game-isolated** half of the games+engine audit — per-game balance,
+content, feel, and asset work. The ecosystem-wide work (engine/library fixes + capabilities
+that streamline *multiple* games) is tracked separately in
+[`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md) and [`ENGINE-ROADMAP.md`](./ENGINE-ROADMAP.md).
+Everything below changes **one game only** — its balance, content, feel, or assets — and is
+deliberately **not** done in an ecosystem pass. Each item is tagged:
 
 - **data** — `config.json` / scene JSON only (a small config diff).
 - **host** — that game's `src/` glue.
 - **asset** — needs a sprite/audio/background.
-- **needs-engine** — blocked on a future engine capability (cross-referenced to the
-  deferred list at the bottom); cannot be done game-locally today.
-
-The 0.3.2 ecosystem pass already **fixed** three things that started as game findings,
-noted inline so they aren't re-opened: survival-arena's dead speed-ramp (A-1),
-idle-clicker's HUD digit-wall (compact formatting), and the helicopter ship not
-banking (now adopts `face-angle`).
+- **needs-engine** — blocked on a future engine capability (cross-referenced to the deferred
+  list at the bottom); cannot be done game-locally today.
 
 ---
 
@@ -28,7 +23,7 @@ banking (now adopts `face-angle`).
 | S2 | **med** | data | **Flat speed — the #1 competitor gap.** `stepInterval` is a constant `0.11`; classic Snake accelerates as you grow. Wire the **existing** library `scale-by-state` (`target:"state:..."` / a length or score counter) to ramp `stepInterval` — **zero engine work**, balance in `config.json`. Highest-leverage feel change. |
 | S3 | low | asset | **No readable grid.** The board is a starfield + frame; cell boundaries are invisible, which hurts precise tail-side turns. Add a faint grid background (tiled grid image, or a decor tilemap). |
 | S4 | low | host/data | **Wall-wrap toggle.** Offer a config flag for wrap-around walls (google-snake/Nokia classic). Needs `snake-body`/`snake-guard` to wrap rather than die on OOB. |
-| S5 | low | docs | `games/snake/README.md` still says `@gitcade/*@0.2.0`; bump to 0.3.2. |
+| S5 | low | docs | `games/snake/README.md` pins a stale `@gitcade/*` version; bump it to the current release. |
 
 **Verified correct (no action):** reversal guard, same-tick wall death + on-screen clamp, food-never-on-snake placement (incl. the imminent-cell marker), best-score persistence.
 **Potential future engine win:** a one-slot **turn buffer** in `move-grid-step` (queue the next turn so a fast double-tap at a corner isn't dropped) — benefits any grid mover; see deferred list.
@@ -44,8 +39,6 @@ banking (now adopts `face-angle`).
 | H3 | low | data | **Dead spacing knob.** `waveSize:1` makes `spawnInterval` inert — actual spacing is governed entirely by `waveDelay`. Document `waveDelay` as *the* live knob (a config tweak to `spawnInterval` currently does nothing). |
 | H4 | low | data | **Spawn points cluster near the top** (`y: [60,420,220,90,360]` — two within 30px at the top). Spread vertically for varied threading. |
 | H5 | low | asset | **No heli/rotor or pillar art.** The game named "Helicopter" reuses `player-ship.png`; obstacles are flat `#3b5dc9` rects. A heli sprite (animatable rotor via `sheet`) + a tileable pillar/cave-wall sprite would lift identity. Distinct crash SFX too. |
-
-**Shipped in 0.3.2:** the ship now **banks with vertical velocity** via the new `face-angle` (tilt mode) + rotation rendering — the genre's #1 "feel" win.
 
 ---
 
@@ -76,8 +69,6 @@ banking (now adopts `face-angle`).
 | T5 | low | data | `goldPerSec:0` → a player who spends to zero pre-placement can soft-lock until a kill pays out. Intentional tension, but a candidate for a config softening. |
 | T6 | low | asset/needs-engine | **Directional art** (turret with a barrel, facing creep) would unlock the now-available rotation rendering for turrets; a proper tiled road needs **td-10** (a `tilemap` tile-scale field — contract change, deferred). |
 
-**Shipped in 0.3.2:** towers now use **"first" (most-advanced) targeting** (`ai-aim-and-fire@1.1.0` `priorityKey:"__pathProgress"`) instead of nearest — the #1 TD correctness/feel gap (towers were shooting the wrong creep ~58% of the time).
-
 ---
 
 ## Idle Clicker
@@ -91,31 +82,27 @@ banking (now adopts `face-angle`).
 | I5 | low | host | `interval-bonus` timer resets to full on every reload (`__bonus` isn't persisted). Self-penalizing; fix only if it bothers you. |
 | I6 | low | asset | Distinct generator icons for the shop buttons (currently text-only) — idle games lean on per-building iconography. |
 
-**Shipped in 0.3.2:** the HUD now uses library **`formatCompact`** (`1.23K`/`4.5M`) instead of a digit wall, and the offline credit uses library **`cappedOfflineGain`** — both replacing host boilerplate.
-
 ---
 
 ## Survival Arena
 
 | # | Sev | Class | Item |
 |---|-----|-------|------|
-| V1 | **high** | data | **Re-balance now that the speed ramp is LIVE.** The 0.3.2 fix made enemies actually accelerate (95→188 px/s by lvl 8); the old "feels okay" tuning was set against a flat-speed swarm. With `playerSpeed:230` the level-8 margin is only ~42 px/s — likely too tight. Playtest; lift `playerSpeed` or soften `speedPerLevel`. |
+| V1 | **high** | data | **Re-balance against the LIVE speed ramp.** Enemies accelerate 95→188 px/s by lvl 8, but the tuning was set against a flat-speed swarm. With `playerSpeed:230` the level-8 margin is only ~42 px/s — likely too tight. Playtest; lift `playerSpeed` or soften `speedPerLevel`. |
 | V2 | **med** | data | **No enemy variety.** One `enemy-chaser` prototype. Add a fast-swarm tier (`enemy-swarm.png` **already in the manifest**) as a second `wave-spawner` instance — pure data. The genre's core content lever. |
 | V3 | med | data | **No in-run progression.** Brotato/VS live on XP gems → level-up → pick an upgrade. Even a minimal version (enemies drop a `collect-on-touch` gem that bumps `score`, feeding the existing `level-progression`) adds the missing reward loop. `gem.png` already exists. |
 | V4 | low | data | Win-state is a text swap ("YOU SURVIVED"); an endless/stretch mode past 75s is a natural extension. |
 | V5 | low | data | `over.flow.persist` carries `bestDisplay` redundantly (the host `mirror()` recomputes it each frame); drop it from the list. |
 | V6 | low | asset | Confirm the synth audio keys (`shoot`/`explode`/`lose`) resolve — there's no `public/assets/audio/`; the library player is procedural, so this is a verify, not a known break. |
 
-**Shipped in 0.3.2:** the **dead speed-ramp (A-1) is fixed** — `scale-by-state(multiply)` now runs **before** the `velocity` integrator (it was after, a visual-only no-op), and the smoke test now measures **displacement**, not post-tick `vx`, so the class of bug can't rubber-stamp again. A new validator advisory (`scale-ramp-after-integrator`) catches it statically.
-
 ---
 
-## Deferred ECOSYSTEM candidates (NOT shipped in 0.3.2)
+## Deferred ecosystem candidates
 
-These would benefit several games but were **not** shipped this pass — either they
-need a **frozen-contract change** (a human decision per the patch protocol) or they
-enable **new content** rather than retire an existing workaround. Listed so a future
-release can pick them up; cross-referenced from the per-game items above.
+These would benefit several games but are **not** yet shipped — either they need a
+**frozen-contract change** (a human decision per the patch protocol) or they enable **new
+content** rather than retire an existing workaround. Listed so a future release can pick them
+up; cross-referenced from the per-game items above.
 
 **Contract-change — needs a human decision:**
 - **Hitbox inset** (`collisionInset`/`hitbox` on the entity schema): fairer collisions for sprite colliders (helicopter corner-clip deaths, survival contact, breakout, snake, TD). New entity-schema field → not PATCH-clean.

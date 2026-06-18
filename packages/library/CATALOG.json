@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "library": "@gitcade/library",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "generatedFrom": "parts/",
   "parts": [
     {
@@ -898,7 +898,7 @@
     {
       "id": "move-platformer",
       "kind": "behavior",
-      "version": "1.0.0",
+      "version": "1.2.0",
       "category": "movement",
       "tags": [
         "movement",
@@ -907,7 +907,7 @@
         "gravity",
         "jump"
       ],
-      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator.",
+      "description": "Side-scrolling locomotion: horizontal run, gravity, jump, and coyote-time. Sets velocity for a following velocity integrator. 1.1.0 treats entity.state.__onGround (set by a later tilemap-collide/solid-collide behavior) as grounded, so a tile floor or solid body satisfies the jump test. 1.2.0 adds the genre-feel layer as OPTIONAL params, each defaulting to the original behavior: run acceleration/friction (accel/friction), variable jump height (jumpCutMultiplier), jump buffering (jumpBuffer), and apex hang (apexGravityMult/apexThreshold).",
       "license": "MIT",
       "dependencies": [
         "velocity"
@@ -937,6 +937,36 @@
           "type": "number",
           "balance": true,
           "description": "Terminal fall speed in px/sec (0 = uncapped)."
+        },
+        "accel": {
+          "type": "number",
+          "balance": true,
+          "description": "Horizontal acceleration in px/sec² toward the target speed (0 = instant vx)."
+        },
+        "friction": {
+          "type": "number",
+          "balance": true,
+          "description": "Horizontal deceleration in px/sec² when there is no input (0 = use accel; only applies when accel > 0)."
+        },
+        "jumpCutMultiplier": {
+          "type": "number",
+          "balance": true,
+          "description": "vy is multiplied by this on jump-release while rising (1 = no cut / fixed-impulse jump)."
+        },
+        "jumpBuffer": {
+          "type": "number",
+          "balance": true,
+          "description": "Seconds a jump press is remembered so it fires on landing (0 = off)."
+        },
+        "apexGravityMult": {
+          "type": "number",
+          "balance": true,
+          "description": "Gravity multiplier while |vy| < apexThreshold (1 = no change)."
+        },
+        "apexThreshold": {
+          "type": "number",
+          "balance": true,
+          "description": "|vy| in px/sec under which apexGravityMult applies (0 = off)."
         },
         "left": {
           "type": "array",
@@ -1268,6 +1298,68 @@
       }
     },
     {
+      "id": "solid-collide",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "collision",
+        "solid",
+        "platformer",
+        "entity"
+      ],
+      "description": "Resolves an entity's AABB against OTHER entities tagged solid — a crate, ledge, or moving lift becomes as solid as a tile: stops at their sides, lands on their tops, bonks their undersides, and writes the same contact flags as tilemap-collide (__onGround/__onCeiling/__onWallL/__onWallR), so move-platformer can jump off them and a vertical lift carries a resting entity. Order it AFTER the velocity integrator; combine freely with tilemap-collide (the flags merge per tick). Swept sub-stepping keeps a fast body from tunnelling a thin solid up to a bounded speed. The entity-vs-entity counterpart to tilemap-collide.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "solidTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag marking solid entities to resolve against (default \"solid\"); the entity carrying this behavior is skipped."
+        }
+      },
+      "definition": {
+        "type": "solid-collide",
+        "params": {
+          "solidTag": "solid"
+        }
+      }
+    },
+    {
+      "id": "tilemap-collide",
+      "kind": "behavior",
+      "version": "1.0.0",
+      "category": "movement",
+      "tags": [
+        "movement",
+        "collision",
+        "tilemap",
+        "platformer",
+        "solid"
+      ],
+      "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). Order it AFTER the velocity integrator. The terrain half of platformer collision.",
+      "license": "MIT",
+      "dependencies": [
+        "velocity"
+      ],
+      "params": {
+        "solidProp": {
+          "type": "string",
+          "balance": false,
+          "description": "Tile-property flag marking a solid cell (default \"solid\")."
+        }
+      },
+      "definition": {
+        "type": "tilemap-collide",
+        "params": {
+          "solidProp": "solid"
+        }
+      }
+    },
+    {
       "id": "trigger-zone",
       "kind": "behavior",
       "version": "1.0.0",
@@ -1327,6 +1419,46 @@
           "tag": "player",
           "enterEvent": "hazard",
           "kill": true
+        }
+      }
+    },
+    {
+      "id": "camera-follow",
+      "kind": "system",
+      "version": "2.0.0",
+      "category": "world",
+      "tags": [
+        "world",
+        "camera",
+        "follow",
+        "scrolling",
+        "platformer"
+      ],
+      "description": "Moves the render viewport (world.camera) to keep a tagged entity centered, with optional smoothing (ease) and a centered deadzone, clamped to the world bounds. The runtime camera for scrolling levels — pair with a scene.world larger than scene.size (SDK 0.7.0). Promotes the 1.x host-hint asset of the same id to a real runtime system.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "targetTag": {
+          "type": "string",
+          "balance": false,
+          "description": "Tag of the entity to keep centered (first live match)."
+        },
+        "smoothing": {
+          "type": "number",
+          "balance": true,
+          "description": "Ease factor 0..1 per tick toward the target; 1 = hard snap."
+        },
+        "deadzone": {
+          "type": "object",
+          "balance": false,
+          "description": "Centered { w, h } box (px) the target moves freely within before the camera pans."
+        }
+      },
+      "definition": {
+        "type": "camera-follow",
+        "params": {
+          "targetTag": "player",
+          "smoothing": "$cfg.cameraSmoothing"
         }
       }
     },
@@ -3553,32 +3685,6 @@
         "type": "camera-fixed",
         "params": {
           "mode": "fixed"
-        }
-      }
-    },
-    {
-      "id": "camera-follow",
-      "kind": "asset",
-      "version": "1.0.0",
-      "category": "world",
-      "tags": [
-        "world",
-        "camera",
-        "follow"
-      ],
-      "description": "Camera preset: follow a tagged entity with optional smoothing and deadzone (platformers, top-down explorers). A host hint consumed by the page that owns the canvas; registers no runtime type.",
-      "license": "MIT",
-      "dependencies": [],
-      "definition": {
-        "type": "camera-follow",
-        "params": {
-          "mode": "follow",
-          "targetTag": "player",
-          "smoothing": 0.12,
-          "deadzone": {
-            "w": 80,
-            "h": 60
-          }
         }
       }
     },

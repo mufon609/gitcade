@@ -28,7 +28,7 @@ function makeInput() {
     keyup: (code: string) => keyL.keyup({ code }),
     pdown: (id: number, x: number, y: number) => ptrL.pointerdown({ pointerId: id, clientX: x, clientY: y }),
     pup: (id: number, x: number, y: number) => ptrL.pointerup({ pointerId: id, clientX: x, clientY: y }),
-    blur: () => keyL.blur(),
+    blur: () => keyL.blur({}),
   };
 }
 

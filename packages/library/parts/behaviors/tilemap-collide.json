@@ -1,0 +1,17 @@
+{
+  "id": "tilemap-collide",
+  "kind": "behavior",
+  "version": "1.0.0",
+  "category": "movement",
+  "tags": ["movement", "collision", "tilemap", "platformer", "solid"],
+  "license": "MIT",
+  "description": "Resolves an entity's AABB against solid tilemap cells (a tile whose properties flag solid:true): stops at walls/ceilings, lands on floors, and exposes contact flags on entity.state (__onGround/__onCeiling/__onWallL/__onWallR). Order it AFTER the velocity integrator. The terrain half of platformer collision.",
+  "dependencies": ["velocity"],
+  "params": {
+    "solidProp": { "type": "string", "balance": false, "description": "Tile-property flag marking a solid cell (default \"solid\")." }
+  },
+  "definition": {
+    "type": "tilemap-collide",
+    "params": { "solidProp": "solid" }
+  }
+}

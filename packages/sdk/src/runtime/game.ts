@@ -134,7 +134,13 @@ export class Game {
     this.pauseScenes = opts.pauseScenes ?? null;
 
     this.world = new World({
-      bounds: { width: this.scene.size.width, height: this.scene.size.height },
+      // WORLD bounds = the entry scene's `world` (the scrollable area) or its `size`
+      // (viewport) when unset (0.7.0). loadScene re-applies this per scene + sets the
+      // camera viewport; this initial value just keeps a freshly-built world coherent.
+      bounds: {
+        width: (this.scene.world ?? this.scene.size).width,
+        height: (this.scene.world ?? this.scene.size).height,
+      },
       config: opts.config,
       registry: this.registry,
       input: opts.input,
@@ -218,6 +224,21 @@ export class Game {
     // owns its `input-actions` system, which re-installs them on its first tick.
     this.world.input.resetActions();
     this.world.tilemap = scene.tilemap;
+    // Decouple WORLD bounds from the VIEWPORT (0.7.0). `scene.size` is the viewport
+    // the canvas shows; `scene.world` (optional) is the larger simulation area a
+    // camera pans across. Behaviors clamp/floor against `world.bounds`; the camera
+    // viewport size is the canvas size; pointer→world mapping stays in viewport space.
+    // Reset the camera to the origin on every scene load (a new level starts top-left;
+    // a `camera-follow` system repositions it on tick 1). With no `scene.world` this is
+    // byte-identical to pre-0.7 (bounds == viewport, camera at {0,0}). NOTE: the canvas
+    // backing store is sized once from the ENTRY scene, so a game's scenes should share
+    // one viewport size (`scene.size`); only the world bounds vary per level.
+    const viewport = scene.size;
+    const worldSize = scene.world ?? scene.size;
+    this.world.bounds.width = worldSize.width;
+    this.world.bounds.height = worldSize.height;
+    this.world.camera = { x: 0, y: 0, width: viewport.width, height: viewport.height };
+    this.world.input.setWorldSize(viewport.width, viewport.height);
     this.world.frame = 0;
     this.world.time = 0;
     this.accumulator = 0;

@@ -1,0 +1,13 @@
+{
+  "name": "Platformer Solids (entity solids + swept collision proof)",
+  "slug": "proof-platformer-solids",
+  "description": "Reuse proof for the 0.7.0 entity-vs-entity solid resolution + swept collision enablers (INDIE-ROADMAP Tier-0 0.3/0.4): a player lands on, is blocked by, bonks, and jumps off solid crate + ledge entities, rides a vertical lift via solid-collide, and a fast faller lands on a thin platform without tunnelling.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.7.0",
+  "libraryVersion": "0.7.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

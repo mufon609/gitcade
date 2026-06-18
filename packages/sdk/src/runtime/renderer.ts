@@ -31,9 +31,26 @@ export class Renderer {
   render(world: World, background?: Background): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    const { width, height } = world.bounds;
+    // The VIEWPORT (camera) size — what the canvas shows. Falls back to world bounds
+    // for a hand-built world without a camera. With no scrolling these are equal, so
+    // a camera-less scene renders exactly as before (0.7.0).
+    const cam = world.camera;
+    const vw = cam ? cam.width : world.bounds.width;
+    const vh = cam ? cam.height : world.bounds.height;
 
-    this.drawBackground(ctx, world, background, width, height);
+    // Background is drawn in SCREEN space (no camera offset), so a solid/parallax
+    // backdrop stays fixed behind the scrolling world.
+    this.drawBackground(ctx, world, background, vw, vh);
+
+    // Camera transform (0.7.0): pan the world under the viewport. Skipped at the
+    // origin so a non-scrolling scene takes the exact pre-0.7 path (no save/translate),
+    // and rounded to whole px so tiles/sprites stay crisp while scrolling.
+    const scrolled = cam != null && (cam.x !== 0 || cam.y !== 0);
+    if (scrolled) {
+      ctx.save();
+      ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+    }
+
     this.drawTilemap(ctx, world);
 
     const drawList = world.entities
@@ -41,6 +58,8 @@ export class Renderer {
       .sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
 
     for (const e of drawList) this.drawEntity(ctx, e, world);
+
+    if (scrolled) ctx.restore();
   }
 
   /**

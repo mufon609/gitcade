@@ -3,15 +3,17 @@
 This report is the **game-isolated** half of the games+engine audit — per-game balance,
 content, feel, and asset work. The ecosystem-wide work (engine/library fixes + capabilities
 that streamline *multiple* games) is tracked separately in
-[`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md) and [`ENGINE-ROADMAP.md`](./ENGINE-ROADMAP.md).
+[`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md) (the authoritative forward engine roadmap),
+[`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md) (part-promotion candidates), and
+[`ENGINE-ROADMAP.md`](./ENGINE-ROADMAP.md) (the live shipped-game bandaid log).
 Everything below changes **one game only** — its balance, content, feel, or assets — and is
 deliberately **not** done in an ecosystem pass. Each item is tagged:
 
 - **data** — `config.json` / scene JSON only (a small config diff).
 - **host** — that game's `src/` glue.
 - **asset** — needs a sprite/audio/background.
-- **needs-engine** — blocked on a future engine capability (cross-referenced to the deferred
-  list at the bottom); cannot be done game-locally today.
+- **needs-engine** — blocked on a future engine capability (cross-referenced to
+  [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md)); cannot be done game-locally today.
 
 ---
 
@@ -26,7 +28,7 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | S5 | low | docs | `games/snake/README.md` pins a stale `@gitcade/*` version; bump it to the current release. |
 
 **Verified correct (no action):** reversal guard, same-tick wall death + on-screen clamp, food-never-on-snake placement (incl. the imminent-cell marker), best-score persistence.
-**Potential future engine win:** a one-slot **turn buffer** in `move-grid-step` (queue the next turn so a fast double-tap at a corner isn't dropped) — benefits any grid mover; see deferred list.
+**Potential future engine win:** a one-slot **turn buffer** in `move-grid-step` (queue the next turn so a fast double-tap at a corner isn't dropped) — benefits any grid mover; see [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md).
 
 ---
 
@@ -49,10 +51,10 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | B3 | low | data | **L2/L3 are sparser (30/26 bricks) than L1 (40)** — fewer bricks as you progress, though the per-level ball-speed ramp (`scale-by-state` on `world.state.level`) now compensates. Densify or structure the later layouts. |
 | B4 | low | data | Drop the dead `"solid"` tag on every brick (no system references it). |
 | B5 | low | data | **No ball/paddle juice.** Add the library `trail` behavior to the ball (data-only); a paddle "squash on hit" needs the new `entity.scale` rendering (now available — could adopt). |
-| B6 | low | needs-engine | **Same-tick last-brick-clear + ball-loss charges a life** (`lives-respawn` vs `level-progression` ordering). Rare edge; clean fix is a `lives-respawn` "suspend on clear/win" param (deferred list). |
-| B7 | low | needs-engine | **Side/underside paddle contact pushes the ball DOWN** (`reflect-on-hit` fixed `axis:"y"`). A `forceDir`/`bias` param (deferred list) fixes it; Pong benefits too. |
+| B6 | low | needs-engine | **Same-tick last-brick-clear + ball-loss charges a life** (`lives-respawn` vs `level-progression` ordering). Rare edge; clean fix is a `lives-respawn` "suspend on clear/win" param (see [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md)). |
+| B7 | low | needs-engine | **Side/underside paddle contact pushes the ball DOWN** (`reflect-on-hit` fixed `axis:"y"`). A `forceDir`/`bias` param (see [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md)) fixes it; Pong benefits too. |
 
-**Powerups / multiball** (the genre's defining content) are **needs-engine**: a `spawn-on-event` part + a powerup-effect channel (deferred list). `powerup-capsule.png` already ships, unused.
+**Powerups / multiball** (the genre's defining content) are **needs-engine**: a `spawn-on-event` part + a powerup-effect channel (see [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md)). `powerup-capsule.png` already ships, unused.
 
 ---
 
@@ -65,7 +67,7 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | T3 | low | data | **`build-denied` FX fires on every mistap** including taps on the road — the FX-proportionality footgun (CONVENTIONS §1). Gate it to the funds-denial case, or use a quieter cue. |
 | T4 | low | data | `towerMinCooldown` (0.2) is dead config (the upgrade chain bottoms out at 0.30s). Flag for the rebalance surface. |
 | T5 | low | data | `goldPerSec:0` → a player who spends to zero pre-placement can soft-lock until a kill pays out. Intentional tension, but a candidate for a config softening. |
-| T6 | low | asset/needs-engine | **Directional art** (turret with a barrel, facing creep) would unlock the now-available rotation rendering for turrets; a proper tiled road needs **td-10** (a `tilemap` tile-scale field — contract change, deferred). |
+| T6 | low | asset/needs-engine | **Directional art** (turret with a barrel, facing creep) would unlock the now-available rotation rendering for turrets; a proper tiled road needs a `tilemap` tile-scale field (contract change — see [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md)). |
 
 ---
 
@@ -94,24 +96,13 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 
 ---
 
-## Deferred ecosystem candidates
+## Where the ecosystem-wide candidates live
 
-These would benefit several games but are **not** yet shipped — either they need a
-**frozen-contract change** (a human decision per the patch protocol) or they enable **new
-content** rather than retire an existing workaround. Listed so a future release can pick them
-up; cross-referenced from the per-game items above.
-
-**Contract-change — needs a human decision:**
-- **Hitbox inset** (`collisionInset`/`hitbox` on the entity schema): fairer collisions for sprite colliders (helicopter corner-clip deaths, survival contact, breakout, snake, TD). New entity-schema field → not PATCH-clean.
-- **Text-sprite `format`/`precision` field**: a declarative alternative to host `formatCompact`. Reshapes the frozen text-sprite contract — the host-helper path (shipped) is the patch-clean answer.
-- **td-10 tileset tile-scale**: scaling 16px library tilesets to a 40px map `tileSize` needs a new `tilemap` field (a MINOR/asset-bundle item).
-- **`reflect-on-hit` total-speed cap**: today the cap is per-axis, so edge-english can push total speed ~41% over `ballMaxSpeed`. Changing it alters reflect feel for every consumer (Pong + Breakout).
-
-**Additive (PATCH-clean) — could ship in a later minor, no current game hand-rolls them:**
-- **`spawn-on-event`** system (`{prototype, at:eventPos|fixed, count}`) + a **powerup-effect** channel → Breakout multiball/powerups, boss minions, drop-on-death.
-- **`shoot-at-pointer`** / `shoot` `aimPointer` mode → true twin-stick aim (survival-arena, future shooters).
-- **`damage-flash` / i-frames** behavior → on-hit feedback + brief invulnerability (survival-arena, snake, TD, breakout).
-- **`lives-respawn` "suspend on clear/win"** param → fixes Breakout's same-tick life-on-clear edge (B6).
-- **`reflect-on-hit` `forceDir`/`bias`** param → fixes Breakout's side-paddle down-bounce (B7); Pong benefits.
-- **`move-grid-step` turn buffer** (one-slot queued next-turn) → snake/any grid mover corner precision.
-- **Promote the proven custom parts** still logged in LIBRARY-GAPS: `trailing-body` + `post-step-death-guard` (snake), `thrust-lift` (helicopter), `build-on-request` + `event-counters` + `build-preview` (TD), the idle trio + `prestige` (idle-clicker). All additive; promote when a second consumer appears.
+The cross-game engine/library capabilities these per-game items depend on — the
+contract-change items (hitbox inset, tileset tile-scale, the `reflect-on-hit` speed cap,
+text-sprite `format`) and the additive parts (`spawn-on-event` + powerup channel,
+`shoot-at-pointer`, `damage-flash`/i-frames, `lives-respawn` suspend-on-clear,
+`reflect-on-hit` `forceDir`, `move-grid-step` turn buffer) — are consolidated in
+[`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md), the authoritative forward engine roadmap. Custom
+parts awaiting a second consumer for promotion are tracked in
+[`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md). This file stays per-game only.

@@ -15,6 +15,7 @@ import { placeOnFreeCell } from "./place-on-free-cell.js";
 import { inputActions } from "./input-actions.js";
 import { formatBinding } from "./format-binding.js";
 import { statModifier } from "./stat-modifier.js";
+import { cameraFollow } from "./camera-follow.js";
 
 /**
  * Every library system, keyed by the exact `type` string a scene uses. As with
@@ -37,6 +38,7 @@ export const LIBRARY_SYSTEMS = {
   "input-actions": inputActions,
   "format-binding": formatBinding,
   "stat-modifier": statModifier,
+  "camera-follow": cameraFollow,
 } as const;
 
 /** The library system type ids (for tests / introspection). */
@@ -65,4 +67,5 @@ export {
   inputActions,
   formatBinding,
   statModifier,
+  cameraFollow,
 };

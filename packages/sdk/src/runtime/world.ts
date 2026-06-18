@@ -25,6 +25,21 @@ export interface WorldOptions {
 }
 
 /**
+ * The render VIEWPORT onto the world (0.7.0). `x`/`y` is the top-left of the
+ * viewport in WORLD coordinates; `width`/`height` is its size in world px (the
+ * canvas/logical size). The renderer translates by `-x`/`-y` before drawing the
+ * world, so the viewport is a window that can pan across a `world.bounds` larger
+ * than itself. A `camera-follow` system moves `x`/`y`; the default (full bounds at
+ * the origin) means a scene with no camera renders byte-identically.
+ */
+export interface Camera {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
  * A QUEUED scene transition requested from inside a behavior/system via
  * {@link World.requestScene}. Applied by the host loop BETWEEN ticks (never
  * mid-tick), so the frozen in-tick order is preserved (G1).
@@ -44,7 +59,20 @@ export interface SceneChangeRequest {
  * life (extended only additively).
  */
 export class World {
+  /**
+   * WORLD/simulation bounds in px (the playable area). Behaviors clamp/floor/bounce
+   * against this. DECOUPLED from the {@link camera} viewport since 0.7.0: a scrolling
+   * level sets `bounds` LARGER than the viewport. The host (`Game`) updates these per
+   * scene from `scene.world ?? scene.size`; parts read them, don't reassign them.
+   */
   readonly bounds: { width: number; height: number };
+  /**
+   * The render viewport onto the world (0.7.0). Defaults to the full bounds at the
+   * origin (so a camera-less scene renders byte-identically); a `camera-follow`
+   * system pans it and the renderer reads it. The host sizes `width`/`height` to the
+   * viewport (`scene.size`).
+   */
+  camera: Camera;
   readonly config: Config;
   readonly registry: Registry;
   readonly input: Input;
@@ -106,6 +134,9 @@ export class World {
 
   constructor(opts: WorldOptions) {
     this.bounds = opts.bounds;
+    // Default the viewport to the whole world at the origin — the host overrides
+    // width/height with the actual viewport (`scene.size`) when it differs (0.7.0).
+    this.camera = { x: 0, y: 0, width: opts.bounds.width, height: opts.bounds.height };
     this.config = opts.config;
     this.registry = opts.registry;
     this.input = opts.input ?? new Input();

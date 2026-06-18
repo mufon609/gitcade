@@ -5,7 +5,7 @@
  * (`stepFrames`).
  */
 export { Game, DEFAULT_FIXED_DT, type GameOptions } from "./game.js";
-export { World, type WorldOptions } from "./world.js";
+export { World, type WorldOptions, type Camera } from "./world.js";
 export { Entity, type BehaviorInstance, type AnimationState } from "./entity.js";
 export { Registry, type BehaviorRegistration, type SystemRegistration } from "./registry.js";
 export { EventBus, type GameEvent } from "./eventbus.js";
@@ -14,7 +14,16 @@ export { AudioPlayer } from "./audio.js";
 export { Renderer } from "./renderer.js";
 export { buildEntity } from "./entity-factory.js";
 export { resolveParams, num, str, bool, strArray } from "./params.js";
-export { aabbOverlap, entitiesOverlap, overlapAxis, type AABB } from "./collision.js";
+export {
+  aabbOverlap,
+  entitiesOverlap,
+  overlapAxis,
+  resolveSolids,
+  applyContacts,
+  type AABB,
+  type MovingBody,
+  type SolidContacts,
+} from "./collision.js";
 export { createDefaultRegistry } from "./defaults.js";
 export type { BehaviorFn, SystemFn, ResolvedParams, ParamSpec } from "./types.js";
 

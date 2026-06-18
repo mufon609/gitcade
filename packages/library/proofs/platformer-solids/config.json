@@ -1,0 +1,9 @@
+{
+  "playerSpeed": 180,
+  "gravity": 1400,
+  "jumpSpeed": 520,
+  "coyoteTime": 0.08,
+  "maxFall": 900,
+  "elevatorSpeed": 60,
+  "fallerSpeed": 3000
+}

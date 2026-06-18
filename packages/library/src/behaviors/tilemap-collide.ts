@@ -1,0 +1,64 @@
+import type { BehaviorFn, AABB } from "@gitcade/sdk";
+import { str, resolveSolids, applyContacts } from "@gitcade/sdk";
+
+/**
+ * Resolve an entity's AABB against SOLID tilemap cells — the terrain half of
+ * platformer collision (INDIE-ROADMAP Tier-0 item 0.2). A cell is solid when its
+ * tile-index `properties` carry the `solidProp` flag (default `"solid"`). The entity
+ * is pushed out of the cell it ran into, the matching velocity component is zeroed,
+ * and contact flags are written to `entity.state` for other behaviors to read:
+ * `__onGround`, `__onCeiling`, `__onWallL`, `__onWallR`.
+ *
+ * ORDER IT AFTER the velocity integrator (e.g. `move-platformer` → `velocity` →
+ * `tilemap-collide`): it corrects the position the integrator just produced, in the
+ * SAME tick, so there is no one-frame penetration. `move-platformer` reads the
+ * `__onGround` flag this writes (so a tile floor satisfies its jump test) — that read
+ * is one tick old, which the part's coyote-time covers. Combines freely with
+ * `solid-collide` on the same entity: the contact flags MERGE per tick (so a tile
+ * floor and a crate both ground you), regardless of behavior order.
+ *
+ * The resolution itself is the SDK's shared `resolveSolids` primitive (0.3): this part
+ * just gathers the solid CELLS the body could touch this tick into rects and hands them
+ * over — `solid-collide` feeds it solid ENTITIES the same way, so a crate is exactly as
+ * solid as a tile. `resolveSolids` sub-steps a fast body so it can't tunnel a thin floor
+ * between ticks (0.4); at typical speeds it is a single byte-identical pass.
+ *
+ * Params:
+ *  - `solidProp`: tile-property flag marking a solid cell (default `"solid"`)
+ */
+export const tilemapCollide: BehaviorFn = (entity, world, params, dt) => {
+  const t = world.tilemap;
+  if (!t) {
+    applyContacts(entity.state, world.frame, { onGround: false, onCeiling: false, onWallL: false, onWallR: false });
+    return;
+  }
+  const solidProp = str(params, "solidProp", "solid");
+  const ts = t.tileSize;
+
+  const isSolid = (col: number, row: number): boolean => {
+    if (col < 0 || row < 0 || col >= t.cols || row >= t.rows) return false; // OOB: world bounds handle edges
+    const idx = t.tiles[row * t.cols + col] ?? -1;
+    if (idx < 0) return false;
+    return t.properties?.[String(idx)]?.[solidProp] === true;
+  };
+
+  // Broadphase: the solid cells overlapping the body's SWEPT span this tick (its box
+  // from before the move to after it), padded one cell so an edge resting flush on a
+  // seam still sees the neighbour. A small candidate set keeps the shared resolver's
+  // per-rect scan cheap and lets it sub-step fast bodies without scanning the whole grid.
+  const x0 = entity.x - entity.vx * dt;
+  const y0 = entity.y - entity.vy * dt;
+  const c0 = Math.max(0, Math.floor(Math.min(x0, entity.x) / ts) - 1);
+  const c1 = Math.min(t.cols - 1, Math.floor((Math.max(x0, entity.x) + entity.w) / ts) + 1);
+  const r0 = Math.max(0, Math.floor(Math.min(y0, entity.y) / ts) - 1);
+  const r1 = Math.min(t.rows - 1, Math.floor((Math.max(y0, entity.y) + entity.h) / ts) + 1);
+  const rects: AABB[] = [];
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      if (isSolid(c, r)) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts });
+    }
+  }
+
+  const contacts = resolveSolids(entity, rects, dt);
+  applyContacts(entity.state, world.frame, contacts);
+};

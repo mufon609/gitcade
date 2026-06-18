@@ -1,0 +1,13 @@
+{
+  "name": "Scrolling Platformer (camera + tilemap-collide proof)",
+  "slug": "proof-platformer-scroll",
+  "description": "Reuse proof for the 0.7.0 platformer enablers: a player runs and jumps across a tile world wider than the viewport (move-platformer + velocity + tilemap-collide), with a camera-follow system panning the viewport and clamping it to the world bounds.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "0.7.0",
+  "libraryVersion": "0.7.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

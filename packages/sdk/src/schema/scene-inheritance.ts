@@ -19,7 +19,7 @@ import type { SystemDef } from "./system.js";
  *    base's is inherited. (The 800x600 default is indistinguishable from "unset"
  *    after Zod parsing, so a child that genuinely wants the default while the base
  *    differs must set the base's default instead — documented edge.)
- *  - `tilemap`/`background`/`music`/`flow`: the child's when present, else the base's.
+ *  - `world`/`tilemap`/`background`/`music`/`flow`: the child's when present, else the base's.
  *  - `id`/`extends`: always the child's own (the resolved scene keeps its identity).
  *
  * Chains (`A extends B extends C`) resolve bottom-up with a cycle guard. The result
@@ -68,6 +68,9 @@ function mergeScene(base: Scene, child: Scene): Scene {
     entities: mergeById(base.entities ?? [], child.entities ?? [], (e) => e.id),
     systems: mergeById(base.systems ?? [], child.systems ?? [], (s) => s.id),
     size: resolveSize(base.size, child.size),
+    // World bounds (0.7.0): the child's if it set them, else the base's — so a level
+    // shell can declare the scrollable world size once and each level inherits it.
+    world: child.world ?? base.world,
     tilemap: child.tilemap ?? base.tilemap,
     background: child.background ?? base.background,
     music: child.music ?? base.music,

@@ -142,7 +142,7 @@ describe("keydown preventDefault — page-scroll suppression", () => {
     expect(input.isDown("ArrowLeft")).toBe(true);
     // Focus leaves (Alt-Tab / click outside the iframe): the matching keyups never
     // arrive, so the blur handler must drop the held set or the keys stick forever.
-    listeners.blur();
+    listeners.blur({});
     expect(input.isDown("Space")).toBe(false);
     expect(input.isDown("ArrowLeft")).toBe(false);
   });

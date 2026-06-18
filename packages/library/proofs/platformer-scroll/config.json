@@ -1,0 +1,14 @@
+{
+  "playerSpeed": 180,
+  "gravity": 1400,
+  "jumpSpeed": 520,
+  "coyoteTime": 0.08,
+  "maxFall": 900,
+  "cameraSmoothing": 0.2,
+  "runAccel": 1800,
+  "runFriction": 2400,
+  "jumpCut": 0.5,
+  "jumpBuffer": 0.1,
+  "apexGravityMult": 0.6,
+  "apexThreshold": 90
+}

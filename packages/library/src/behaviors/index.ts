@@ -2,6 +2,8 @@ import type { Registry } from "@gitcade/sdk";
 
 import { move4dir } from "./move-4dir.js";
 import { movePlatformer } from "./move-platformer.js";
+import { tilemapCollide } from "./tilemap-collide.js";
+import { solidCollide } from "./solid-collide.js";
 import { moveTopdown360 } from "./move-topdown-360.js";
 import { moveGridStep } from "./move-grid-step.js";
 import { autoScroll } from "./auto-scroll.js";
@@ -29,6 +31,8 @@ import { faceAngle } from "./face-angle.js";
 export const LIBRARY_BEHAVIORS = {
   "move-4dir": move4dir,
   "move-platformer": movePlatformer,
+  "tilemap-collide": tilemapCollide,
+  "solid-collide": solidCollide,
   "move-topdown-360": moveTopdown360,
   "move-grid-step": moveGridStep,
   "auto-scroll": autoScroll,
@@ -62,6 +66,8 @@ export function registerLibraryBehaviors(registry: Registry): void {
 export {
   move4dir,
   movePlatformer,
+  tilemapCollide,
+  solidCollide,
   moveTopdown360,
   moveGridStep,
   autoScroll,

@@ -5,12 +5,14 @@ import { LIBRARY_BEHAVIOR_TYPES } from "../src/behaviors/index.js";
 import { LIBRARY_SYSTEM_TYPES } from "../src/systems/index.js";
 
 describe("library registration", () => {
-  it("registers all 20 behaviors and 15 systems as new TYPES", () => {
-    // 18 (through 0.2.0) + scale-by-state (0.2.1, #8) + face-angle (0.3.2).
-    expect(LIBRARY_BEHAVIOR_TYPES).toHaveLength(20);
+  it("registers all 22 behaviors and 16 systems as new TYPES", () => {
+    // 18 (through 0.2.0) + scale-by-state (0.2.1, #8) + face-angle (0.3.2)
+    // + tilemap-collide (0.7.0, INDIE-ROADMAP 0.2) + solid-collide (0.7.0, INDIE-ROADMAP 0.3).
+    expect(LIBRARY_BEHAVIOR_TYPES).toHaveLength(22);
     // 9 (0.1.x) + 3 0.2.0 economy/spawning (transaction, persistence, place-on-free-cell)
-    // + input-actions + format-binding (0.4.0, E1/E2) + stat-modifier (0.4.0, E6).
-    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(15);
+    // + input-actions + format-binding (0.4.0, E1/E2) + stat-modifier (0.4.0, E6)
+    // + camera-follow (0.7.0, INDIE-ROADMAP 0.1).
+    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(16);
 
     const registry = createDefaultRegistry();
     registerLibrary(registry);

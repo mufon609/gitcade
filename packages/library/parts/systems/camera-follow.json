@@ -1,0 +1,19 @@
+{
+  "id": "camera-follow",
+  "kind": "system",
+  "version": "2.0.0",
+  "category": "world",
+  "tags": ["world", "camera", "follow", "scrolling", "platformer"],
+  "license": "MIT",
+  "description": "Moves the render viewport (world.camera) to keep a tagged entity centered, with optional smoothing (ease) and a centered deadzone, clamped to the world bounds. The runtime camera for scrolling levels — pair with a scene.world larger than scene.size (SDK 0.7.0). Promotes the 1.x host-hint asset of the same id to a real runtime system.",
+  "dependencies": [],
+  "params": {
+    "targetTag": { "type": "string", "balance": false, "description": "Tag of the entity to keep centered (first live match)." },
+    "smoothing": { "type": "number", "balance": true, "description": "Ease factor 0..1 per tick toward the target; 1 = hard snap." },
+    "deadzone": { "type": "object", "balance": false, "description": "Centered { w, h } box (px) the target moves freely within before the camera pans." }
+  },
+  "definition": {
+    "type": "camera-follow",
+    "params": { "targetTag": "player", "smoothing": "$cfg.cameraSmoothing" }
+  }
+}

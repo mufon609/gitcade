@@ -13,6 +13,10 @@ export const TilePropsSchema = z
     buildable: z.boolean().optional(),
     walkable: z.boolean().optional(),
     lane: z.boolean().optional(),
+    /** Solid terrain: the library `tilemap-collide` behavior resolves entity AABBs
+     *  against any cell flagged this (the platformer floor/wall/ceiling). A named
+     *  convenience over the catchall — purely additive (0.7.0). */
+    solid: z.boolean().optional(),
   })
   .catchall(z.union([z.boolean(), z.number(), z.string()]));
 
@@ -100,11 +104,22 @@ export const SceneSchema = z.object({
   background: BackgroundSchema.optional(),
   /** Background music track key/path (resolved by the audio player). */
   music: z.string().optional(),
-  /** World/canvas bounds in px. Defaults to 800x600. */
+  /** VIEWPORT (canvas) bounds in px — what the camera shows. Defaults to 800x600. */
   size: z.object({ width: z.number().positive(), height: z.number().positive() }).default({
     width: 800,
     height: 600,
   }),
+  /**
+   * Optional WORLD/simulation bounds in px (0.7.0 additive). The playable area the
+   * runtime clamps/floors/bounces against (`world.bounds`), DECOUPLED from `size`,
+   * which becomes strictly the viewport the camera shows. Absent ⇒ `world` equals
+   * `size` (every pre-0.7 scene): the camera sees the whole world and rendering is
+   * byte-identical. Set this LARGER than `size` for a scrolling level — a side-
+   * scroller widens it, a vertical climber heightens it — and add a `camera-follow`
+   * system to move the viewport across it. The viewport (`size`) should stay constant
+   * across a game's scenes (the canvas is sized once from the entry scene).
+   */
+  world: z.object({ width: z.number().positive(), height: z.number().positive() }).optional(),
   /** Data-driven scene transitions + in-session state hand-off (0.2.0 additive, G1). */
   flow: SceneFlowSchema.optional(),
 });

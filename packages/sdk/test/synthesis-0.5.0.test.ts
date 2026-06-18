@@ -122,7 +122,7 @@ function makeCursorInput(rect?: { left: number; top: number; width: number; heig
     down: (x: number, y: number, id = 1) => ptrL.pointerdown({ pointerId: id, clientX: x, clientY: y }),
     up: (x: number, y: number, id = 1) => ptrL.pointerup({ pointerId: id, clientX: x, clientY: y }),
     leave: () => ptrL.pointerleave({}),
-    blur: () => keyL.blur(),
+    blur: () => keyL.blur({}),
   };
 }
 

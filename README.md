@@ -68,6 +68,36 @@ namespacing every save by `gameSlug + branch` so switching branches or playing a
 fork never corrupts a save. Because balance lives in data, rebalancing a game —
 or remixing a fork — is a one-line JSON diff, not a code change.
 
+### Why it's built this way
+
+Every load-bearing decision flows from one bet: **a game is data, not code.**
+Data validated against a frozen schema can be authored by an AI, forked by a
+machine, and diffed line-by-line — freeform game code can be none of those things
+safely. So the runtime reads JSON, balance lives in `config.json` as plain
+numbers (never literals buried in code), and parts are referenced by
+`partId@version` against a shared catalog. That is what makes the two pillars
+real rather than aspirational: a fork is a structured diff (a rebalance is one
+line), and a remix is a part swap the validator can prove still runs.
+
+The runtime is a **deterministic fixed-timestep loop** for the same reason —
+determinism here is a capability, not a performance detail. A fixed step plus a
+seeded RNG means a recorded input stream replays byte-identically, so replays,
+ghost races, seeded daily challenges, and verifiable speedruns fall out as
+*consequences* of the architecture instead of features bolted on. A platform
+built on freeform generated code can't promise this; this one gets it for free.
+
+The **validator (`gitcade validate`) is the keystone** that turns intent into
+guarantee. As the publish gate it rejects raw magic numbers (balance must be a
+`$cfg` reference), raw `localStorage`, and unresolved part references, then boots
+the game headless to prove it runs. Because of it, every published game stays
+byte-valid across a library version bump and every fork is guaranteed to load.
+The constraints aren't ceremony — they're what makes fork, remix, and compose
+trustworthy at scale.
+
+> The full rationale — the bet, the alternatives rejected, the invariants the
+> project protects, and where the concept goes next — lives in
+> [`DESIGN.md`](./DESIGN.md).
+
 ---
 
 ## Quick start (local development)
@@ -129,6 +159,7 @@ client honors it so the same code works against both.
 
 | Doc | What it owns |
 |---|---|
+| **[DESIGN.md](./DESIGN.md)** | The design rationale — *why* the engine is data-not-code, why it's deterministic, why the validator is the keystone, and the invariants that keep the concept true. Start here to understand the bet. |
 | **[CLAUDE.md](./CLAUDE.md)** | The operating contract for working on this codebase — machine rules, frozen contracts, how to run and verify. |
 | **[infra/README.md](./infra/README.md)** | Deployment topology: the app / worker / storage trust zones and the boundaries between them. |
 | **[platform/README.md](./platform/README.md)** | The three platform services and how they share the queue, database, and bucket. |

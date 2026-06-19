@@ -4,7 +4,7 @@
   "description": "Bounce the ball off your paddle to smash every brick in the wall, on three lives. A GitCade ecosystem seed game.",
   "version": "1.0.0",
   "engine": "gitcade-sdk",
-  "sdkVersion": "1.10.0",
+  "sdkVersion": "1.10.1",
   "libraryVersion": "1.10.0",
   "entryPoint": "src/scenes/title.json",
   "license": { "code": "MIT", "assets": "CC-BY-4.0" },

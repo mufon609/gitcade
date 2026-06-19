@@ -7,8 +7,8 @@ Each game composes **only** `@gitcade/library` parts (referenced as `partId@vers
 plus its own `config.json` and JSON scene definitions, with a thin host `main.ts`.
 Each pins exact `sdkVersion` + `libraryVersion` from public npm — **not** workspace
 links — because each game also lives as a standalone `gitcade-games/<slug>` repo that
-the build worker resolves from the public registry. All six pin `@gitcade/sdk@1.9.0`
-+ `@gitcade/library@1.9.0`.
+the build worker resolves from the public registry. All six pin `@gitcade/sdk@1.10.1`
++ `@gitcade/library@1.10.0`.
 
 ## Synthesis / planning docs
 

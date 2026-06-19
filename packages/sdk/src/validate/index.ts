@@ -122,7 +122,7 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
 
   // 5b. Cross-scene reference integrity: flow.on targets, scene `extends`,
   //     manifest `levels`/`levelsComplete`, and `entryPoint` must all resolve to a
-  //     real scene id — a broken link used to slip through to runtime.
+  //     real scene id — a broken link would otherwise slip through to runtime.
   if (scenes.length > 0) {
     issues.push(...checkSceneRefs(scenes, manifest));
   }

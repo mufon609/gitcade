@@ -34,8 +34,8 @@ export class EventBus {
    * Register a SCENE-SCOPED listener: identical to {@link on}, but the
    * subscription is auto-removed on the next scene transition (`Game.loadScene` calls
    * {@link clearSceneListeners}, right next to its flow-edge teardown). This is the
-   * engine generalization of the per-part "attach once per World" `WeakMap` dedup that
-   * every event-driven system used to hand-roll: because the bus is wiped on a scene
+   * engine generalization of the per-part "attach once per World" `WeakMap` dedup, so an
+   * event-driven system needn't hand-roll listener cleanup: because the bus is wiped on a scene
    * change, a system that (re-)attaches its listener once per scene ENTRY — guarded by
    * a scene-scoped `world.state` flag, the same seed-once idiom parts already use — can
    * never double-fire on "Play again". Returns the same manual unsubscribe as

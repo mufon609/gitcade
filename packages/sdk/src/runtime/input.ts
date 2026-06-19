@@ -91,7 +91,7 @@ export class Input {
   // Driven by bare `pointermove` (desktop hover has no button) plus pointerdown/up, in the
   // SAME world space as every other pointer channel. null until the first pointer event and
   // cleared on pointerleave / focus loss / detach, so a cursor that left the canvas reports
-  // "no position" — exactly the old host `pointerleave → delete world.state.buildHover`
+  // "no position" — matching a host `pointerleave → delete world.state.buildHover`
   // bridge this retires. Touch has no hover (a tap ends in pointerleave), so it stays null
   // there, and headless never sees a pointer event, so it stays null in tests/validate.
   private lastCursor: { x: number; y: number } | null = null;
@@ -392,7 +392,7 @@ export class Input {
         this.pointers.delete(e.pointerId);
       };
       // The cursor left the canvas — drop the hover position so a hover-driven affordance
-      // (build preview) hides, matching the old host `pointerleave → delete buildHover`
+      // (build preview) hides, matching a host `pointerleave → delete buildHover`
       // bridge. Boundary events are suppressed while a pointer is captured, so a drag
       // OFF the canvas keeps lastCursor live; this fires on a true leave or after a touch
       // releases capture (pointerup → leave), so touch reports null after its tap.

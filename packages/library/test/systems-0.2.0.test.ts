@@ -265,7 +265,7 @@ describe("persistence vs currency seeding race", () => {
 // Idle Clicker offline-credit ordering: a HOST-SIDE writer that
 // adds earnings-while-away must defer on the SAME persist claim the seed systems
 // use, so it lands AFTER the async restore — never racing a fixed timer that the
-// restore can overwrite (the old `setTimeout(credit, 60)` silently lost coins
+// restore can overwrite (a naive `setTimeout(credit, 60)` silently lost coins
 // whenever the bridge round-trip took longer than 60ms).
 // ---------------------------------------------------------------------------
 describe("offline-credit ordering vs the persistence restore", () => {
@@ -340,10 +340,10 @@ describe("offline-credit ordering vs the persistence restore", () => {
     expect(g.world.state.coins).toBe(SAVED_COINS + gain); // 500 + 36000, nothing lost
   });
 
-  it("CONTRAST: applying BEFORE the restore (the old timer bug) loses the credit", async () => {
+  it("CONTRAST: applying BEFORE the restore loses the credit", async () => {
     const storage = await savedStorage();
     const g = new Game({ scenes: [scene], config: {}, canvas: null, persist, storage, registry: createLibraryRegistry() });
-    // Simulate the old setTimeout firing early — credit while the restore is still pending.
+    // Simulate a naive setTimeout firing early — credit while the restore is still pending.
     g.stepFrames(1);
     g.world.state.coins = ((g.world.state.coins as number) ?? 0) + gain;
     // The async restore then lands and overwrites `coins` — the gain is gone.

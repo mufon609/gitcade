@@ -6,7 +6,7 @@ import type { Tilemap } from "../src/schema/scene.js";
 /**
  * 1.2.0 — the SLOPE second pass of the resolution phase (`World.resolveBodies` step 2b). After the
  * solid AABB push-out, the phase rests a dynamic body's bottom on any floor-slope tile under it
- * (the `slopeL`/`slopeR` props), absorbing the slope half of the old `tilemap-collide`. Pins: rest
+ * (the `slopeL`/`slopeR` props), absorbing the slope half of tile collision. Pins: rest
  * on a ramp, downhill-stick (walk down without launching), a rising body passing up through, the
  * no-slope-cell no-op, and slope + collider `inset`.
  */

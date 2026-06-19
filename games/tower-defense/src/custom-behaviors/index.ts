@@ -212,8 +212,8 @@ export const buildPreview: SystemFn = (world, params) => {
   // The engine's button-less cursor (world coords), null on touch/headless/off-canvas.
   const hover = world.input.cursor();
   if (!hover) {
-    // Not hovering — hide both previews (the renderer's visibility toggle, 0.7.0; replaces
-    // the old off-screen `x=-9999` park, which only worked because nothing read visibility).
+    // Not hovering — hide both previews (the renderer's visibility toggle; rather than
+    // an off-screen `x=-9999` park, which only works when nothing reads visibility).
     for (const e of [ring, cell]) if (e) e.visible = false;
     return;
   }

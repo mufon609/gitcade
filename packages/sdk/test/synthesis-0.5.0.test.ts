@@ -130,7 +130,7 @@ describe("input.cursor()", () => {
   it("is null until the first pointer event, then tracks a bare (button-less) hover move", () => {
     const { input, move } = makeCursorInput();
     expect(input.cursor()).toBeNull();
-    move(120, 80); // a hover with NO button down — the case the old held-pointer set ignored
+    move(120, 80); // a hover with NO button down — the case a button-only held-pointer set ignores
     expect(input.cursor()).toEqual({ x: 120, y: 80 });
   });
 

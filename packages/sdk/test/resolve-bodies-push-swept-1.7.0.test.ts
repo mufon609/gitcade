@@ -66,7 +66,7 @@ const overlaps = (a: Entity, b: Entity): boolean =>
 describe("resolveBodies — swept push (no tunnelling, no backward-yank)", () => {
   it("a pusher faster than the crate width per tick drives the crate the FULL displacement, flush ahead", () => {
     const world = makeWorld();
-    // 66.7px/tick > crate width 40; FLUSH start (the old clean-tunnel case).
+    // 66.7px/tick > crate width 40; FLUSH start (the clean-tunnel case).
     const pusher = addCollider(world, "p", 100, 100, 20, 20, { role: "dynamic" }, { vx: 4000 });
     const crate = addCollider(world, "c", 120, 100, 40, 20, { role: "dynamic", pushable: true });
     pusher.vx = 4000;

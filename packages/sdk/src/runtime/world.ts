@@ -570,7 +570,7 @@ export class World {
       const c = e.body.collider!;
 
       // The collider box = the sprite AABB shrunk by the optional inset, carrying this tick's
-      // velocity. With no inset the entity IS the MovingBody (zero-alloc, like the old resolvers).
+      // velocity. With no inset the entity IS the MovingBody (zero-alloc).
       const ix = c.inset.x;
       const iy = c.inset.y;
       const hasInset = ix !== 0 || iy !== 0;
@@ -998,8 +998,9 @@ function overlapAmt(aMin: number, aLen: number, bMin: number, bLen: number): num
  * leading edge's full sweep this tick, NOT the settled-frame AABB overlap. This is what makes push
  * non-tunnelling at speed: the swept penetration `pusherLeadingEdge − crateNearFace` stays correct (and
  * positive) even when the pusher's trailing edge ends PAST the crate (a static overlap test reads 0 and
- * the old code did nothing) or when a deep overshoot makes the settled overlap UNDER-read the real
- * penetration (the old code shoved by that small overlap, and phase 3 then yanked the pusher backward).
+ * a non-swept shove does nothing) or when a deep overshoot makes the settled overlap UNDER-read the real
+ * penetration (a non-swept shove moves the crate by only that small overlap, and phase 3 then yanks the
+ * pusher backward).
  *
  * Resolves on COLLIDER boxes (insets honored, like the rest of the phase). Returns `null` when this isn't
  * a side push:
@@ -1077,7 +1078,7 @@ const SLOPE_R_PROP = "slopeR";
 /**
  * Gather the tile cells overlapping `[loX,hiX]×[loY,hiY]` into `rects` (SOLID/one-way push-out boxes)
  * and `slopeCells` (floor-slope surfaces) — the static-terrain broadphase the resolution phase feeds
- * to `resolveSolids`/`resolveSlopes` (absorbing the old `tilemap-collide` cell scan). A cell is a
+ * to `resolveSolids`/`resolveSlopes` (performing the tile cell scan directly). A cell is a
  * SLOPE via the `slopeL`/`slopeR` props (NOT a solid rect — the slope pass owns it), else solid via
  * `solid`, else one-way via `oneWay` (top-face-only, dropped while `dropping`).
  *

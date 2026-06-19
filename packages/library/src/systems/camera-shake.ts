@@ -8,7 +8,7 @@ import { systemState } from "../util.js";
  * `world.camera.shakeX`/`shakeY` each tick; the renderer adds that offset to the camera,
  * so the view shakes whether or not the scene scrolls. The offset is kept SEPARATE
  * from `camera.x`/`y`, so it never corrupts a `camera-follow` base or the pointer→world
- * mapping. This is the engine replacement for the old host-side DOM canvas-translate shake.
+ * mapping. This is the engine's data-driven alternative to a host-side DOM canvas-translate shake.
  *
  * Trigger it as DATA: emit the event with an optional `{ magnitude, duration }` payload
  * (e.g. `world.events.emit("shake", { magnitude: 8, duration: 0.3 })` from an on-hit

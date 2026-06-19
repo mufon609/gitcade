@@ -28,7 +28,7 @@ describe("audio synthesis data", () => {
     }
   });
 
-  it("schedules off-beat (fractional) notes — they were silently dropped before 0.3.2", () => {
+  it("schedules off-beat (fractional) notes", () => {
     // Walk every integer loop-beat window of each track; every authored note must
     // be scheduled exactly once across the loop, INCLUDING fractional beats.
     for (const name of MUSIC_LOOPS) {

@@ -280,7 +280,7 @@ describe("resolveBodies — invariants (fuzz)", () => {
     // into), not a full iterative separating solver — so this pins its actual guarantee: a body
     // starting CLEAR of a single solid and moving toward it ends up flush, not embedded, not
     // tunnelled. (A body spawned already inside a solid, or wedged in a dense cluster, is out of
-    // scope for a single pass — exactly as the old `solid-collide` behaved.)
+    // scope for a single pass — exactly as a single-pass solid resolver would.)
     const EPS = 0.01;
     let tested = 0;
     for (let s = 0; s < 200; s++) {

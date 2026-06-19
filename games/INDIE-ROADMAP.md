@@ -1,365 +1,125 @@
 # INDIE-ROADMAP.md — From Genre-Toy Engine to Indie-Grade 2D Platform
 
-An independent audit of the GitCade engine (`@gitcade/sdk` runtime + schema and
-`@gitcade/library` parts) against one question:
+The **engine-fundamentals** roadmap, written from a "ship a real indie game" lens and
+measured against one question:
 
-> **Could this grow into something that runs a game like *Super Mario Bros.* — or a
-> modern, professional-feeling 2D indie game?**
+> **Could this run a modern, professional-feeling 2D indie game — a *Super Mario Bros.*-class
+> side-scroller?**
 
-This is the **engine-fundamentals** roadmap, written from a "ship a real indie game"
-lens. It is the authoritative home for forward-looking engine direction and **takes
-priority** over the narrower per-feature notes in
-[`ENGINE-ROADMAP.md`](./ENGINE-ROADMAP.md) (shipped-game bandaid log) and
-[`GAME-IMPROVEMENTS.md`](./GAME-IMPROVEMENTS.md) (per-game balance/content). Where those
-files used to carry engine-capability items, they now point here.
-
----
-
-## TL;DR verdict
-
-- **Can it run a side-scrolling platformer? The physics floor is now complete.** The engine
-  has a **scrolling camera** (`camera-follow` system + a `scene.world` larger than the
-  viewport), **tilemap collision** (`tilemap-collide`): solid tile floors, walls, and
-  ceilings; mid-air platforms you can stand on; and jumping off tile ground — plus
-  **entity-vs-entity solid resolution** (`solid-collide`) and **swept (continuous)
-  collision**, so a crate, a ledge, or a moving lift is exactly as solid as a tile and a
-  fast body won't tunnel a thin platform (up to a bounded, well-beyond-gameplay speed). The
-  terrain half is proven end-to-end by the
-  `platformer-scroll` reuse proof and the entity-solid half by `platformer-solids`
-  (`packages/library/proofs/`). A Mario-style traversal — running a level wider than the
-  screen, landing on / bonking / riding solid bodies — works today.
-- **What's left before a *full* Mario:** mostly Tier-2 polish (sampled audio, particles/
-  juice, render interpolation, gamepad) plus two-body **push** (movable crates) — **slopes +
-  ladders** now compose from the kit (0.11.0). The genre-feel mover (variable jump, jump buffering, apex hang, run
-  accel), **one-way (pass-through) platforms + drop-through**, a **data-driven animation state
-  machine + facing flip**, **entity opacity/visibility**, the **entity hierarchy / transform
-  parenting**, and **moving-platform carry** (the `resolveBodies()` carry step) are now in the engine — so a
-  Mario-lite (run a wide level, animate the character, land on / drop through platforms, ride
-  a moving platform) composes from the kit today. What's left is content/feel built on the
-  floor that now exists, not foundation.
-- **Is the architecture well-suited to grow further? Yes.** The deterministic fixed-step
-  loop, the entity/behavior/system composition, and the data-driven scene model are exactly
-  the right bones, and **almost every gap below is purely additive** under the frozen-
-  contract protocol — new runtime, new optional schema fields, new library parts. The one
-  place that touched a frozen assumption — `scene.size == viewport` — was decoupled
-  **additively** via an optional `scene.world` field + a runtime `world.camera`, so every
-  published game stayed byte-valid.
-
-The honest summary: a clean, well-engineered **arcade/casual** engine (Pong, Snake,
-Breakout, tower-defense, idle, top-down survival) that now also carries the
-**scrolling-platformer foundation**. The remaining distance to a polished indie platformer
-is real but mostly *mechanical*, not foundational.
+This is the authoritative home for forward-looking engine direction and **takes priority**
+over the narrower [`ENGINE-ROADMAP.md`](./ENGINE-ROADMAP.md) (shipped-game bandaid log) and
+[`GAME-IMPROVEMENTS.md`](./GAME-IMPROVEMENTS.md) (per-game balance/content). It lists **open
+work only** — shipped engine capabilities live in git history and the SDK/library package
+history, not here. For *why* the architecture is the bet, see [`../DESIGN.md`](../DESIGN.md);
+for the collision model specifically, [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md).
 
 ---
 
-## What was audited
+## The distance left to cover
 
-`packages/sdk/src/runtime/{game,world,entity,renderer,collision,input,audio}.ts`, the
-collision/win/spawn systems, `packages/sdk/src/schema/*` (scene, sprite, entity, tilemap,
-manifest, the magic-number whitelist + validator), the full `@gitcade/library`
-behavior/system/fx/audio set, and the six shipped games' host glue.
-
----
-
-## The foundations that are genuinely good (keep these)
-
-These are assets, not liabilities — an indie build should be layered *on top of* them, not
-around them.
-
-- **Deterministic fixed-timestep loop** (`game.ts`): 60 Hz accumulator with a
-  spiral-of-death clamp, tab-hidden auto-pause, and a clean headless `stepFrames(n)` path.
-  A fixed step + an RNG hook (`world.rng`) means **reproducible simulation** — the bedrock
-  for replays, ghost races, speedrun verification, and the headless validator. Many indie
-  engines *wish* they had this.
-- **ECS-lite composition** (`entity.ts` / behaviors / systems): entities are
-  transform + velocity + tags + a scratch `state` bag + an ordered behavior list; systems
-  are scene-wide. Composable, data-authorable, and already proven across six genres.
-- **Data-driven scenes**: scene `extends` inheritance, a `manifest.levels` sequence with
-  `@next`/`@first` flow tokens, declarative `flow.on` transitions, and cross-run
-  persistence. A multi-level campaign shell is authored once.
-- **Tilemaps are first-class** (`scene.tilemap` data + the `tilemap-collide` behavior):
-  tiles are stored, drawn, queryable (`world.tileAt` / `isBuildable` / `cellRect`), and now
-  **physically solid** — a cell flagged `solid` stops/lands/blocks an entity AABB. "Mario
-  levels are tiles" holds end to end.
-- **Frozen-contract discipline + a real validator**: the no-magic-number rule, `$cfg`
-  resolution, cross-scene reference integrity, and behavior-ordering advisories. This is
-  what makes fork/remix/governance work and keeps published games byte-stable.
+The arcade/casual foundation and the scrolling-platformer foundation are both in place. What
+remains before a *polished* indie platformer is **mechanical polish and content/authoring, not
+foundation** — and almost every item below is purely **additive** under the frozen-contract
+protocol (new runtime, new optional schema fields, new library parts). The one place a frozen
+assumption had to move (`scene.size == viewport`) was decoupled additively via the optional
+`scene.world` field, so nothing reshaped. The tiers below are in rough priority order.
 
 ---
 
-## Tier 0 — the platformer foundation
+## Tier 1 — remaining platformer feel
 
-All four keystones — **a scrolling camera**, **tilemap collision**, **entity-vs-entity
-solid resolution**, and **swept (continuous) collision** — are now in the engine. The
-physics floor is complete; what's above it (Tier 1) is feel, not foundation.
-
-### Now in the engine — the scrolling-platformer foundation
-- **Camera / viewport.** `scene.world` (optional) decouples the simulation bounds from the
-  viewport (`scene.size`); the runtime `world.camera` is the window the renderer translates
-  by (`-cam.x`/`-cam.y`, rounded, skipped at the origin so non-scrolling scenes stay
-  byte-identical). The `camera-follow` system pans the viewport to a target with optional
-  easing + deadzone, clamped to the world. Authored additively — every pre-camera game
-  renders unchanged.
-- **Tilemap collision.** A `solid` tile-property flag + the `tilemap-collide` behavior
-  resolve an entity's AABB against solid cells (axis-separated, pre-fall span for the X
-  pass so a landing doesn't read the floor as a wall), zero the contacted velocity
-  component, and write the **first-class typed `entity.contacts`** (`onGround`/`onCeiling`/
-  `onWallL`/`onWallR`/`onOneWay`) — the contract home of the contact-sensing protocol,
-  alongside the typed `entity.collisions`/`entity.anim`. `move-platformer` reads
-  `entity.contacts.onGround`, so a tile floor satisfies the jump test.
-- **Entity-vs-entity solids + swept collision.** The SDK's shared `resolveSolids` push-out
-  primitive (`runtime/collision.ts`) snaps a moving AABB out of solid rects — fed solid
-  tile *cells* by `tilemap-collide` and solid *entities* by the new `solid-collide`
-  behavior — with the same contact flags, so a crate, ledge, or vertical lift is exactly
-  as solid as a tile (stand on it, get blocked, bonk it, jump off it, ride it). Several
-  resolvers on one entity combine their flags per tick (`applyContacts`). Adaptive swept
-  sub-stepping caps each slice below the thinnest solid (within a bounded sub-step budget
-  that clears any realistic speed), so a fast body won't tunnel a thin platform; a slow body
-  runs a single byte-identical pass. Proven end-to-end by the `platformer-solids` reuse proof.
-
-### Two-body dynamics — CARRY ✅ now in the engine; PUSH still open 🟢
-`solid-collide` is a **one-way** push-out: the moving entity is resolved out of solids that
-are themselves immovable. The two halves on top of it:
-- **Carry. ✅ Now in the engine — the `resolveBodies()` carry step (1.3.0).** A rider that rested on
-  a `carriable` solid at tick start inherits its this-tick displacement — **horizontal** carry (a
-  platform sliding sideways takes the rider) and **descending** carry (a sinking platform the rider
-  follows down); vertical-up carry comes free from the push-out. Built on the first-class
-  `entity.body.prevX/prevY` (the tick's start position, snapshotted by the loop — also what render
-  interpolation needs); the phase probes the carrier's pre-tick top + a `vy>=0` gate and applies the
-  carry BEFORE the push-out (carry-first), so it's lag-free and a fast-descending platform never
-  leaves the rider. Proven by the `platformer-carry` proof. (Originally shipped as the `ride-platform`
-  behavior at 0.10.0; retired into the phase at 1.3.0.) 🟢
-- **Push — movable crates. ✅ Now in the engine — the `resolveBodies()` push step (1.4.0).** A dynamic
-  that drives into the side of a `pushable` collider shoves it horizontally: into a wall (the pusher
-  stops flush behind it), off a ledge (the crate falls under gravity), and 2-crate chains that
-  compress against a wall. A bounded positional relaxation (push-once → settle crates with
-  blocked-propagation → clamp pushers; mass-split via `mass`). Proven by the new `platformer-push`
-  proof. The full design is in [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢
-  (the unified-resolution effort is COMPLETE, `1.1.0`–`1.5.0`: the `resolveBodies()` phase +
-  `collider` component + candidate-keyed solid push-out + slope pass + carry + push; all five
-  platformer proofs run on colliders and the three legacy behaviors — `solid-collide`,
-  `tilemap-collide`, `ride-platform` — are retired. One collision model, in-tree/unpublished.)
-
----
-
-## Tier 1 — "feels like a real platformer" (once Tier 0 lands)
-
-- **A proper platformer mover. ✅ Now in the engine (`move-platformer` 1.2.0).** The mover
-  gained the genre-feel layer — **variable jump height** (release-to-cut), **jump
-  buffering**, **apex hang** (reduced gravity near the peak), and **run acceleration/
-  friction** (instead of the old instant `vx = axis * speed`) — plus it reads the typed
-  contact field (`entity.contacts.onGround` off a tile floor or a solid body). Every piece is an OPTIONAL
-  param defaulting to the original fixed-impulse/instant behavior, so the bump is additive
-  (a game setting none of them is byte-identical); driven end-to-end via `$cfg` by the
-  `platformer-scroll` proof.
-- **One-way (pass-through) platforms. ✅ Now in the engine.** A `oneWay` tile-property flag
-  (and a `solid-collide` `oneWayTag` for ledge entities) makes a cell/body solid on its TOP
-  face only: a falling body lands on it, but jumps up through it, runs past it sideways, and
-  `move-platformer`'s **drop-through** (down + jump, `down`/`dropThroughTime`) falls through
-  it. Built on the shared `resolveSolids` primitive (the one-way case is a per-rect flag);
-  proven by the `platformer-scroll` proof (land-on + drop-through). 🟢
-- **Moving platforms. ✅ Now in the engine** via the two-body **carry** mode (the `resolveBodies()`
-  carry step, 1.3.0) — a rider rides a sliding/sinking `carriable` solid platform (see Tier-0 two-body below). 🟢
-- **Ladders + slopes. ✅ Now in the engine (0.11.0).** **Floor slopes** are a `slopeL`/`slopeR`
-  tile-property pair (surface heights up from the cell bottom — 45° and gentler linear ramps,
-  tiling seamlessly), resolved by a NEW SDK `resolveSlopes` primitive run as a second non-AABB
-  pass after `resolveSolids` inside `tilemap-collide`: it rests a body's bottom on the per-column
-  surface (sampled at the body center), sticks downhill, and lets a jump pass up through —
-  no-op when a map has no slope cells. **Ladders** are a `ladder` tile flag + a `move-platformer`
-  climb mode (`climbSpeed`/`up`/`down`): over a ladder tile, up/down climbs with gravity off, and
-  the player steps off the side. Both additive (optional params default off). Proven by the
-  `platformer-slopes` proof (walk up/down a chevron ramp, climb a ladder). 🟢
-- **Animation state machine. ✅ Now in the engine (`sprite-state-machine`).** A data-driven
-  behavior that maps motion state (grounded via the typed `entity.contacts.onGround`, horizontal
-  speed, vertical direction) → a named `sheet` clip each tick: idle → run → jump → fall →
-  land, with `land` as a non-looping one-shot that holds until it completes. Each clip name
-  is a param (defaults to its conventional name; `""` disables a state). Built on the
-  existing `sheet`/`animations` schema; proven by the `platformer-scroll` proof. 🟢
-- **A facing/flip convention. ✅ Now in the engine (`face-velocity`).** Sets `entity.scaleX`
-  sign from horizontal velocity so a side-view sprite faces the way it moves (the renderer
-  already honors a negative `scaleX` as a flip). Preserves scale magnitude, holds facing
-  below a threshold, has an `invert` for left-facing art. Distinct from `face-angle` (which
-  rotates). 🟢
 - **Pixel-perfect rendering option.** The renderer upsamples by `devicePixelRatio`, which
-  **blurs pixel art**. Pixel-art indie games need integer scaling +
-  `image-rendering: pixelated` + sub-pixel-snapped draws. 🟡 (a render-mode flag).
-- **Honor `opacity`/`alpha`. ✅ Now in the engine.** `renderer.drawEntity` applies an
-  optional `entity.opacity` as `globalAlpha` (multiplied + clamped, skipped at 1) — the
-  whitelisted key it used to ignore. A behavior writes `entity.opacity` at runtime for
-  fades, ghosts, i-frame flicker, and damage flashes. 🟢 renderer-only.
+  **blurs pixel art**. Pixel-art games need integer scaling + `image-rendering: pixelated` +
+  sub-pixel-snapped draws. 🟡 (a render-mode flag).
 
 ---
 
-## Tier 2 — "feels professional / juicy" (the polish layer)
+## Tier 2 — professional / juicy polish
 
-This is the difference between "the platformer runs" and "this feels like a finished
-product."
+The difference between "the platformer runs" and "this feels like a finished product."
 
-- **Render interpolation. ✅ Now in the engine** (1.8.0; full transform at 1.10.0). `render()` lerps the
-  whole drawn transform between the last two tick positions by `alpha = accumulator/fixedDt`: position +
-  camera (1.8.0) and **rotation (shortest-arc) + per-axis scale (flip-snap)** (1.10.0), so a `face-angle`
-  turret or a `tween` pop is as smooth as a moving body — no judder on any display, with a teleport-snap.
-  Render-only (headless sim byte-identical); see
-  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢→✅
 - **Gamepad support.** `Input` covers keyboard + pointer/touch + a logical-action layer but
-  has **no `navigator.getGamepads()` path**. Indie games are controller-first; this is a
-  conspicuous gap. 🟢 additive Input source feeding the existing action layer.
-- **Real audio.** All sound is **procedurally synthesized** — the SDK's 8 oscillator beeps
-  (`audio.ts`) and the library's richer synth SFX + two generative chiptune loops
-  (`library-audio-player.ts`). There is **no sampled-audio / streamed-music path** (no
-  `decodeAudioData`, no asset audio files), and the `scene.music` field is effectively a
-  declared slot the synth player maps to a generative track. A professional indie feel
-  leans on **recorded SFX + composed music + a mixer** (buses, ducking, crossfade). 🟢
-  additive (a sampled `AudioPlayer` subclass + an asset-audio convention).
-- **Juice primitives as data. Screenshake ✅ done (`camera-shake`).** A data-triggered
-  system that, on a named event (`world.events.emit("shake", { magnitude, duration })`),
-  writes a decaying random offset to the runtime `camera.shakeX`/`shakeY` (added by the
-  renderer, kept separate from the follow base so it never disturbs `camera-follow` or
-  pointer mapping). Deterministic off `world.rng`; proven by the `platformer-scroll` proof.
-  This is the engine replacement for the host-side `ScreenEffects` DOM canvas-translate
-  shake — **the survival-arena adoption is now a one-liner** (it pins `1.9.0`, so the
-  `camera-shake` part is available; the swap is `emit("shake", …)` + the system in
-  `play.json`, with flash staying a host overlay — still to be wired). Still open:
-  **hitstop/time-scale, knockback, squash-stretch** (hitstop touches the fixed-step loop
-  → handle carefully). 🟢
-- **Tweening / easing primitive. ✅ Now in the engine (`tween`).** A behavior that animates
-  one numeric property (`x`/`y`/`scale`/`scaleX`/`scaleY`/`rotation`/`opacity`) from a start
-  to a target over a duration with an easing curve (linear / in-out-quad / `out-back`
-  overshoot) and a `loop` mode (none / loop / pingpong). Drives the renderer-honored
-  transform + `opacity` slots, so coin pops, bobbing pickups, fade-ins, and pulsing beacons
-  are data — proven by the pulsing goal flag in the `platformer-scroll` proof. 🟢
-- **Screen transitions as data** (fade/wipe between scenes), instead of an instant
-  `loadScene` swap. 🟢
+  has **no `navigator.getGamepads()` path**. Indie games are controller-first. 🟢 (an additive
+  Input source feeding the existing action layer).
+- **Real (sampled) audio.** All sound is procedurally synthesized — the SDK oscillator beeps
+  plus the library's synth SFX and generative chiptune loops — with **no sampled-audio /
+  streamed-music path** (`decodeAudioData`, asset audio files), and `scene.music` is a slot the
+  synth player maps to a generative track. A professional feel leans on **recorded SFX +
+  composed music + a mixer** (buses, ducking, crossfade). 🟢 (a sampled `AudioPlayer` subclass
+  + an asset-audio convention).
+- **Remaining juice primitives.** Screenshake (`camera-shake`) and tween/easing (`tween`) are
+  data primitives already; still open: **hitstop / time-scale**, **knockback**,
+  **squash-stretch**. Hitstop touches the fixed-step loop → handle carefully. 🟢
+- **Screen transitions as data** (fade/wipe between scenes) instead of an instant `loadScene`
+  swap. 🟢
 
 ---
 
 ## Tier 3 — content & authoring at indie scale
 
-Capabilities for building (and shipping) a game with real *content volume*.
+Capabilities for building and shipping a game with real content *volume*.
 
-- **Tiled (`.tmx`/`.json`) import.** Authoring a Mario-sized level as hand-written entity
-  JSON does not scale. The minimal step is a **`grid-layout` spawner** (expand
-  `{prototype, rows, cols, spacing}` into entities at load) — a brick wall becomes a few
-  lines instead of N entity blocks. The full step is importing a real tile editor's output.
-  🟢
-- **Texture atlases / sprite packing.** Canvas2D `drawImage`-per-entity is fine to a few
-  hundred entities, but atlas regions cut load and let one sheet hold many sprites. 🟢
-- **Viewport culling. ✅ Now in the engine (1.10.1).** The renderer draws only what the camera rect
-  shows — the tilemap iterates a clamped cell window instead of the whole `cols×rows` map, and an entity
-  whose conservative drawn AABB is fully outside the rect is skipped. Camera interpolation + shake ride in
-  the rect for free; each entity is tested at its interpolated center with a rotation-invariant
-  circumscribed radius (so scale/rotation/stroke can't pop) and text is exempt (its extent isn't bounded by
-  the box). Pixel-identical output — a strict SUPERSET of what's visible — so per-frame draw cost is
-  O(visible cells + visible entities), not O(cols×rows + entities), and a large scrolling *world* is no
-  longer the renderer ceiling. Per-frame sprite *count* (a spatial index / chunked tilemaps) is the next,
-  separate step. Render-only, no contract change. 🟢
-- **Spatial partitioning for collision. ✅ Now in the engine (0.12.0).** `aabb-collision` keeps
-  the O(n·m) nested loop for small tag pairs but, above a threshold, buckets the `b` colliders
-  into a uniform grid and tests each `a` only against the candidates in the cells its AABB
-  overlaps — O(n+m) typical, so a busy level with hundreds of colliders scales. The result is
-  **byte-identical** to the naive loop (candidates tested in ascending index order → same
-  `entity.collisions` contents AND order), so determinism is preserved. Internal — no contract
-  or behavior change; pinned by SDK byte-identity tests vs a naive reference at scale. 🟢
+- **Tiled (`.tmx`/`.json`) import.** Hand-writing a Mario-sized level as entity JSON doesn't
+  scale. Minimal step: a **`grid-layout` spawner** (expand `{prototype, rows, cols, spacing}`
+  into entities at load) — a brick wall becomes a few lines, not N entity blocks. Full step:
+  import a real tile editor's output. 🟢
+- **Texture atlases / sprite packing.** Atlas regions cut load and let one sheet hold many
+  sprites. 🟢
+- **Per-frame sprite-count scaling.** Viewport culling means world *size* is no longer the
+  renderer ceiling; per-frame sprite *count* is. A spatial index / chunked tilemaps is the next
+  step. 🟢
 - **Hitbox inset / separate collider** (`collisionInset` / `hitbox` on the entity schema):
-  fairer collisions than the raw sprite AABB (corner-clip deaths, contact damage). 🟡 new
-  optional entity field.
-- **Entity hierarchy / parenting. ✅ Now in the engine (transform hierarchy).** A parented
-  entity (`parent` + `local` schema fields) has its WORLD transform derived each tick from its
-  parent's world transform composed with a parent-frame offset — a `resolveHierarchy()` tick
-  phase (after behaviors, before render; a no-op when no entity has a parent, so parentless
-  scenes stay byte-identical). `entity.x/y/rotation/scaleX/scaleY` stay WORLD-space (renderer/
-  collision/queries unchanged); the offset lives in `entity.local`. Carried items, a turret on a
-  moving platform, multi-part bosses, attached HUD/FX, and a rigid rider all compose; runtime
-  `attachTo`/`detach` pick up / drop without teleport; multi-level chains resolve parent-first,
-  cycle-safe; the validator catches dangling/cyclic parent refs. Proven by the `entity-parent`
-  proof. 🟡 (additive optional schema fields + an additive tick phase). NB a rider that *walks*
-  on a moving platform is the resolver **carry** mode below, not transform parenting.
+  fairer collisions than the raw sprite AABB (corner-clip deaths, contact damage). 🟡
 - **Save slots, settings, and a pause menu as data** (volume, key/pad remap, multiple
   profiles) — the expected shell of a finished game. 🟢 (builds on the persistence system).
-- **Dialogue / cutscene / trigger-script primitive** for story-driven indie games. 🟡
+- **Dialogue / cutscene / trigger-script primitive** for story-driven games. 🟡
 - **Localization hook** (string tables, not hardcoded text sprites). 🟢
-- **Genre-unlock library parts** (absorbed here from the older roadmaps; each removes a
-  current workaround or enables content the games can't have): the **entity visibility
-  toggle** (✅ done — the renderer skips `visible:false`, and tower-defense's `x = -9999`
-  off-screen-park bandaid is retired); **`damage-flash` / i-frames** (on-hit feedback +
-  brief invulnerability — now unblocked by `entity.opacity`); **`spawn-on-event` + a
-  powerup-effect channel** (Breakout
+- **Genre-unlock library parts** (each removes a current workaround or enables content the
+  games can't have): **`damage-flash` / i-frames** (on-hit feedback + brief invulnerability,
+  built on `entity.opacity`); **`spawn-on-event` + a powerup-effect channel** (Breakout
   multiball/powerups, drop-on-death, boss minions); **`shoot-at-pointer` / aim mode** (true
-  twin-stick, reads `world.input.cursor()`); **`reflect-on-hit` `forceDir`/bias + total
-  speed cap**; **`move-grid-step` turn buffer**; and a **tileset tile-scale** field (scale a
-  16 px library tileset to a 40 px map `tileSize`). The first few are 🟢; the speed-cap and
-  tile-scale touch shared feel/contract → human decision.
+  twin-stick, reads `world.input.cursor()`); **`reflect-on-hit` `forceDir`/bias + a total-speed
+  cap**; **`move-grid-step` turn buffer**; and a **tileset tile-scale** field (scale a 16 px
+  library tileset to a 40 px map `tileSize`). Most are 🟢; the speed cap and tile-scale touch
+  shared feel/contract → human decision.
 
 ---
 
-## The strategic tension — read before committing to this
+## The strategic tension — read before committing
 
 GitCade's thesis is **"a game is data; community remixes are config diffs."** A polished
-platformer is, by nature, a pile of bespoke, tightly-tuned mechanics. These pull against
-each other, and the roadmap should pick a posture deliberately:
+platformer is, by nature, a pile of bespoke, tightly-tuned mechanics. These pull against each
+other, so pick a posture deliberately:
 
-1. **Stay data-first (recommended for the platform's identity).** Ship every Tier-0/1/2
-   capability as **additive SDK runtime + library parts**, so "make a Mario" becomes
-   "compose the platformer kit." This is slower, but it *preserves the moat*: the
-   validator, fork/remix, and governance only work because games are data. The good news,
-   per the tags above, is that this is overwhelmingly *additive* — no frozen reshape is
-   required except the camera decouple (done additively).
-
-2. **Use the existing `open` tier as the escape hatch.** The manifest already defines a
-   `tier: "open"` that omits `libraryVersion` (`schema/manifest.ts`). That is the natural
-   home for **code-rich indie games that don't fit the data model** — let them ship more
-   custom behavior without the magic-number rule, in a sandboxed build. This buys
-   ambitious indie titles *without* contorting the ecosystem-tier contract. (It raises a
-   sandboxing/security question for arbitrary game code — worth a deliberate decision
-   before opening it wide.)
-
-3. **Do not reshape frozen contracts to chase this.** The camera is the only place a
-   frozen assumption (`scene.size == viewport`) must move; do it via **optional**
-   `scene.world` / `scene.camera` fields so every published game stays byte-valid. Anything
-   that would retype a field, change the tick order, or alter the storage-bridge/artifact
-   conventions is a STOP-and-decide, exactly as today.
+1. **Stay data-first (recommended for the platform's identity).** Ship every capability as
+   **additive SDK runtime + library parts**, so "make a Mario" becomes "compose the platformer
+   kit." Slower, but it *preserves the moat* — the validator, fork/remix, and governance only
+   work because games are data. The work above is overwhelmingly additive, so this is the cheap
+   path anyway.
+2. **Use the `open` tier as the escape hatch.** The manifest defines a `tier: "open"` that omits
+   `libraryVersion` (`schema/manifest.ts`) — the natural home for **code-rich indie games that
+   don't fit the data model**, shipping more custom behavior without the magic-number rule, in a
+   sandboxed build. (It raises a sandboxing/security question for arbitrary game code — decide
+   deliberately before opening it wide.)
+3. **Do not reshape frozen contracts to chase this.** Anything that would retype a field, change
+   the tick order, or alter the storage-bridge / artifact conventions is a STOP-and-decide.
+   Express new capability through **optional** schema fields, exactly as the camera decouple did.
 
 ---
 
-## Suggested sequencing (the roadmap)
+## Sequencing
 
-Each phase ships as an SDK minor + a library minor, gated the project's normal way: a
-**proof game validates** it (a "Mario-lite" proof, the way Pong and the `proofs/` games
-anchor the rest), `npm test` is green, and the behavior is **browser-verified**, not
-assumed.
+Each capability ships as an SDK minor + a library minor, gated the project's normal way: a
+**proof game validates** it (the way the `proofs/` games anchor the rest), `npm test` is green,
+and the behavior is **browser-verified**, not assumed. Rough order:
 
-- **Phase A — platformers become possible.** *Shipped:* camera + world/viewport decouple
-  (`scene.world` + `world.camera` + `camera-follow`) and tilemap collision (`solid` flag +
-  `tilemap-collide` + the `move-platformer` grounding hook), validated by the
-  `platformer-scroll` proof; **the shared `resolveSolids` push-out primitive with
-  entity-vs-entity solids (`solid-collide`) and swept sub-stepping**, validated by the
-  `platformer-solids` proof. The whole physics floor is in; `move-platformer` 1.2.0
-  added the Tier-1 feel layer (variable jump, jump buffering, apex hang, run accel/friction)
-  — additively, driven by the `platformer-scroll` proof; and **one-way (pass-through)
-  platforms + drop-through** landed on the same primitive (`oneWay` tile flag / `oneWayTag`
-  + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
-  The two-body **carry** mode (the `resolveBodies()` carry step, 1.3.0) lands the moving-platform case, and
-  **floor slopes + ladders** (`resolveSlopes` + `move-platformer` climb, 0.11.0) the terrain, and
-  two-body **push** (movable crates — the `resolveBodies()` push step, 1.4.0; made **swept** at 1.7.0 so
-  a fast pusher can't tunnel) completes Tier-1. **Dynamic-on-dynamic stacking** (1.9.0) then made a
-  crate solid-to-dynamics — stand on / stack / ride a crate, resolved in dependency order. **Solid-aware
-  carry/ride** (1.10.0) closed the last boundary — a passively carried/ridden rider stops flush at a wall
-  instead of being driven through it (one positional solid-clamp now backs push, carry, and ride).
-- **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**
-  (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
-  `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense
-  off-screen-park bandaid) — driven end-to-end by the `platformer-scroll` proof.
-  **Render interpolation** landed too (1.8.0 position + camera; 1.10.0 extended it to the full transform
-  — rotation shortest-arc + scale flip-snap — so spinning/scaling sprites are smooth too; render-only).
-  *Remaining:* gamepad, pixel-perfect render mode, hitstop. (The `tween`/easing primitive — a Tier-2
-  item — also landed here, ahead of its phase.)
-- **Phase C — it feels finished.** Sampled audio + music + mixer, data-driven
-  particles/screenshake/camera juice, Tiled/`grid-layout` authoring, atlases, spatial-hash
-  broadphase, `collisionInset`, save slots / settings / pause menu.
-- **Phase D — depth & story.** *Shipped:* the **entity hierarchy / transform parenting**
-  (`parent`/`local` + `resolveHierarchy()` + `attachTo`/`detach`), proven by the `entity-parent`
-  proof. *Remaining:* dialogue/cutscene primitive, localization, and the remaining genre-unlock
-  parts.
+1. **Polish players feel first** — gamepad, pixel-perfect render mode, the remaining juice
+   (hitstop / knockback / squash-stretch), screen transitions.
+2. **Audio** — the sampled SFX + music + mixer path.
+3. **Content & authoring** — Tiled / `grid-layout`, atlases, the save / settings / pause shell,
+   per-frame sprite-count scaling, `collisionInset`.
+4. **Depth & story** — the dialogue/cutscene primitive, localization, and the remaining
+   genre-unlock parts.
 
 ---
 
@@ -368,15 +128,12 @@ assumed.
 | | Meaning | Release |
 |---|---|---|
 | 🟢 **Additive** | New runtime/library part, renderer honoring an already-declared slot, or a new optional param. No frozen shape changes. | PATCH/MINOR; no human decision. |
-| 🟡 **Schema addition** | A new optional field on a frozen schema object (e.g. `scene.camera`, `collisionInset`, a pixel-perfect render flag). | MINOR + a human decision. |
+| 🟡 **Schema addition** | A new optional field on a frozen schema object (e.g. `collisionInset`, a pixel-perfect render flag). | MINOR + a human decision. |
 | 🔴 **Semantics change** | Reshapes a frozen contract or the tick order. | STOP → human decision. |
 
-Items needing a human sign-off, collected: **pixel-perfect render mode**,
-**`collisionInset`/hitbox**, the **`reflect-on-hit` total-speed cap**, and the **tileset
-tile-scale** field. (**Entity hierarchy / parenting** shipped as a sign-off-gated 🟡 — additive
-`parent`/`local` schema fields + an additive `resolveHierarchy()` tick phase, no frozen reshape.) (The camera/world decouple — the one near-load-bearing
-change — shipped additively via the optional `scene.world` field, so it needed no frozen
-reshape.) Everything else is 🟢.
+Open items needing a human sign-off: **pixel-perfect render mode**, **`collisionInset`/hitbox**,
+the **`reflect-on-hit` total-speed cap**, and the **tileset tile-scale** field. Everything else
+above is 🟢.
 
 ---
 
@@ -385,4 +142,5 @@ reshape.) Everything else is 🟢.
 - Current concrete bandaids in shipped games: [`ENGINE-ROADMAP.md`](./ENGINE-ROADMAP.md).
 - Per-game balance/content/feel/asset work: [`GAME-IMPROVEMENTS.md`](./GAME-IMPROVEMENTS.md).
 - Custom-part promotion candidates: [`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md).
-- Frozen-contract protocol: [`CLAUDE.md`](../CLAUDE.md) → "Frozen contracts".
+- Collision-model rationale: [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md).
+- Frozen-contract protocol: [`../CLAUDE.md`](../CLAUDE.md) → "Frozen contracts".

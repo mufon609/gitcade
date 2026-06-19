@@ -8,13 +8,21 @@ and resolves it — push-out, slopes, carry, and **push** — in one ordered pas
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
 and two-body push to.
 
-> ✅ **COMPLETE (sdk+library `1.5.0`).** All five proof-gated increments (§8) landed; the §9 sign-offs
-> were approved. There is now exactly ONE collision model — a `collider` component resolved by the
-> `World.resolveBodies()` phase (solid push-out, slopes, carry, two-body push) — and the three legacy
-> behaviors (`solid-collide`/`tilemap-collide`/`ride-platform`) are RETIRED. All five platformer proofs
-> (`-solids`/`-slopes`/`-carry`/`-scroll`/`-push`) run on colliders; arcade scenes are byte-identical
-> (the phase no-ops without a collider). In-tree/unpublished — pending a human publish go-ahead. The
-> increment history below is the design record; the git log is the authoritative per-step changelog.
+> ✅ **COMPLETE (sdk+library `1.5.0`), then HARDENED + EXTENDED through `1.9.0`.** All five proof-gated
+> increments (§8) landed; the §9 sign-offs were approved. There is now exactly ONE collision model — a
+> `collider` component resolved by the `World.resolveBodies()` phase — and the three legacy behaviors
+> (`solid-collide`/`tilemap-collide`/`ride-platform`) are RETIRED. All platformer proofs run on colliders;
+> arcade scenes are byte-identical (the phase no-ops without a collider). In-tree/unpublished — pending a
+> human publish go-ahead. The increment history below is the design record; the git log is the
+> authoritative per-step changelog.
+>
+> **Pre-freeze hardening + extension (1.6.0–1.9.0, §11):** an adversarial audit then drove four more
+> increments — push fuzz harness + inset-consistency fix + a loud (no-longer-silent) push cap (1.6.0);
+> **swept push** so a fast pusher can't tunnel/yank a crate (1.7.0); **render interpolation** for smooth
+> play under any frame rate (1.8.0, render-only — headless sim byte-identical); and **dynamic-on-dynamic
+> stacking** — a `pushable` crate is solid-to-dynamics (stand on it, stack, ride it), resolved in
+> dependency order — which realizes the §5 topological solve and the §5.4 "standing on a crate" item
+> the original push increment deferred (1.9.0).
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
@@ -171,9 +179,10 @@ parent-first walk). For each dynamic body, in order:
    is clamped flush behind the settled crates. Differs from the originally-sketched "split by mass,
    move both, re-run step 2" — pure mass-split couldn't move an infinite-mass pusher back off a
    wall-blocked crate, hence the phased push-once + blocked-propagation + clamp. **Scope:** push is
-   HORIZONTAL and non-swept (a pusher faster than a crate's width per tick can overshoot — cap speed
-   or thicken the crate, as for `resolveSolids`); STANDING on a crate is out of scope (a pushable is
-   not solid-to-dynamics); crate↔crate flushness carries sub-px relaxation residue.
+   HORIZONTAL; crate↔crate flushness carries sub-px relaxation residue. *(1.7.0 made the pusher→crate
+   shove SWEPT — `sweptShove` transfers the pusher's leading-edge overshoot, clamped to the first solid
+   in the crate's path, so a fast pusher no longer tunnels or yanks. 1.9.0 made a pushable
+   SOLID-TO-DYNAMICS — standing on / riding a crate is now supported, see §11.)*
 
 **Determinism (load-bearing for replays + the validator):** bodies resolved in a fixed order
 (topological, ties by entity-array index); sub-step count derived from the **candidate** set, not
@@ -279,6 +288,45 @@ None of these breaks a published artifact; all are bounded to the in-tree proofs
 The hard, genuinely-new work is the **dependency-ordered coupled solver** (carry + push with
 re-resolution) and its **determinism story**. The data model and the phase plumbing are well-
 templated by existing code.
+
+---
+
+## 11. Pre-freeze hardening + extension (1.6.0–1.9.0)
+
+An adversarial audit of the 1.1.0–1.5.0 phase (fresh eyes, reproduce-don't-trust) found the model
+sound — fast-path byte-identical, candidate-keyed determinism, deterministic tick order all hold — but
+flagged real shortcuts to fix BEFORE the contract freezes, so they don't become permanent bandaids.
+Four proof-gated increments followed (git log is the per-step changelog):
+
+- **1.6.0 — hardening.** The solid-entity broadphase in `resolveColliderAgainstWorld` now resolves a
+  dynamic against a solid's **collider box** (its `inset` honored), consistent with `ejectFromSolids`/
+  `findCarrier` (it read the raw sprite box before — an inset solid blocked at a different face than it
+  ejected/carried at). The push relaxation gained its missing **determinism + no-penetration fuzz**
+  (`resolve-bodies-push-fuzz`), and its fixed `PUSH_ITERATIONS` cap is **no longer silent** — a chain
+  that under-separates warns once (`warnPushNonConvergence`).
+- **1.7.0 — swept push.** Phase 1 of `resolvePush` was non-swept: a pusher faster than the crate's
+  width per tick tunnelled clean through (settled overlap 0 ⇒ no shove) or got yanked backward by the
+  phase-3 clamp (settled overlap under-read the penetration). `sweptShove` now drives the crate by the
+  pusher's leading-edge OVERSHOOT past the crate's near face, `clampShoveBySolids` limits it to the
+  first solid in the crate's path (no shoving a crate through a wall), and the pusher ends flush ahead.
+  Backward-compatible at walk speed; pinned by `resolve-bodies-push-swept` (incl. a high-speed
+  no-tunnel fuzz).
+- **1.8.0 — render interpolation.** The sim is fixed-timestep but the renderer drew the latest settled
+  positions, so play juddered when rAF didn't divide the 60 Hz tick. The renderer now lerps each body
+  and the camera between their last two tick positions (`body.prevX/prevY` → `x/y`, `camera.prevX/prevY`
+  → `x/y`) by `alpha = accumulator/fixedDt`, with a teleport-snap (a per-tick jump beyond a viewport
+  dimension isn't interpolated). **Render-only** — `alpha` defaults to 1 (byte-identical), and headless
+  `stepFrames` never renders, so the validator/replays/every test are wholly unaffected.
+- **1.9.0 — dynamic-on-dynamic stacking.** A `pushable` crate is now SOLID-TO-DYNAMICS: each body's
+  push-out gains every crate as a TOP-ONLY (`oneWay`) solid — stand on a crate, stack crates, jump up
+  through, drop through on down+jump — while push still owns the horizontal (a walker shoves a crate's
+  side, never stopped dead). This realizes the §5 **topological dependency-order solve**
+  (`topoOrderByRestsOn`): a rider resolves AFTER the crate it rests on, so it lands on / rides the
+  crate's settled position. The carrier set gains the crates, so a rider rides a crate that falls or is
+  carried by a moving platform (transitively); `rideHorizontalPush` carries riders by a crate's net
+  push displacement after the push pass (so riding a horizontally-pushed crate is lag-free, stacks
+  included). **Byte-identical when no entity is pushable.** Residual boundary: a rider shoved into a
+  wall-corner alongside its crate settles on the next tick.
 
 ---
 

@@ -195,9 +195,10 @@ are themselves immovable. The two halves on top of it:
 This is the difference between "the platformer runs" and "this feels like a finished
 product."
 
-- **Render interpolation.** `render()` draws the latest fixed tick with **no
-  interpolation** between steps (`game.ts`). On 120/144 Hz displays motion updates only
-  60×/s → visible **judder**. Add accumulator-alpha interpolation of draw positions. 🟢
+- **Render interpolation. ✅ Now in the engine** (1.8.0). `render()` lerps each body + the camera
+  between their last two tick positions by `alpha = accumulator/fixedDt`, with a teleport-snap — smooth
+  motion on any display, no judder. Render-only (headless sim byte-identical); see
+  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md) §11. 🟢→✅
 - **Gamepad support.** `Input` covers keyboard + pointer/touch + a logical-action layer but
   has **no `navigator.getGamepads()` path**. Indie games are controller-first; this is a
   conspicuous gap. 🟢 additive Input source feeding the existing action layer.
@@ -328,13 +329,16 @@ assumed.
   + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
   The two-body **carry** mode (the `resolveBodies()` carry step, 1.3.0) lands the moving-platform case, and
   **floor slopes + ladders** (`resolveSlopes` + `move-platformer` climb, 0.11.0) the terrain, and
-  two-body **push** (movable crates — the `resolveBodies()` push step, 1.4.0) completes Tier-1.
+  two-body **push** (movable crates — the `resolveBodies()` push step, 1.4.0; made **swept** at 1.7.0 so
+  a fast pusher can't tunnel) completes Tier-1. **Dynamic-on-dynamic stacking** (1.9.0) then made a
+  crate solid-to-dynamics — stand on / stack / ride a crate, resolved in dependency order.
 - **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**
   (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
   `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense
   off-screen-park bandaid) — driven end-to-end by the `platformer-scroll` proof.
-  *Remaining:* render interpolation, gamepad, pixel-perfect render mode, hitstop. (The
-  `tween`/easing primitive — a Tier-2 item — also landed here, ahead of its phase.)
+  **Render interpolation** landed too (1.8.0 — smooth motion at any frame rate, render-only).
+  *Remaining:* gamepad, pixel-perfect render mode, hitstop. (The `tween`/easing primitive — a Tier-2
+  item — also landed here, ahead of its phase.)
 - **Phase C — it feels finished.** Sampled audio + music + mixer, data-driven
   particles/screenshake/camera juice, Tiled/`grid-layout` authoring, atlases, spatial-hash
   broadphase, `collisionInset`, save slots / settings / pause menu.

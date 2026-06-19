@@ -200,7 +200,7 @@ product."
   camera (1.8.0) and **rotation (shortest-arc) + per-axis scale (flip-snap)** (1.10.0), so a `face-angle`
   turret or a `tween` pop is as smooth as a moving body — no judder on any display, with a teleport-snap.
   Render-only (headless sim byte-identical); see
-  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md) §11. 🟢→✅
+  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢→✅
 - **Gamepad support.** `Input` covers keyboard + pointer/touch + a logical-action layer but
   has **no `navigator.getGamepads()` path**. Indie games are controller-first; this is a
   conspicuous gap. 🟢 additive Input source feeding the existing action layer.

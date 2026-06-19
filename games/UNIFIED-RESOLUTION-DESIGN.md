@@ -6,14 +6,18 @@ author-ordered **platformer solid-resolution behaviors** (`solid-collide`, `tile
 and resolves it — push-out, slopes, carry, and **push** — in one ordered pass.
 
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
-and two-body push to. It is a **design only**: no code. The implementation is a sequence of
-proof-gated increments (§8), and two pieces need a human sign-off before building (§9).
+and two-body push to. The implementation is a sequence of proof-gated increments (§8); the §9
+sign-offs are **approved**, and **increment 1 — the `resolveBodies()` phase, the `collider`
+component, and candidate-keyed solid push-out — has landed in sdk+library `1.1.0`** (the
+`platformer-solids` proof migrated to colliders at parity). Increments 2–5 (slopes, carry, push,
+finish migration + retire the behaviors) remain.
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
 > collect / win checks) — is untouched. Arcade games (which never used solid resolution) stay
 > byte-identical. Nothing PUBLISHED breaks: `sdk@0.6.0` has no platformer-collision parts at all,
-> and the three behaviors being retired are unpublished (0.7.0-line) and used **only by the
+> and the three behaviors being retired are unpublished (the in-tree 1.x line — catalogued
+> `solid-collide@1.0.0` / `tilemap-collide@1.1.0` / `ride-platform@1.0.0`) and used **only by the
 > in-tree proofs**, so the whole migration is bounded to `packages/library/proofs/`.
 
 ---
@@ -168,7 +172,7 @@ The "byte-identical `solid-collide` broadphase" cleanup was deferred to here bec
 byte-identical: `resolveSolids` couples a body's micro-position to the global solid set. The phase
 makes this a **deliberate** improvement instead — sub-stepping keyed to each body's actual
 candidate set, so a far decorative solid no longer perturbs a body's physics. Not byte-identical to
-the unpublished 0.7.0 line; gated by the platformer proofs + the solids tests + the
+the prior per-behavior resolvers (the unpublished in-tree line); gated by the platformer proofs + the solids tests + the
 filtered-vs-fullscan fuzz harness (asserting the *new* candidate-keyed semantics) + browser. No
 published break (0.6.0 has no platformer collision).
 
@@ -199,9 +203,11 @@ which the phase still writes.
 Each ships as a lockstep SDK+library bump, gated by a migrated/new proof that `gitcade validate`s,
 green tests, and chromium browser-verification.
 
-1. **Phase skeleton + `collider` component + solid push-out.** `resolveBodies()` doing only steps
-   1–2 (broadphase + `resolveSolids`), driven by the `collider` component; migrate
-   `platformer-solids`; candidate-keyed sub-stepping lands here. *Foundation.*
+1. **Phase skeleton + `collider` component + solid push-out — ✅ landed (sdk+library `1.1.0`).**
+   `resolveBodies()` does steps 1–2 (broadphase + `resolveSolids`), driven by the `collider`
+   component (`role`/`oneWay`/`inset` — the moving/push facets land with increments 3–4 that honor
+   them); `platformer-solids` migrated at parity (all 9 smoke assertions unchanged); candidate-keyed
+   sub-stepping landed, pinned by the filtered-vs-fullscan fuzz harness; browser-verified. *Foundation.*
 2. **Slopes in the phase.** Step 2's slope pass; migrate `platformer-slopes`.
 3. **Carry in the phase.** Step 3 (carrier-resolved displacement + re-resolve, dependency order);
    migrate `platformer-carry` + re-baseline; retire `ride-platform`. *The regression fix.*

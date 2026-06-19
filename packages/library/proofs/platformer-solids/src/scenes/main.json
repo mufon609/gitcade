@@ -409,9 +409,9 @@
         "x": 640,
         "y": 352
       },
-      "tags": [
-        "solid"
-      ],
+      "collider": {
+        "role": "solid"
+      },
       "layer": 1,
       "behaviors": [
         {
@@ -452,9 +452,9 @@
         "x": 300,
         "y": 400
       },
-      "tags": [
-        "solid"
-      ],
+      "collider": {
+        "role": "solid"
+      },
       "layer": 1,
       "behaviors": []
     },
@@ -473,9 +473,9 @@
         "x": 520,
         "y": 340
       },
-      "tags": [
-        "solid"
-      ],
+      "collider": {
+        "role": "solid"
+      },
       "layer": 1,
       "behaviors": []
     },
@@ -494,9 +494,9 @@
         "x": 100,
         "y": 300
       },
-      "tags": [
-        "solid"
-      ],
+      "collider": {
+        "role": "solid"
+      },
       "layer": 1,
       "behaviors": []
     },
@@ -518,18 +518,15 @@
       "tags": [
         "faller"
       ],
+      "collider": {
+        "role": "dynamic"
+      },
       "layer": 2,
       "behaviors": [
         {
           "type": "velocity",
           "params": {
             "vy": "$cfg.fallerSpeed"
-          }
-        },
-        {
-          "type": "solid-collide",
-          "params": {
-            "solidTag": "solid"
           }
         }
       ]
@@ -549,6 +546,9 @@
         "x": 64,
         "y": 64
       },
+      "collider": {
+        "role": "dynamic"
+      },
       "tags": [
         "player"
       ],
@@ -567,18 +567,6 @@
         {
           "type": "velocity",
           "params": {}
-        },
-        {
-          "type": "tilemap-collide",
-          "params": {
-            "solidProp": "solid"
-          }
-        },
-        {
-          "type": "solid-collide",
-          "params": {
-            "solidTag": "solid"
-          }
         }
       ]
     }

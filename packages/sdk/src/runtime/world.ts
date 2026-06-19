@@ -4,6 +4,8 @@ import type { EntityDef } from "../schema/entity.js";
 import type { Tilemap } from "../schema/scene.js";
 import type { PersistConfig } from "../schema/manifest.js";
 import { Entity } from "./entity.js";
+import type { SolidRect } from "./collision.js";
+import { resolveSolids, applyContacts } from "./collision.js";
 import { Registry } from "./registry.js";
 import { EventBus } from "./eventbus.js";
 import { Input } from "./input.js";
@@ -462,5 +464,145 @@ export class World {
       resolved.add(e);
     };
     for (const e of this.entities) resolve(e);
+  }
+
+  /**
+   * The unified collision-resolution PHASE (1.1.0): resolve every DYNAMIC collider against the solid
+   * world — solid tiles AND solid-role entity colliders — in one owned pass. The single, typed
+   * replacement for the order-sensitive `tilemap-collide` + `solid-collide` resolver behaviors:
+   * solidity is declared once (the `collider` component, see {@link ColliderComponent}) and resolved
+   * in exactly one place.
+   *
+   * The host runs this as a tick phase AFTER behaviors + prune, BEFORE {@link resolveHierarchy} —
+   * appended like the 0.9.0 hierarchy phase, NOT a reorder of the frozen systems→behaviors→prune
+   * sequence. Resolving after the whole behavior pass means every body is at its settled intended
+   * position (a moving solid has already moved this tick), so a dynamic resolves against final
+   * geometry with no author-ordering rule. A mover reading `entity.body.contacts` reads last tick's
+   * contacts — the documented, coyote-covered one-tick-stale read, unchanged.
+   *
+   * FAST PATH: with no collider anywhere this returns before any allocation, so an arcade scene is
+   * byte-identical to a flat world — the frozen-safety guarantee, exactly like `resolveHierarchy`.
+   *
+   * Per dynamic body (resolved in entity-array order — the deterministic tie-break; coupled
+   * carry/push ordering arrives with later increments):
+   *  1. Broadphase the body's SWEPT box this tick into the solids it could touch — solid tiles in
+   *     the bounded cell range, plus solid-role entities whose AABB overlaps the swept box. The
+   *     entity set is CANDIDATE-KEYED (a far solid is excluded), so a body's sub-stepping depends
+   *     only on nearby geometry, not the global solid set — a far decorative solid can no longer
+   *     perturb its physics (a deliberate determinism improvement over the per-behavior resolvers,
+   *     which fed the whole tagged set; gated by the proofs + the candidate-keyed fuzz harness).
+   *  2. Push-out via the shared {@link resolveSolids} primitive (swept, so a fast body can't tunnel
+   *     a thin solid), writing `entity.body.contacts` via {@link applyContacts}.
+   *
+   * `oneWay` solids (top-face-only tiles via the `oneWay` tile prop, or `oneWay` colliders) are
+   * dropped while the mover's drop-through window is open (`body.dropThrough > 0`). A non-zero
+   * collider `inset` resolves a box shrunk in from the sprite AABB, mapped back onto the entity.
+   */
+  resolveBodies(): void {
+    // Fast path: no collider anywhere ⇒ no-op (byte-identical arcade scene).
+    let hasCollider = false;
+    for (const e of this.entities) {
+      if (e.alive && e.body.collider) {
+        hasCollider = true;
+        break;
+      }
+    }
+    if (!hasCollider) return;
+
+    // The immovable blockers this tick: every solid-role collider. Solids are not themselves
+    // resolved here — they move via their own behaviors (a tween/velocity lift) and just block.
+    const solids: Entity[] = [];
+    for (const e of this.entities) {
+      if (e.alive && e.body.collider?.role === "solid") solids.push(e);
+    }
+
+    const t = this.tilemap;
+    const dt = this.dt;
+    for (const e of this.entities) {
+      if (!e.alive) continue;
+      const c = e.body.collider;
+      if (!c || c.role !== "dynamic") continue;
+
+      // The collider box = the sprite AABB shrunk by the optional inset, carrying this tick's
+      // velocity. With no inset the entity IS the MovingBody (zero-alloc, like the old resolvers).
+      const ix = c.inset.x;
+      const iy = c.inset.y;
+      const hasInset = ix !== 0 || iy !== 0;
+      const body = hasInset
+        ? { x: e.x + ix, y: e.y + iy, w: e.w - 2 * ix, h: e.h - 2 * iy, vx: e.vx, vy: e.vy }
+        : e;
+
+      const dropping = e.body.dropThrough > 0;
+      const rects: SolidRect[] = [];
+
+      // Broadphase: the body's swept box (pre-move → post-move), padded so a flush-resting solid
+      // stays a candidate. resolveSolids itself is precise, so over-inclusion only costs a scan.
+      const px = body.x - body.vx * dt;
+      const py = body.y - body.vy * dt;
+      const loX = Math.min(px, body.x) - BROAD_PAD;
+      const hiX = Math.max(px, body.x) + body.w + BROAD_PAD;
+      const loY = Math.min(py, body.y) - BROAD_PAD;
+      const hiY = Math.max(py, body.y) + body.h + BROAD_PAD;
+
+      if (t) gatherSolidTiles(t, loX, hiX, loY, hiY, dropping, rects);
+
+      for (const s of solids) {
+        if (s === e) continue;
+        const sc = s.body.collider!;
+        if (sc.oneWay && dropping) continue; // dropping through a one-way solid
+        if (s.x < hiX && s.x + s.w > loX && s.y < hiY && s.y + s.h > loY) {
+          rects.push(sc.oneWay ? { x: s.x, y: s.y, w: s.w, h: s.h, oneWay: true } : { x: s.x, y: s.y, w: s.w, h: s.h });
+        }
+      }
+
+      const contacts = resolveSolids(body, rects, dt);
+      if (hasInset) {
+        e.x = body.x - ix;
+        e.y = body.y - iy;
+        e.vx = body.vx;
+        e.vy = body.vy;
+      }
+      applyContacts(e.body, this.frame, contacts);
+    }
+  }
+}
+
+/** Padding (px) on the broadphase swept box, so a solid the body rests flush against stays a candidate. */
+const BROAD_PAD = 1;
+/** Tile property flagging a fully-solid cell — the conventional name the phase reads (frozen tile-prop convention). */
+const SOLID_TILE_PROP = "solid";
+/** Tile property flagging a one-way (top-face-only) platform cell. */
+const ONE_WAY_TILE_PROP = "oneWay";
+
+/**
+ * Gather the SOLID tile cells overlapping `[loX,hiX]×[loY,hiY]` into `out` as {@link SolidRect}s —
+ * the static-terrain broadphase the resolution phase feeds to `resolveSolids` (absorbing the old
+ * `tilemap-collide` cell scan). A cell is solid via the `solid` prop, or one-way via the `oneWay`
+ * prop (top-face-only, dropped while `dropping`). Slope cells (the `slopeL`/`slopeR` props) are left
+ * for the slope pass a later increment adds; they are not solid rects.
+ */
+function gatherSolidTiles(
+  t: Tilemap,
+  loX: number,
+  hiX: number,
+  loY: number,
+  hiY: number,
+  dropping: boolean,
+  out: SolidRect[],
+): void {
+  const ts = t.tileSize;
+  const c0 = Math.max(0, Math.floor(loX / ts));
+  const c1 = Math.min(t.cols - 1, Math.floor(hiX / ts));
+  const r0 = Math.max(0, Math.floor(loY / ts));
+  const r1 = Math.min(t.rows - 1, Math.floor(hiY / ts));
+  for (let r = r0; r <= r1; r++) {
+    for (let c = c0; c <= c1; c++) {
+      const idx = t.tiles[r * t.cols + c] ?? -1;
+      if (idx < 0) continue;
+      const props = t.properties?.[String(idx)];
+      if (!props) continue;
+      if (props[SOLID_TILE_PROP] === true) out.push({ x: c * ts, y: r * ts, w: ts, h: ts });
+      else if (!dropping && props[ONE_WAY_TILE_PROP] === true) out.push({ x: c * ts, y: r * ts, w: ts, h: ts, oneWay: true });
+    }
   }
 }

@@ -79,7 +79,9 @@ interface SystemInstance {
  *   2. run systems in scene order (collision detection first)
  *   3. run each entity's behaviors in array order
  *   4. prune destroyed entities
- *   5. resolve the entity hierarchy — parented entities' world transforms (0.9.0; no-op when
+ *   5. resolve dynamic bodies — push every `collider` out of the solid world (1.1.0; no-op when
+ *      no entity has a collider, so the frozen 1–4 order is unchanged for every arcade scene)
+ *   6. resolve the entity hierarchy — parented entities' world transforms (0.9.0; no-op when
  *      no entity has a parent, so the frozen 1–4 order is unchanged for every pre-0.9 scene)
  * Rendering (interpolation-free) happens once per animation frame, after updates.
  */
@@ -331,6 +333,12 @@ export class Game {
     }
 
     this.world.prune();
+    // Resolve every dynamic body against the solid world (1.1.0 unified collision phase): push
+    // dynamic colliders out of solid tiles + solid entities, in one owned pass. Appended after
+    // prune, BEFORE resolveHierarchy (so a parented child follows a RESOLVED parent) — it does NOT
+    // reorder the frozen 1–4 in-tick sequence, and no-ops entirely when no entity has a collider,
+    // so an arcade scene is byte-identical.
+    this.world.resolveBodies();
     // Resolve the entity hierarchy (0.9.0 scene graph): derive each parented entity's WORLD
     // transform from its parent's settled position THIS tick. Appended after prune (operates on
     // live entities) — it does NOT reorder the frozen 1–4 in-tick sequence, and no-ops entirely

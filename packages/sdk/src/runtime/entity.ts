@@ -40,6 +40,21 @@ export interface LocalTransform {
 }
 
 /**
+ * A resolved {@link ColliderSchema} living on the body — how this entity participates in the
+ * unified collision-resolution phase ({@link World.resolveBodies}, 1.1.0). The runtime mirror of
+ * the authored `collider` field (defaults already applied by the factory), so the phase reads one
+ * typed shape with no per-tick parsing. `undefined` ⇒ no collider ⇒ the phase skips the entity.
+ */
+export interface ColliderComponent {
+  /** `"dynamic"` = moves + gets resolved; `"solid"` = an immovable blocker dynamics resolve against. */
+  role: "dynamic" | "solid";
+  /** Solid only on its top face (a pass-through ledge) — land from above, jump up through. */
+  oneWay: boolean;
+  /** Collider-box inset from the sprite AABB, in px per side (`{0,0}` ⇒ collider == sprite box). */
+  inset: { x: number; y: number };
+}
+
+/**
  * A physics body's per-tick runtime state — the engine-INTERNAL collision + motion scratch
  * grouped off the flat {@link Entity} into one typed component. Runtime-only: never serialized,
  * never authored, and not part of what games read off the `(entity, world, params, dt)` behavior
@@ -76,6 +91,12 @@ export interface BodyComponent {
    * drop one-way cells/ledges from the solid set so a standing body falls through.
    */
   dropThrough: number;
+  /**
+   * How this entity participates in the unified collision-resolution phase (1.1.0), resolved from
+   * the authored `collider` field by the entity factory. `undefined` for a non-colliding entity
+   * (every arcade entity), which is what makes {@link World.resolveBodies} a no-op over it.
+   */
+  collider?: ColliderComponent;
 }
 
 /**

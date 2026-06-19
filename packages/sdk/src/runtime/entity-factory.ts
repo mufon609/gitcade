@@ -35,6 +35,17 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
     local: def.local,
   });
 
+  // Resolve the authored `collider` onto the body (1.1.0) — defaults are already applied by the
+  // schema, so this just mirrors it into the runtime component the resolution phase reads. Absent
+  // ⇒ left undefined, so `World.resolveBodies` skips this entity (byte-identical arcade scene).
+  if (def.collider) {
+    entity.body.collider = {
+      role: def.collider.role,
+      oneWay: def.collider.oneWay,
+      inset: { x: def.collider.inset.x, y: def.collider.inset.y },
+    };
+  }
+
   let i = 0;
   for (const b of def.behaviors) {
     const reg = registry.getBehavior(b.type);

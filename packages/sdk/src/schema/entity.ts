@@ -4,6 +4,39 @@ import { SpriteSchema } from "./sprite.js";
 import { BehaviorDefSchema } from "./behavior.js";
 
 /**
+ * How an entity participates in the unified collision-resolution phase (`World.resolveBodies`,
+ * 1.1.0) — the typed, first-class replacement for the tag-and-behavior encoding (`solid` tag +
+ * `solid-collide`/`tilemap-collide` behaviors). One declaration of what a body IS, resolved in
+ * exactly one place, instead of order-sensitive resolver behaviors.
+ *
+ * Additive optional field: an entity WITHOUT a `collider` is never touched by the phase, so every
+ * pre-1.1 / arcade scene is byte-identical (the phase no-ops over it exactly as `resolveHierarchy`
+ * no-ops over an unparented entity).
+ *
+ *  - `role: "dynamic"` — the body MOVES and is resolved (pushed out of solids, velocity zeroed on
+ *    contact, contact flags written to `entity.body.contacts`). `role: "solid"` — an immovable
+ *    blocker a dynamic resolves against (it still moves via its own behaviors, e.g. a tween/velocity
+ *    lift; it is just never itself resolved). A solid is effectively infinite-mass.
+ *  - `oneWay` — a solid that blocks ONLY on its top face: a dynamic lands on it from above but
+ *    jumps up through it and passes it sideways (the entity mirror of a one-way tile). Default false.
+ *  - `inset` — shrinks the collider box in from the sprite AABB by `x`/`y` px per side (a 24px
+ *    sprite with `inset.x:4` collides as 16px wide), for fairer corner-clip / contact geometry.
+ *    Default `{0,0}` (collider == sprite box). Structural geometry like `size`/`position`, so it is
+ *    NOT subject to the no-magic-numbers rule (that rule scans only behavior/system `params`).
+ *
+ * The collider's MOVING-platform (`carriable`) and PUSH (`pushable`/`mass`) facets are deliberately
+ * not in this shape yet — they land additively with the carry and push increments that honor them,
+ * so every field declared here is one the phase actually resolves.
+ */
+export const ColliderSchema = z.object({
+  role: z.enum(["dynamic", "solid"]),
+  oneWay: z.boolean().default(false),
+  inset: z.object({ x: z.number().default(0), y: z.number().default(0) }).default({ x: 0, y: 0 }),
+});
+
+export type ColliderDef = z.infer<typeof ColliderSchema>;
+
+/**
  * An entity definition: a positioned, sized, tagged thing that composes behaviors.
  *
  * `{ id, sprite, size, position, behaviors[], tags[], layer }` is the FROZEN
@@ -72,6 +105,13 @@ export const EntityDefSchema = z.object({
       scale: z.number().optional(),
     })
     .optional(),
+
+  /**
+   * How this entity participates in the unified collision-resolution phase (1.1.0, additive).
+   * Absent ⇒ the entity is invisible to the phase (every pre-1.1 entity / every arcade scene),
+   * so a scene with no collider is byte-identical. See {@link ColliderSchema}.
+   */
+  collider: ColliderSchema.optional(),
 
   /** Catalog provenance for this entity, e.g. `"enemy-chaser@1.0.0"`. */
   part: z.string().optional(),

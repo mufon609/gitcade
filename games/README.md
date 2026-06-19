@@ -19,8 +19,9 @@ comments and READMEs — they are the rationale trail, not scratch):
   what the SDK runtime/schema needs to grow a professional-feeling 2D indie game (camera,
   collision/physics, rendering, audio, input, animation, juice, authoring), tiered and
   phased. Takes priority over the other engine notes.
-- **[ENGINE-ROADMAP.md](./ENGINE-ROADMAP.md)** — the live shipped-game bandaid log (the open
-  engine-core workaround, E8 entity visibility); forward direction lives in INDIE-ROADMAP.
+- **[ENGINE-ROADMAP.md](./ENGINE-ROADMAP.md)** — the live shipped-game bandaid log
+  (engine-gap workarounds in shipped game source; none open currently); forward direction
+  lives in INDIE-ROADMAP.
 - **[LIBRARY-GAPS.md](./LIBRARY-GAPS.md)** — `@gitcade/library` generalization candidates
   (proven custom parts awaiting a second consumer).
 - **[GAME-IMPROVEMENTS.md](./GAME-IMPROVEMENTS.md)** — per-game isolated balance/content/asset

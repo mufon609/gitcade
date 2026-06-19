@@ -25,7 +25,6 @@ deliberately **not** done in an ecosystem pass. Each item is tagged:
 | S2 | **med** | data | **Flat speed — the #1 competitor gap.** `stepInterval` is a constant `0.11`; classic Snake accelerates as you grow. Wire the **existing** library `scale-by-state` (`target:"state:..."` / a length or score counter) to ramp `stepInterval` — **zero engine work**, balance in `config.json`. Highest-leverage feel change. |
 | S3 | low | asset | **No readable grid.** The board is a starfield + frame; cell boundaries are invisible, which hurts precise tail-side turns. Add a faint grid background (tiled grid image, or a decor tilemap). |
 | S4 | low | host/data | **Wall-wrap toggle.** Offer a config flag for wrap-around walls (google-snake/Nokia classic). Needs `snake-body`/`snake-guard` to wrap rather than die on OOB. |
-| S5 | low | docs | `games/snake/README.md` pins a stale `@gitcade/*` version; bump it to the current release. |
 
 **Verified correct (no action):** reversal guard, same-tick wall death + on-screen clamp, food-never-on-snake placement (incl. the imminent-cell marker), best-score persistence.
 **Potential future engine win:** a one-slot **turn buffer** in `move-grid-step` (queue the next turn so a fast double-tap at a corner isn't dropped) — benefits any grid mover; see [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md).

@@ -40,16 +40,11 @@ doing only what has no data primitive. So the audit rule is:
 
 ---
 
-## Open bandaid
+## Open bandaids
 
-### E8 — No entity show/hide 🟡
-**Live in:** `games/tower-defense/src/custom-behaviors/index.ts` — the build preview parks
-its ring/cell entities off-screen to fake hide (`for (const e of [ring, cell]) e.x = -9999`).
-**Why it's a bandaid:** there's no per-entity visibility toggle, so a toggled affordance has
-to be teleported out of view instead of hidden.
-**Fix direction:** tracked in [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md) (Tier 3 genre-unlock
-parts) — a runtime `entity.visible` honored by the renderer's draw filter (🟡 schema
-addition), or 🟢 a behavior that swaps the sprite to `kind:"none"`.
+None currently — no shipped game carries an engine-gap workaround (host JS or a custom part
+doing what the engine should provide). When one appears, log it here with its source location
+and capture the fix direction in [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md).
 
 ---
 

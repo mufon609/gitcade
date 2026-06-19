@@ -99,7 +99,7 @@ consumer appears. **Params proven:** `stateKey`, `tileSize`, `gameOverEvent`.
 
 ## Note on restart safety (applies to any promoted system)
 
-`Game.loadScene` clears `world.state` and entities, and (since 0.5.0) also clears the event
+`Game.loadScene` clears `world.state` and entities, and also clears the event
 bus's **scene-scoped** listeners. Any promoted system that listens to events should register
 via **`world.events.onScene(evt, fn)`** — attached once per scene ENTRY (guard with a
 scene-scoped `world.state` flag, since systems run every tick) and read live `world.state`

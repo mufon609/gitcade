@@ -598,16 +598,25 @@ export class World {
    * a `pushable` dynamic shoves it along; the crate is limited by the solid world and by other crates
    * (chains), and a pusher stops against a crate it can't move (e.g. one wedged against a wall).
    *
-   * A bounded relaxation (fixed `PUSH_ITERATIONS` — replay-safe, deterministic; pairs scanned in
-   * entity-array order). Each iteration: (1) separate every overlapping dynamic SIDE-contact pair
-   * (≥1 `pushable`) — mass-split by inverse mass, so the lighter pushable moves more and a non-pushable
-   * pusher (inverse mass 0) stays put while the crate yields; (2) eject each pushable positionally from
-   * any solid it was shoved into (the velocity-gated push-out can't, since a shoved crate has no
-   * velocity of its own) and mark it BLOCKED; (3) hard-clamp any non-pushable pusher still overlapping
-   * a crate out of it. A BLOCKED crate (one ejected back out of a solid this tick) is treated as
-   * immovable in (1), so its blocked-ness propagates UP a chain — the crate behind it yields fully
-   * rather than sinking in, and a pusher driving a chain into a wall stops flush behind it. VERTICAL
-   * stacking (standing on a crate) is intentionally NOT handled here — a pushable is not solid-to-dynamics.
+   * Three phases (replay-safe, deterministic; pairs scanned in entity-array order):
+   *  - PHASE 1 — each pusher drives each crate it reached this tick flush ahead of it, ONCE, by the
+   *    SWEPT shove ({@link sweptShove}, 1.7.0): the pusher's leading-edge overshoot past the crate's near
+   *    face, NOT the settled-frame overlap — so a pusher faster than the crate's width per tick transfers
+   *    its whole displacement instead of tunnelling (settled overlap ≈ 0) or being yanked backward by
+   *    phase 3 (settled overlap under-reads the penetration).
+   *  - PHASE 2 — a bounded `PUSH_ITERATIONS` relaxation that settles the crates: (a) separate every
+   *    overlapping crate↔crate pair, mass-split by inverse mass (the lighter pushable moves more); (b)
+   *    eject each pushable positionally from any solid it was shoved into (the velocity-gated push-out
+   *    can't — a shoved crate has no velocity of its own) and mark it BLOCKED; (c) propagate blocked-ness
+   *    up a flush chain. A BLOCKED crate is immovable in (a), so a wall constraint climbs the chain — the
+   *    crate behind yields fully rather than sinking in, and a pusher driving a chain into a wall stops
+   *    flush behind it. If the relaxation runs out of budget with motion pending it warns once ({@link
+   *    warnPushNonConvergence}).
+   *  - PHASE 3 — hard-clamp any non-pushable pusher still overlapping a crate out of it, so it stops
+   *    flush behind a crate it couldn't move.
+   *
+   * VERTICAL stacking (standing on a crate) is intentionally NOT handled here — a pushable is not
+   * solid-to-dynamics.
    */
   private resolvePush(dynamics: Entity[], solids: Entity[]): void {
     // Crates wedged against a solid this tick — immovable for the rest of the push pass, so the wall
@@ -632,18 +641,29 @@ export class World {
       return { ox, dir: A.body.prevX + A.w / 2 <= B.body.prevX + B.w / 2 ? 1 : -1 };
     };
 
-    // Phase 1 — each pusher (non-pushable dynamic) shoves each crate it overlaps by the FULL penetration
-    // ONCE. (Re-applying it every iteration would overwhelm the crate↔crate separation and bury a crate
-    // in its neighbour; the crate settles in phase 2, and the pusher clamps behind it in phase 3.)
+    // Phase 1 — each pusher (non-pushable dynamic) drives each crate it reached this tick ahead of it,
+    // ONCE, by the SWEPT shove (1.7.0). The shove is the pusher's leading-edge OVERSHOOT past the crate's
+    // near face — not the settled-frame overlap — so a pusher faster than the crate's width per tick still
+    // transfers its WHOLE displacement to the crate instead of tunnelling through it (settled overlap ≈ 0,
+    // old code did nothing) or being yanked backward by the phase-3 clamp while the crate barely moved
+    // (settled overlap under-read the real penetration). The crate ends flush ahead of the pusher; phase 2
+    // then settles it against the world + other crates, and phase 3 clamps the pusher behind a blocked one.
+    // (Applied ONCE — re-applying it every iteration would bury a crate in its neighbour.)
     for (let a = 0; a < dynamics.length; a++) {
       for (let b = a + 1; b < dynamics.length; b++) {
         const A = dynamics[a];
         const B = dynamics[b];
         if (A.body.collider!.pushable === B.body.collider!.pushable) continue; // need a pusher + a crate
-        const c = side(A, B);
-        if (!c) continue;
         const crate = A.body.collider!.pushable ? A : B;
-        crate.x += (crate === B ? c.dir : -c.dir) * c.ox; // move the crate away from the pusher
+        const pusher = crate === A ? B : A;
+        const shove = sweptShove(pusher, crate);
+        if (!shove) continue;
+        // Clamp the shove so the crate stops FLUSH at the first solid in its path — a pusher can't drive
+        // a crate THROUGH a wall. Without this, a deep swept shove could overshoot a crate past a thin
+        // solid (one narrower than the crate), where phase-2's min-translation eject would then push it
+        // the wrong way (further through) instead of back. Clamped, phase 2 only trims sub-px residue.
+        const dist = clampShoveBySolids(crate, shove.dir, shove.dist, this.tilemap, solids);
+        if (dist > 0) crate.x += shove.dir * dist; // drive the crate flush ahead of the pusher
       }
     }
 
@@ -845,6 +865,75 @@ function colliderBox(e: Entity): { x: number; y: number; w: number; h: number } 
 /** Overlap depth of two 1-D spans `[aMin,aMin+aLen]` / `[bMin,bMin+bLen]` (>0 ⇒ overlapping). */
 function overlapAmt(aMin: number, aLen: number, bMin: number, bLen: number): number {
   return Math.min(aMin + aLen, bMin + bLen) - Math.max(aMin, bMin);
+}
+
+/**
+ * The SWEPT pusher→crate shove (1.7.0 — phase 1 of {@link World.resolvePush}): how far, and which way,
+ * a pusher must drive a `pushable` crate so the pusher ends FLUSH behind it — measured from the pusher's
+ * leading edge's full sweep this tick, NOT the settled-frame AABB overlap. This is what makes push
+ * non-tunnelling at speed: the swept penetration `pusherLeadingEdge − crateNearFace` stays correct (and
+ * positive) even when the pusher's trailing edge ends PAST the crate (a static overlap test reads 0 and
+ * the old code did nothing) or when a deep overshoot makes the settled overlap UNDER-read the real
+ * penetration (the old code shoved by that small overlap, and phase 3 then yanked the pusher backward).
+ *
+ * Resolves on COLLIDER boxes (insets honored, like the rest of the phase). Returns `null` when this isn't
+ * a side push:
+ *  - the two aren't at the same height — no vertical overlap, or only a shallow top/bottom (stand-on)
+ *    contact (`oy*2 < minH`), which the push pass leaves alone (a pushable isn't solid-to-dynamics here);
+ *  - the pusher hasn't reached the crate (`dist <= 0`).
+ * Direction is taken from TICK-START centers (`body.prevX`), overshoot-safe: a fast pusher can end past
+ * the crate's center, where a current-position test would flip the sign and shove the crate backward.
+ */
+function sweptShove(pusher: Entity, crate: Entity): { dir: 1 | -1; dist: number } | null {
+  const P = colliderBox(pusher);
+  const C = colliderBox(crate);
+  const oy = overlapAmt(P.y, P.h, C.y, C.h);
+  if (oy <= 0 || oy * 2 < Math.min(P.h, C.h)) return null; // not a same-height side contact
+  const dir: 1 | -1 = pusher.body.prevX + pusher.w / 2 <= crate.body.prevX + crate.w / 2 ? 1 : -1;
+  // Swept penetration: how far the pusher's LEADING edge is past the crate's NEAR face NOW. >0 ⇒ the
+  // pusher reached/overran the crate this tick; the crate moves that far so the pusher ends flush behind it.
+  const dist = dir === 1 ? P.x + P.w - C.x : C.x + C.w - P.x;
+  return dist > 0 ? { dir, dist } : null;
+}
+
+/**
+ * The largest prefix of a `dir` shove of `dist` px that keeps crate `C`'s LEADING face at/before the
+ * nearest solid in its path — i.e. how far the crate can actually be driven before a wall stops it
+ * (1.7.0, the swept-push companion to {@link sweptShove}). A pusher must not drive a crate THROUGH a
+ * solid; the swept shove can be large enough to overshoot a crate past a thin solid (one narrower than
+ * the crate), where the positional eject's min-translation would resolve it the wrong way. Clamping the
+ * shove here keeps the crate flush against the wall instead. Scans solid tiles in the crate's Y-span +
+ * swept X-range and solid entities overlapping its Y-span; one-way solids never block a crate sideways.
+ */
+function clampShoveBySolids(C: Entity, dir: 1 | -1, dist: number, tilemap: Tilemap | undefined, solids: Entity[]): number {
+  const box = colliderBox(C);
+  const lead = dir === 1 ? box.x + box.w : box.x; // the crate's leading face now
+  const loX = Math.min(lead, lead + dir * dist) - BROAD_PAD;
+  const hiX = Math.max(lead, lead + dir * dist) + BROAD_PAD;
+  let limit = dist;
+  const block = (sLeft: number, sRight: number): void => {
+    // A solid clamps the shove only if its NEAR face lies ahead of the leading face in `dir`.
+    if (dir === 1) {
+      if (sLeft >= lead - 0.001) limit = Math.min(limit, Math.max(0, sLeft - lead));
+    } else if (sRight <= lead + 0.001) {
+      limit = Math.min(limit, Math.max(0, lead - sRight));
+    }
+  };
+  if (tilemap) {
+    const rects: SolidRect[] = [];
+    const throwaway: SlopeCell[] = [];
+    gatherTiles(tilemap, loX, hiX, box.y - BROAD_PAD, box.y + box.h + BROAD_PAD, false, rects, throwaway);
+    for (const r of rects) {
+      if (r.oneWay) continue; // a pass-through ledge never blocks a crate from the side
+      if (r.y < box.y + box.h && r.y + r.h > box.y) block(r.x, r.x + r.w);
+    }
+  }
+  for (const s of solids) {
+    if (s.body.collider!.oneWay) continue;
+    const sb = colliderBox(s);
+    if (sb.y < box.y + box.h && sb.y + sb.h > box.y && sb.x < hiX && sb.x + sb.w > loX) block(sb.x, sb.x + sb.w);
+  }
+  return limit;
 }
 
 /** Tile property flagging a fully-solid cell — the conventional name the phase reads (frozen tile-prop convention). */

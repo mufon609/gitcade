@@ -8,7 +8,7 @@ and resolves it — push-out, slopes, carry, and **push** — in one ordered pas
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
 and two-body push to.
 
-> ✅ **COMPLETE (sdk+library `1.5.0`), then HARDENED + EXTENDED through `1.9.0`.** All five proof-gated
+> ✅ **COMPLETE (sdk+library `1.5.0`), then HARDENED + EXTENDED through `1.10.0`.** All five proof-gated
 > increments (§8) landed; the §9 sign-offs were approved. There is now exactly ONE collision model — a
 > `collider` component resolved by the `World.resolveBodies()` phase — and the three legacy behaviors
 > (`solid-collide`/`tilemap-collide`/`ride-platform`) are RETIRED. All platformer proofs run on colliders;
@@ -16,13 +16,16 @@ and two-body push to.
 > human publish go-ahead. The increment history below is the design record; the git log is the
 > authoritative per-step changelog.
 >
-> **Pre-freeze hardening + extension (1.6.0–1.9.0, §11):** an adversarial audit then drove four more
+> **Pre-freeze hardening + extension (1.6.0–1.10.0, §11):** an adversarial audit then drove five more
 > increments — push fuzz harness + inset-consistency fix + a loud (no-longer-silent) push cap (1.6.0);
 > **swept push** so a fast pusher can't tunnel/yank a crate (1.7.0); **render interpolation** for smooth
-> play under any frame rate (1.8.0, render-only — headless sim byte-identical); and **dynamic-on-dynamic
+> play under any frame rate (1.8.0, render-only — headless sim byte-identical); **dynamic-on-dynamic
 > stacking** — a `pushable` crate is solid-to-dynamics (stand on it, stack, ride it), resolved in
 > dependency order — which realizes the §5 topological solve and the §5.4 "standing on a crate" item
-> the original push increment deferred (1.9.0).
+> the original push increment deferred (1.9.0); and **solid-aware carry/ride + full-transform render
+> interpolation** (1.10.0) — completing the two halves the 1.8.0/1.9.0 increments shipped partial (a
+> re-audit found render interpolation was position-only and that a passively carried/ridden rider was
+> driven *through* a wall, because the motion-derived push-out can't eject a zero-velocity body).
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
@@ -291,7 +294,7 @@ templated by existing code.
 
 ---
 
-## 11. Pre-freeze hardening + extension (1.6.0–1.9.0)
+## 11. Pre-freeze hardening + extension (1.6.0–1.10.0)
 
 An adversarial audit of the 1.1.0–1.5.0 phase (fresh eyes, reproduce-don't-trust) found the model
 sound — fast-path byte-identical, candidate-keyed determinism, deterministic tick order all hold — but
@@ -325,8 +328,32 @@ Four proof-gated increments followed (git log is the per-step changelog):
   crate's settled position. The carrier set gains the crates, so a rider rides a crate that falls or is
   carried by a moving platform (transitively); `rideHorizontalPush` carries riders by a crate's net
   push displacement after the push pass (so riding a horizontally-pushed crate is lag-free, stacks
-  included). **Byte-identical when no entity is pushable.** Residual boundary: a rider shoved into a
-  wall-corner alongside its crate settles on the next tick.
+  included). **Byte-identical when no entity is pushable.** (1.9.0 left one boundary — a rider carried
+  or ridden into a wall-corner — closed in 1.10.0 below.)
+
+- **1.10.0 — solid-aware carry/ride + full-transform render interpolation.** A re-audit (reproduce,
+  don't trust the docs) found the 1.8.0 and 1.9.0 increments each shipped a common case and filed the
+  rest as a "limitation"; 1.10.0 completes both generalizations.
+  - **Solid-aware carry + ride.** The phase moves a rider POSITIONALLY by its carrier's displacement
+    (carry of a `carriable` platform; ride of a horizontally pushed crate), but the only correction in
+    the per-body loop — `resolveSolids` — is MOTION-derived: it ejects a body only on an axis it has
+    velocity INTO a solid. So a passive (`vx=0`) rider was driven straight THROUGH a wall and never
+    ejected — not "next tick" but *permanently* (the velocity push-out can't touch a zero-velocity
+    body; this corrects the 1.9.0 residual note, which assumed a next-tick fix that can't happen). The
+    crate *push* already used the velocity-independent `clampShoveBySolids`; **carry and ride now use
+    the same clamp**, so a rider stops flush at a wall. One rule — "clamp a horizontal displacement to
+    the solid world" — now backs push, carry, and ride; the carrier the rider rests on is excluded (you
+    don't collide horizontally with your own support). Byte-identical wherever no wall is in the path,
+    so every prior carry/stack proof and test is unchanged. Gated by `resolve-bodies-carry-ride-walls`
+    (SDK, both halves + determinism) and a carry-into-wall scenario in the `platformer-carry` proof.
+  - **Full-transform render interpolation.** 1.8.0 interpolated POSITION only, so a `face-angle` turret
+    (rotation) or a `tween` pop (scale) still juddered. The renderer now also lerps `rotation` and
+    per-axis `scale` between the last two ticks (`body.prevRotation`/`prevScaleX`/`prevScaleY`,
+    snapshotted alongside `prevX/prevY`). Rotation uses the SHORTEST arc — a plain lerp would unwind a
+    `face-angle` ±π `atan2` branch-cut jump (or a `tween` 2π spin-loop) the long way around; scale
+    SNAPS on a sign flip — `face-velocity` flips `scaleX` instantly, and lerping across 0 would collapse
+    the sprite to a line. **Render-only** — `alpha` defaults to 1 (byte-identical), headless never
+    renders. Gated by `render-transform-interp` (SDK) + a real-Chrome screenshot diff across alphas.
 
 ---
 

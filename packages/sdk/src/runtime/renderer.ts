@@ -6,6 +6,21 @@ import type { ShapeSprite, SheetSprite, TextSprite } from "../schema/sprite.js";
 /** A minimal 2D context surface (subset we use), so types don't require lib.dom everywhere. */
 type Ctx = CanvasRenderingContext2D;
 
+/**
+ * The render-interpolation offset (1.8.0) from a body/camera's CURRENT (latest-tick) position on one
+ * axis: `(prev − cur) · (1 − alpha)`, i.e. draw it lerped between the last two ticks (`prev` at
+ * `alpha 0`, `cur` at `alpha 1`) — up to one frame behind the sim, the classic fixed-timestep
+ * smoothing that kills judder when rAF doesn't divide the sim rate. Returns 0 (draw at `cur`, no
+ * interpolation) when the per-tick delta exceeds `snap` — a TELEPORT (scene warp, screen-wrap,
+ * respawn), which interpolation would otherwise streak across the screen. At `alpha 1` it is always 0,
+ * so the renderer is byte-identical to the pre-interpolation path.
+ */
+function interpOffset(prev: number, cur: number, alpha: number, snap: number): number {
+  const d = prev - cur;
+  if (d > snap || d < -snap) return 0; // teleport, not motion — snap to the current position
+  return d * (1 - alpha);
+}
+
 /** Muted fallback fills for tilemap indices when no tileset image is available. */
 const TILE_FALLBACK_COLORS = ["#2a2f3a", "#3a3030", "#30343a", "#2f3a30", "#3a3a2f", "#352f3a"];
 
@@ -28,7 +43,15 @@ export class Renderer {
     return this.ctx !== null;
   }
 
-  render(world: World, background?: Background): void {
+  /**
+   * Draw the world. `alpha` (0.8.0… 1.8.0 render interpolation) is how far into the NEXT fixed tick the
+   * real clock has advanced (`accumulator / fixedDt`, in [0,1)); the renderer draws each body and the
+   * camera lerped between its position at the last two ticks (`body.prevX/prevY` → `x/y`), so motion is
+   * smooth even when the rAF rate doesn't divide the 60 Hz sim rate (the judder fix). DEFAULT 1 ⇒ draw at
+   * the latest sim position, byte-identical to the pre-interpolation renderer — and since the SIMULATION
+   * never renders (headless `stepFrames`), the validator/replays/tests are wholly unaffected. Render-only.
+   */
+  render(world: World, background?: Background, alpha = 1): void {
     const ctx = this.ctx;
     if (!ctx) return;
     // The VIEWPORT (camera) size — what the canvas shows. Falls back to world bounds
@@ -37,17 +60,23 @@ export class Renderer {
     const cam = world.camera;
     const vw = cam ? cam.width : world.bounds.width;
     const vh = cam ? cam.height : world.bounds.height;
+    // A per-tick position delta larger than a viewport dimension is a TELEPORT (scene warp, screen-wrap,
+    // respawn), not motion — interpolating across it would streak the body over the screen for a frame,
+    // so {@link interpOffset} snaps such a body to its current position instead. Real motion (even a fast
+    // dash, tens of px/tick) is far below this, so the two never collide.
+    const snap = Math.min(vw, vh);
 
     // Background is drawn in SCREEN space (no camera offset), so a solid/parallax
     // backdrop stays fixed behind the scrolling world.
     this.drawBackground(ctx, world, background, vw, vh);
 
-    // Camera transform (0.7.0): pan the world under the viewport, including any transient
-    // shake OFFSET (`shakeX`/`shakeY`, kept separate from the follow base). Skipped at the
-    // origin so a non-scrolling, non-shaking scene takes the exact pre-0.7 path (no save/
-    // translate), and rounded to whole px so tiles/sprites stay crisp while scrolling/shaking.
-    const camX = cam ? cam.x + (cam.shakeX ?? 0) : 0;
-    const camY = cam ? cam.y + (cam.shakeY ?? 0) : 0;
+    // Camera transform (0.7.0): pan the world under the viewport, including any transient shake OFFSET
+    // (`shakeX`/`shakeY`, kept separate from the follow base). The follow BASE is interpolated between
+    // ticks (1.8.0) so scrolling is smooth; shake (already a per-frame jitter) rides on top
+    // un-interpolated. Skipped at the origin so a non-scrolling, non-shaking scene takes the exact
+    // pre-0.7 path (no save/translate), and rounded to whole px so tiles/sprites stay crisp.
+    const camX = cam ? cam.x + interpOffset(cam.prevX ?? cam.x, cam.x, alpha, snap) + (cam.shakeX ?? 0) : 0;
+    const camY = cam ? cam.y + interpOffset(cam.prevY ?? cam.y, cam.y, alpha, snap) + (cam.shakeY ?? 0) : 0;
     const scrolled = cam != null && (camX !== 0 || camY !== 0);
     if (scrolled) {
       ctx.save();
@@ -60,7 +89,21 @@ export class Renderer {
       .filter((e) => e.alive && e.visible !== false && e.sprite.kind !== "none")
       .sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
 
-    for (const e of drawList) this.drawEntity(ctx, e, world);
+    for (const e of drawList) {
+      // Interpolate each body between its last two tick positions (render-only translate around the
+      // entity's draw — no change to the draw* methods, which still read e.x/e.y). At alpha 1 the offset
+      // is 0, so the draw is byte-identical to the non-interpolated path.
+      const dx = interpOffset(e.body.prevX, e.x, alpha, snap);
+      const dy = interpOffset(e.body.prevY, e.y, alpha, snap);
+      if (dx !== 0 || dy !== 0) {
+        ctx.save();
+        ctx.translate(dx, dy);
+        this.drawEntity(ctx, e, world);
+        ctx.restore();
+      } else {
+        this.drawEntity(ctx, e, world);
+      }
+    }
 
     if (scrolled) ctx.restore();
   }

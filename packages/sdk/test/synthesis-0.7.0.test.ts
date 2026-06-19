@@ -129,6 +129,9 @@ describe("0.7.0 Renderer — camera transform", () => {
       Object.assign(Object.create(null), {
         x: 100, y: 100, w: 16, h: 16, cx: 108, cy: 108, layer: 0, zIndex: 0, rotation: 0, scaleX: 1, scaleY: 1,
         alive: true, sprite: { kind: "shape", shape: "rect", color: "#fff" },
+        // The render-interpolation source (1.8.0) — every real Entity carries `body`; this minimal stub
+        // must too. prevX/prevY = x/y so the interpolation offset is 0 (and it's 0 anyway at the default α=1).
+        body: { prevX: 100, prevY: 100 },
       }) as never,
     );
     return world;

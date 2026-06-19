@@ -83,7 +83,10 @@ interface SystemInstance {
  *      no entity has a collider, so the frozen 1–4 order is unchanged for every arcade scene)
  *   6. resolve the entity hierarchy — parented entities' world transforms (0.9.0; no-op when
  *      no entity has a parent, so the frozen 1–4 order is unchanged for every pre-0.9 scene)
- * Rendering (interpolation-free) happens once per animation frame, after updates.
+ * Rendering happens once per animation frame, after the fixed-update catch-up loop, INTERPOLATED
+ * between the last two ticks (1.8.0) by the leftover-accumulator fraction so motion stays smooth when
+ * the rAF rate doesn't divide the sim rate. Interpolation is render-only — the simulation is unchanged
+ * and headless play (`stepFrames`, the validator/replays) never renders, so it stays byte-identical.
  */
 export class Game {
   readonly world: World;
@@ -313,10 +316,17 @@ export class Game {
     this.world.frame += 1;
     this.world.time += dt;
 
+    // Snapshot the camera's pre-tick position (1.8.0 render interpolation) BEFORE systems run — a
+    // `camera-follow` system moves it this tick, so this captures its start so the renderer can lerp the
+    // scroll base between ticks. Render-only; the simulation never reads it (headless stays byte-identical).
+    this.world.camera.prevX = this.world.camera.x;
+    this.world.camera.prevY = this.world.camera.y;
+
     // Snapshot each entity's pre-tick position and clear its collision list in one pass.
     // `body.prevX`/`body.prevY` let a carry behavior read a moving solid's per-tick world delta
-    // (`x - body.prevX`) later this tick; clearing collisions readies the list for this tick's
-    // detection. (Done together to avoid a second full sweep of the entity array.)
+    // (`x - body.prevX`) later this tick, AND are the source the renderer interpolates between (1.8.0);
+    // clearing collisions readies the list for this tick's detection. (Done together to avoid a second
+    // full sweep of the entity array.)
     for (const e of this.world.entities) {
       e.body.prevX = e.x;
       e.body.prevY = e.y;
@@ -362,9 +372,13 @@ export class Game {
     for (let i = 0; i < n; i++) this.update(this.fixedDt);
   }
 
-  /** Draw the current world state. No-op headless. */
-  render(): void {
-    this.renderer.render(this.world, this.scene.background);
+  /**
+   * Draw the current world state. No-op headless. `alpha` (default 1) is the render-interpolation
+   * factor (`accumulator / fixedDt`, in [0,1)) the rAF loop passes so bodies/camera draw smoothly
+   * between ticks; the default 1 draws at the latest sim position (byte-identical, for any direct caller).
+   */
+  render(alpha = 1): void {
+    this.renderer.render(this.world, this.scene.background, alpha);
   }
 
   /** Start the real-time loop (browser). Throws if no animation clock is available. */
@@ -422,7 +436,9 @@ export class Game {
         this.update(this.fixedDt);
         this.accumulator -= this.fixedDt;
       }
-      this.render();
+      // Render with the leftover-accumulator fraction so bodies/camera draw interpolated between the
+      // last two fixed ticks (1.8.0) — smooth motion when this rAF frame ran 0, 1, or N sim ticks.
+      this.render(this.accumulator / this.fixedDt);
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);

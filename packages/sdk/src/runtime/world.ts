@@ -47,6 +47,15 @@ export interface Camera {
    */
   shakeX?: number;
   shakeY?: number;
+  /**
+   * Camera position at the START of the current tick (1.8.0 render interpolation) — the camera's
+   * `body.prevX`/`prevY` analogue, snapshotted by the host loop before systems run so the renderer can
+   * lerp the scroll base between the last two ticks (smooth scrolling when rAF ≠ the fixed sim rate).
+   * Render-only and DECOUPLED from `x`/`y`: the simulation never reads it, so headless play is
+   * byte-identical. Absent ⇒ the renderer falls back to `x`/`y` (no interpolation, e.g. tick 1).
+   */
+  prevX?: number;
+  prevY?: number;
 }
 
 /**

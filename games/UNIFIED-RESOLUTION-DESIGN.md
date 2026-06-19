@@ -7,11 +7,12 @@ and resolves it — push-out, slopes, carry, and **push** — in one ordered pas
 
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
 and two-body push to. The implementation is a sequence of proof-gated increments (§8); the §9
-sign-offs are **approved**. **Increments 1–3 have landed** (sdk+library `1.1.0`–`1.3.0`): the
+sign-offs are **approved**. **Increments 1–4 have landed** (sdk+library `1.1.0`–`1.4.0`): the
 `resolveBodies()` phase + the `collider` component + candidate-keyed solid push-out (`1.1.0`,
-`platformer-solids`), the slope second pass (`1.2.0`, `platformer-slopes`), and the carry step +
-retirement of `ride-platform` (`1.3.0`, `platformer-carry`) — all at parity. Increments 4–5 (push,
-finish migration + retire `solid-collide`/`tilemap-collide`) remain.
+`platformer-solids`), the slope second pass (`1.2.0`, `platformer-slopes`), the carry step +
+retirement of `ride-platform` (`1.3.0`, `platformer-carry`), and two-body PUSH (`1.4.0`, new
+`platformer-push` proof). Only increment 5 remains (migrate `platformer-scroll`, retire
+`solid-collide`/`tilemap-collide`).
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
@@ -158,10 +159,19 @@ parent-first walk). For each dynamic body, in order:
    fix (a carrier sliding a walking rider into a wall stops it the same tick via the push-out) AND
    is lag-free: a carrier is a solid already moved by its own behaviors this tick, so its
    displacement is final — no author-ordering rule (what the retired `ride-platform` needed).
-4. **Push** — if the body penetrates a `pushable` dynamic, split the penetration by mass (an
-   immovable solid = infinite mass → the pusher stops; two equal crates → each moves half), move
-   both, then re-run step 2 for each. Crate→crate chains resolve via the dependency order plus a
-   **fixed** iteration cap (fixed count = replay-safe).
+4. **Push** — a dynamic that drives into the SIDE of a `pushable` dynamic shoves it horizontally.
+   *Implementation note (1.4.0):* a final `resolvePush()` pass (a bounded, fixed-iteration positional
+   relaxation — replay-safe) in three phases: (1) each non-pushable pusher shoves each crate it
+   overlaps by the full penetration ONCE; (2) the crates settle among themselves (mass-split by
+   inverse mass — two equal crates each move half) and against the solid world, where a crate the
+   eject wedges against a solid is marked BLOCKED and its blocked-ness propagates up a flush chain
+   (so a chain compresses against a wall instead of crates sinking into each other); (3) each pusher
+   is clamped flush behind the settled crates. Differs from the originally-sketched "split by mass,
+   move both, re-run step 2" — pure mass-split couldn't move an infinite-mass pusher back off a
+   wall-blocked crate, hence the phased push-once + blocked-propagation + clamp. **Scope:** push is
+   HORIZONTAL and non-swept (a pusher faster than a crate's width per tick can overshoot — cap speed
+   or thicken the crate, as for `resolveSolids`); STANDING on a crate is out of scope (a pushable is
+   not solid-to-dynamics); crate↔crate flushness carries sub-px relaxation residue.
 
 **Determinism (load-bearing for replays + the validator):** bodies resolved in a fixed order
 (topological, ties by entity-array index); sub-step count derived from the **candidate** set, not
@@ -194,8 +204,10 @@ behaviors to authoring a `collider` component (tile solid/slope props unchanged)
   design anticipated proved **unnecessary** — carry-first (§5.3) is lag-free and reproduces the old
   exact pixels, so all assertions held unchanged.
 - `platformer-scroll` — the full mover proof; migrate last (increment 5).
-- **NEW** `platformer-push` — push a crate into a wall, off a ledge, onto a switch, and a 2-crate
-  chain. The proof that anchors two-body push.
+- **NEW** `platformer-push` — ✅ (1.4.0) push a crate into a wall (pusher stops flush behind it),
+  off a ledge (the crate falls under its own gravity), and a 2-crate chain that compresses against
+  a wall. The proof that anchors two-body push. (The "onto a switch" case folds into precise
+  positional push — covered by the into-wall flushness.)
 
 `solid-collide` / `tilemap-collide` / `ride-platform` are then **retired** from the catalog (their
 `type`s removed). The `move-platformer` mover is unaffected — it reads `entity.body.contacts`,
@@ -222,13 +234,16 @@ green tests, and chromium browser-verification.
    `ride-platform` retired (source, part manifest, registration, test — catalog 98→97). `platformer-carry`
    migrated and needed **no re-baseline** — lag-free carry-first reproduces the old exact pixels.
    *The regression fix + the architectural payoff.*
-4. **Push.** Step 4 (mutual MTV, mass split, chains, fixed iterations); new `platformer-push` proof.
-   *The original goal.*
+4. **Push — ✅ landed (sdk+library `1.4.0`).** The `resolvePush()` pass (positional relaxation:
+   push-once → settle crates with blocked-propagation → clamp pushers; mass-split, chains, fixed
+   iterations); `pushable`/`mass` added to the `collider` schema; new `platformer-push` proof
+   (into-wall, off-ledge, 2-crate chain), browser-verified. *The original goal — the new capability.*
 5. **Finish migration.** Migrate `platformer-scroll`; retire `solid-collide`/`tilemap-collide` from
    the catalog; update `INDIE-ROADMAP` (mark carry-phase + push landed).
 
-Increments 1–3 landed as byte-equivalent-in-behavior parity work (low risk). Increment 3 was the
-architectural payoff. Increment 4 is the new capability.
+Increments 1–2 landed as byte-equivalent-in-behavior parity work (low risk); increment 3 (carry) was
+the architectural payoff; increment 4 (push) was the new capability. Increment 5 (finish the migration
++ retire the last two behaviors) is the remaining cleanup.
 
 ---
 

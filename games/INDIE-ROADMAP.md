@@ -129,15 +129,16 @@ are themselves immovable. The two halves on top of it:
   carry BEFORE the push-out (carry-first), so it's lag-free and a fast-descending platform never
   leaves the rider. Proven by the `platformer-carry` proof. (Originally shipped as the `ride-platform`
   behavior at 0.10.0; retired into the phase at 1.3.0.) 🟢
-- **Push — movable crates** (a player push that *moves* the crate: mass + mutual resolution) remain
-  open. The harder half; carry was the common platformer need. It lands as the final increment of the
-  **unified-resolution** effort: the `resolveBodies()` phase resolves coupled touching bodies and
-  re-resolves them against solids in one pass. The full design — the phase, the `collider` component,
-  the dependency-ordered push solver, the determinism story, and the proof-gated build order — is in
-  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢 (landed `1.1.0`–`1.3.0`: the
-  `resolveBodies()` phase + `collider` component + candidate-keyed solid push-out + slope pass + carry,
-  with `platformer-solids`/`platformer-slopes`/`platformer-carry` migrated and `ride-platform` retired;
-  **push** + finishing `platformer-scroll`/retiring the last two behaviors remain).
+- **Push — movable crates. ✅ Now in the engine — the `resolveBodies()` push step (1.4.0).** A dynamic
+  that drives into the side of a `pushable` collider shoves it horizontally: into a wall (the pusher
+  stops flush behind it), off a ledge (the crate falls under gravity), and 2-crate chains that
+  compress against a wall. A bounded positional relaxation (push-once → settle crates with
+  blocked-propagation → clamp pushers; mass-split via `mass`). Proven by the new `platformer-push`
+  proof. The full design is in [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢
+  (the unified-resolution effort landed `1.1.0`–`1.4.0`: the `resolveBodies()` phase + `collider`
+  component + candidate-keyed solid push-out + slope pass + carry + push, with
+  `platformer-solids`/`-slopes`/`-carry`/`-push` and `ride-platform` retired; only finishing
+  `platformer-scroll` + retiring `solid-collide`/`tilemap-collide` remains).
 
 ---
 
@@ -326,8 +327,8 @@ assumed.
   platforms + drop-through** landed on the same primitive (`oneWay` tile flag / `oneWayTag`
   + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
   The two-body **carry** mode (the `resolveBodies()` carry step, 1.3.0) lands the moving-platform case, and
-  **floor slopes + ladders** (`resolveSlopes` + `move-platformer` climb, 0.11.0) the terrain.
-  *Remaining (Tier 1):* two-body **push** (movable crates).
+  **floor slopes + ladders** (`resolveSlopes` + `move-platformer` climb, 0.11.0) the terrain, and
+  two-body **push** (movable crates — the `resolveBodies()` push step, 1.4.0) completes Tier-1.
 - **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**
   (`sprite-state-machine`) + **flip convention** (`face-velocity`), and **entity
   `opacity`/`visibility`** honored by the renderer (the latter retiring the tower-defense

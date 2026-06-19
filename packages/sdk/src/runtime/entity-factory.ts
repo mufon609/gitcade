@@ -43,6 +43,8 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
       role: def.collider.role,
       oneWay: def.collider.oneWay,
       carriable: def.collider.carriable,
+      pushable: def.collider.pushable,
+      mass: def.collider.mass,
       inset: { x: def.collider.inset.x, y: def.collider.inset.y },
     };
   }

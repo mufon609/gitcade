@@ -23,19 +23,23 @@ import { BehaviorDefSchema } from "./behavior.js";
  *    inherits the carrier's per-tick displacement (horizontal always, descending too), so it rides a
  *    sliding/sinking platform and can still walk while carried. Default false. (Vertical-UP carry
  *    already comes free from the push-out — a rising carrier pushes the rider up.)
+ *  - `pushable` — a `dynamic` a pusher can shove SIDEWAYS: when another dynamic drives into its side,
+ *    it slides along (a crate). Default false. Push is horizontal only — a body standing ON a crate
+ *    is out of scope (a pushable is not solid-to-dynamics). Needs `role:"dynamic"`.
+ *  - `mass` — push split weight (default 1): when two `pushable` bodies meet, the lighter moves more;
+ *    a NON-pushable pusher (the player) is effectively immovable in the split (the crate yields), and
+ *    a crate wedged against a solid becomes immovable in turn (the pusher then stops against it).
  *  - `inset` — shrinks the collider box in from the sprite AABB by `x`/`y` px per side (a 24px
  *    sprite with `inset.x:4` collides as 16px wide), for fairer corner-clip / contact geometry.
  *    Default `{0,0}` (collider == sprite box). Structural geometry like `size`/`position`, so it is
  *    NOT subject to the no-magic-numbers rule (that rule scans only behavior/system `params`).
- *
- * The collider's PUSH facets (`pushable`/`mass`) are deliberately not in this shape yet — they land
- * additively with the push increment that honors them, so every field declared here is one the
- * phase actually resolves.
  */
 export const ColliderSchema = z.object({
   role: z.enum(["dynamic", "solid"]),
   oneWay: z.boolean().default(false),
   carriable: z.boolean().default(false),
+  pushable: z.boolean().default(false),
+  mass: z.number().positive().default(1),
   inset: z.object({ x: z.number().default(0), y: z.number().default(0) }).default({ x: 0, y: 0 }),
 });
 

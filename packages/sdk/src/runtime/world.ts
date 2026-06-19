@@ -505,6 +505,10 @@ export class World {
    *     Running after the carry settles a carried rider precisely AND corrects it against walls the
    *     same tick — the re-resolution a naive post-behavior carry phase lacks.
    *
+   * Then, once every dynamic has settled against the static world, a final PUSH pass ({@link resolvePush})
+   * resolves dynamic-vs-`pushable`-dynamic SIDE contacts (a pusher shoves a crate; crates chain and stop
+   * against walls). It is skipped entirely — byte-identical — when no entity is `pushable`.
+   *
    * `oneWay` solids (top-face-only tiles via the `oneWay` tile prop, or `oneWay` colliders) are
    * dropped while the mover's drop-through window is open (`body.dropThrough > 0`). A non-zero
    * collider `inset` resolves a box shrunk in from the sprite AABB, mapped back onto the entity.
@@ -521,21 +525,26 @@ export class World {
     if (!hasCollider) return;
 
     // The immovable blockers this tick: every solid-role collider (solids move via their own
-    // behaviors, never resolved here) — plus the CARRIABLE subset (moving platforms that carry riders).
+    // behaviors, never resolved here) — plus the CARRIABLE subset (moving platforms that carry
+    // riders). DYNAMIC bodies (resolved + pushed) are gathered too, for the push pass.
     const solids: Entity[] = [];
     const carriables: Entity[] = [];
+    const dynamics: Entity[] = [];
+    let anyPushable = false;
     for (const e of this.entities) {
       const c = e.body.collider;
-      if (e.alive && c?.role === "solid") {
+      if (!e.alive || !c) continue;
+      if (c.role === "solid") {
         solids.push(e);
         if (c.carriable) carriables.push(e);
+      } else {
+        dynamics.push(e);
+        if (c.pushable) anyPushable = true;
       }
     }
 
-    for (const e of this.entities) {
-      if (!e.alive) continue;
-      const c = e.body.collider;
-      if (!c || c.role !== "dynamic") continue;
+    for (const e of dynamics) {
+      const c = e.body.collider!;
 
       // The collider box = the sprite AABB shrunk by the optional inset, carrying this tick's
       // velocity. With no inset the entity IS the MovingBody (zero-alloc, like the old resolvers).
@@ -576,6 +585,141 @@ export class World {
         e.vx = body.vx;
         e.vy = body.vy;
       }
+    }
+
+    // Step 4 — PUSH: resolve dynamic-vs-`pushable`-dynamic side contacts (a pusher shoves a crate),
+    // after every body has settled against the static world. Skipped entirely (byte-identical) when
+    // no entity is pushable. See {@link resolvePush}.
+    if (anyPushable) this.resolvePush(dynamics, solids);
+  }
+
+  /**
+   * Step 4 of {@link resolveBodies}: horizontal two-body PUSH. A dynamic that drives into the SIDE of
+   * a `pushable` dynamic shoves it along; the crate is limited by the solid world and by other crates
+   * (chains), and a pusher stops against a crate it can't move (e.g. one wedged against a wall).
+   *
+   * A bounded relaxation (fixed `PUSH_ITERATIONS` — replay-safe, deterministic; pairs scanned in
+   * entity-array order). Each iteration: (1) separate every overlapping dynamic SIDE-contact pair
+   * (≥1 `pushable`) — mass-split by inverse mass, so the lighter pushable moves more and a non-pushable
+   * pusher (inverse mass 0) stays put while the crate yields; (2) eject each pushable positionally from
+   * any solid it was shoved into (the velocity-gated push-out can't, since a shoved crate has no
+   * velocity of its own) and mark it BLOCKED; (3) hard-clamp any non-pushable pusher still overlapping
+   * a crate out of it. A BLOCKED crate (one ejected back out of a solid this tick) is treated as
+   * immovable in (1), so its blocked-ness propagates UP a chain — the crate behind it yields fully
+   * rather than sinking in, and a pusher driving a chain into a wall stops flush behind it. VERTICAL
+   * stacking (standing on a crate) is intentionally NOT handled here — a pushable is not solid-to-dynamics.
+   */
+  private resolvePush(dynamics: Entity[], solids: Entity[]): void {
+    // Crates wedged against a solid this tick — immovable for the rest of the push pass, so the wall
+    // constraint propagates up a chain instead of the relaxation letting crates sink into each other.
+    const blocked = new Set<Entity>();
+    const invMass = (e: Entity): number => {
+      const c = e.body.collider!;
+      return c.pushable && !blocked.has(e) ? 1 / c.mass : 0;
+    };
+
+    // A horizontal SIDE contact between two dynamics: the overlap depth `ox` and the direction `dir`
+    // (B on A's +dir side, from TICK-START centers — overshoot-safe: a fast pusher can overshoot past
+    // a crate's center within a tick, and a current-position test would flip and shove it backward).
+    // null ⇒ no overlap, or a shallow vertical/stacking overlap (a rider standing on a crate — a
+    // pushable is not solid-to-dynamics, so stacking is left for a later increment).
+    const side = (A: Entity, B: Entity): { ox: number; dir: 1 | -1 } | null => {
+      const boxA = colliderBox(A);
+      const boxB = colliderBox(B);
+      const ox = overlapAmt(boxA.x, boxA.w, boxB.x, boxB.w);
+      const oy = overlapAmt(boxA.y, boxA.h, boxB.y, boxB.h);
+      if (ox <= 0 || oy <= 0 || oy * 2 < Math.min(boxA.h, boxB.h)) return null;
+      return { ox, dir: A.body.prevX + A.w / 2 <= B.body.prevX + B.w / 2 ? 1 : -1 };
+    };
+
+    // Phase 1 — each pusher (non-pushable dynamic) shoves each crate it overlaps by the FULL penetration
+    // ONCE. (Re-applying it every iteration would overwhelm the crate↔crate separation and bury a crate
+    // in its neighbour; the crate settles in phase 2, and the pusher clamps behind it in phase 3.)
+    for (let a = 0; a < dynamics.length; a++) {
+      for (let b = a + 1; b < dynamics.length; b++) {
+        const A = dynamics[a];
+        const B = dynamics[b];
+        if (A.body.collider!.pushable === B.body.collider!.pushable) continue; // need a pusher + a crate
+        const c = side(A, B);
+        if (!c) continue;
+        const crate = A.body.collider!.pushable ? A : B;
+        crate.x += (crate === B ? c.dir : -c.dir) * c.ox; // move the crate away from the pusher
+      }
+    }
+
+    // Phase 2 — settle the crates among themselves + the solid world (bounded relaxation, replay-safe).
+    for (let iter = 0; iter < PUSH_ITERATIONS; iter++) {
+      let moved = false;
+
+      // Separate overlapping crate↔crate side contacts, mass-split (a blocked crate is immovable).
+      for (let a = 0; a < dynamics.length; a++) {
+        for (let b = a + 1; b < dynamics.length; b++) {
+          const A = dynamics[a];
+          const B = dynamics[b];
+          if (!A.body.collider!.pushable || !B.body.collider!.pushable) continue; // crate↔crate only
+          const c = side(A, B);
+          if (!c) continue;
+          const invA = invMass(A);
+          const invB = invMass(B);
+          const s = invA + invB;
+          if (s <= 0) continue; // both blocked
+          A.x -= c.dir * c.ox * (invA / s);
+          B.x += c.dir * c.ox * (invB / s);
+          moved = true;
+        }
+      }
+
+      // Eject each pushable from any solid it was shoved into; a crate the eject moved is wedged
+      // against that solid ⇒ blocked (immovable) for the rest of the pass.
+      for (const C of dynamics) {
+        if (C.body.collider!.pushable && ejectFromSolids(C, this.tilemap, solids)) {
+          blocked.add(C);
+          moved = true;
+        }
+      }
+
+      // Propagate blocked-ness: a crate now FLUSH against a blocked crate (not still mid-penetration)
+      // is itself immovable — so the "can't move" of a wall-wedged crate climbs the chain.
+      for (let grew = true; grew; ) {
+        grew = false;
+        const front = [...blocked];
+        for (const C of dynamics) {
+          if (!C.body.collider!.pushable || blocked.has(C)) continue;
+          const cBox = colliderBox(C);
+          for (const K of front) {
+            const kBox = colliderBox(K);
+            const ox = overlapAmt(cBox.x, cBox.w, kBox.x, kBox.w);
+            const oy = overlapAmt(cBox.y, cBox.h, kBox.y, kBox.h);
+            if (ox > -0.5 && ox < 0.5 && oy * 2 >= Math.min(cBox.h, kBox.h)) {
+              blocked.add(C);
+              grew = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!moved) break;
+    }
+
+    // Phase 3 — clamp each pusher out of any crate it still overlaps, so it stops flush behind the
+    // settled crate (the crate is solid to the pusher once it can't move — e.g. wedged against a wall).
+    for (let iter = 0; iter < PUSH_ITERATIONS; iter++) {
+      let moved = false;
+      for (let a = 0; a < dynamics.length; a++) {
+        for (let b = a + 1; b < dynamics.length; b++) {
+          const A = dynamics[a];
+          const B = dynamics[b];
+          if (A.body.collider!.pushable === B.body.collider!.pushable) continue; // a pusher + a crate
+          const pusher = A.body.collider!.pushable ? B : A;
+          const crate = A.body.collider!.pushable ? A : B;
+          const c = side(pusher, crate); // dir: crate sits on pusher's +dir side
+          if (!c) continue;
+          pusher.x -= c.dir * c.ox; // move the pusher away from the crate
+          moved = true;
+        }
+      }
+      if (!moved) break;
     }
   }
 
@@ -652,6 +796,21 @@ function findCarrier(e: Entity, ix: number, iy: number, carriables: Entity[]): E
   }
   return null;
 }
+
+/** Fixed push-relaxation iteration count — replay-safe (deterministic), enough for short crate chains. */
+const PUSH_ITERATIONS = 8;
+
+/** The collider AABB of `e` (sprite box minus its inset). */
+function colliderBox(e: Entity): { x: number; y: number; w: number; h: number } {
+  const c = e.body.collider!;
+  return { x: e.x + c.inset.x, y: e.y + c.inset.y, w: e.w - 2 * c.inset.x, h: e.h - 2 * c.inset.y };
+}
+
+/** Overlap depth of two 1-D spans `[aMin,aMin+aLen]` / `[bMin,bMin+bLen]` (>0 ⇒ overlapping). */
+function overlapAmt(aMin: number, aLen: number, bMin: number, bLen: number): number {
+  return Math.min(aMin + aLen, bMin + bLen) - Math.max(aMin, bMin);
+}
+
 /** Tile property flagging a fully-solid cell — the conventional name the phase reads (frozen tile-prop convention). */
 const SOLID_TILE_PROP = "solid";
 /** Tile property flagging a one-way (top-face-only) platform cell. */
@@ -712,4 +871,44 @@ function gatherTiles(
       else if (!dropping && props[ONE_WAY_TILE_PROP] === true) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts, oneWay: true });
     }
   }
+}
+
+/**
+ * POSITIONALLY eject pushable crate `C` from any solid (tile or solid entity) it overlaps, along the
+ * minimum-translation axis — the velocity-independent push-out the PUSH pass needs (a crate shoved
+ * into a wall has no velocity of its own, so the swept `resolveSolids` won't move it). Mutates `C.x`/
+ * `C.y`; returns whether it moved. One-way solids are skipped (a crate isn't blocked by a pass-through
+ * ledge from the side). Slope cells are ignored here.
+ */
+function ejectFromSolids(C: Entity, tilemap: Tilemap | undefined, solids: Entity[]): boolean {
+  const box = colliderBox(C);
+  const rects: SolidRect[] = [];
+  const throwaway: SlopeCell[] = [];
+  if (tilemap) {
+    gatherTiles(tilemap, box.x - BROAD_PAD, box.x + box.w + BROAD_PAD, box.y - BROAD_PAD, box.y + box.h + BROAD_PAD, false, rects, throwaway);
+  }
+  for (const s of solids) {
+    const sb = colliderBox(s);
+    if (box.x < sb.x + sb.w && box.x + box.w > sb.x && box.y < sb.y + sb.h && box.y + box.h > sb.y) {
+      rects.push(sb);
+    }
+  }
+  let moved = false;
+  for (const r of rects) {
+    if (r.oneWay) continue; // a pass-through ledge never blocks a crate from the side
+    const ox = overlapAmt(box.x, box.w, r.x, r.w);
+    const oy = overlapAmt(box.y, box.h, r.y, r.h);
+    if (ox <= 0 || oy <= 0) continue;
+    if (ox <= oy) {
+      const dir = box.x + box.w / 2 < r.x + r.w / 2 ? -1 : 1;
+      C.x += dir * ox;
+      box.x += dir * ox;
+    } else {
+      const dir = box.y + box.h / 2 < r.y + r.h / 2 ? -1 : 1;
+      C.y += dir * oy;
+      box.y += dir * oy;
+    }
+    moved = true;
+  }
+  return moved;
 }

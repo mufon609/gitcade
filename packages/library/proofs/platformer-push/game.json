@@ -1,0 +1,13 @@
+{
+  "name": "Platformer Push (two-body crate push proof)",
+  "slug": "proof-platformer-push",
+  "description": "Reuse proof for the 1.4.0 two-body PUSH (the resolveBodies push step, INDIE-ROADMAP Tier-1): a player shoves pushable crate colliders horizontally — into a wall (the crate stops flush, the pusher stops behind it), off a ledge (the crate falls into a pit under gravity), and a 2-crate chain (both crates move; wall-blocked, the chain compresses and the pusher stops behind it). Built from move-platformer + velocity + collider with no host code.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "1.4.0",
+  "libraryVersion": "1.4.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

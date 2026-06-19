@@ -1,0 +1,8 @@
+{
+  "playerSpeed": 160,
+  "gravity": 1400,
+  "jumpSpeed": 480,
+  "coyoteTime": 0.08,
+  "maxFall": 900,
+  "crateSpeed": 0
+}

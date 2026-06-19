@@ -52,6 +52,10 @@ export interface ColliderComponent {
   oneWay: boolean;
   /** A moving `solid` that carries riders standing on its top (inherit its per-tick displacement). */
   carriable: boolean;
+  /** A `dynamic` a pusher can shove sideways (a crate). */
+  pushable: boolean;
+  /** Push split weight; the lighter of two pushables moves more (a non-pushable pusher is immovable). */
+  mass: number;
   /** Collider-box inset from the sprite AABB, in px per side (`{0,0}` ⇒ collider == sprite box). */
   inset: { x: number; y: number };
 }

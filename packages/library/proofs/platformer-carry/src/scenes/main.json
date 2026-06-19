@@ -9,7 +9,7 @@
       "size": { "w": 120, "h": 16 },
       "position": { "x": 100, "y": 360 },
       "layer": 1,
-      "tags": ["solid", "carrier"],
+      "collider": { "role": "solid", "carriable": true },
       "behaviors": [
         {
           "type": "tween",
@@ -31,14 +31,13 @@
       "position": { "x": 120, "y": 332 },
       "layer": 2,
       "tags": ["player"],
+      "collider": { "role": "dynamic" },
       "behaviors": [
-        { "type": "ride-platform", "params": { "carryTag": "carrier" } },
         {
           "type": "move-platformer",
           "params": { "moveSpeed": "$cfg.moveSpeed", "gravity": "$cfg.gravity", "jumpSpeed": "$cfg.jumpSpeed" }
         },
-        { "type": "velocity", "params": {} },
-        { "type": "solid-collide", "params": { "solidTag": "solid" } }
+        { "type": "velocity", "params": {} }
       ]
     },
     {
@@ -47,7 +46,7 @@
       "size": { "w": 80, "h": 16 },
       "position": { "x": 650, "y": 160 },
       "layer": 1,
-      "tags": ["solid", "carrier"],
+      "collider": { "role": "solid", "carriable": true },
       "behaviors": [
         {
           "type": "tween",
@@ -69,14 +68,13 @@
       "position": { "x": 682, "y": 144 },
       "layer": 2,
       "tags": ["rider"],
+      "collider": { "role": "dynamic" },
       "behaviors": [
-        { "type": "ride-platform", "params": { "carryTag": "carrier" } },
         {
           "type": "move-platformer",
           "params": { "moveSpeed": "$cfg.moveSpeed", "gravity": "$cfg.gravity", "jumpSpeed": "$cfg.jumpSpeed" }
         },
-        { "type": "velocity", "params": {} },
-        { "type": "solid-collide", "params": { "solidTag": "solid" } }
+        { "type": "velocity", "params": {} }
       ]
     }
   ],

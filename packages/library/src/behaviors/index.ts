@@ -4,7 +4,6 @@ import { move4dir } from "./move-4dir.js";
 import { movePlatformer } from "./move-platformer.js";
 import { tilemapCollide } from "./tilemap-collide.js";
 import { solidCollide } from "./solid-collide.js";
-import { ridePlatform } from "./ride-platform.js";
 import { moveTopdown360 } from "./move-topdown-360.js";
 import { moveGridStep } from "./move-grid-step.js";
 import { autoScroll } from "./auto-scroll.js";
@@ -37,7 +36,6 @@ export const LIBRARY_BEHAVIORS = {
   "move-platformer": movePlatformer,
   "tilemap-collide": tilemapCollide,
   "solid-collide": solidCollide,
-  "ride-platform": ridePlatform,
   "move-topdown-360": moveTopdown360,
   "move-grid-step": moveGridStep,
   "auto-scroll": autoScroll,
@@ -76,7 +74,6 @@ export {
   movePlatformer,
   tilemapCollide,
   solidCollide,
-  ridePlatform,
   moveTopdown360,
   moveGridStep,
   autoScroll,

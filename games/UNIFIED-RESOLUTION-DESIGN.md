@@ -7,10 +7,11 @@ and resolves it — push-out, slopes, carry, and **push** — in one ordered pas
 
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
 and two-body push to. The implementation is a sequence of proof-gated increments (§8); the §9
-sign-offs are **approved**. **Increments 1–2 have landed** (sdk+library `1.1.0`–`1.2.0`): the
+sign-offs are **approved**. **Increments 1–3 have landed** (sdk+library `1.1.0`–`1.3.0`): the
 `resolveBodies()` phase + the `collider` component + candidate-keyed solid push-out (`1.1.0`,
-`platformer-solids` migrated), then the slope second pass (`1.2.0`, `platformer-slopes` migrated) —
-both at parity. Increments 3–5 (carry, push, finish migration + retire the behaviors) remain.
+`platformer-solids`), the slope second pass (`1.2.0`, `platformer-slopes`), and the carry step +
+retirement of `ride-platform` (`1.3.0`, `platformer-carry`) — all at parity. Increments 4–5 (push,
+finish migration + retire `solid-collide`/`tilemap-collide`) remain.
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
@@ -147,12 +148,16 @@ parent-first walk). For each dynamic body, in order:
 2. **Push-out vs the static world** — `resolveSolids` (swept) against the solid candidates, then
    `resolveSlopes` (second pass) against slope cells. Writes `entity.body.contacts`. *(These two
    SDK primitives are reused as-is — the phase is their new single caller.)*
-3. **Carry** — if the body rests on a `carriable` solid (feet-probe vs the carrier's pre-tick top
-   `body.prevY`, `vy>=0`), apply the carrier's **resolved** this-tick displacement
-   (`carrier.x - carrier.body.prevX`, descending `y` likewise), **then re-run step 2**. Re-resolving
-   *after* the carry is the regression fix: a carrier shoving a rider into a wall stops the rider
-   at the wall this same tick. Because carriers are resolved before riders (dependency order), the
-   carrier's displacement is final and there is no author-ordering rule and no one-tick lag.
+3. **Carry** — if the body rested on a `carriable` solid at tick start (feet-probe vs the carrier's
+   pre-tick top `body.prevY`, `vy>=0`), apply the carrier's this-tick displacement
+   (`carrier.x - carrier.body.prevX`, descending `y` likewise) **BEFORE the push-out** (steps 1–2),
+   not after it. *Implementation note (1.3.0):* carry-FIRST, not the originally-sketched
+   step-2-then-carry-then-re-resolve — because the push-out's own re-grounding already follows a
+   moving platform vertically, adding the descent again *after* it double-counts and sinks the rider
+   one tick's displacement per frame. Applying carry first, then resolving once, is the regression
+   fix (a carrier sliding a walking rider into a wall stops it the same tick via the push-out) AND
+   is lag-free: a carrier is a solid already moved by its own behaviors this tick, so its
+   displacement is final — no author-ordering rule (what the retired `ride-platform` needed).
 4. **Push** — if the body penetrates a `pushable` dynamic, split the penetration by mass (an
    immovable solid = infinite mass → the pusher stops; two equal crates → each moves half), move
    both, then re-run step 2 for each. Crate→crate chains resolve via the dependency order plus a
@@ -183,12 +188,12 @@ published break (0.6.0 has no platformer collision).
 The three retired behaviors are used only in-tree by four proofs. Each migrates from authoring
 behaviors to authoring a `collider` component (tile solid/slope props unchanged):
 
-- `platformer-solids` — player + lift gain `collider`s; `solid-collide` removed. Verify parity.
-- `platformer-slopes` — `collider` + slope tiles; `tilemap-collide` removed.
-- `platformer-carry` — `carriable` carriers, `ride-platform` removed; **re-baseline** the position
-  assertions (the phase resolves carry on slightly different exact pixels — same observable ride/
-  walk-while-carried/descend behavior).
-- `platformer-scroll` — the full mover proof; migrate last.
+- `platformer-solids` — ✅ player + lift gain `collider`s; `solid-collide` removed. Parity verified (1.1.0).
+- `platformer-slopes` — ✅ `collider` + slope tiles; `tilemap-collide` removed. Parity (1.2.0).
+- `platformer-carry` — ✅ `carriable` carriers, `ride-platform` removed (1.3.0). The re-baseline the
+  design anticipated proved **unnecessary** — carry-first (§5.3) is lag-free and reproduces the old
+  exact pixels, so all assertions held unchanged.
+- `platformer-scroll` — the full mover proof; migrate last (increment 5).
 - **NEW** `platformer-push` — push a crate into a wall, off a ledge, onto a switch, and a 2-crate
   chain. The proof that anchors two-body push.
 
@@ -211,14 +216,18 @@ green tests, and chromium browser-verification.
 2. **Slopes in the phase — ✅ landed (sdk+library `1.2.0`).** Step 2's `resolveSlopes` second pass
    (run after the solid push-out, on the same body, merged into the same-tick contacts);
    `platformer-slopes` migrated at parity (4 smoke assertions unchanged), browser-verified.
-3. **Carry in the phase.** Step 3 (carrier-resolved displacement + re-resolve, dependency order);
-   migrate `platformer-carry` + re-baseline; retire `ride-platform`. *The regression fix.*
+3. **Carry in the phase — ✅ landed (sdk+library `1.3.0`).** A rider that rested on a `carriable`
+   solid at tick start inherits the carrier's this-tick displacement BEFORE the push-out (carry-first
+   — see §5.3's implementation note: applying it after and re-resolving double-counts the descent).
+   `ride-platform` retired (source, part manifest, registration, test — catalog 98→97). `platformer-carry`
+   migrated and needed **no re-baseline** — lag-free carry-first reproduces the old exact pixels.
+   *The regression fix + the architectural payoff.*
 4. **Push.** Step 4 (mutual MTV, mass split, chains, fixed iterations); new `platformer-push` proof.
    *The original goal.*
 5. **Finish migration.** Migrate `platformer-scroll`; retire `solid-collide`/`tilemap-collide` from
    the catalog; update `INDIE-ROADMAP` (mark carry-phase + push landed).
 
-Increments 1–2 are byte-equivalent-in-behavior parity work (low risk). Increment 3 is the
+Increments 1–3 landed as byte-equivalent-in-behavior parity work (low risk). Increment 3 was the
 architectural payoff. Increment 4 is the new capability.
 
 ---

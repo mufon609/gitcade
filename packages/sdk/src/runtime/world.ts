@@ -4,7 +4,7 @@ import type { EntityDef } from "../schema/entity.js";
 import type { Tilemap } from "../schema/scene.js";
 import type { PersistConfig } from "../schema/manifest.js";
 import { Entity } from "./entity.js";
-import type { SolidRect, SlopeCell } from "./collision.js";
+import type { SolidRect, SlopeCell, MovingBody } from "./collision.js";
 import { resolveSolids, resolveSlopes, applyContacts } from "./collision.js";
 import { Registry } from "./registry.js";
 import { EventBus } from "./eventbus.js";
@@ -483,18 +483,27 @@ export class World {
    * FAST PATH: with no collider anywhere this returns before any allocation, so an arcade scene is
    * byte-identical to a flat world — the frozen-safety guarantee, exactly like `resolveHierarchy`.
    *
-   * Per dynamic body (resolved in entity-array order — the deterministic tie-break; coupled
-   * carry/push ordering arrives with later increments):
-   *  1. Broadphase the body's SWEPT box this tick into the solids it could touch — solid tiles in
+   * Per dynamic body (resolved in entity-array order — the deterministic tie-break; the coupled
+   * dynamic-on-dynamic ordering for push arrives with a later increment):
+   *  1. Carry: if the body rested on a `carriable` solid at tick start and isn't rising, inherit that
+   *     carrier's this-tick displacement (horizontal always; descending too — vertical-UP carry comes
+   *     free from the push-out's re-grounding below) BEFORE the push-out. Applying it first (not after,
+   *     then re-resolving) avoids a double-count, since the push-out already follows a moving platform
+   *     vertically. A carrier is a solid already moved by its own behaviors this tick, so its
+   *     displacement is final — no author-ordering rule, no one-tick lag (what the retired
+   *     `ride-platform` needed manually).
+   *  2. Broadphase the body's SWEPT box this tick into the solids it could touch — solid tiles in
    *     the bounded cell range, plus solid-role entities whose AABB overlaps the swept box. The
    *     entity set is CANDIDATE-KEYED (a far solid is excluded), so a body's sub-stepping depends
    *     only on nearby geometry, not the global solid set — a far decorative solid can no longer
    *     perturb its physics (a deliberate determinism improvement over the per-behavior resolvers,
    *     which fed the whole tagged set; gated by the proofs + the candidate-keyed fuzz harness).
-   *  2. Push-out in two passes: the shared {@link resolveSolids} primitive against the solid boxes
+   *  3. Push-out in two passes: the shared {@link resolveSolids} primitive against the solid boxes
    *     (swept, so a fast body can't tunnel a thin solid), then {@link resolveSlopes} against any
    *     floor-slope tiles under the body (resting its bottom on the per-column ramp surface). Both
    *     write `entity.body.contacts` via {@link applyContacts}, merged within the tick by frame stamp.
+   *     Running after the carry settles a carried rider precisely AND corrects it against walls the
+   *     same tick — the re-resolution a naive post-behavior carry phase lacks.
    *
    * `oneWay` solids (top-face-only tiles via the `oneWay` tile prop, or `oneWay` colliders) are
    * dropped while the mover's drop-through window is open (`body.dropThrough > 0`). A non-zero
@@ -511,15 +520,18 @@ export class World {
     }
     if (!hasCollider) return;
 
-    // The immovable blockers this tick: every solid-role collider. Solids are not themselves
-    // resolved here — they move via their own behaviors (a tween/velocity lift) and just block.
+    // The immovable blockers this tick: every solid-role collider (solids move via their own
+    // behaviors, never resolved here) — plus the CARRIABLE subset (moving platforms that carry riders).
     const solids: Entity[] = [];
+    const carriables: Entity[] = [];
     for (const e of this.entities) {
-      if (e.alive && e.body.collider?.role === "solid") solids.push(e);
+      const c = e.body.collider;
+      if (e.alive && c?.role === "solid") {
+        solids.push(e);
+        if (c.carriable) carriables.push(e);
+      }
     }
 
-    const t = this.tilemap;
-    const dt = this.dt;
     for (const e of this.entities) {
       if (!e.alive) continue;
       const c = e.body.collider;
@@ -530,50 +542,34 @@ export class World {
       const ix = c.inset.x;
       const iy = c.inset.y;
       const hasInset = ix !== 0 || iy !== 0;
-      const body = hasInset
+      const body: MovingBody = hasInset
         ? { x: e.x + ix, y: e.y + iy, w: e.w - 2 * ix, h: e.h - 2 * iy, vx: e.vx, vy: e.vy }
         : e;
-
       const dropping = e.body.dropThrough > 0;
-      const rects: SolidRect[] = [];
-      const slopeCells: SlopeCell[] = [];
 
-      // Broadphase: the body's swept box (pre-move → post-move), padded so a flush-resting solid
-      // stays a candidate. resolveSolids itself is precise, so over-inclusion only costs a scan.
-      const px = body.x - body.vx * dt;
-      const py = body.y - body.vy * dt;
-      const loX = Math.min(px, body.x) - BROAD_PAD;
-      const hiX = Math.max(px, body.x) + body.w + BROAD_PAD;
-      const loY = Math.min(py, body.y) - BROAD_PAD;
-      const hiY = Math.max(py, body.y) + body.h + BROAD_PAD;
-
-      if (t) gatherTiles(t, loX, hiX, loY, hiY, dropping, rects, slopeCells);
-
-      for (const s of solids) {
-        if (s === e) continue;
-        const sc = s.body.collider!;
-        if (sc.oneWay && dropping) continue; // dropping through a one-way solid
-        if (s.x < hiX && s.x + s.w > loX && s.y < hiY && s.y + s.h > loY) {
-          rects.push(sc.oneWay ? { x: s.x, y: s.y, w: s.w, h: s.h, oneWay: true } : { x: s.x, y: s.y, w: s.w, h: s.h });
+      // Step 1 — CARRY: a rider that rested on a carriable solid at tick start (and isn't rising)
+      // inherits the carrier's this-tick displacement FIRST. Applying it BEFORE the push-out (rather
+      // than after, then re-resolving) is what avoids a double-count: the push-out's own re-grounding
+      // already follows a moving platform vertically, so adding the descent again after it would sink
+      // the rider by one tick's displacement. A carrier is a solid already moved by its own behaviors
+      // this tick, so its displacement is final — no author-ordering rule and no one-tick lag (the
+      // manual "ride-platform first" the retired behavior needed).
+      if (carriables.length > 0 && body.vy >= 0) {
+        const carrier = findCarrier(e, ix, iy, carriables);
+        if (carrier) {
+          body.x += carrier.x - carrier.body.prevX; // horizontal carry (always)
+          const dy = carrier.y - carrier.body.prevY;
+          if (dy > 0) body.y += dy; // descending carry only — ascending is the push-out's job
         }
       }
 
-      // Pass 1 — solid AABB push-out (tiles + solid entities), writing the contact flags.
-      const contacts = resolveSolids(body, rects, dt);
-      applyContacts(e.body, this.frame, contacts);
-      // Pass 2 — floor SLOPES: rest the body's bottom on the per-column ramp surface, AFTER the
-      // solid pass has settled X (a wall at a ramp's base has clamped the sample x). A grounded
-      // slope contact merges into the same-tick contacts via the frame stamp. Skipped (and so
-      // byte-identical) when no slope cell is under the body.
-      if (slopeCells.length > 0) {
-        const slope = resolveSlopes(body, slopeCells, dt);
-        if (slope.onGround) {
-          applyContacts(e.body, this.frame, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
-        }
-      }
+      // Step 2 — push the body out of the solid world (solids + slopes), writing contacts. Running it
+      // AFTER the carry settles a carried rider precisely on the (already-moved) carrier and corrects
+      // it against walls/floor the SAME tick — the same-tick re-resolution a naive carry phase lacks.
+      this.resolveColliderAgainstWorld(e, body, solids, dropping);
 
-      // Map the resolved collider box back onto the entity (no-op without an inset; both passes
-      // ran on `body`, so this captures the solid push-out AND the slope snap).
+      // Map the resolved collider box back onto the entity (no-op without an inset; every pass ran
+      // on `body`, so this captures the solid push-out, the slope snap, AND the carry.)
       if (hasInset) {
         e.x = body.x - ix;
         e.y = body.y - iy;
@@ -582,10 +578,80 @@ export class World {
       }
     }
   }
+
+  /**
+   * Step 2 of {@link resolveBodies} for one dynamic `body` (the collider box of entity `e`): broadphase
+   * its swept box into the solid candidates, push it out via {@link resolveSolids}, rest it on any
+   * floor slope via {@link resolveSlopes}, and write `e.body.contacts`. Factored out because the carry
+   * step re-runs it after applying a carrier's displacement (re-broadphased from the carried position).
+   */
+  private resolveColliderAgainstWorld(e: Entity, body: MovingBody, solids: Entity[], dropping: boolean): void {
+    const t = this.tilemap;
+    const dt = this.dt;
+    const rects: SolidRect[] = [];
+    const slopeCells: SlopeCell[] = [];
+
+    // Broadphase: the body's swept box (pre-move → post-move), padded so a flush-resting solid
+    // stays a candidate. resolveSolids itself is precise, so over-inclusion only costs a scan.
+    const px = body.x - body.vx * dt;
+    const py = body.y - body.vy * dt;
+    const loX = Math.min(px, body.x) - BROAD_PAD;
+    const hiX = Math.max(px, body.x) + body.w + BROAD_PAD;
+    const loY = Math.min(py, body.y) - BROAD_PAD;
+    const hiY = Math.max(py, body.y) + body.h + BROAD_PAD;
+
+    if (t) gatherTiles(t, loX, hiX, loY, hiY, dropping, rects, slopeCells);
+
+    for (const s of solids) {
+      if (s === e) continue;
+      const sc = s.body.collider!;
+      if (sc.oneWay && dropping) continue; // dropping through a one-way solid
+      if (s.x < hiX && s.x + s.w > loX && s.y < hiY && s.y + s.h > loY) {
+        rects.push(sc.oneWay ? { x: s.x, y: s.y, w: s.w, h: s.h, oneWay: true } : { x: s.x, y: s.y, w: s.w, h: s.h });
+      }
+    }
+
+    // Pass 1 — solid AABB push-out (tiles + solid entities), writing the contact flags.
+    const contacts = resolveSolids(body, rects, dt);
+    applyContacts(e.body, this.frame, contacts);
+    // Pass 2 — floor SLOPES: rest the body's bottom on the per-column ramp surface, AFTER the solid
+    // pass settled X (a wall at a ramp's base has clamped the sample x). Merges into the same-tick
+    // contacts via the frame stamp. Skipped (and so byte-identical) when no slope cell is under it.
+    if (slopeCells.length > 0) {
+      const slope = resolveSlopes(body, slopeCells, dt);
+      if (slope.onGround) {
+        applyContacts(e.body, this.frame, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
+      }
+    }
+  }
 }
 
 /** Padding (px) on the broadphase swept box, so a solid the body rests flush against stays a candidate. */
 const BROAD_PAD = 1;
+/** Feet-probe tolerance (px) around a carrier's top for the carry rest-check (matches the retired ride-platform default). */
+const CARRY_STICK = 2;
+
+/**
+ * The carriable solid that dynamic `e` (collider inset `ix`/`iy`) rested on at TICK START, or null —
+ * the carry feet-probe. Uses tick-start collider boxes (`body.prevX`/`prevY`) so it detects "was
+ * riding at the start of this tick" regardless of how step 2 has since moved the rider, and so a
+ * fast-descending carrier (which step 2 may have left the rider floating above) still keeps its rider.
+ * First match wins (entity-array order). The `vy >= 0` not-rising gate is applied by the caller.
+ */
+function findCarrier(e: Entity, ix: number, iy: number, carriables: Entity[]): Entity | null {
+  const riderBottom = e.body.prevY + e.h - iy; // rider collider bottom at tick start
+  const riderLeft = e.body.prevX + ix;
+  const riderRight = e.body.prevX + e.w - ix;
+  for (const carrier of carriables) {
+    if (carrier === e) continue;
+    const sc = carrier.body.collider!;
+    const top = carrier.body.prevY + sc.inset.y; // carrier collider top at tick start
+    const left = carrier.body.prevX + sc.inset.x;
+    const right = carrier.body.prevX + carrier.w - sc.inset.x;
+    if (Math.abs(riderBottom - top) <= CARRY_STICK && riderRight > left && riderLeft < right) return carrier;
+  }
+  return null;
+}
 /** Tile property flagging a fully-solid cell — the conventional name the phase reads (frozen tile-prop convention). */
 const SOLID_TILE_PROP = "solid";
 /** Tile property flagging a one-way (top-face-only) platform cell. */

@@ -42,6 +42,7 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
     entity.body.collider = {
       role: def.collider.role,
       oneWay: def.collider.oneWay,
+      carriable: def.collider.carriable,
       inset: { x: def.collider.inset.x, y: def.collider.inset.y },
     };
   }

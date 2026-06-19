@@ -19,18 +19,23 @@ import { BehaviorDefSchema } from "./behavior.js";
  *    lift; it is just never itself resolved). A solid is effectively infinite-mass.
  *  - `oneWay` — a solid that blocks ONLY on its top face: a dynamic lands on it from above but
  *    jumps up through it and passes it sideways (the entity mirror of a one-way tile). Default false.
+ *  - `carriable` — a moving `solid` that CARRIES riders standing on it: a dynamic resting on its top
+ *    inherits the carrier's per-tick displacement (horizontal always, descending too), so it rides a
+ *    sliding/sinking platform and can still walk while carried. Default false. (Vertical-UP carry
+ *    already comes free from the push-out — a rising carrier pushes the rider up.)
  *  - `inset` — shrinks the collider box in from the sprite AABB by `x`/`y` px per side (a 24px
  *    sprite with `inset.x:4` collides as 16px wide), for fairer corner-clip / contact geometry.
  *    Default `{0,0}` (collider == sprite box). Structural geometry like `size`/`position`, so it is
  *    NOT subject to the no-magic-numbers rule (that rule scans only behavior/system `params`).
  *
- * The collider's MOVING-platform (`carriable`) and PUSH (`pushable`/`mass`) facets are deliberately
- * not in this shape yet — they land additively with the carry and push increments that honor them,
- * so every field declared here is one the phase actually resolves.
+ * The collider's PUSH facets (`pushable`/`mass`) are deliberately not in this shape yet — they land
+ * additively with the push increment that honors them, so every field declared here is one the
+ * phase actually resolves.
  */
 export const ColliderSchema = z.object({
   role: z.enum(["dynamic", "solid"]),
   oneWay: z.boolean().default(false),
+  carriable: z.boolean().default(false),
   inset: z.object({ x: z.number().default(0), y: z.number().default(0) }).default({ x: 0, y: 0 }),
 });
 

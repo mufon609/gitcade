@@ -33,7 +33,7 @@ files used to carry engine-capability items, they now point here.
   ladders** now compose from the kit (0.11.0). The genre-feel mover (variable jump, jump buffering, apex hang, run
   accel), **one-way (pass-through) platforms + drop-through**, a **data-driven animation state
   machine + facing flip**, **entity opacity/visibility**, the **entity hierarchy / transform
-  parenting**, and **moving-platform carry** (`ride-platform`) are now in the engine — so a
+  parenting**, and **moving-platform carry** (the `resolveBodies()` carry step) are now in the engine — so a
   Mario-lite (run a wide level, animate the character, land on / drop through platforms, ride
   a moving platform) composes from the kit today. What's left is content/feel built on the
   floor that now exists, not foundation.
@@ -120,26 +120,24 @@ physics floor is complete; what's above it (Tier 1) is feel, not foundation.
 ### Two-body dynamics — CARRY ✅ now in the engine; PUSH still open 🟢
 `solid-collide` is a **one-way** push-out: the moving entity is resolved out of solids that
 are themselves immovable. The two halves on top of it:
-- **Carry. ✅ Now in the engine (`ride-platform`, 0.10.0).** A rider standing on a `carryTag`
-  solid inherits that solid's per-tick world delta — **horizontal** carry (a platform sliding
-  sideways takes the rider) and **descending** carry (a sinking platform the rider follows
-  down); vertical-up carry already came from the push-out. Built on a generic first-class
-  `entity.prevX/prevY` (the tick's start position, snapshotted by the loop — also the
-  groundwork render interpolation needs); the behavior probes the carrier's pre-tick top + a
-  `vy>=0` gate, so it's self-contained and a fast-descending platform never leaves the rider.
-  Proven by the `platformer-carry` proof (ride + walk-while-carried + descending follow). 🟢
-- **Push — movable crates** (a player push that *moves* the crate: mass + mutual resolution)
-  remain open. The harder half; carry was the common platformer need. Deferred to a deliberate
-  **unified-resolution** effort: a single ordered phase that resolves coupled touching bodies
-  (carry + push) *and* re-resolves them against solids in the same pass. A naive post-behavior
-  carry phase is a regression (it applies carry AFTER the rider's `solid-collide`, so a carrier
-  shoving a rider into a wall penetrates it — whereas `ride-platform` runs FIRST and re-resolves
-  same-tick), so carry-as-a-phase and push land together here, not separately. The full design —
-  the additive `resolveBodies()` phase, the `collider` component, the dependency-ordered carry+push
-  solver, the determinism story, and the proof-gated build order — is written up in
-  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢 (foundation landed
-  `1.1.0`–`1.2.0` — the `resolveBodies()` phase + `collider` component + candidate-keyed solid
-  push-out + the slope pass, with `platformer-solids`/`platformer-slopes` migrated; carry/push remain).
+- **Carry. ✅ Now in the engine — the `resolveBodies()` carry step (1.3.0).** A rider that rested on
+  a `carriable` solid at tick start inherits its this-tick displacement — **horizontal** carry (a
+  platform sliding sideways takes the rider) and **descending** carry (a sinking platform the rider
+  follows down); vertical-up carry comes free from the push-out. Built on the first-class
+  `entity.body.prevX/prevY` (the tick's start position, snapshotted by the loop — also what render
+  interpolation needs); the phase probes the carrier's pre-tick top + a `vy>=0` gate and applies the
+  carry BEFORE the push-out (carry-first), so it's lag-free and a fast-descending platform never
+  leaves the rider. Proven by the `platformer-carry` proof. (Originally shipped as the `ride-platform`
+  behavior at 0.10.0; retired into the phase at 1.3.0.) 🟢
+- **Push — movable crates** (a player push that *moves* the crate: mass + mutual resolution) remain
+  open. The harder half; carry was the common platformer need. It lands as the final increment of the
+  **unified-resolution** effort: the `resolveBodies()` phase resolves coupled touching bodies and
+  re-resolves them against solids in one pass. The full design — the phase, the `collider` component,
+  the dependency-ordered push solver, the determinism story, and the proof-gated build order — is in
+  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢 (landed `1.1.0`–`1.3.0`: the
+  `resolveBodies()` phase + `collider` component + candidate-keyed solid push-out + slope pass + carry,
+  with `platformer-solids`/`platformer-slopes`/`platformer-carry` migrated and `ride-platform` retired;
+  **push** + finishing `platformer-scroll`/retiring the last two behaviors remain).
 
 ---
 
@@ -159,8 +157,8 @@ are themselves immovable. The two halves on top of it:
   `move-platformer`'s **drop-through** (down + jump, `down`/`dropThroughTime`) falls through
   it. Built on the shared `resolveSolids` primitive (the one-way case is a per-rect flag);
   proven by the `platformer-scroll` proof (land-on + drop-through). 🟢
-- **Moving platforms. ✅ Now in the engine** via the two-body **carry** mode (`ride-platform`,
-  0.10.0) — a rider rides a sliding/sinking solid platform (see Tier-0 two-body below). 🟢
+- **Moving platforms. ✅ Now in the engine** via the two-body **carry** mode (the `resolveBodies()`
+  carry step, 1.3.0) — a rider rides a sliding/sinking `carriable` solid platform (see Tier-0 two-body below). 🟢
 - **Ladders + slopes. ✅ Now in the engine (0.11.0).** **Floor slopes** are a `slopeL`/`slopeR`
   tile-property pair (surface heights up from the cell bottom — 45° and gentler linear ramps,
   tiling seamlessly), resolved by a NEW SDK `resolveSlopes` primitive run as a second non-AABB
@@ -327,7 +325,7 @@ assumed.
   — additively, driven by the `platformer-scroll` proof; and **one-way (pass-through)
   platforms + drop-through** landed on the same primitive (`oneWay` tile flag / `oneWayTag`
   + `move-platformer` `down`/`dropThroughTime`), proven by the `platformer-scroll` proof.
-  The two-body **carry** mode (`ride-platform`, 0.10.0) lands the moving-platform case, and
+  The two-body **carry** mode (the `resolveBodies()` carry step, 1.3.0) lands the moving-platform case, and
   **floor slopes + ladders** (`resolveSlopes` + `move-platformer` climb, 0.11.0) the terrain.
   *Remaining (Tier 1):* two-body **push** (movable crates).
 - **Phase B — it feels like a platformer.** *Shipped:* the **animation state machine**

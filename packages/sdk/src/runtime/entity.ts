@@ -50,6 +50,8 @@ export interface ColliderComponent {
   role: "dynamic" | "solid";
   /** Solid only on its top face (a pass-through ledge) — land from above, jump up through. */
   oneWay: boolean;
+  /** A moving `solid` that carries riders standing on its top (inherit its per-tick displacement). */
+  carriable: boolean;
   /** Collider-box inset from the sprite AABB, in px per side (`{0,0}` ⇒ collider == sprite box). */
   inset: { x: number; y: number };
 }

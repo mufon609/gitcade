@@ -30,7 +30,7 @@ function addCollider(
   const e = new Entity({ id, x, y, w, h, layer: 0, sprite: NONE });
   e.vx = vel.vx ?? 0;
   e.vy = vel.vy ?? 0;
-  e.body.collider = { role: collider.role, oneWay: collider.oneWay ?? false, inset: collider.inset ?? { x: 0, y: 0 } };
+  e.body.collider = { role: collider.role, oneWay: collider.oneWay ?? false, carriable: collider.carriable ?? false, inset: collider.inset ?? { x: 0, y: 0 } };
   world.add(e);
   return e;
 }

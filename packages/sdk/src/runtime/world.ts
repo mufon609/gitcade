@@ -648,6 +648,9 @@ export class World {
     }
 
     // Phase 2 — settle the crates among themselves + the solid world (bounded relaxation, replay-safe).
+    // `pushConverged` flips true the iteration nothing moves; if the fixed budget runs out with motion
+    // still pending, the chain under-separated this tick and we warn ONCE (the cap is no longer silent).
+    let pushConverged = false;
     for (let iter = 0; iter < PUSH_ITERATIONS; iter++) {
       let moved = false;
 
@@ -699,8 +702,12 @@ export class World {
         }
       }
 
-      if (!moved) break;
+      if (!moved) {
+        pushConverged = true;
+        break;
+      }
     }
+    if (!pushConverged) warnPushNonConvergence();
 
     // Phase 3 — clamp each pusher out of any crate it still overlaps, so it stops flush behind the
     // settled crate (the crate is solid to the pusher once it can't move — e.g. wedged against a wall).
@@ -750,8 +757,14 @@ export class World {
       if (s === e) continue;
       const sc = s.body.collider!;
       if (sc.oneWay && dropping) continue; // dropping through a one-way solid
-      if (s.x < hiX && s.x + s.w > loX && s.y < hiY && s.y + s.h > loY) {
-        rects.push(sc.oneWay ? { x: s.x, y: s.y, w: s.w, h: s.h, oneWay: true } : { x: s.x, y: s.y, w: s.w, h: s.h });
+      // Broadphase + resolve against the solid's COLLIDER box (its `inset` honored), NOT the raw
+      // sprite AABB — consistent with {@link ejectFromSolids}/{@link findCarrier}, which both read
+      // colliderBox(s). Reading the sprite box here would block a dynamic at a different face than
+      // the same solid ejects a pushed crate at / carries a rider on (an inset solid would be
+      // bigger to the push-out than to the eject). No-op for the common inset-free solid.
+      const sb = colliderBox(s);
+      if (sb.x < hiX && sb.x + sb.w > loX && sb.y < hiY && sb.y + sb.h > loY) {
+        rects.push(sc.oneWay ? { ...sb, oneWay: true } : sb);
       }
     }
 
@@ -799,6 +812,29 @@ function findCarrier(e: Entity, ix: number, iy: number, carriables: Entity[]): E
 
 /** Fixed push-relaxation iteration count — replay-safe (deterministic), enough for short crate chains. */
 const PUSH_ITERATIONS = 8;
+
+/** Has the push-non-convergence notice already fired this process? (warn-once, so it never spams a loop). */
+let pushConvergenceWarned = false;
+/**
+ * Surface a push relaxation that did NOT settle within {@link PUSH_ITERATIONS} this tick — a long or
+ * deeply-overlapping crate chain that under-separated by (typically sub-pixel) amounts. The bounded,
+ * fixed-iteration relaxation is replay-deterministic by design, but the cap was SILENT: a chain past
+ * the budget would under-resolve with no signal. This makes it loud (once per process, so a per-tick
+ * loop can't spam), the developer-facing half of the "no silent cap" fix. Gradual play converges well
+ * within 8 iterations; this fires only on pathological simultaneous overlap (e.g. crates spawned
+ * interpenetrating, or a single fast pusher driving a long chain in one tick).
+ */
+function warnPushNonConvergence(): void {
+  if (pushConvergenceWarned) return;
+  pushConvergenceWarned = true;
+  if (typeof console !== "undefined" && typeof console.warn === "function") {
+    console.warn(
+      `[gitcade] resolvePush did not converge within ${PUSH_ITERATIONS} relaxation iterations — a long ` +
+        `or deeply-overlapping crate chain under-separated this tick (typically sub-pixel). Reduce ` +
+        `simultaneous crate overlap or shorten the chain. (Shown once per process.)`,
+    );
+  }
+}
 
 /** The collider AABB of `e` (sprite box minus its inset). */
 function colliderBox(e: Entity): { x: number; y: number; w: number; h: number } {

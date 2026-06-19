@@ -6,13 +6,13 @@ import { LibraryAudioPlayer, SFX_RECIPES, SFX_KEYS, MUSIC_TRACKS, MUSIC_LOOPS, n
 import { LIBRARY_PALETTE } from "../src/palette.js";
 
 describe("audio synthesis data", () => {
-  it("defines a recipe for every Phase 2B SFX key (+ SDK aliases)", () => {
+  it("defines a recipe for every SFX key (+ SDK aliases)", () => {
     expect([...SFX_KEYS]).toEqual(["jump", "shoot", "hit", "collect", "explode", "click", "win", "lose"]);
     for (const key of SFX_KEYS) {
       expect(SFX_RECIPES[key], `recipe for ${key}`).toBeDefined();
       expect(SFX_RECIPES[key]!.layers.length).toBeGreaterThan(0);
     }
-    // Aliases keep SDK/2A sound keys working.
+    // Aliases keep SDK sound keys working.
     expect(SFX_RECIPES.explode).toBeDefined();
     expect(SFX_RECIPES.score).toBeDefined();
   });

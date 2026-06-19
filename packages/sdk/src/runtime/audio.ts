@@ -4,7 +4,7 @@
  * requirement: the 60-frame smoke test runs with no `AudioContext`, and triggering
  * a sound must never throw.
  *
- * Phase 2B replaces these primitive beeps with full synthesized SFX/music; the
+ * The library replaces these primitive beeps with full synthesized SFX/music; the
  * `play(key)` surface stays stable.
  */
 export class AudioPlayer {

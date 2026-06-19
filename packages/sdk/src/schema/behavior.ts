@@ -4,7 +4,7 @@ import { ParamsSchema } from "./params.js";
 /**
  * A behavior INSTANCE attached to an entity, as authored in JSON.
  *
- * - `type` names a registered behavior (built-in, or a Phase 2 library part, or a
+ * - `type` names a registered behavior (built-in, or a library part, or a
  *   project-local `custom-behaviors/` part). The runtime looks the type up in the
  *   behavior registry to find the {@link BehaviorFn} implementation.
  * - `params` carries the per-instance configuration. Numeric balance values MUST
@@ -15,7 +15,7 @@ import { ParamsSchema } from "./params.js";
  * - `part` optionally records catalog provenance (`"partId@1.2.0"`) so the
  *   validator can verify it resolves within the pinned `libraryVersion`.
  *
- * This `{ id, type, params }` shape is FROZEN at the end of Phase 1.
+ * This `{ id, type, params }` shape is FROZEN.
  */
 export const BehaviorDefSchema = z.object({
   id: z.string().optional(),

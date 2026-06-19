@@ -6,9 +6,9 @@ function makeWorld(config: Config = {}): World {
 }
 
 // ---------------------------------------------------------------------------
-// G2 — pointer click edge + entity pick
+// pointer click edge + entity pick
 // ---------------------------------------------------------------------------
-describe("G2 — Input click edge buffers", () => {
+describe("Input click edge buffers", () => {
   it("records a press/release edge and clears it on endFrame (one-tick window)", () => {
     const input = new Input();
     input.setWorldSize(300, 240);
@@ -148,7 +148,7 @@ describe("keydown preventDefault — page-scroll suppression", () => {
   });
 });
 
-describe("G2 — World.entityAt / pick", () => {
+describe("World.entityAt / pick", () => {
   it("returns the topmost entity (by layer then zIndex) under a point, honoring a tag filter", () => {
     const world = makeWorld();
     const lo = new Entity({ id: "lo", x: 100, y: 100, w: 50, h: 50, layer: 0, tags: ["pickable"], sprite: { kind: "none" } });
@@ -171,9 +171,9 @@ describe("G2 — World.entityAt / pick", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G3 — runtime tilemap query
+// runtime tilemap query
 // ---------------------------------------------------------------------------
-describe("G3 — tilemap query", () => {
+describe("tilemap query", () => {
   const tileScene: Scene = {
     id: "main",
     size: { width: 200, height: 150 },
@@ -209,9 +209,9 @@ describe("G3 — tilemap query", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G5 — economy assist on World
+// economy assist on World
 // ---------------------------------------------------------------------------
-describe("G5 — world.canAfford / spend", () => {
+describe("world.canAfford / spend", () => {
   it("checks and deducts a numeric balance, no-op when unaffordable", () => {
     const w = makeWorld();
     w.state.gold = 50;
@@ -225,9 +225,9 @@ describe("G5 — world.canAfford / spend", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G1 — data-driven scene flow + state hand-off
+// data-driven scene flow + state hand-off
 // ---------------------------------------------------------------------------
-describe("G1 — scene flow + persist hand-off", () => {
+describe("scene flow + persist hand-off", () => {
   const flowScenes: Scene[] = [
     {
       id: "one",

@@ -64,8 +64,8 @@ describe("move-grid-step", () => {
     expect(dir).toEqual({ x: 1, y: 0 }); // reversal rejected
   });
 
-  // --- B-2: a fast two-tap (Up then Left in ONE step window) must not self-reverse ---
-  it("does not fold into its own neck on a fast perpendicular two-tap (B-2)", () => {
+  // --- a fast two-tap (Up then Left in ONE step window) must not self-reverse ---
+  it("does not fold into its own neck on a fast perpendicular two-tap", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "snake", x: 0, y: 0, state: { __gridDir: { x: 1, y: 0 } } });
     const params = { tileSize: 20, stepInterval: 0.1, continuous: true, up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };
@@ -89,8 +89,8 @@ describe("move-grid-step", () => {
     expect(e.x).toBe(0); // … NOT left into its neck (pre-fix this stepped to x=-20)
   });
 
-  // --- B-2 regression: a legal perpendicular turn across windows still applies ---
-  it("still accepts a legal perpendicular turn (B-2 regression)", () => {
+  // --- regression: a legal perpendicular turn across windows still applies ---
+  it("still accepts a legal perpendicular turn", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "snake", x: 0, y: 0, state: { __gridDir: { x: 1, y: 0 } } });
     const params = { tileSize: 20, stepInterval: 0.1, continuous: true, up: ["ArrowUp"], down: ["ArrowDown"], left: ["ArrowLeft"], right: ["ArrowRight"] };

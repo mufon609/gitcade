@@ -7,7 +7,7 @@ import { ParamsSchema } from "./params.js";
  * whereas behaviors are attached to a single entity.
  *
  * Same `{ id, type, params }` shape as a behavior; `type` names a registered
- * system implementation ({@link SystemFn}). FROZEN at the end of Phase 1.
+ * system implementation ({@link SystemFn}). FROZEN.
  */
 export const SystemDefSchema = z.object({
   id: z.string().optional(),

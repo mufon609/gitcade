@@ -15,7 +15,7 @@
  *
  * This list is the single source of truth: the validator imports it directly, so
  * the documented rule and the enforced rule can never drift. It is part of the
- * FROZEN Phase 1 contract — adding keys is a minor (additive) change; removing or
+ * FROZEN contract — adding keys is a minor (additive) change; removing or
  * repurposing one is a breaking change.
  *
  * Note: the rule applies ONLY to `behaviors[].params` and `systems[].params`.

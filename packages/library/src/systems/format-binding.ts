@@ -60,7 +60,7 @@ function formatNumber(n: number, format: string): string {
  * (`Wave {v}/{c}`), scaling by a multiplier (prestige), reading a child entity's state
  * (a player's hp → a HUD bar), and mapping a discrete value to a label (win/lose).
  *
- * It needs NO schema change — the text sprite's `bind` slot has existed since Phase 1;
+ * It needs NO schema change — the text sprite's `bind` slot is a core schema feature;
  * this just gives the bound keys a declarative source. Runs as a SYSTEM (before the
  * behavior phase, so the values are current by render); restart-safe (pure per-tick,
  * no listeners). A key with no source resolves to the sprite's static `text` for the

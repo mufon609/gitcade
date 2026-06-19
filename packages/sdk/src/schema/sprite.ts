@@ -2,7 +2,7 @@ import { z } from "zod";
 
 /**
  * Sprite definitions. A discriminated union on `kind` so the renderer can switch
- * cheaply and Phase 2 (procedural assets) can extend `image`/`sheet` without
+ * cheaply and procedural assets can extend `image`/`sheet` without
  * touching the contract. Colors are CSS color strings; v1 art is geometric.
  *
  * NOTE: sprite numbers (frame sizes, stroke widths) are presentational data and
@@ -28,7 +28,7 @@ export const ImageSpriteSchema = z.object({
   src: z.string(),
 });
 
-/** A sprite sheet with named animations. Phase 2 generates these procedurally. */
+/** A sprite sheet with named animations (generated procedurally by the asset pipeline). */
 export const SheetSpriteSchema = z.object({
   kind: z.literal("sheet"),
   src: z.string(),
@@ -56,7 +56,7 @@ export const SheetSpriteSchema = z.object({
  * A text sprite. Either a static `text`, or a live binding to a `world.state`
  * key via `bind` (e.g. `bind: "scoreLeft"`). This is how HUD/score readouts are
  * drawn without a special rendering-system signature — a score is just a text
- * entity bound to game state. Phase 2B's HUD widgets build on this.
+ * entity bound to game state. The library's HUD widgets build on this.
  */
 export const TextSpriteSchema = z.object({
   kind: z.literal("text"),

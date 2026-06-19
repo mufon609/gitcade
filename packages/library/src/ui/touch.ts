@@ -86,9 +86,9 @@ export const touchButton: BehaviorFn = (entity, world, params) => {
 
 /**
  * `tap-emit` — a per-entity BEHAVIOR that emits a game event when the entity is
- * CLICKED/tapped, turning a button into a pure-data flow edge (G1's keystone
- * companion, OQ-7). It reads the SDK's one-frame click edge (`input.justReleased`,
- * G2) and fires only when the release lands on THIS entity as the topmost pick
+ * CLICKED/tapped, turning a button into a pure-data flow edge. It reads the SDK's
+ * one-frame click edge (`input.justReleased`) and fires only when the release lands
+ * on THIS entity as the topmost pick
  * (`world.entityAt`), so stacked UI never double-fires. Wire the emitted event to a
  * `scene.flow.on` edge and title→play→over becomes data, no host JS:
  * `{ "type": "tap-emit", "params": { "emitOnTap": "start-pressed" } }`.

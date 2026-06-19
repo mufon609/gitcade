@@ -5,7 +5,7 @@ import { winCondition } from "./win-condition.js";
 /**
  * The built-in system types. `aabb-collision` is registered first so, when a
  * scene lists it first, collisions are detected before entity behaviors run.
- * Phase 2A adds score/lives/timer/spawner systems as additional types.
+ * The library adds score/lives/timer/spawner systems as additional types.
  */
 export const BUILTIN_SYSTEM_TYPES = ["aabb-collision", "win-condition"] as const;
 

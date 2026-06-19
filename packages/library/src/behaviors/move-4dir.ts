@@ -6,7 +6,7 @@ import { applyVelocity } from "../util.js";
  * Four-directional keyboard movement (up/down/left/right). SETS velocity each
  * tick from the held keys — order a `velocity` behavior AFTER this one. Defaults
  * cover both arrow keys and WASD so a freshly-composed entity is immediately
- * controllable on desktop; touch d-pad support arrives with the Phase 2B UI part.
+ * controllable on desktop; touch d-pad support is provided by the library's UI part.
  *
  * Params:
  *  - `speed`: movement speed in px/sec (balance → `$cfg`)

@@ -6,7 +6,7 @@ import { num, bool } from "@gitcade/sdk";
  * sign of `entity.scaleX` from the entity's horizontal velocity so a side-view sprite
  * faces the way it moves: moving right ⇒ `scaleX = +|scaleX|`, left ⇒ `-|scaleX|`. The
  * renderer already honors a negative `scaleX` as a horizontal flip around the entity
- * center (since 0.3.2), so this just wires that to motion — no rendering change.
+ * center, so this just wires that to motion — no rendering change.
  *
  * Distinct from `face-angle`, which ROTATES a top-down/projectile sprite to point along
  * its travel; this only mirrors a left/right sprite, leaving rotation untouched. It

@@ -30,7 +30,7 @@ export const reflectOnHit: BehaviorFn = (entity, world, params) => {
   const other = entity.collisions.find((e) => e.hasTag(tag));
   if (!other) return;
 
-  // "auto" (B-3): pick the flip axis from the actual overlap so a side hit
+  // "auto": pick the flip axis from the actual overlap so a side hit
   // reflects on x and a top/bottom hit on y (no tunneling). "x"/"y" stay a fixed
   // axis — byte-identical to the original (Pong relies on axis:"x").
   const axis = axisParam === "auto" ? overlapAxis(entity, other) : axisParam === "y" ? "y" : "x";
@@ -42,7 +42,7 @@ export const reflectOnHit: BehaviorFn = (entity, world, params) => {
     entity.x = dir > 0 ? other.x + other.w : other.x - entity.w;
     if (english) {
       const offset = (entity.cy - other.cy) / (other.h / 2 || 1);
-      entity.vy = clamp(entity.vy + offset * english, maxSpeed); // english axis capped too (B-4)
+      entity.vy = clamp(entity.vy + offset * english, maxSpeed); // english axis capped too
     }
   } else {
     const dir = Math.sign(entity.cy - other.cy) || 1;
@@ -51,7 +51,7 @@ export const reflectOnHit: BehaviorFn = (entity, world, params) => {
     entity.y = dir > 0 ? other.y + other.h : other.y - entity.h;
     if (english) {
       const offset = (entity.cx - other.cx) / (other.w / 2 || 1);
-      entity.vx = clamp(entity.vx + offset * english, maxSpeed); // english axis capped too (B-4)
+      entity.vx = clamp(entity.vx + offset * english, maxSpeed); // english axis capped too
     }
   }
 

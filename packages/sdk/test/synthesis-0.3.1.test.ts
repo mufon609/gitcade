@@ -6,8 +6,8 @@ function makeWorld(): World {
   return new World({ bounds: { width: 800, height: 600 }, config: {}, registry: createDefaultRegistry() });
 }
 
-// ── WS②: persistence restore signal (IC-9) ──────────────────────────────────
-describe("0.3.1 persistence restore signal (IC-9)", () => {
+// ── WS②: persistence restore signal ──────────────────────────────────
+describe("persistence restore signal", () => {
   it("whenRestored resolves when resolvePersistKeys releases the keys", async () => {
     const w = makeWorld();
     let done = false;
@@ -101,7 +101,7 @@ function makeCtx() {
   return { ctx, calls };
 }
 
-describe("0.3.1 renderer background.layers parallax (snake-05 et al.)", () => {
+describe("renderer background.layers parallax", () => {
   beforeAll(() => {
     (globalThis as unknown as { Image: unknown }).Image = StubImage;
   });
@@ -135,7 +135,7 @@ describe("0.3.1 renderer background.layers parallax (snake-05 et al.)", () => {
   });
 });
 
-describe("0.3.1 tilemap fallback tint + gridline (td-09)", () => {
+describe("tilemap fallback tint + gridline", () => {
   it("tints from properties[idx].color and outlines each cell", () => {
     const { ctx, calls } = makeCtx();
     const r = new Renderer(ctx as unknown as CanvasRenderingContext2D);
@@ -154,12 +154,12 @@ describe("0.3.1 tilemap fallback tint + gridline (td-09)", () => {
   });
 });
 
-// ── WS③: validator advisories (IC-10, helicopter-05/sa-06) ───────────────────
+// ── WS③: validator advisories ───────────────────
 function scene(entities: unknown[]) {
   return SceneSchema.parse({ id: "play", entities });
 }
 
-describe("0.3.1 validator advisories", () => {
+describe("validator advisories", () => {
   it("warns on a HUD entity in the top-left corner button zone", () => {
     const issues = checkAdvisories([scene([{ id: "hud-score", tags: ["hud"], position: { x: 12, y: 10 }, size: { w: 160, h: 24 } }])]);
     expect(issues.some((i) => i.code === "hud-corner-button" && i.level === "warning")).toBe(true);

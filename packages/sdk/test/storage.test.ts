@@ -24,7 +24,7 @@ describe("MemoryStorage adapter", () => {
 /**
  * A fake parent page that implements the protocol: validates source identity via
  * the handshake nonce, namespaces by gameSlug+branch, and replies with
- * targetOrigin "*". Mirrors what Phase 4B's game page will do.
+ * targetOrigin "*". Mirrors what the platform's game page does.
  */
 function makeFakeBridgePair(gameSlug: string, branch: string) {
   const listeners = new Set<(ev: MessageEvent) => void>();

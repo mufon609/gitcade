@@ -43,7 +43,7 @@ export type BehaviorFn = (
 ) => void;
 
 /**
- * THE SYSTEM CONTRACT — frozen at the end of Phase 1.
+ * THE SYSTEM CONTRACT — frozen.
  *
  * A system runs once per fixed update over the WHOLE world (collision detection,
  * HUD, win/lose checks, spawners). Same purity expectations as behaviors.

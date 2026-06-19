@@ -198,7 +198,7 @@ export class Renderer {
   }
 
   /**
-   * Draw the active scene's tilemap (OQ-3) UNDER the entities, so a scene's
+   * Draw the active scene's tilemap UNDER the entities, so a scene's
    * road/lanes are one data tilemap — drawn AND queried (`world.isBuildable`) with
    * no entity/tilemap double-encoding. No-op when the scene has no tilemap, so a
    * tilemap-less scene renders exactly as before. When a `tileset` image is supplied each
@@ -206,8 +206,8 @@ export class Renderer {
    * non-empty tiles fall back to a per-index fill — tinted by the cell's
    * `properties[idx].color` when authored (else a muted default) and outlined with a
    * subtle per-cell gridline, so a tileset-less map reads as structured terrain
-   * rather than a flat slab (td-09 — `color` rides the existing `properties`
-   * catchall, no schema change).
+   * rather than a flat slab (`color` rides the existing `properties` catchall,
+   * no schema change).
    */
   private drawTilemap(ctx: Ctx, world: World, cull: CullRect): void {
     const t = world.tilemap;

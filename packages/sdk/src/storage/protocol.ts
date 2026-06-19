@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * The GitCade storage bridge wire protocol (FROZEN at the end of Phase 1).
+ * The GitCade storage bridge wire protocol (FROZEN).
  *
  * WHY A BRIDGE (Locked Decision: game storage isolation): production game iframes
  * use `sandbox="allow-scripts"` ONLY, giving them an opaque origin. In that
@@ -22,7 +22,7 @@ import { z } from "zod";
  *      nonce; each side checks `event.source` identity AND the nonce before
  *      acting. Mismatches are dropped silently.
  *
- * The parent side of this protocol is implemented in Phase 4B against THIS
+ * The parent side of this protocol is implemented by the platform web host against THIS
  * module's exported schemas, so the two halves can never drift.
  */
 

@@ -61,7 +61,7 @@ export interface Camera {
 /**
  * A QUEUED scene transition requested from inside a behavior/system via
  * {@link World.requestScene}. Applied by the host loop BETWEEN ticks (never
- * mid-tick), so the frozen in-tick order is preserved (G1).
+ * mid-tick), so the frozen in-tick order is preserved.
  */
 export interface SceneChangeRequest {
   /** Target scene id (must exist). */
@@ -101,13 +101,13 @@ export class World {
   readonly rng: () => number;
 
   /**
-   * The parsed tilemap of the ACTIVE scene, or undefined when the scene has none
-   * (G3). Set by `Game.loadScene`; READ-ONLY to parts — query it via
+   * The parsed tilemap of the ACTIVE scene, or undefined when the scene has none.
+   * Set by `Game.loadScene`; READ-ONLY to parts — query it via
    * {@link tileAt}/{@link isBuildable}/{@link cellRect}, don't reassign it.
    */
   tilemap?: Tilemap;
 
-  /** Cross-run persistence binding from `manifest.persist`, read by the `persistence` system (G6). */
+  /** Cross-run persistence binding from `manifest.persist`, read by the `persistence` system. */
   readonly persist?: PersistConfig;
 
   /** Game-wide mutable state (scores, flags, level index). Distinct from per-entity state. */
@@ -116,12 +116,12 @@ export class World {
   /** Live entities. */
   entities: Entity[] = [];
 
-  /** Pending scene change, drained by the host loop AFTER the current tick. null = none (G1). */
+  /** Pending scene change, drained by the host loop AFTER the current tick. null = none. */
   private _pendingScene: SceneChangeRequest | null = null;
 
   /**
-   * Keys CLAIMED by a persistence load that is still in flight (the G6 race
-   * fix). While a key is claimed, a seed-once system (e.g. `currency`) defers
+   * Keys CLAIMED by a persistence load that is still in flight. While a key is
+   * claimed, a seed-once system (e.g. `currency`) defers
    * seeding it, so the async `storage.get` restore lands as the authoritative
    * boot value instead of being clobbered by a synchronous tick-1 seed. The set
    * is scene-scoped: `loadScene` clears it, since the active scene owns its
@@ -131,7 +131,7 @@ export class World {
 
   /**
    * Keys whose persistence load has COMPLETED this scene — i.e. the restore wrote
-   * any saved value and released the claim (IC-9). Distinct from the pending
+   * any saved value and released the claim. Distinct from the pending
    * set: a key moves pending → restored when {@link resolvePersistKeys} runs. Scene-
    * scoped (reset by {@link resetPersistTracking} on every transition). Lets a host
    * await the restore deterministically via {@link whenRestored} instead of polling
@@ -215,7 +215,7 @@ export class World {
   /**
    * Topmost LIVE entity whose AABB contains world point `(x, y)`; optional `tag`
    * filter. Highest `layer` wins, then highest `zIndex` (matching the renderer's
-   * draw order, so "what you click is what's on top"). G2 pick primitive — used by
+   * draw order, so "what you click is what's on top"). The pick primitive used by
    * menus, tower placement, and the `tap-emit` part instead of hand-rolled hit loops.
    */
   entityAt(x: number, y: number, tag?: string): Entity | undefined {
@@ -235,7 +235,7 @@ export class World {
     return this.entityAt(x, y, tag);
   }
 
-  /** Tile index at world `(x, y)`, or `-1` if out of bounds / no tilemap (G3). */
+  /** Tile index at world `(x, y)`, or `-1` if out of bounds / no tilemap. */
   tileAt(x: number, y: number): number {
     const t = this.tilemap;
     if (!t) return -1;
@@ -248,7 +248,7 @@ export class World {
   /**
    * Is the tile at world `(x, y)` flagged buildable? No tilemap ⇒ `true`
    * (undecorated scenes stay permissive). Out of bounds / empty tile ⇒ `false`.
-   * A decorated tile with no explicit `buildable` flag defaults to `true` (G3).
+   * A decorated tile with no explicit `buildable` flag defaults to `true`.
    */
   isBuildable(x: number, y: number): boolean {
     const t = this.tilemap;
@@ -258,7 +258,7 @@ export class World {
     return t.properties?.[String(idx)]?.buildable ?? true;
   }
 
-  /** World-space rect `{ x, y, w, h }` of grid cell `(col, row)` (G3). */
+  /** World-space rect `{ x, y, w, h }` of grid cell `(col, row)`. */
   cellRect(col: number, row: number): { x: number; y: number; w: number; h: number } {
     const s = this.tilemap?.tileSize ?? 0;
     return { x: col * s, y: row * s, w: s, h: s };
@@ -267,7 +267,7 @@ export class World {
   /**
    * Request a scene transition from inside a behavior/system. The change is QUEUED
    * and applied by the host loop BETWEEN ticks (never mid-tick), so the frozen
-   * in-tick order is preserved. Last request in a tick wins (G1).
+   * in-tick order is preserved. Last request in a tick wins.
    * @param to        target scene id (must exist)
    * @param opts.keep extra `world.state` keys to preserve for this hop
    */
@@ -275,14 +275,14 @@ export class World {
     this._pendingScene = { to, keep: opts?.keep };
   }
 
-  /** Host-only: read & clear the pending scene request. Not part of the part-facing surface (G1). */
+  /** Host-only: read & clear the pending scene request. Not part of the part-facing surface. */
   takePendingScene(): SceneChangeRequest | null {
     const r = this._pendingScene;
     this._pendingScene = null;
     return r;
   }
 
-  /** True if `world.state[key]` (a numeric balance) is at least `cost` (G5 assist). */
+  /** True if `world.state[key]` (a numeric balance) is at least `cost`. */
   canAfford(key: string, cost: number): boolean {
     return ((this.state[key] as number) ?? 0) >= cost;
   }
@@ -290,7 +290,7 @@ export class World {
   /**
    * Deduct `cost` from the numeric balance at `world.state[key]` if affordable.
    * Returns `true` and writes the new balance on success, `false` (no change)
-   * otherwise. The thin SDK assist the library `transaction` system wraps (G5).
+   * otherwise. The thin SDK assist the library `transaction` system wraps.
    */
   spend(key: string, cost: number): boolean {
     const bal = (this.state[key] as number) ?? 0;
@@ -300,8 +300,8 @@ export class World {
   }
 
   /**
-   * Claim `keys` as pending-restore for an in-flight persistence load (the G6
-   * race fix). Idempotent. A persistence system calls this SYNCHRONOUSLY on
+   * Claim `keys` as pending-restore for an in-flight persistence load.
+   * Idempotent. A persistence system calls this SYNCHRONOUSLY on
    * its first tick — before any seed-once system runs that frame — so a
    * seed-once system can ask {@link isPersistPending} and DEFER seeding the key.
    * When the async `storage.get` resolves, the persistence system restores the
@@ -314,22 +314,22 @@ export class World {
     for (const k of keys) this._persistPending.add(k);
   }
 
-  /** True if `key` is claimed by an unresolved persistence load (G6). */
+  /** True if `key` is claimed by an unresolved persistence load. */
   isPersistPending(key: string): boolean {
     return this._persistPending.has(key);
   }
 
-  /** Snapshot of the currently-claimed keys (G6) — host uses it to reset on scene change. */
+  /** Snapshot of the currently-claimed keys — host uses it to reset on scene change. */
   persistPendingKeys(): string[] {
     return [...this._persistPending];
   }
 
   /**
-   * Release the persistence claim on `keys` (G6) — called by the
+   * Release the persistence claim on `keys` — called by the
    * persistence system once its async load resolves (after writing any restored
    * values). Released keys are eligible for normal seeding again.
    *
-   * Restore-complete signal (IC-9): each released key is also recorded as
+   * Restore-complete signal: each released key is also recorded as
    * restored, a `"persist-restored"` event fires with `{ keys }`, and any
    * {@link whenRestored} waiter whose keys are now all restored resolves. This is
    * the deterministic "the saved state has landed" signal — purely additive (a
@@ -356,7 +356,7 @@ export class World {
   }
 
   /**
-   * Resolve once every key in `keys` has been restored this scene (IC-9) —
+   * Resolve once every key in `keys` has been restored this scene —
    * the race-free alternative to polling {@link isPersistPending}. Resolves
    * immediately if the restore already completed; otherwise resolves when
    * {@link resolvePersistKeys} releases the last awaited key. A host reads the
@@ -373,7 +373,7 @@ export class World {
 
   /**
    * Reset all persistence-restore tracking — the pending claims, the restored set,
-   * and any outstanding {@link whenRestored} waiters (IC-9). Called by
+   * and any outstanding {@link whenRestored} waiters. Called by
    * `Game.loadScene` on every transition: the restore set is scene-scoped (the new
    * scene owns its own persistence/seed systems), and resolving leftover waiters
    * keeps a stale promise from the old scene from hanging forever. Replaces the

@@ -1,5 +1,5 @@
 /**
- * Audio half of the Phase 2B library: runtime-SYNTHESIZED SFX + two chiptune music
+ * The audio half of the library: runtime-SYNTHESIZED SFX + two chiptune music
  * loops, with zero binary audio assets (locked audio direction). The catalog audio
  * parts (kind `asset`, category `audio`) describe these by key; the implementation
  * lives in {@link LibraryAudioPlayer} (wired into a game as its `audio` instance)

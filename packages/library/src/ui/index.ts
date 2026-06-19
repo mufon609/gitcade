@@ -3,7 +3,7 @@ import { hudBar } from "./hud.js";
 import { touchDpad, touchButton, tapEmit, keyEmit } from "./touch.js";
 
 /**
- * UI half of Phase 2B. Most HUD/menu widgets are pure DATA (entity/scene templates
+ * The UI half of the library. Most HUD/menu widgets are pure DATA (entity/scene templates
  * catalogued under kind `ui`) that lean on SDK-frozen sprite features — `text`
  * sprites with a live `bind` for score/timer/wave readouts, `shape` rects for menus.
  * Only three need runtime code: the health/progress BAR and the two TOUCH controls.

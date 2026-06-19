@@ -14,7 +14,7 @@ interface TxnRequest {
  * primitive that `currency` (a passive accumulator) and `upgrade-tree` (fixed
  * catalog) don't cover. A part/UI sets `world.state[requestKey]` to a `{ id, cost }`
  * (or an `{ id }` resolved against the `costs` param map); each tick this system
- * checks the balance via the SDK `world.canAfford`/`world.spend` assist (G5), and:
+ * checks the balance via the SDK `world.canAfford`/`world.spend` assist, and:
  *   - affordable → `world.spend` deducts and it emits `onOk` (default `"purchased"`)
  *     with `{ id, cost }`;
  *   - not → it emits `onDenied` (default `"purchase-denied"`, reason

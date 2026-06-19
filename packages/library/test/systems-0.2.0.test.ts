@@ -8,7 +8,7 @@ import { scaleByState } from "../src/behaviors/index.js";
 import { makeWorld, makeEntity } from "./helpers.js";
 
 // ---------------------------------------------------------------------------
-// G5 — transaction system (afford → deduct → emit)
+// transaction system (afford → deduct → emit)
 // ---------------------------------------------------------------------------
 describe("transaction system", () => {
   it("deducts and emits purchased on an affordable request; denies otherwise", () => {
@@ -57,7 +57,7 @@ describe("public grid helpers re-exported from @gitcade/library (#4)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G4 — free-cell placement helpers (deterministic via world.rng)
+// free-cell placement helpers (deterministic via world.rng)
 // ---------------------------------------------------------------------------
 describe("randomFreeCell / snapToGrid", () => {
   it("snaps a point to its cell center", () => {
@@ -115,7 +115,7 @@ describe("randomFreeCell / snapToGrid", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G4 — wave-spawner placement:"free-cell" scatters across distinct cells
+// wave-spawner placement:"free-cell" scatters across distinct cells
 // ---------------------------------------------------------------------------
 describe("wave-spawner placement:free-cell", () => {
   it("scatters spawns across distinct, non-overlapping cells", () => {
@@ -165,7 +165,7 @@ describe("wave-spawner placement:free-cell", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G6 — persistence round-trip through the storage bridge
+// persistence round-trip through the storage bridge
 // ---------------------------------------------------------------------------
 describe("persistence system", () => {
   it("saves declared keys on change and restores them on a fresh world (live value wins)", async () => {
@@ -198,12 +198,12 @@ describe("persistence system", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G6 race — a persisted, system-SEEDED key restores authoritatively
+// a persisted, system-SEEDED key restores authoritatively
 //   even when `currency` would seed it synchronously on the SAME scene.
 //   `persistence` claims the key, `currency` defers its seed while the load
 //   is in flight, the restore wins. No title-scene workaround needed.
 // ---------------------------------------------------------------------------
-describe("persistence vs currency seeding race (G6)", () => {
+describe("persistence vs currency seeding race", () => {
   // Flush the .then→.catch→.finally microtask chain the load promise schedules.
   const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
@@ -404,7 +404,7 @@ describe("scale-by-state behavior (#8)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// tap-emit — clicking the entity emits its flow event (G1 companion, OQ-7)
+// tap-emit — clicking the entity emits its flow event
 // ---------------------------------------------------------------------------
 describe("tap-emit behavior", () => {
   it("emits emitOnTap when the click edge lands on this entity", () => {

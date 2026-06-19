@@ -9,8 +9,8 @@ import { playSfx, MusicPlayer, type MusicLoop } from "./synth.js";
  * adds two generative chiptune music loops.
  *
  * This is the SANCTIONED way to extend audio without touching the FROZEN SDK: the
- * SDK's `audio.ts` explicitly reserves a stable `play(key)` surface for Phase 2B to
- * enrich. Headless-safe by construction — it shares the SDK's support check and
+ * SDK's `audio.ts` explicitly reserves a stable `play(key)` surface for the library
+ * to enrich. Headless-safe by construction — it shares the SDK's support check and
  * never creates an `AudioContext` until first real use, so jsdom/Node smoke tests
  * (no `AudioContext`) run silently and `play`/`startMusic` are no-ops.
  *

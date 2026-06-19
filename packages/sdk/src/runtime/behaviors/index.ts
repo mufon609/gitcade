@@ -11,7 +11,7 @@ import { spriteAnimate } from "./sprite-animate.js";
 /**
  * The built-in behavior types. These are the minimal general primitives that
  * prove the entity-component model (and compose Pong with zero custom code). The
- * full library of behaviors arrives in Phase 2A and registers ADDITIONAL types
+ * full library of behaviors registers ADDITIONAL types
  * the same way — never new schema shapes.
  */
 export const BUILTIN_BEHAVIOR_TYPES = [

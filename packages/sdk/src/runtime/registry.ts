@@ -13,7 +13,7 @@ export interface SystemRegistration {
 }
 
 /**
- * The behavior/system registry. The SDK ships built-in types here; Phase 2's
+ * The behavior/system registry. The SDK ships built-in types here; the
  * `@gitcade/library` and a game's local `custom-behaviors/` register additional
  * TYPES (never new schema shapes) via {@link registerBehavior}/{@link registerSystem}.
  * This registration API is the FROZEN extension point.

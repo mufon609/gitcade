@@ -88,8 +88,8 @@ describe("wave-spawner", () => {
     expect(world.state.wave).toBe(2);
   });
 
-  // --- B-1: the spawn-point cursor is cumulative across waves, not per-wave ---
-  it("cycles spawn points across waves with a persistent cursor at waveSize:1 (B-1)", () => {
+  // --- the spawn-point cursor is cumulative across waves, not per-wave ---
+  it("cycles spawn points across waves with a persistent cursor at waveSize:1", () => {
     const world = makeWorld();
     const params = {
       interval: 0.01,
@@ -110,8 +110,8 @@ describe("wave-spawner", () => {
     expect(new Set(ys).size).toBe(3); // multiple DISTINCT spawn-Y values across waves
   });
 
-  // --- B-1 regression: round-robin WITHIN a wave is unchanged ---
-  it("still distributes spawn points round-robin within a single large wave (B-1 regression)", () => {
+  // --- regression: round-robin WITHIN a wave is unchanged ---
+  it("still distributes spawn points round-robin within a single large wave", () => {
     const world = makeWorld();
     const params = {
       interval: 0.01,

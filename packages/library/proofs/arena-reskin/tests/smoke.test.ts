@@ -6,7 +6,7 @@ import config from "../config.json";
 import main from "../src/scenes/main.json";
 
 /**
- * Phase 2B re-skin proof. Same four logic parts as the 2A arena demo (ai-chase +
+ * Re-skin proof. Same four logic parts as the arena demo (ai-chase +
  * contact-damage + wave-spawner + health-and-death) now wearing the presentational
  * half: generated sprites on the entities, the synthesized LibraryAudioPlayer, and
  * the fx 'explosion'/'sparkle' particle SYSTEMS wired to the death/collect events.

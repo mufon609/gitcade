@@ -3,7 +3,7 @@ import { particle } from "./particle.js";
 import { explosion, sparkle, trail, dust } from "./emitters.js";
 
 /**
- * FX half of Phase 2B. Two kinds of part:
+ * The FX half of the library. Two kinds of part:
  *  - PARTICLE presets (`explosion`, `sparkle`, `trail`, `dust`) are real runtime
  *    types catalogued under kind `fx`. `explosion`/`sparkle` are event-driven
  *    SYSTEMS; `trail`/`dust` are per-entity BEHAVIORS. They spawn short-lived
@@ -11,7 +11,7 @@ import { explosion, sparkle, trail, dust } from "./emitters.js";
  *  - SCREEN effects (`screen-shake`/`screen-flash`/`screen-fade`) are host-side and
  *    live in {@link ScreenEffects}; they register no runtime type (see that file).
  *
- * These register on a SEPARATE map from the 2A logic library so the catalog's
+ * These register on a SEPARATE map from the logic library so the catalog's
  * behavior/system-kind coverage check stays exact — FX register runtime types but
  * are catalogued as kind `fx`, never as `behavior`/`system`.
  */

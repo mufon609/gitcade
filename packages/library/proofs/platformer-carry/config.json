@@ -1,6 +1,7 @@
 {
   "carrierPeriod": 3,
   "descenderPeriod": 2.5,
+  "wallCarrierPeriod": 1.5,
   "gravity": 1400,
   "moveSpeed": 160,
   "jumpSpeed": 480

@@ -592,7 +592,17 @@ export class World {
       if (carriers.length > 0 && body.vy >= 0) {
         const carrier = findCarrier(e, ix, iy, carriers);
         if (carrier) {
-          body.x += carrier.x - carrier.body.prevX; // horizontal carry (always)
+          // Horizontal carry, CLAMPED to solids (1.10.0): a rider can't be carried THROUGH a wall. The
+          // push-out below is MOTION-derived (it won't eject a passive `vx=0` rider — see
+          // {@link clampShoveBySolids}), so the carry itself must stop the rider flush — the same
+          // velocity-independent clamp the crate push uses. `carrier` is excluded (you don't collide
+          // horizontally with the support you stand on). With no wall in the path the clamp returns the
+          // full delta, so an open-ground carry is byte-identical to the pre-1.10.0 raw shift.
+          const dxCarry = carrier.x - carrier.body.prevX;
+          if (dxCarry !== 0) {
+            const dir = dxCarry > 0 ? 1 : -1;
+            body.x += dir * clampShoveBySolids(body, dir, Math.abs(dxCarry), this.tilemap, solids, carrier);
+          }
           const dy = carrier.y - carrier.body.prevY;
           if (dy > 0) body.y += dy; // descending carry only — ascending is the push-out's job
         }
@@ -623,7 +633,7 @@ export class World {
       const prePushX = new Map<Entity, number>();
       for (const cr of pushables) prePushX.set(cr, cr.x);
       this.resolvePush(dynamics, solids);
-      this.rideHorizontalPush(order, pushables, prePushX);
+      this.rideHorizontalPush(order, pushables, prePushX, solids);
     }
   }
 
@@ -633,11 +643,16 @@ export class World {
    * push (it must, to settle riders against the static world first), so it captured only the crate's
    * pre-push x; this shifts each rider by its crate's NET push displacement (`crate.x − prePushX`).
    * Riders resolve in dependency order so a rider on a crate on a crate follows the whole stack. Only
-   * the horizontal delta is applied (the vertical ride already happened in carry); a rider shoved into
-   * a wall alongside its crate settles on the next tick's push-out — riders-against-a-wall-corner is the
-   * one residual edge, far rarer than the common "walk a crate along open ground with something on it".
+   * the horizontal delta is applied (the vertical ride already happened in carry).
+   *
+   * The ride is CLAMPED to solids (1.10.0), the exact rule the carry step and the crate push use
+   * ({@link clampShoveBySolids}): a rider can't be ridden THROUGH a wall. This is the fix for the old
+   * wall-corner residual — a raw shift drove a rider into a wall-corner and left it embedded, because the
+   * "next tick's push-out corrects it" assumption is false: {@link resolveSolids} is motion-derived and
+   * never ejects a passive `vx=0` rider, so the penetration persisted indefinitely, not one tick. The
+   * crate (the rider's support) is a dynamic, not in `solids`, so it's naturally excluded from the clamp.
    */
-  private rideHorizontalPush(order: Entity[], pushables: Entity[], prePushX: Map<Entity, number>): void {
+  private rideHorizontalPush(order: Entity[], pushables: Entity[], prePushX: Map<Entity, number>, solids: Entity[]): void {
     if (pushables.length === 0) return;
     const crateSet = new Set(pushables);
     for (const e of order) {
@@ -645,7 +660,11 @@ export class World {
       const carrier = findCarrier(e, c.inset.x, c.inset.y, pushables);
       if (!carrier || !crateSet.has(carrier)) continue;
       const dx = carrier.x - (prePushX.get(carrier) ?? carrier.x);
-      if (dx !== 0) e.x += dx; // ride the crate's push; e's own crate-rider (a stack) rides next in order
+      if (dx === 0) continue;
+      // Ride the crate's net push, clamped flush at the first solid in the path; e's own crate-rider
+      // (a stack) then rides next in order off e's clamped position.
+      const dir = dx > 0 ? 1 : -1;
+      e.x += dir * clampShoveBySolids(colliderBox(e), dir, Math.abs(dx), this.tilemap, solids);
     }
   }
 
@@ -718,7 +737,7 @@ export class World {
         // a crate THROUGH a wall. Without this, a deep swept shove could overshoot a crate past a thin
         // solid (one narrower than the crate), where phase-2's min-translation eject would then push it
         // the wrong way (further through) instead of back. Clamped, phase 2 only trims sub-px residue.
-        const dist = clampShoveBySolids(crate, shove.dir, shove.dist, this.tilemap, solids);
+        const dist = clampShoveBySolids(colliderBox(crate), shove.dir, shove.dist, this.tilemap, solids);
         if (dist > 0) crate.x += shove.dir * dist; // drive the crate flush ahead of the pusher
       }
     }
@@ -1004,17 +1023,21 @@ function sweptShove(pusher: Entity, crate: Entity): { dir: 1 | -1; dist: number 
 }
 
 /**
- * The largest prefix of a `dir` shove of `dist` px that keeps crate `C`'s LEADING face at/before the
- * nearest solid in its path — i.e. how far the crate can actually be driven before a wall stops it
- * (1.7.0, the swept-push companion to {@link sweptShove}). A pusher must not drive a crate THROUGH a
- * solid; the swept shove can be large enough to overshoot a crate past a thin solid (one narrower than
- * the crate), where the positional eject's min-translation would resolve it the wrong way. Clamping the
- * shove here keeps the crate flush against the wall instead. Scans solid tiles in the crate's Y-span +
- * swept X-range and solid entities overlapping its Y-span; one-way solids never block a crate sideways.
+ * The largest prefix of a `dir` horizontal shift of `dist` px that keeps `box`'s LEADING face at/before
+ * the nearest solid in its path — i.e. how far a body can actually be driven before a wall stops it. The
+ * ONE velocity-independent "clamp a horizontal displacement to the solid world" rule, shared by all three
+ * places the phase moves a body sideways positionally: the swept crate PUSH (1.7.0 — its origin), and
+ * (1.10.0) the carrier-driven CARRY and RIDE. It is load-bearing because {@link resolveSolids} is
+ * MOTION-derived — it only ejects a body on an axis it has VELOCITY into a solid — so a passively
+ * carried/ridden/shoved body (its own `vx` zero) would otherwise be driven straight THROUGH a wall and
+ * never corrected (the velocity push-out no-ops on it). Scans solid tiles in the box's Y-span + swept
+ * X-range and solid entities overlapping its Y-span; one-way solids never block sideways; `exclude` skips
+ * the body's own support (you never collide horizontally with the carrier you stand on). A pusher must
+ * also not drive a crate THROUGH a thin solid (one narrower than the crate), where the positional eject's
+ * min-translation would resolve it the wrong way — this clamp keeps it flush against the wall instead.
  */
-function clampShoveBySolids(C: Entity, dir: 1 | -1, dist: number, tilemap: Tilemap | undefined, solids: Entity[]): number {
-  const box = colliderBox(C);
-  const lead = dir === 1 ? box.x + box.w : box.x; // the crate's leading face now
+function clampShoveBySolids(box: { x: number; y: number; w: number; h: number }, dir: 1 | -1, dist: number, tilemap: Tilemap | undefined, solids: Entity[], exclude?: Entity): number {
+  const lead = dir === 1 ? box.x + box.w : box.x; // the body's leading face now
   const loX = Math.min(lead, lead + dir * dist) - BROAD_PAD;
   const hiX = Math.max(lead, lead + dir * dist) + BROAD_PAD;
   let limit = dist;
@@ -1036,6 +1059,7 @@ function clampShoveBySolids(C: Entity, dir: 1 | -1, dist: number, tilemap: Tilem
     }
   }
   for (const s of solids) {
+    if (s === exclude) continue; // never clamp a body against the very support it rides
     if (s.body.collider!.oneWay) continue;
     const sb = colliderBox(s);
     if (sb.y < box.y + box.h && sb.y + sb.h > box.y && sb.x < hiX && sb.x + sb.w > loX) block(sb.x, sb.x + sb.w);

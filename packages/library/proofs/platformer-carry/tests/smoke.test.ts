@@ -15,6 +15,11 @@ import main from "../src/scenes/main.json";
  * Scene facts: viewport 800x480. `carrier` 120x16 at y=360 tweens x 100↔480 (pingpong); `player`
  * 20x28 rests on it (bottom 360 → y=332). `descender` 80x16 at x=650 tweens y 160↔340; `passenger`
  * 16x16 rests on it (bottom = descender top).
+ *
+ * 1.10.0 SOLID-AWARE CARRY (the shared-root fix): `wallCarrier` 120x16 at y=430 tweens x 60↔160 with a
+ * passive `wallRider` 16x16 on its top, sliding it into `cornerWall` (left face x=170, in the rider's band
+ * only). A passive (vx=0) rider was carried straight THROUGH a wall — `resolveSolids` is motion-derived,
+ * so it never ejected a zero-velocity body. Carry now clamps to solids, so the rider stops flush.
  */
 function boot(): Game {
   return createGame({ manifest, config, scenes: [main] }, { canvas: null, registry: createLibraryRegistry() });
@@ -74,6 +79,21 @@ describe("platformer-carry reuse proof", () => {
     }
     expect(sawDescent).toBe(true); // the platform did descend
     expect(glued).toBe(true); // passenger tracked its top every tick (carry down + push-out up)
+  });
+
+  it("a passive rider carried into a wall stops FLUSH — never penetrates (1.10.0 solid-aware carry)", () => {
+    const game = boot();
+    drive(game, { axis: 0 }); // no input ⇒ the rider's own vx stays 0 — the passive case the motion-derived push-out can't eject
+    const wall = game.world.byId("cornerWall")!;
+    const rider = game.world.byId("wallRider")!;
+    let maxRight = -Infinity;
+    for (let i = 0; i < 150; i++) {
+      game.stepFrames(1);
+      maxRight = Math.max(maxRight, rider.x + rider.w);
+    }
+    expect(maxRight).toBeLessThanOrEqual(wall.x + 0.01); // never crossed the wall's left face (no penetration)
+    expect(maxRight).toBeGreaterThan(wall.x - 4); // but DID ride up to it — the clamp engaged, not a no-op
+    expect(rider.body.contacts.onGround).toBe(true); // still riding the carrier (didn't fall off)
   });
 
   it("is NOT carried while jumping (the rider leaves the platform on a jump)", () => {

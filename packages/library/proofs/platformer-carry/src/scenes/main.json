@@ -76,6 +76,52 @@
         },
         { "type": "velocity", "params": {} }
       ]
+    },
+    {
+      "id": "wallCarrier",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#5a7a3a" },
+      "size": { "w": 120, "h": 16 },
+      "position": { "x": 60, "y": 430 },
+      "layer": 1,
+      "collider": { "role": "solid", "carriable": true },
+      "behaviors": [
+        {
+          "type": "tween",
+          "params": {
+            "property": "x",
+            "from": 60,
+            "to": 160,
+            "duration": "$cfg.wallCarrierPeriod",
+            "easing": "linear",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "wallRider",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#e0a84a" },
+      "size": { "w": 16, "h": 16 },
+      "position": { "x": 80, "y": 414 },
+      "layer": 2,
+      "tags": ["rider"],
+      "collider": { "role": "dynamic" },
+      "behaviors": [
+        {
+          "type": "move-platformer",
+          "params": { "moveSpeed": "$cfg.moveSpeed", "gravity": "$cfg.gravity", "jumpSpeed": "$cfg.jumpSpeed" }
+        },
+        { "type": "velocity", "params": {} }
+      ]
+    },
+    {
+      "id": "cornerWall",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#6a6a78" },
+      "size": { "w": 16, "h": 50 },
+      "position": { "x": 170, "y": 380 },
+      "layer": 1,
+      "collider": { "role": "solid" },
+      "behaviors": []
     }
   ],
   "systems": []

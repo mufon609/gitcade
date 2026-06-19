@@ -322,14 +322,18 @@ export class Game {
     this.world.camera.prevX = this.world.camera.x;
     this.world.camera.prevY = this.world.camera.y;
 
-    // Snapshot each entity's pre-tick position and clear its collision list in one pass.
-    // `body.prevX`/`body.prevY` let a carry behavior read a moving solid's per-tick world delta
-    // (`x - body.prevX`) later this tick, AND are the source the renderer interpolates between (1.8.0);
-    // clearing collisions readies the list for this tick's detection. (Done together to avoid a second
-    // full sweep of the entity array.)
+    // Snapshot each entity's pre-tick RENDER TRANSFORM (position + rotation + scale) and clear its
+    // collision list in one pass. `body.prevX`/`body.prevY` let a carry behavior read a moving solid's
+    // per-tick world delta (`x - body.prevX`) later this tick; the whole snapshot (incl. rotation/scale,
+    // 1.10.0) is what the renderer interpolates between the last two ticks (1.8.0 was position-only, so a
+    // spinning/scaling entity still juddered). Clearing collisions readies the list for this tick's
+    // detection. (Done together to avoid a second full sweep of the entity array.)
     for (const e of this.world.entities) {
       e.body.prevX = e.x;
       e.body.prevY = e.y;
+      e.body.prevRotation = e.rotation;
+      e.body.prevScaleX = e.scaleX;
+      e.body.prevScaleY = e.scaleY;
       if (e.collisions.length) e.collisions.length = 0;
     }
 

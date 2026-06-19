@@ -69,13 +69,23 @@ export interface ColliderComponent {
  */
 export interface BodyComponent {
   /**
-   * Position at the START of the current tick, snapshotted by the host loop so `x - body.prevX` /
-   * `y - body.prevY` is this tick's WORLD delta — read by carry (a rider inherits a moving
-   * platform's per-tick delta) and the groundwork render interpolation needs. Seeded to the spawn
-   * position (delta 0 on the first tick).
+   * The full RENDER TRANSFORM at the START of the current tick — position, rotation, and per-axis
+   * scale — snapshotted by the host loop (`Game.update`) so the renderer can interpolate every drawn
+   * transform component between the last two ticks (1.8.0 position → 1.10.0 rotation/scale), killing
+   * judder when the rAF rate doesn't divide the fixed sim rate. `x - prevX` / `y - prevY` doubles as
+   * this tick's WORLD position delta, read by carry (a rider inherits a moving platform's per-tick
+   * delta). Position-only would be a partial history: a `face-angle` turret (rotation) or a `tween`
+   * pop (scale) still juddered until the whole transform was snapshotted. Seeded to the spawn
+   * transform (delta 0 / identity on the first tick). Render-only + carry-only — the rest of the
+   * simulation never reads these, so headless play stays byte-identical.
    */
   prevX: number;
   prevY: number;
+  /** Rotation (radians) at tick start — the renderer interpolates it along the SHORTEST arc (1.10.0). */
+  prevRotation: number;
+  /** Per-axis scale at tick start — the renderer interpolates it, snapping on a sign flip (1.10.0). */
+  prevScaleX: number;
+  prevScaleY: number;
   /**
    * Solid-CONTACT sensing for the current tick: which faces touched a solid. Written by
    * {@link applyContacts} (called by the collision-resolution phase {@link World.resolveBodies}) and
@@ -152,6 +162,9 @@ export class Entity {
   body: BodyComponent = {
     prevX: 0,
     prevY: 0,
+    prevRotation: 0,
+    prevScaleX: 1,
+    prevScaleY: 1,
     contacts: { onGround: false, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false },
     contactTick: -1,
     dropThrough: 0,
@@ -203,6 +216,10 @@ export class Entity {
     this.rotation = init.rotation ?? 0;
     this.scaleX = init.scale ?? 1;
     this.scaleY = init.scale ?? 1;
+    // Seed the tick-start render-transform history to the spawn transform (identity delta on tick 1).
+    this.body.prevRotation = this.rotation;
+    this.body.prevScaleX = this.scaleX;
+    this.body.prevScaleY = this.scaleY;
     this.opacity = init.opacity ?? 1;
     this.visible = init.visible ?? true;
     this.tags = new Set(init.tags ?? []);

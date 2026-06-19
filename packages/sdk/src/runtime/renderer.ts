@@ -21,6 +21,33 @@ function interpOffset(prev: number, cur: number, alpha: number, snap: number): n
   return d * (1 - alpha);
 }
 
+/**
+ * Interpolate a ROTATION (radians) between its last two tick values along the SHORTEST arc (1.10.0,
+ * the rotation half of render interpolation). A plain lerp is WRONG for an angle: `face-angle` writes
+ * `atan2(...)`, which jumps +π→−π across its branch cut (a turret tracking a target crossing behind it,
+ * a projectile turning), and a `tween` spin wraps 2π→0 each revolution — a linear lerp would unwind the
+ * whole way around backward. Normalizing `prev − cur` into (−π, π] interpolates the short way, so the wrap
+ * is seamless. At `alpha 1` this returns `cur` exactly, so the renderer is byte-identical to the
+ * non-interpolated path. (No teleport-snap: the shortest arc is ≤ π, so even an instant re-orient streaks
+ * at most a half-turn for a single frame — far milder than a position teleport streaking the whole screen.)
+ */
+function lerpAngle(prev: number, cur: number, alpha: number): number {
+  const d = Math.atan2(Math.sin(prev - cur), Math.cos(prev - cur)); // (prev − cur) wrapped to (−π, π]
+  return cur + d * (1 - alpha);
+}
+
+/**
+ * Interpolate a per-axis SCALE between its last two tick values (1.10.0, the scale half of render
+ * interpolation). SNAPS (draws at `cur`, no interpolation) when the sign flips or crosses zero
+ * (`prev * cur <= 0`): `face-velocity` flips `scaleX` SIGN instantly (+mag ↔ −mag) to mirror a sprite,
+ * and lerping across that passes through 0 — collapsing the sprite to a line for a frame. A same-sign
+ * change (a `tween` pop/pulse) interpolates smoothly. At `alpha 1` this returns `cur`, byte-identical.
+ */
+function lerpScale(prev: number, cur: number, alpha: number): number {
+  if (prev * cur <= 0) return cur; // sign flip / through-zero (a face-velocity mirror) — snap, don't collapse
+  return cur + (prev - cur) * (1 - alpha);
+}
+
 /** Muted fallback fills for tilemap indices when no tileset image is available. */
 const TILE_FALLBACK_COLORS = ["#2a2f3a", "#3a3030", "#30343a", "#2f3a30", "#3a3a2f", "#352f3a"];
 
@@ -44,12 +71,15 @@ export class Renderer {
   }
 
   /**
-   * Draw the world. `alpha` (0.8.0… 1.8.0 render interpolation) is how far into the NEXT fixed tick the
-   * real clock has advanced (`accumulator / fixedDt`, in [0,1)); the renderer draws each body and the
-   * camera lerped between its position at the last two ticks (`body.prevX/prevY` → `x/y`), so motion is
-   * smooth even when the rAF rate doesn't divide the 60 Hz sim rate (the judder fix). DEFAULT 1 ⇒ draw at
-   * the latest sim position, byte-identical to the pre-interpolation renderer — and since the SIMULATION
-   * never renders (headless `stepFrames`), the validator/replays/tests are wholly unaffected. Render-only.
+   * Draw the world. `alpha` (1.8.0 render interpolation) is how far into the NEXT fixed tick the real
+   * clock has advanced (`accumulator / fixedDt`, in [0,1)); the renderer draws each body and the camera
+   * lerped between the last two ticks, so motion is smooth even when the rAF rate doesn't divide the 60 Hz
+   * sim rate (the judder fix). The FULL render transform is interpolated (1.10.0): position
+   * (`body.prevX/prevY` → `x/y`), rotation (`body.prevRotation` → `rotation`, shortest-arc), and per-axis
+   * scale (`body.prevScaleX/Y` → `scaleX/Y`, flip-snapped) — so a spinning `face-angle` sprite or a scaling
+   * `tween` is as smooth as a moving one. DEFAULT 1 ⇒ draw at the latest sim transform, byte-identical to
+   * the pre-interpolation renderer — and since the SIMULATION never renders (headless `stepFrames`), the
+   * validator/replays/tests are wholly unaffected. Render-only.
    */
   render(world: World, background?: Background, alpha = 1): void {
     const ctx = this.ctx;
@@ -98,10 +128,10 @@ export class Renderer {
       if (dx !== 0 || dy !== 0) {
         ctx.save();
         ctx.translate(dx, dy);
-        this.drawEntity(ctx, e, world);
+        this.drawEntity(ctx, e, world, alpha);
         ctx.restore();
       } else {
-        this.drawEntity(ctx, e, world);
+        this.drawEntity(ctx, e, world, alpha);
       }
     }
 
@@ -201,7 +231,7 @@ export class Renderer {
     }
   }
 
-  private drawEntity(ctx: Ctx, e: Entity, world: World): void {
+  private drawEntity(ctx: Ctx, e: Entity, world: World, alpha = 1): void {
     // Honor the entity transform (0.3.2). `rotation` (radians, clockwise) and
     // `scaleX`/`scaleY` are in the FROZEN entity schema (`rotation`/`scale`) and
     // populated on the runtime Entity since the schema froze, but the 0.3.x
@@ -213,7 +243,18 @@ export class Renderer {
     // entirely at the identity (rotation 0, scale 1), so an entity that never sets
     // them renders byte-identically to before; only `ctx.translate/rotate/scale`
     // are used, which any real 2D context provides.
-    const transformed = e.rotation !== 0 || e.scaleX !== 1 || e.scaleY !== 1;
+    //
+    // Render interpolation (1.10.0): rotation and scale are drawn lerped between the last two ticks by
+    // `alpha` — rotation along the shortest arc, scale flip-snapped (see {@link lerpAngle}/{@link lerpScale})
+    // — the rotation/scale half of the position interpolation the render loop applies as a translate.
+    // At `alpha 1` (the default + every headless/byte-identical caller) these collapse to the raw
+    // `e.rotation`/`e.scaleX`/`e.scaleY`, so an un-interpolated draw is unchanged. The position pivot
+    // `e.cx`/`e.cy` is the CURRENT center; the render loop's outer translate shifts it to the interpolated
+    // position, so the whole transform interpolates together.
+    const rot = alpha < 1 ? lerpAngle(e.body.prevRotation, e.rotation, alpha) : e.rotation;
+    const sx = alpha < 1 ? lerpScale(e.body.prevScaleX, e.scaleX, alpha) : e.scaleX;
+    const sy = alpha < 1 ? lerpScale(e.body.prevScaleY, e.scaleY, alpha) : e.scaleY;
+    const transformed = rot !== 0 || sx !== 1 || sy !== 1;
     // Honor entity opacity (0.7.0): apply it as `globalAlpha`. Another declared-but-ignored
     // slot — `opacity`/`alpha` are whitelisted yet drawEntity never set globalAlpha, exactly
     // like rotation/scale before 0.3.2. Multiplied (so it composes with any ambient alpha)
@@ -224,8 +265,8 @@ export class Renderer {
     if (faded) ctx.globalAlpha = Math.max(0, Math.min(1, ctx.globalAlpha * e.opacity));
     if (transformed) {
       ctx.translate(e.cx, e.cy);
-      ctx.rotate(e.rotation);
-      ctx.scale(e.scaleX, e.scaleY);
+      ctx.rotate(rot);
+      ctx.scale(sx, sy);
       ctx.translate(-e.cx, -e.cy);
     }
     switch (e.sprite.kind) {

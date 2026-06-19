@@ -244,6 +244,15 @@ Capabilities for building (and shipping) a game with real *content volume*.
   🟢
 - **Texture atlases / sprite packing.** Canvas2D `drawImage`-per-entity is fine to a few
   hundred entities, but atlas regions cut load and let one sheet hold many sprites. 🟢
+- **Viewport culling. ✅ Now in the engine (1.10.1).** The renderer draws only what the camera rect
+  shows — the tilemap iterates a clamped cell window instead of the whole `cols×rows` map, and an entity
+  whose conservative drawn AABB is fully outside the rect is skipped. Camera interpolation + shake ride in
+  the rect for free; each entity is tested at its interpolated center with a rotation-invariant
+  circumscribed radius (so scale/rotation/stroke can't pop) and text is exempt (its extent isn't bounded by
+  the box). Pixel-identical output — a strict SUPERSET of what's visible — so per-frame draw cost is
+  O(visible cells + visible entities), not O(cols×rows + entities), and a large scrolling *world* is no
+  longer the renderer ceiling. Per-frame sprite *count* (a spatial index / chunked tilemaps) is the next,
+  separate step. Render-only, no contract change. 🟢
 - **Spatial partitioning for collision. ✅ Now in the engine (0.12.0).** `aabb-collision` keeps
   the O(n·m) nested loop for small tag pairs but, above a threshold, buckets the `b` colliders
   into a uniform grid and tests each `a` only against the candidates in the cells its AABB

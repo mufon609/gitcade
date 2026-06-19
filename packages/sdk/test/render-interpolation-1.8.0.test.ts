@@ -87,10 +87,14 @@ describe("render interpolation — per-entity", () => {
 
   it("SNAPS (no interpolation) when the per-tick delta exceeds a viewport dimension (a teleport)", () => {
     const world = makeWorld(480);
-    addRect(world, 500, 50, 5, 50); // dx=495 > 480 viewport ⇒ a wrap/respawn, not motion
+    // A teleport INTO view (prev off-screen at 600, cur on-screen at 100): dx=500 > 480 viewport ⇒ a
+    // wrap/respawn, not motion. (Cur is on-screen so 1.10.1 viewport culling keeps it — the mirror case
+    // with cur OFF-screen is correctly culled, which is the whole point of culling, so it can't be used
+    // to probe the interpolation math.)
+    addRect(world, 100, 50, 600, 50);
     const { ctx, rects } = mockCtx();
     new Renderer(ctx).render(world, undefined, 0.5);
-    expect(rects.at(-1)!.x).toBe(500); // drawn at current, NOT lerped to ~252
+    expect(rects.at(-1)!.x).toBe(100); // drawn at current, NOT lerped to ~350
     expect(rects.at(-1)!.y).toBeCloseTo(50, 6); // the Y axis (delta 0) is unaffected
   });
 });

@@ -6,6 +6,9 @@ import type { ShapeSprite, SheetSprite, TextSprite } from "../schema/sprite.js";
 /** A minimal 2D context surface (subset we use), so types don't require lib.dom everywhere. */
 type Ctx = CanvasRenderingContext2D;
 
+/** Viewport CULL RECT in WORLD coords (left/top/right/bottom) — the window tiles & entities draw into (1.10.1). */
+type CullRect = { l: number; t: number; r: number; b: number };
+
 /**
  * The render-interpolation offset (1.8.0) from a body/camera's CURRENT (latest-tick) position on one
  * axis: `(prev − cur) · (1 − alpha)`, i.e. draw it lerped between the last two ticks (`prev` at
@@ -54,6 +57,22 @@ const TILE_FALLBACK_COLORS = ["#2a2f3a", "#3a3030", "#30343a", "#2f3a30", "#3a3a
 /** Subtle per-cell gridline for the no-tileset tilemap fallback, so a map reads as
  *  structured cells rather than one flat slab (0.3.1, td-09). */
 const TILE_GRID_COLOR = "rgba(255,255,255,0.06)";
+
+/**
+ * Viewport-cull safety margin in px (1.10.1 viewport culling). The cull rect is the viewport grown by
+ * this on every side. `camX`/`camY` already fold in the camera's render interpolation AND shake (they
+ * ARE the translate basis), and every entity is tested at its INTERPOLATED center with a transform-aware
+ * radius — so this margin exists ONLY to absorb the ≤0.5px slop from the `Math.round(camX/camY)` at the
+ * translate. A couple px is plenty and it never scales with content. Erring large is harmless: culling
+ * is a strict SUPERSET of what's visible, so a wider margin only redraws a few off-canvas cells/sprites
+ * pixel-identically — it can never DROP a visible one.
+ */
+const CULL_MARGIN = 2;
+
+/** Clamp `n` to the inclusive range [lo, hi] (the tile-window bounds). */
+function clamp(n: number, lo: number, hi: number): number {
+  return n < lo ? lo : n > hi ? hi : n;
+}
 
 /**
  * Canvas 2D renderer (the "sprite renderer" primitive: static shapes, images,
@@ -113,10 +132,17 @@ export class Renderer {
       ctx.translate(-Math.round(camX), -Math.round(camY));
     }
 
-    this.drawTilemap(ctx, world);
+    // Viewport CULL RECT (1.10.1): the world-space window the canvas actually shows. camX/camY already
+    // include the camera's interpolation + shake (the exact translate basis), grown by CULL_MARGIN for
+    // the Math.round slop. drawTilemap iterates only the cells inside it; an entity outside it is skipped
+    // by {@link inView}. With no camera / no scroll the viewport spans the whole world, so the rect covers
+    // every cell and entity — nothing is culled and the draw calls are byte-identical to the pre-cull path.
+    const cull: CullRect = { l: camX - CULL_MARGIN, t: camY - CULL_MARGIN, r: camX + vw + CULL_MARGIN, b: camY + vh + CULL_MARGIN };
+
+    this.drawTilemap(ctx, world, cull);
 
     const drawList = world.entities
-      .filter((e) => e.alive && e.visible !== false && e.sprite.kind !== "none")
+      .filter((e) => e.alive && e.visible !== false && e.sprite.kind !== "none" && this.inView(e, alpha, snap, cull))
       .sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
 
     for (const e of drawList) {
@@ -139,6 +165,39 @@ export class Renderer {
   }
 
   /**
+   * Is entity `e` inside the viewport CULL RECT (1.10.1 viewport culling) — i.e. should it be drawn?
+   * Skips an entity whose conservative drawn AABB is FULLY outside the rect — a SUPERSET test: it only
+   * ever drops draw calls for geometry off-screen, never one with a visible pixel.
+   *
+   * Tested at the entity's INTERPOLATED center (the same {@link interpOffset} the render loop translates
+   * by — so a body mid-lerp toward the edge isn't culled early), with a half-extent equal to the
+   * rotation-INVARIANT circumscribed radius of its SCALED, stroked box: the radius bounds the box at
+   * EVERY angle, so the interpolated rotation is never needed; per-axis scale is bounded by max(|cur|,|prev|)
+   * (the scale lerp / flip-snap never exceeds that); and a stroked shape's outline is folded in (full
+   * strokeWidth — conservative against the half-width straddle + a corner miter). camX/camY (hence the rect)
+   * already carry the camera's own interpolation + shake, so those need no allowance here.
+   *
+   * TEXT is EXEMPT (always drawn): a text sprite's extent is font-size driven, NOT bounded by the entity's
+   * w/h box, so culling it could clip a HUD/label — refuse to cull what we can't bound. Text entities are
+   * few (HUD/score), so always drawing them costs nothing measurable.
+   */
+  private inView(e: Entity, alpha: number, snap: number, cull: CullRect): boolean {
+    const s = e.sprite;
+    if (s.kind === "text") return true; // extent not bounded by the box — never cull (see above)
+    const icx = e.cx + interpOffset(e.body.prevX, e.x, alpha, snap);
+    const icy = e.cy + interpOffset(e.body.prevY, e.y, alpha, snap);
+    // Scale bound: at alpha 1 the drawn scale IS cur (drawEntity gates the scale lerp on alpha<1), so
+    // |cur| suffices; mid-interpolation the drawn scale lies between prev and cur, so bound by
+    // max(|cur|,|prev|). Gating the prev read on alpha<1 mirrors drawEntity exactly and keeps the
+    // byte-identical alpha-1 path from touching prevScale at all.
+    const sxMax = alpha < 1 ? Math.max(Math.abs(e.scaleX), Math.abs(e.body.prevScaleX)) : Math.abs(e.scaleX);
+    const syMax = alpha < 1 ? Math.max(Math.abs(e.scaleY), Math.abs(e.body.prevScaleY)) : Math.abs(e.scaleY);
+    const strokeHalf = s.kind === "shape" && s.stroke ? (s.strokeWidth ?? 1) : 0;
+    const r = Math.hypot(sxMax * (e.w / 2 + strokeHalf), syMax * (e.h / 2 + strokeHalf));
+    return icx + r >= cull.l && icx - r <= cull.r && icy + r >= cull.t && icy - r <= cull.b;
+  }
+
+  /**
    * Draw the active scene's tilemap (0.2.0, OQ-3) UNDER the entities, so a scene's
    * road/lanes are one data tilemap — drawn AND queried (`world.isBuildable`) with
    * no entity/tilemap double-encoding. No-op when the scene has no tilemap, so a
@@ -150,14 +209,25 @@ export class Renderer {
    * rather than a flat slab (0.3.1, td-09 — additive; `color` rides the existing
    * `properties` catchall, no schema change).
    */
-  private drawTilemap(ctx: Ctx, world: World): void {
+  private drawTilemap(ctx: Ctx, world: World, cull: CullRect): void {
     const t = world.tilemap;
     if (!t) return;
     const sheet = t.tileset ? this.loadImage(t.tileset) : null;
     const sheetReady = !!sheet && sheet.complete && sheet.naturalWidth > 0;
     const sheetCols = sheetReady ? Math.max(1, Math.floor(sheet!.naturalWidth / t.tileSize)) : 1;
-    for (let row = 0; row < t.rows; row++) {
-      for (let col = 0; col < t.cols; col++) {
+    // Viewport CULL WINDOW (1.10.1): iterate only the cells intersecting the cull rect, not the whole
+    // map — this is the one real fix for large worlds (the loop was O(cols×rows) every frame regardless
+    // of what's on screen). floor/ceil + clamp give a SUPERSET of the visible cells (an off-canvas cell
+    // at the ±CULL_MARGIN edge is harmless — the canvas clips it to identical pixels), so no visible tile
+    // is ever dropped. Tiles carry no interpolation/rotation/scale, so the rect needs no per-cell extent.
+    // An unscrolled / camera-less scene's rect spans the whole map ⇒ the window is every cell ⇒
+    // byte-identical to the pre-cull full loop.
+    const colStart = clamp(Math.floor(cull.l / t.tileSize), 0, t.cols);
+    const colEnd = clamp(Math.ceil(cull.r / t.tileSize), 0, t.cols);
+    const rowStart = clamp(Math.floor(cull.t / t.tileSize), 0, t.rows);
+    const rowEnd = clamp(Math.ceil(cull.b / t.tileSize), 0, t.rows);
+    for (let row = rowStart; row < rowEnd; row++) {
+      for (let col = colStart; col < colEnd; col++) {
         const idx = t.tiles[row * t.cols + col] ?? -1;
         if (idx < 0) continue; // empty cell
         const x = col * t.tileSize;

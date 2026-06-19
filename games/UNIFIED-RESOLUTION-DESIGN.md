@@ -6,13 +6,15 @@ author-ordered **platformer solid-resolution behaviors** (`solid-collide`, `tile
 and resolves it — push-out, slopes, carry, and **push** — in one ordered pass.
 
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
-and two-body push to. The implementation is a sequence of proof-gated increments (§8); the §9
-sign-offs are **approved**. **Increments 1–4 have landed** (sdk+library `1.1.0`–`1.4.0`): the
-`resolveBodies()` phase + the `collider` component + candidate-keyed solid push-out (`1.1.0`,
-`platformer-solids`), the slope second pass (`1.2.0`, `platformer-slopes`), the carry step +
-retirement of `ride-platform` (`1.3.0`, `platformer-carry`), and two-body PUSH (`1.4.0`, new
-`platformer-push` proof). Only increment 5 remains (migrate `platformer-scroll`, retire
-`solid-collide`/`tilemap-collide`).
+and two-body push to.
+
+> ✅ **COMPLETE (sdk+library `1.5.0`).** All five proof-gated increments (§8) landed; the §9 sign-offs
+> were approved. There is now exactly ONE collision model — a `collider` component resolved by the
+> `World.resolveBodies()` phase (solid push-out, slopes, carry, two-body push) — and the three legacy
+> behaviors (`solid-collide`/`tilemap-collide`/`ride-platform`) are RETIRED. All five platformer proofs
+> (`-solids`/`-slopes`/`-carry`/`-scroll`/`-push`) run on colliders; arcade scenes are byte-identical
+> (the phase no-ops without a collider). In-tree/unpublished — pending a human publish go-ahead. The
+> increment history below is the design record; the git log is the authoritative per-step changelog.
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
@@ -238,16 +240,19 @@ green tests, and chromium browser-verification.
    push-once → settle crates with blocked-propagation → clamp pushers; mass-split, chains, fixed
    iterations); `pushable`/`mass` added to the `collider` schema; new `platformer-push` proof
    (into-wall, off-ledge, 2-crate chain), browser-verified. *The original goal — the new capability.*
-5. **Finish migration.** Migrate `platformer-scroll`; retire `solid-collide`/`tilemap-collide` from
-   the catalog; update `INDIE-ROADMAP` (mark carry-phase + push landed).
+5. **Finish migration — ✅ landed (sdk+library `1.5.0`).** `platformer-scroll` migrated to a collider
+   (parity, browser-verified); `solid-collide`/`tilemap-collide` retired (source/parts/registration/
+   tests, catalog 97→95, behavior types 25→23) and the now-dead `collider-before-integrator` validator
+   advisory removed; `move-platformer`/`sprite-state-machine`/scene-prop docs re-pointed at the phase.
+   All three legacy behaviors are gone — the effort is COMPLETE.
 
 Increments 1–2 landed as byte-equivalent-in-behavior parity work (low risk); increment 3 (carry) was
-the architectural payoff; increment 4 (push) was the new capability. Increment 5 (finish the migration
-+ retire the last two behaviors) is the remaining cleanup.
+the architectural payoff; increment 4 (push) was the new capability; increment 5 (finish the migration
++ retire the last two behaviors) completed it.
 
 ---
 
-## 9. Open decisions needing a human sign-off (before building)
+## 9. Sign-off decisions — ✅ all approved & shipped (1.1.0–1.5.0)
 
 - **The new `resolveBodies()` tick phase** (§3) — 🟡, same class as the 0.9.0 hierarchy phase.
 - **The `collider` schema component** (§4) — 🟡, a new optional schema object; includes the

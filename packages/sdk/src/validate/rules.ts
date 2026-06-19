@@ -374,14 +374,6 @@ const VELOCITY_SETTERS = new Set<string>([
 const VELOCITY_INTEGRATORS = new Set<string>(["velocity", "move-grid-step", "move-platformer"]);
 
 /**
- * Behavior TYPE names that RESOLVE a body's position against solids AFTER integration
- * (0.7.0) — they correct the position the `velocity` integrator just produced, so they
- * must be ordered AFTER it. Ordered before `velocity` (or with none present), the body
- * integrates through solids before being resolved → one-frame penetration / tunneling.
- */
-const SOLID_RESOLVERS = new Set<string>(["tilemap-collide", "solid-collide"]);
-
-/**
  * Non-failing presentation ADVISORIES (0.3.1). These are WARNING-level only — a game
  * that passed before still passes (`ok` ignores warnings) — surfacing two recurring
  * authoring footguns the 0.3.0 game audit hit across several games:
@@ -514,22 +506,6 @@ function checkBehaviorOrder(behaviors: BehaviorLike[], where: string): Issue[] {
     }
   }
 
-  // (3) collider-before-integrator: a solid resolver (`tilemap-collide`/`solid-collide`)
-  //     corrects the position the `velocity` integrator just produced, so it MUST run
-  //     after `velocity`. Ordered before it — or with no `velocity` in the array — the body
-  //     integrates through solids before being resolved (one-frame penetration / tunneling).
-  //     The 60-frame smoke boot asserts no throw, not non-penetration, so this slips through.
-  for (let bi = 0; bi < behaviors.length; bi++) {
-    if (!SOLID_RESOLVERS.has(behaviors[bi].type)) continue;
-    if (firstVelocityIdx < 0 || bi < firstVelocityIdx) {
-      issues.push({
-        level: "warning",
-        code: "collider-before-integrator",
-        message: `\`${behaviors[bi].type}\` must be ordered AFTER the \`velocity\` integrator it corrects — ${firstVelocityIdx < 0 ? "there is no `velocity` behavior in this array" : "it appears before `velocity`"}, so the body integrates through solids before being resolved (penetration / tunneling). Put a \`velocity\` behavior BEFORE this resolver`,
-        where: `${where}.behaviors[${bi}]`,
-      });
-    }
-  }
   return issues;
 }
 

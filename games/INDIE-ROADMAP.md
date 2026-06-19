@@ -135,10 +135,10 @@ are themselves immovable. The two halves on top of it:
   compress against a wall. A bounded positional relaxation (push-once → settle crates with
   blocked-propagation → clamp pushers; mass-split via `mass`). Proven by the new `platformer-push`
   proof. The full design is in [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢
-  (the unified-resolution effort landed `1.1.0`–`1.4.0`: the `resolveBodies()` phase + `collider`
-  component + candidate-keyed solid push-out + slope pass + carry + push, with
-  `platformer-solids`/`-slopes`/`-carry`/`-push` and `ride-platform` retired; only finishing
-  `platformer-scroll` + retiring `solid-collide`/`tilemap-collide` remains).
+  (the unified-resolution effort is COMPLETE, `1.1.0`–`1.5.0`: the `resolveBodies()` phase +
+  `collider` component + candidate-keyed solid push-out + slope pass + carry + push; all five
+  platformer proofs run on colliders and the three legacy behaviors — `solid-collide`,
+  `tilemap-collide`, `ride-platform` — are retired. One collision model, in-tree/unpublished.)
 
 ---
 

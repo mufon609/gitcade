@@ -151,46 +151,4 @@ describe("0.3.2 validator behavior-ordering advisories", () => {
     expect(issues.some((i) => i.code === "scale-ramp-after-integrator")).toBe(false);
   });
 
-  it("warns when a solid resolver is ordered BEFORE velocity (0.7.0 collider-before-integrator)", () => {
-    const scene = SceneSchema.parse({
-      id: "s",
-      entities: [
-        {
-          id: "e",
-          behaviors: [
-            { type: "tilemap-collide", params: {} }, // before the integrator → tunnels
-            { type: "move-platformer", params: {} },
-            { type: "velocity", params: {} },
-          ],
-        },
-      ],
-    });
-    expect(checkAdvisories([scene]).some((i) => i.code === "collider-before-integrator")).toBe(true);
-  });
-
-  it("warns when a solid resolver has no velocity integrator in the array", () => {
-    const scene = SceneSchema.parse({
-      id: "s",
-      entities: [{ id: "e", behaviors: [{ type: "solid-collide", params: {} }] }],
-    });
-    expect(checkAdvisories([scene]).some((i) => i.code === "collider-before-integrator")).toBe(true);
-  });
-
-  it("does NOT warn for the correct order (move-platformer → velocity → resolvers)", () => {
-    const scene = SceneSchema.parse({
-      id: "s",
-      entities: [
-        {
-          id: "e",
-          behaviors: [
-            { type: "move-platformer", params: {} },
-            { type: "velocity", params: {} },
-            { type: "tilemap-collide", params: {} },
-            { type: "solid-collide", params: {} },
-          ],
-        },
-      ],
-    });
-    expect(checkAdvisories([scene]).some((i) => i.code === "collider-before-integrator")).toBe(false);
-  });
 });

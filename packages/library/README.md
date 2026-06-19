@@ -33,8 +33,9 @@ Most parts are `v1.0.0`; a few have grown additive `v1.1.0` revisions (`wave-spa
 **Behaviors**
 - *movement* — `move-4dir`, `move-platformer`, `move-topdown-360`,
   `move-grid-step`, `auto-scroll`, `follow-path`, `scale-by-state` *(0.2.1)*
-- *platformer collision* — `tilemap-collide` (solid tiles) + `solid-collide`
-  (solid entities), the AABB push-out pair on the SDK's shared `resolveSolids`
+- *platformer collision* — now the SDK's collision-resolution PHASE (`World.resolveBodies()`
+  over a `collider` component: solid push-out, slopes, carry, two-body push), not library
+  behaviors (the old `tilemap-collide`/`solid-collide`/`ride-platform` were retired into it)
 - *combat* — `shoot`, `melee-swing`, `contact-damage`, `health-and-death`
 - *ai* — `ai-chase`, `ai-flee`, `ai-patrol`, `ai-wander`, `ai-aim-and-fire`
 - *interaction* — `collect-on-touch`, `trigger-zone`, `portal`

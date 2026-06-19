@@ -1,6 +1,6 @@
 {
   "name": "@gitcade/sdk",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "GitCade SDK — the frozen contract: schema, entity-component runtime, storage bridge, and validator CLI for AI-built, community-governed browser games.",
   "license": "MIT",
   "type": "module",

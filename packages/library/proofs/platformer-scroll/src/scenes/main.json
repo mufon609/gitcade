@@ -826,6 +826,9 @@
       "tags": [
         "player"
       ],
+      "collider": {
+        "role": "dynamic"
+      },
       "layer": 2,
       "behaviors": [
         {
@@ -852,12 +855,6 @@
         {
           "type": "velocity",
           "params": {}
-        },
-        {
-          "type": "tilemap-collide",
-          "params": {
-            "solidProp": "solid"
-          }
         },
         {
           "type": "sprite-state-machine",

@@ -78,8 +78,8 @@ export interface BodyComponent {
   prevY: number;
   /**
    * Solid-CONTACT sensing for the current tick: which faces touched a solid. Written by
-   * {@link applyContacts} (fed by the `tilemap-collide` / `solid-collide` resolvers) and read by
-   * movers/animators (`move-platformer` jump test, `sprite-state-machine` grounded state). The
+   * {@link applyContacts} (called by the collision-resolution phase {@link World.resolveBodies}) and
+   * read by movers/animators (`move-platformer` jump test, `sprite-state-machine` grounded state). The
    * flags are MOTION-derived (a face is reported on the axis the body moved INTO a solid), so a
    * body resting motionless reports none.
    */

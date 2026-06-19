@@ -195,10 +195,10 @@ function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: 
  * behind platformer terrain AND entity-vs-entity solids (INDIE-ROADMAP Tier-0 0.3).
  * `body` is mutated in place (position snapped out of the rects, the contacted velocity
  * component zeroed) and the contact flags are returned for a mover to read (jump off a
- * ground contact, etc.). The `rects` are whatever the caller treats as solid this tick:
- * `tilemap-collide` feeds the solid tile cells, `solid-collide` feeds solid entities'
- * boxes — so a crate/ledge/lift is exactly as solid as a tile. Order the calling
- * behavior AFTER the velocity integrator: it corrects the position the integrator just
+ * ground contact, etc.). The `rects` are whatever the caller treats as solid this tick: the
+ * collision-resolution phase ({@link World.resolveBodies}) feeds the solid tile cells AND solid
+ * entities' boxes — so a crate/ledge/lift is exactly as solid as a tile. The phase runs AFTER the
+ * velocity integrator (the whole behavior pass), so it corrects the position the integrator just
  * produced, in the same tick.
  *
  * Swept sub-stepping (0.4): each sub-step's displacement is capped to half the thinnest
@@ -271,11 +271,11 @@ export function resolveSolids(
  * Merge a solid resolver's contact flags into the entity's body component {@link BodyComponent.contacts}
  * so MULTIPLE resolvers on one entity COMBINE within a tick instead of clobbering: the FIRST
  * resolver each tick (detected via the `tick` stamp — pass `world.frame`, constant within a
- * tick and unique across ticks) resets the five flags to its own contacts; later resolvers OR
- * theirs in. So an entity carrying both `tilemap-collide` and `solid-collide` reads
- * `contacts.onGround` as "standing on a tile OR a solid entity", in any behavior order, and a
- * mover (`move-platformer`) sees the union. Writing the flags directly (no stamp) would make
- * whichever resolver ran last win and silently drop the other's contacts.
+ * tick and unique across ticks) resets the five flags to its own contacts; later passes OR
+ * theirs in. So the resolution phase's solid pass and slope pass COMBINE within a tick — a body
+ * reads `contacts.onGround` as "standing on a solid OR a slope" — and a mover (`move-platformer`)
+ * sees the union. Writing the flags directly (no stamp) would make whichever pass ran last win and
+ * silently drop the other's contacts.
  *
  * `onOneWay` merges the same way: true when ANY resolver this tick grounded the body on a
  * one-way platform. A mover reads it to gate "down+jump drops through"; on mixed one-way +
@@ -298,7 +298,7 @@ export function applyContacts(target: { contacts: SolidContacts; contactTick: nu
 
 /**
  * A floor-SLOPE cell fed to {@link resolveSlopes} (0.11.0). `x`/`y`/`w`/`h` are the cell's AABB
- * (top-left + size, exactly as `tilemap-collide` builds for solids); `slopeL`/`slopeR` are the
+ * (top-left + size, exactly as the resolution phase builds a solid cell); `slopeL`/`slopeR` are the
  * walkable surface height in px UP FROM THE CELL BOTTOM at the cell's left/right edge (0 = the
  * cell bottom, `h` = the cell top). The surface is the straight line between them; the cell is
  * solid floor below it. Covers 45° (`0`→`h`) and gentler linear ramps, and tiles seamlessly
@@ -317,7 +317,7 @@ export interface SlopeContact {
 /**
  * Rest a moving AABB's BOTTOM on a tilemap floor-SLOPE surface (INDIE-ROADMAP slopes, 0.11.0) —
  * the non-AABB companion to {@link resolveSolids}, which can't express a surface whose height
- * varies across the body's x-span. `tilemap-collide` runs it as a SECOND pass AFTER the solid
+ * varies across the body's x-span. The resolution phase runs it as a SECOND pass AFTER the solid
  * AABB pass, so it samples the body's already-settled x (a wall at a slope's base has clamped it).
  *
  * It evaluates the surface Y under the body's CENTER x (the standard AABB-on-slope sample point —

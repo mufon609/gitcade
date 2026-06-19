@@ -5,10 +5,10 @@ import { num, strArray, str } from "@gitcade/sdk";
  * Side-scrolling platformer locomotion: horizontal run control, constant gravity, a jump
  * with adjustable strength, and coyote-time (a short grace window after leaving a ledge
  * during which a jump still registers). "Grounded" is true when resting on the world
- * floor OR touching an entity tagged `groundTag` from above OR marked grounded by a
- * resolver (the typed `entity.body.contacts.onGround`, e.g. `tilemap-collide`/`solid-collide`
- * from a tile floor or a crate). SETS velocity each tick — order a `velocity` behavior
- * AFTER this one.
+ * floor OR touching an entity tagged `groundTag` from above OR marked grounded by the
+ * collision-resolution phase (the typed `entity.body.contacts.onGround`, written when an
+ * entity's `collider` rests on a solid tile or solid entity). SETS velocity each tick —
+ * order a `velocity` behavior AFTER this one.
  *
  * 1.2.0 adds the genre-feel layer as OPTIONAL params, each defaulting to a value that
  * reproduces the original fixed-impulse/instant-velocity behavior exactly (a game that
@@ -21,9 +21,8 @@ import { num, strArray, str } from "@gitcade/sdk";
  *  - **apex hang** (`apexGravityMult`/`apexThreshold`): lighter gravity near the top of
  *    the arc for a floatier, more controllable peak.
  *  - **drop-through** (`down`/`dropThroughTime`): down + jump while standing on a one-way
- *    platform (`tilemap-collide`/`solid-collide` set `entity.body.contacts.onOneWay`) opens a
- *    brief window (`entity.body.dropThrough`) in which those resolvers ignore one-way solids,
- *    so the body falls through.
+ *    platform (the resolution phase sets `entity.body.contacts.onOneWay`) opens a brief window
+ *    (`entity.body.dropThrough`) in which the phase ignores one-way solids, so the body falls through.
  *
  * Params:
  *  - `moveSpeed`: horizontal run speed in px/sec (balance → `$cfg`)
@@ -114,10 +113,10 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt, scratch) =
   }
 
   // Grounded test: on the world floor, OR standing on a `groundTag` entity from above,
-  // OR a resolver marked us grounded last tick via the typed `entity.body.contacts.onGround`
-  // flag — the hook that lets the library `tilemap-collide`/`solid-collide` behaviors
-  // (ordered AFTER this one) satisfy the jump test off a TILE floor or a solid body without
-  // this part knowing about them. With nothing setting contacts, `onGround` is false.
+  // OR the collision-resolution phase marked us grounded last tick via the typed
+  // `entity.body.contacts.onGround` flag — the hook that lets a `collider` satisfy the jump
+  // test off a TILE floor or a solid entity without this part knowing about the phase. With
+  // nothing setting contacts (an arcade entity), `onGround` is false.
   const onFloor = entity.y + entity.h >= world.bounds.height && entity.vy >= 0;
   const onGround =
     onFloor ||

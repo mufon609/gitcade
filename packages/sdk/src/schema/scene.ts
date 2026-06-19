@@ -13,18 +13,18 @@ export const TilePropsSchema = z
     buildable: z.boolean().optional(),
     walkable: z.boolean().optional(),
     lane: z.boolean().optional(),
-    /** Solid terrain: the library `tilemap-collide` behavior resolves entity AABBs
-     *  against any cell flagged this (the platformer floor/wall/ceiling). A named
-     *  convenience over the catchall — purely additive (0.7.0). */
+    /** Solid terrain: the collision-resolution phase resolves a `collider` against any cell
+     *  flagged this (the platformer floor/wall/ceiling). A named convenience over the catchall
+     *  — purely additive (0.7.0). */
     solid: z.boolean().optional(),
-    /** One-way (pass-through) platform: `tilemap-collide` lands a FALLING body on a cell
+    /** One-way (pass-through) platform: the resolution phase lands a FALLING body on a cell
      *  flagged this but lets the body jump up THROUGH it and (with the mover's drop-through)
      *  fall down through it — solid on its top face only. A named convenience over the
      *  catchall — purely additive (0.7.0). */
     oneWay: z.boolean().optional(),
     /** Floor-SLOPE surface heights (0.11.0): the walkable surface height in px UP FROM THE
      *  CELL BOTTOM at the cell's LEFT (`slopeL`) / RIGHT (`slopeR`) edge (0 = bottom, tileSize =
-     *  top). A cell with either set is a slope (NOT also `solid`): `tilemap-collide` rests an
+     *  top). A cell with either set is a slope (NOT also `solid`): the resolution phase rests an
      *  entity's bottom on the line between them — `0`→`tileSize` is a 45° ramp, gentler pairs are
      *  shallower, and adjacent cells sharing an edge height tile into one ramp. Purely additive. */
     slopeL: z.number().optional(),

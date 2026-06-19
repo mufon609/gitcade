@@ -9,7 +9,7 @@ repo (the platform pipeline is the CI — locked decision). The platform seed sc
 `repoUrl` list below.
 
 Default branch: `main`. Visibility: public. Current release: all six pin
-`@gitcade/sdk@0.6.0` + `@gitcade/library@0.6.0`.
+`@gitcade/sdk@1.9.0` + `@gitcade/library@1.9.0`.
 
 ## Seed games
 

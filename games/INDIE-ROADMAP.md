@@ -215,11 +215,11 @@ product."
   renderer, kept separate from the follow base so it never disturbs `camera-follow` or
   pointer mapping). Deterministic off `world.rng`; proven by the `platformer-scroll` proof.
   This is the engine replacement for the host-side `ScreenEffects` DOM canvas-translate
-  shake — **the survival-arena adoption is a post-publish one-liner** (it pins `0.6.0` in
-  `package.json` and resolves the installed catalog, so it can't reference the 0.7.0
-  `camera-shake` part until 0.7.0 ships; the swap is `emit("shake", …)` + the system in
-  `play.json`, with flash staying a host overlay). Still open: **hitstop/time-scale,
-  knockback, squash-stretch** (hitstop touches the fixed-step loop → handle carefully). 🟢
+  shake — **the survival-arena adoption is now a one-liner** (it pins `1.9.0`, so the
+  `camera-shake` part is available; the swap is `emit("shake", …)` + the system in
+  `play.json`, with flash staying a host overlay — still to be wired). Still open:
+  **hitstop/time-scale, knockback, squash-stretch** (hitstop touches the fixed-step loop
+  → handle carefully). 🟢
 - **Tweening / easing primitive. ✅ Now in the engine (`tween`).** A behavior that animates
   one numeric property (`x`/`y`/`scale`/`scaleX`/`scaleY`/`rotation`/`opacity`) from a start
   to a target over a duration with an easing curve (linear / in-out-quad / `out-back`

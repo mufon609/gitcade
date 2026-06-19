@@ -18,7 +18,7 @@ export interface Tap {
 }
 
 /**
- * A declarative binding for one logical ACTION (0.4.0, E1 input action layer).
+ * A declarative binding for one logical ACTION (the input action layer).
  * A logical action ("thrust", "move") is satisfiable by ANY of its sources, so a
  * mover reads `world.input.action(name)` / `actionVector(name)` and never cares
  * whether the player used a key, an on-screen button, or a virtual d-pad. This is
@@ -85,8 +85,8 @@ export class Input {
   /** Bounds used to clamp/scale pointer coordinates into world space. */
   private world = { width: 0, height: 0 };
 
-  // Button-less hover CURSOR (0.5.0, E9). The held-pointer set above tracks pressed
-  // pointers (for the G2 click edge); this is the LAST pointer position whether or not a
+  // Button-less hover CURSOR. The held-pointer set above tracks pressed
+  // pointers (for the click edge); this is the LAST pointer position whether or not a
   // button is down — the channel a desktop hover affordance (TD's build preview) needs.
   // Driven by bare `pointermove` (desktop hover has no button) plus pointerdown/up, in the
   // SAME world space as every other pointer channel. null until the first pointer event and
@@ -96,7 +96,7 @@ export class Input {
   // there, and headless never sees a pointer event, so it stays null in tests/validate.
   private lastCursor: { x: number; y: number } | null = null;
 
-  // One-frame pointer edge buffers (G2). Real pointer events arrive asynchronously
+  // One-frame pointer edge buffers. Real pointer events arrive asynchronously
   // BETWEEN fixed ticks; they are captured here and exposed for exactly the next
   // tick, then cleared by endFrame() at tick end — so a behavior/system sees a
   // deterministic, reproducible click edge (the same model the harness drives with
@@ -104,7 +104,7 @@ export class Input {
   private pressedThisFrame: Tap[] = [];
   private releasedThisFrame: Tap[] = [];
 
-  // Logical-action layer (0.4.0, E1). `actionBindings` are declarative (installed
+  // Logical-action layer. `actionBindings` are declarative (installed
   // from scene DATA by the library `input-actions` system each tick); `actionOverrides`
   // are host-pushed (a DOM button calling setAction). Both are SCENE-SCOPED — cleared
   // by `resetActions()` on every scene change (called from Game.loadScene) — and
@@ -163,7 +163,7 @@ export class Input {
 
   /**
    * The last known pointer position in WORLD coordinates, button held or NOT — the
-   * button-less hover channel (0.5.0, E9). Desktop mouse-move drives it (a bare
+   * button-less hover channel. Desktop mouse-move drives it (a bare
    * `pointermove` with no button is exactly this), so a hover affordance can track the
    * cursor without the game hand-rolling its own `pointermove` listener + screen→world
    * transform. Returns `null` until the first pointer event and after the cursor leaves
@@ -184,7 +184,7 @@ export class Input {
     this.releasedThisFrame.length = 0;
   }
 
-  // --- Logical-action layer (0.4.0, E1) --------------------------------------
+  // --- Logical-action layer ----------------------------------------------------
 
   /**
    * Install/merge declarative action bindings. Idempotent — the library
@@ -330,7 +330,7 @@ export class Input {
         // A held touch-button override (setAction) must release on focus loss too,
         // just like a held key — otherwise the action sticks "on" forever.
         this.actionOverrides.clear();
-        // The cursor is no longer over the game — drop the hover position (E9).
+        // The cursor is no longer over the game — drop the hover position.
         this.lastCursor = null;
       };
       keyTarget.addEventListener("keydown", onDown);
@@ -354,7 +354,7 @@ export class Input {
       const upsert = (e: PointerEvent, down: boolean) => {
         const { x, y } = toWorld(e.clientX, e.clientY);
         this.pointers.set(e.pointerId, { id: e.pointerId, x, y, down });
-        // The held pointer's position is also the live cursor position (E9) — so a drag
+        // The held pointer's position is also the live cursor position — so a drag
         // keeps the hover cursor fresh, not just a button-less mouse-move.
         this.lastCursor = { x, y };
       };
@@ -379,7 +379,7 @@ export class Input {
         if (this.pointers.has(e.pointerId)) {
           upsert(e, this.pointers.get(e.pointerId)!.down); // tracked (held) pointer — also refreshes lastCursor
         } else {
-          // A button-less hover move (E9): no held pointer to update, but the cursor
+          // A button-less hover move: no held pointer to update, but the cursor
           // position still advances for world.input.cursor().
           this.lastCursor = toWorld(e.clientX, e.clientY);
         }
@@ -393,7 +393,7 @@ export class Input {
       };
       // The cursor left the canvas — drop the hover position so a hover-driven affordance
       // (build preview) hides, matching the old host `pointerleave → delete buildHover`
-      // bridge (E9). Boundary events are suppressed while a pointer is captured, so a drag
+      // bridge. Boundary events are suppressed while a pointer is captured, so a drag
       // OFF the canvas keeps lastCursor live; this fires on a true leave or after a touch
       // releases capture (pointerup → leave), so touch reports null after its tap.
       const onPLeave = () => {
@@ -421,7 +421,7 @@ export class Input {
     this.pointers.clear();
     this.pressedThisFrame.length = 0;
     this.releasedThisFrame.length = 0;
-    this.lastCursor = null; // E9: no listeners ⇒ no live cursor
+    this.lastCursor = null; // no listeners ⇒ no live cursor
     this.resetActions();
   }
 }

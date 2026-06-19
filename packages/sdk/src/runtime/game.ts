@@ -40,10 +40,10 @@ export interface GameOptions {
   fixedDt?: number;
   /** Attach DOM input listeners on start (default: true when a canvas is present). */
   attachInput?: boolean;
-  /** Cross-run persistence binding (from `manifest.persist`); surfaced on `world.persist` (G6). */
+  /** Cross-run persistence binding (from `manifest.persist`); surfaced on `world.persist`. */
   persist?: PersistConfig;
   /**
-   * Ordered level sequence (from `manifest.levels`, E11). Enables the reserved
+   * Ordered level sequence (from `manifest.levels`). Enables the reserved
    * `flow.on` targets `"@next"`/`"@first"` and makes the runtime set
    * `world.state.level` to the active scene's 1-based position in this list.
    */
@@ -51,14 +51,14 @@ export interface GameOptions {
   /** Scene to route to when `"@next"` advances past the last level (`manifest.levelsComplete`). */
   levelsComplete?: string;
   /**
-   * Keys (`KeyboardEvent.code`) that toggle the manual pause (E4). Detected in the
+   * Keys (`KeyboardEvent.code`) that toggle the manual pause. Detected in the
    * rAF loop — which keeps running while paused — so a frozen game can still be
    * UNpaused (a behavior/system can't, since it's frozen). Default: none.
    */
   pauseKeys?: string[];
   /**
    * Scene ids where {@link togglePause} may PAUSE; omit ⇒ any scene. Unpausing is
-   * always allowed, so a pause can never be stranded by a scene change (E4).
+   * always allowed, so a pause can never be stranded by a scene change.
    */
   pauseScenes?: string[];
 }
@@ -79,12 +79,12 @@ interface SystemInstance {
  *   2. run systems in scene order (collision detection first)
  *   3. run each entity's behaviors in array order
  *   4. prune destroyed entities
- *   5. resolve dynamic bodies — push every `collider` out of the solid world (1.1.0; no-op when
+ *   5. resolve dynamic bodies — push every `collider` out of the solid world (no-op when
  *      no entity has a collider, so the frozen 1–4 order is unchanged for every arcade scene)
- *   6. resolve the entity hierarchy — parented entities' world transforms (0.9.0; no-op when
- *      no entity has a parent, so the frozen 1–4 order is unchanged for every pre-0.9 scene)
+ *   6. resolve the entity hierarchy — parented entities' world transforms (no-op when
+ *      no entity has a parent, so the frozen 1–4 order is unchanged for a parentless scene)
  * Rendering happens once per animation frame, after the fixed-update catch-up loop, INTERPOLATED
- * between the last two ticks (1.8.0) by the leftover-accumulator fraction so motion stays smooth when
+ * between the last two ticks by the leftover-accumulator fraction so motion stays smooth when
  * the rAF rate doesn't divide the sim rate. Interpolation is render-only — the simulation is unchanged
  * and headless play (`stepFrames`, the validator/replays) never renders, so it stays byte-identical.
  */
@@ -109,19 +109,19 @@ export class Game {
   private rafId: number | null = null;
   /** Teardown for the visibilitychange listener installed by start(). */
   private detachLifecycle: (() => void) | null = null;
-  /** Pause-toggle keys + the guard scene set + the loop's edge-detect state (E4). */
+  /** Pause-toggle keys + the guard scene set + the loop's edge-detect state. */
   private readonly pauseKeys: string[];
   private readonly pauseScenes: string[] | null;
   private pauseKeyWasDown = false;
-  /** Unsubscribers for the active scene's `flow.on` event edges, torn down on scene change (G1). */
+  /** Unsubscribers for the active scene's `flow.on` event edges, torn down on scene change. */
   private flowUnsubs: Array<() => void> = [];
-  /** Ordered level sequence + completion target (E11); empty list ⇒ no campaign concept. */
+  /** Ordered level sequence + completion target; empty list ⇒ no campaign concept. */
   private readonly levels: string[];
   private readonly levelsComplete?: string;
 
   constructor(opts: GameOptions) {
     if (opts.scenes.length === 0) throw new Error("Game requires at least one scene");
-    // Resolve scene inheritance (E11) BEFORE indexing, so the map, the entry scene,
+    // Resolve scene inheritance BEFORE indexing, so the map, the entry scene,
     // and every transition see fully-merged scenes — `extends` is invisible past here.
     const scenes = resolveSceneInheritance(opts.scenes);
     this.scenes = new Map(scenes.map((s) => [s.id, s]));
@@ -142,7 +142,7 @@ export class Game {
 
     this.world = new World({
       // WORLD bounds = the entry scene's `world` (the scrollable area) or its `size`
-      // (viewport) when unset (0.7.0). loadScene re-applies this per scene + sets the
+      // (viewport) when unset. loadScene re-applies this per scene + sets the
       // camera viewport; this initial value just keeps a freshly-built world coherent.
       bounds: {
         width: (this.scene.world ?? this.scene.size).width,
@@ -181,18 +181,17 @@ export class Game {
   /**
    * Build the world for a scene id (entities + resolved systems).
    *
-   * 0.2.0 (G1): preserves an explicit `persist` set across the transition instead
-   * of always wiping `world.state`. The preserved keys are the LEAVING scene's
-   * `flow.persist` plus any `opts.keepExtra` (the per-hop `requestScene({ keep })`
-   * set). With neither — exactly the 0.1.x case, since old scenes have no `flow`
-   * and host callers pass no `keepExtra` — the keep set is empty and this is a
-   * byte-identical full wipe.
+   * Preserves an explicit `persist` set across the transition instead of always
+   * wiping `world.state`. The preserved keys are the LEAVING scene's `flow.persist`
+   * plus any `opts.keepExtra` (the per-hop `requestScene({ keep })` set). With
+   * neither — a scene with no `flow` whose host callers pass no `keepExtra` — the
+   * keep set is empty and this is a full wipe.
    */
   loadScene(sceneId: string, opts?: { keepExtra?: string[] }): void {
     const scene = this.scenes.get(sceneId);
     if (!scene) throw new Error(`scene "${sceneId}" not found`);
 
-    // Carry the kept slice of state across the transition (G1). prevPersist comes
+    // Carry the kept slice of state across the transition. prevPersist comes
     // from the scene we are LEAVING; keepExtra from the requesting part.
     const prevPersist = this.scene?.flow?.persist ?? [];
     const keep = new Set([...prevPersist, ...(opts?.keepExtra ?? [])]);
@@ -205,7 +204,7 @@ export class Game {
     // re-entering a scene never accumulates duplicate listeners on the shared bus.
     for (const off of this.flowUnsubs) off();
     this.flowUnsubs = [];
-    // Drop every SCENE-SCOPED event listener (world.events.onScene, E10) the same way —
+    // Drop every SCENE-SCOPED event listener (world.events.onScene) the same way —
     // the engine generalization of the per-part "attach once" WeakMap dedup, so an
     // event-driven system re-attaching on "Play again" can't double-fire. Game-lifetime
     // `on` listeners (the flow edges torn down just above, host glue) are untouched.
@@ -215,29 +214,29 @@ export class Game {
     this.world.entities = [];
     for (const key of Object.keys(this.world.state)) delete this.world.state[key];
     Object.assign(this.world.state, carried);
-    // Unify the difficulty counter with the stage index (E11): when the entered
+    // Unify the difficulty counter with the stage index: when the entered
     // scene is part of the manifest's `levels` sequence, `world.state.level` is its
     // 1-based position. So advancing a stage bumps the same `level` that
     // `scale-by-state`/`level-progression` read — a per-stage difficulty ramp comes
     // for free, with no per-scene config. Games without `levels` never see this key.
     const levelIdx = this.levels.indexOf(scene.id);
     if (levelIdx >= 0) this.world.state.level = levelIdx + 1;
-    // The persistence-restore tracking (0.2.1 claim set + 0.3.1 restored set/waiters)
+    // The persistence-restore tracking (the claim set + the restored set/waiters)
     // is scene-scoped — the active scene owns its persistence/seed systems — so reset
     // it on every transition. Using the dedicated reset (not resolvePersistKeys) means
     // a scene change does NOT emit a spurious "persist-restored" for leftover claims.
     this.world.resetPersistTracking();
-    // Logical-action bindings/overrides are scene-scoped too (E1): the active scene
+    // Logical-action bindings/overrides are scene-scoped too: the active scene
     // owns its `input-actions` system, which re-installs them on its first tick.
     this.world.input.resetActions();
     this.world.tilemap = scene.tilemap;
-    // Decouple WORLD bounds from the VIEWPORT (0.7.0). `scene.size` is the viewport
+    // Decouple WORLD bounds from the VIEWPORT. `scene.size` is the viewport
     // the canvas shows; `scene.world` (optional) is the larger simulation area a
     // camera pans across. Behaviors clamp/floor against `world.bounds`; the camera
     // viewport size is the canvas size; pointer→world mapping stays in viewport space.
     // Reset the camera to the origin on every scene load (a new level starts top-left;
-    // a `camera-follow` system repositions it on tick 1). With no `scene.world` this is
-    // byte-identical to pre-0.7 (bounds == viewport, camera at {0,0}). NOTE: the canvas
+    // a `camera-follow` system repositions it on tick 1). With no `scene.world`,
+    // bounds == viewport and the camera sits at {0,0}. NOTE: the canvas
     // backing store is sized once from the ENTRY scene, so a game's scenes should share
     // one viewport size (`scene.size`); only the world bounds vary per level.
     const viewport = scene.size;
@@ -266,7 +265,7 @@ export class Game {
 
     // Install the data-driven flow edges: emitting `evt` queues a transition to
     // `target` (drained between ticks, like any requestScene). No host JS needed.
-    // A reserved token (`@next`/`@first`, E11) is resolved against `levels` at emit
+    // A reserved token (`@next`/`@first`) is resolved against `levels` at emit
     // time so a level never hard-wires its successor.
     for (const [evt, target] of Object.entries(scene.flow?.on ?? {})) {
       this.flowUnsubs.push(
@@ -279,7 +278,7 @@ export class Game {
   }
 
   /**
-   * Resolve a reserved level-sequence flow target (E11) against `manifest.levels`,
+   * Resolve a reserved level-sequence flow target against `manifest.levels`,
    * keyed on the ACTIVE scene. `"@first"` ⇒ the first level. `"@next"` ⇒ the level
    * after the active one, or `levelsComplete` past the last, or the first level when
    * emitted from a non-level scene (a title/menu "start" edge). Returns `null` (a
@@ -300,7 +299,7 @@ export class Game {
   }
 
   /**
-   * Advance to the next level in the manifest sequence (E11) — the programmatic
+   * Advance to the next level in the manifest sequence — the programmatic
    * companion to the `"@next"` flow token, for a host driving progression directly.
    * Queues the transition like any {@link World.requestScene}; no-op without a
    * resolvable next level.
@@ -316,7 +315,7 @@ export class Game {
     this.world.frame += 1;
     this.world.time += dt;
 
-    // Snapshot the camera's pre-tick position (1.8.0 render interpolation) BEFORE systems run — a
+    // Snapshot the camera's pre-tick position (for render interpolation) BEFORE systems run — a
     // `camera-follow` system moves it this tick, so this captures its start so the renderer can lerp the
     // scroll base between ticks. Render-only; the simulation never reads it (headless stays byte-identical).
     this.world.camera.prevX = this.world.camera.x;
@@ -324,9 +323,9 @@ export class Game {
 
     // Snapshot each entity's pre-tick RENDER TRANSFORM (position + rotation + scale) and clear its
     // collision list in one pass. `body.prevX`/`body.prevY` let a carry behavior read a moving solid's
-    // per-tick world delta (`x - body.prevX`) later this tick; the whole snapshot (incl. rotation/scale,
-    // 1.10.0) is what the renderer interpolates between the last two ticks (1.8.0 was position-only, so a
-    // spinning/scaling entity still juddered). Clearing collisions readies the list for this tick's
+    // per-tick world delta (`x - body.prevX`) later this tick; the whole snapshot (incl. rotation/scale)
+    // is what the renderer interpolates between the last two ticks, so a spinning/scaling entity stays
+    // smooth and not just a translating one. Clearing collisions readies the list for this tick's
     // detection. (Done together to avoid a second full sweep of the entity array.)
     for (const e of this.world.entities) {
       e.body.prevX = e.x;
@@ -347,22 +346,22 @@ export class Game {
     }
 
     this.world.prune();
-    // Resolve every dynamic body against the solid world (1.1.0 unified collision phase): push
+    // Resolve every dynamic body against the solid world (the unified collision phase): push
     // dynamic colliders out of solid tiles + solid entities, in one owned pass. Appended after
     // prune, BEFORE resolveHierarchy (so a parented child follows a RESOLVED parent) — it does NOT
     // reorder the frozen 1–4 in-tick sequence, and no-ops entirely when no entity has a collider,
     // so an arcade scene is byte-identical.
     this.world.resolveBodies();
-    // Resolve the entity hierarchy (0.9.0 scene graph): derive each parented entity's WORLD
+    // Resolve the entity hierarchy (the scene graph): derive each parented entity's WORLD
     // transform from its parent's settled position THIS tick. Appended after prune (operates on
     // live entities) — it does NOT reorder the frozen 1–4 in-tick sequence, and no-ops entirely
     // when no entity has a parent, so a parentless scene renders byte-identically.
     this.world.resolveHierarchy();
     this.world.events.clear();
-    // Clear the one-frame pointer edge buffers (G2) — an edge lives exactly one tick.
+    // Clear the one-frame pointer edge buffers — an edge lives exactly one tick.
     this.world.input.endFrame();
 
-    // Drain a queued scene change AFTER the tick (G1, OQ-5). Doing it here — not in
+    // Drain a queued scene change AFTER the tick. Doing it here — not in
     // start()'s rAF loop — means every caller (rAF, stepFrames, the harness/validator
     // driving update() directly) observes transitions, and the switch never happens
     // mid-tick, so the frozen in-tick order is untouched. A transition takes effect
@@ -424,7 +423,7 @@ export class Game {
     const loop = (): void => {
       if (!this.running) return;
       // Poll the pause key(s) BEFORE the paused gate, so a fresh press can UNpause a
-      // frozen game (the DOM key listeners keep the held set live while paused). (E4)
+      // frozen game (the DOM key listeners keep the held set live while paused).
       this.pollPauseKeys();
       if (this.paused) {
         // Keep the clock current so unpausing doesn't replay the paused span.
@@ -441,7 +440,7 @@ export class Game {
         this.accumulator -= this.fixedDt;
       }
       // Render with the leftover-accumulator fraction so bodies/camera draw interpolated between the
-      // last two fixed ticks (1.8.0) — smooth motion when this rAF frame ran 0, 1, or N sim ticks.
+      // last two fixed ticks — smooth motion when this rAF frame ran 0, 1, or N sim ticks.
       this.render(this.accumulator / this.fixedDt);
       this.rafId = requestAnimationFrame(loop);
     };
@@ -473,7 +472,7 @@ export class Game {
   }
 
   /**
-   * Toggle the manual pause (E4) — the data-ish pause primitive that replaces each
+   * Toggle the manual pause — the data-ish pause primitive that replaces each
    * game's bespoke pause state machine. Honors `pauseScenes` (can't PAUSE a disallowed
    * scene, but can always UNpause, so a pause is never stranded by a scene change),
    * flips the sim freeze via {@link pause}/{@link resume}, and emits a `"pause-changed"`
@@ -493,7 +492,7 @@ export class Game {
    * Edge-detect the configured `pauseKeys` from the live held-key set and toggle on a
    * fresh press. Called by the rAF loop BEFORE the paused gate every frame — the DOM
    * key listeners keep the held set current even while the sim is frozen, so this is the
-   * one place an unpause can originate (E4). No-op when no pauseKeys are configured.
+   * one place an unpause can originate. No-op when no pauseKeys are configured.
    */
   private pollPauseKeys(): void {
     if (this.pauseKeys.length === 0) return;

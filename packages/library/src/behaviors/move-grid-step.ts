@@ -23,11 +23,11 @@ interface Dir {
  *  - `up`/`down`/`left`/`right`: key-code arrays (defaults: arrows + WASD)
  *  - `continuous`: keep moving without input, Snake-style (default true)
  *  - `snap`: snap position to the tile grid on each step (default true)
- *  - `moveAction`: optional logical-action name (E1, 1.1.0). When set, intent is read
- *    from `world.input.actionVector(moveAction)` (keyboard axis OR a touch d-pad zone,
+ *  - `moveAction`: optional logical-action name. When set, intent is read from
+ *    `world.input.actionVector(moveAction)` (keyboard axis OR a touch d-pad zone,
  *    unified by the `input-actions` system) and the DOMINANT axis becomes the next
- *    heading — so a touch player steers without the game synthesizing arrow keys. Unset
- *    ⇒ the original `up`/`down`/`left`/`right` key path, byte-identical.
+ *    heading — so a touch player steers without the game synthesizing arrow keys.
+ *    Unset ⇒ the `up`/`down`/`left`/`right` key path.
  */
 export const moveGridStep: BehaviorFn = (entity, world, params, dt, scratch) => {
   const s = scratch!; // per-instance scratch (host-provided): last-stepped heading + step timer
@@ -46,14 +46,14 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt, scratch) => 
   // so two perpendicular taps inside one step window each pass the guard against the
   // other's intermediate value and sum to a self-reversing step (the snake folds
   // into its neck). `s.gridStep` is the heading actually stepped last; it only
-  // changes when a step fires, so only the committed heading counts. (B-2)
+  // changes when a step fires, so only the committed heading counts.
   const stepped = (s.gridStep ??= { x: dir.x, y: dir.y }) as Dir;
 
   // Read intent; reject reversals in continuous mode (can't fold the snake back).
-  // With `moveAction` (E1) intent comes from the logical-action VECTOR — keyboard
-  // axis OR a touch d-pad zone, unified — and the dominant axis is the heading; an
-  // axis tie resolves to vertical, preserving the key path's up/down>left/right
-  // precedence. Without it, the original first-match key reading (byte-identical).
+  // With `moveAction` intent comes from the logical-action VECTOR — keyboard axis OR
+  // a touch d-pad zone, unified — and the dominant axis is the heading; an axis tie
+  // resolves to vertical, preserving the key path's up/down>left/right precedence.
+  // Without it, the first-match key reading.
   const moveAction = str(params, "moveAction", "");
   let want: Dir | null = null;
   if (moveAction) {
@@ -88,7 +88,7 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt, scratch) => 
   if (!stepping) return;
 
   // Record the heading we actually step in — this is what the next window's
-  // reversal guard compares against. (B-2)
+  // reversal guard compares against.
   stepped.x = dir.x;
   stepped.y = dir.y;
 

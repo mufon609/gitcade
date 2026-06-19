@@ -6,11 +6,11 @@ import type { ShapeSprite, SheetSprite, TextSprite } from "../schema/sprite.js";
 /** A minimal 2D context surface (subset we use), so types don't require lib.dom everywhere. */
 type Ctx = CanvasRenderingContext2D;
 
-/** Viewport CULL RECT in WORLD coords (left/top/right/bottom) — the window tiles & entities draw into (1.10.1). */
+/** Viewport CULL RECT in WORLD coords (left/top/right/bottom) — the window tiles & entities draw into. */
 type CullRect = { l: number; t: number; r: number; b: number };
 
 /**
- * The render-interpolation offset (1.8.0) from a body/camera's CURRENT (latest-tick) position on one
+ * The render-interpolation offset from a body/camera's CURRENT (latest-tick) position on one
  * axis: `(prev − cur) · (1 − alpha)`, i.e. draw it lerped between the last two ticks (`prev` at
  * `alpha 0`, `cur` at `alpha 1`) — up to one frame behind the sim, the classic fixed-timestep
  * smoothing that kills judder when rAF doesn't divide the sim rate. Returns 0 (draw at `cur`, no
@@ -25,8 +25,8 @@ function interpOffset(prev: number, cur: number, alpha: number, snap: number): n
 }
 
 /**
- * Interpolate a ROTATION (radians) between its last two tick values along the SHORTEST arc (1.10.0,
- * the rotation half of render interpolation). A plain lerp is WRONG for an angle: `face-angle` writes
+ * Interpolate a ROTATION (radians) between its last two tick values along the SHORTEST arc (the
+ * rotation half of render interpolation). A plain lerp is WRONG for an angle: `face-angle` writes
  * `atan2(...)`, which jumps +π→−π across its branch cut (a turret tracking a target crossing behind it,
  * a projectile turning), and a `tween` spin wraps 2π→0 each revolution — a linear lerp would unwind the
  * whole way around backward. Normalizing `prev − cur` into (−π, π] interpolates the short way, so the wrap
@@ -40,7 +40,7 @@ function lerpAngle(prev: number, cur: number, alpha: number): number {
 }
 
 /**
- * Interpolate a per-axis SCALE between its last two tick values (1.10.0, the scale half of render
+ * Interpolate a per-axis SCALE between its last two tick values (the scale half of render
  * interpolation). SNAPS (draws at `cur`, no interpolation) when the sign flips or crosses zero
  * (`prev * cur <= 0`): `face-velocity` flips `scaleX` SIGN instantly (+mag ↔ −mag) to mirror a sprite,
  * and lerping across that passes through 0 — collapsing the sprite to a line for a frame. A same-sign
@@ -55,11 +55,11 @@ function lerpScale(prev: number, cur: number, alpha: number): number {
 const TILE_FALLBACK_COLORS = ["#2a2f3a", "#3a3030", "#30343a", "#2f3a30", "#3a3a2f", "#352f3a"];
 
 /** Subtle per-cell gridline for the no-tileset tilemap fallback, so a map reads as
- *  structured cells rather than one flat slab (0.3.1, td-09). */
+ *  structured cells rather than one flat slab. */
 const TILE_GRID_COLOR = "rgba(255,255,255,0.06)";
 
 /**
- * Viewport-cull safety margin in px (1.10.1 viewport culling). The cull rect is the viewport grown by
+ * Viewport-cull safety margin in px (viewport culling). The cull rect is the viewport grown by
  * this on every side. `camX`/`camY` already fold in the camera's render interpolation AND shake (they
  * ARE the translate basis), and every entity is tested at its INTERPOLATED center with a transform-aware
  * radius — so this margin exists ONLY to absorb the ≤0.5px slop from the `Math.round(camX/camY)` at the
@@ -90,10 +90,10 @@ export class Renderer {
   }
 
   /**
-   * Draw the world. `alpha` (1.8.0 render interpolation) is how far into the NEXT fixed tick the real
+   * Draw the world. `alpha` (render interpolation) is how far into the NEXT fixed tick the real
    * clock has advanced (`accumulator / fixedDt`, in [0,1)); the renderer draws each body and the camera
    * lerped between the last two ticks, so motion is smooth even when the rAF rate doesn't divide the 60 Hz
-   * sim rate (the judder fix). The FULL render transform is interpolated (1.10.0): position
+   * sim rate (the judder fix). The FULL render transform is interpolated: position
    * (`body.prevX/prevY` → `x/y`), rotation (`body.prevRotation` → `rotation`, shortest-arc), and per-axis
    * scale (`body.prevScaleX/Y` → `scaleX/Y`, flip-snapped) — so a spinning `face-angle` sprite or a scaling
    * `tween` is as smooth as a moving one. DEFAULT 1 ⇒ draw at the latest sim transform, byte-identical to
@@ -105,7 +105,7 @@ export class Renderer {
     if (!ctx) return;
     // The VIEWPORT (camera) size — what the canvas shows. Falls back to world bounds
     // for a hand-built world without a camera. With no scrolling these are equal, so
-    // a camera-less scene renders exactly as before (0.7.0).
+    // a camera-less scene renders exactly as before.
     const cam = world.camera;
     const vw = cam ? cam.width : world.bounds.width;
     const vh = cam ? cam.height : world.bounds.height;
@@ -119,11 +119,11 @@ export class Renderer {
     // backdrop stays fixed behind the scrolling world.
     this.drawBackground(ctx, world, background, vw, vh);
 
-    // Camera transform (0.7.0): pan the world under the viewport, including any transient shake OFFSET
+    // Camera transform: pan the world under the viewport, including any transient shake OFFSET
     // (`shakeX`/`shakeY`, kept separate from the follow base). The follow BASE is interpolated between
-    // ticks (1.8.0) so scrolling is smooth; shake (already a per-frame jitter) rides on top
-    // un-interpolated. Skipped at the origin so a non-scrolling, non-shaking scene takes the exact
-    // pre-0.7 path (no save/translate), and rounded to whole px so tiles/sprites stay crisp.
+    // ticks so scrolling is smooth; shake (already a per-frame jitter) rides on top
+    // un-interpolated. Skipped at the origin so a non-scrolling, non-shaking scene takes the
+    // no-save/translate path, and rounded to whole px so tiles/sprites stay crisp.
     const camX = cam ? cam.x + interpOffset(cam.prevX ?? cam.x, cam.x, alpha, snap) + (cam.shakeX ?? 0) : 0;
     const camY = cam ? cam.y + interpOffset(cam.prevY ?? cam.y, cam.y, alpha, snap) + (cam.shakeY ?? 0) : 0;
     const scrolled = cam != null && (camX !== 0 || camY !== 0);
@@ -132,7 +132,7 @@ export class Renderer {
       ctx.translate(-Math.round(camX), -Math.round(camY));
     }
 
-    // Viewport CULL RECT (1.10.1): the world-space window the canvas actually shows. camX/camY already
+    // Viewport CULL RECT: the world-space window the canvas actually shows. camX/camY already
     // include the camera's interpolation + shake (the exact translate basis), grown by CULL_MARGIN for
     // the Math.round slop. drawTilemap iterates only the cells inside it; an entity outside it is skipped
     // by {@link inView}. With no camera / no scroll the viewport spans the whole world, so the rect covers
@@ -165,7 +165,7 @@ export class Renderer {
   }
 
   /**
-   * Is entity `e` inside the viewport CULL RECT (1.10.1 viewport culling) — i.e. should it be drawn?
+   * Is entity `e` inside the viewport CULL RECT (viewport culling) — i.e. should it be drawn?
    * Skips an entity whose conservative drawn AABB is FULLY outside the rect — a SUPERSET test: it only
    * ever drops draw calls for geometry off-screen, never one with a visible pixel.
    *
@@ -198,16 +198,16 @@ export class Renderer {
   }
 
   /**
-   * Draw the active scene's tilemap (0.2.0, OQ-3) UNDER the entities, so a scene's
+   * Draw the active scene's tilemap (OQ-3) UNDER the entities, so a scene's
    * road/lanes are one data tilemap — drawn AND queried (`world.isBuildable`) with
    * no entity/tilemap double-encoding. No-op when the scene has no tilemap, so a
-   * 0.1.x scene renders exactly as before. When a `tileset` image is supplied each
+   * tilemap-less scene renders exactly as before. When a `tileset` image is supplied each
    * non-empty index is blitted from the sheet; without one (or before it loads)
    * non-empty tiles fall back to a per-index fill — tinted by the cell's
    * `properties[idx].color` when authored (else a muted default) and outlined with a
    * subtle per-cell gridline, so a tileset-less map reads as structured terrain
-   * rather than a flat slab (0.3.1, td-09 — additive; `color` rides the existing
-   * `properties` catchall, no schema change).
+   * rather than a flat slab (td-09 — `color` rides the existing `properties`
+   * catchall, no schema change).
    */
   private drawTilemap(ctx: Ctx, world: World, cull: CullRect): void {
     const t = world.tilemap;
@@ -215,7 +215,7 @@ export class Renderer {
     const sheet = t.tileset ? this.loadImage(t.tileset) : null;
     const sheetReady = !!sheet && sheet.complete && sheet.naturalWidth > 0;
     const sheetCols = sheetReady ? Math.max(1, Math.floor(sheet!.naturalWidth / t.tileSize)) : 1;
-    // Viewport CULL WINDOW (1.10.1): iterate only the cells intersecting the cull rect, not the whole
+    // Viewport CULL WINDOW: iterate only the cells intersecting the cull rect, not the whole
     // map — this is the one real fix for large worlds (the loop was O(cols×rows) every frame regardless
     // of what's on screen). floor/ceil + clamp give a SUPERSET of the visible cells (an off-canvas cell
     // at the ±CULL_MARGIN edge is harmless — the canvas clips it to identical pixels), so no visible tile
@@ -252,14 +252,12 @@ export class Renderer {
 
   /**
    * Draw the scene background: the solid `color` fill, then any declarative
-   * `background.layers` as scrolling/parallax image planes (0.3.1, B). Each layer
+   * `background.layers` as scrolling/parallax image planes. Each layer
    * is an image tiled to cover the viewport and drifted by `scrollX`/`scrollY`
    * px-per-second against `world.time` — so the same data renders identically at
    * any frame rate, and a fixed-camera scene just uses `scrollX:0`. The `layers`
-   * descriptor has been in the FROZEN scene schema since 0.2.0 (parallax slot); the
-   * 0.3.0 renderer only filled `color` and silently dropped layers — this honors
-   * them with NO schema change (additive renderer, engine-root snake-05/breakout-05/
-   * helicopter/survival-arena). For background depth, prefer this over a full-field
+   * descriptor is part of the FROZEN scene schema (the parallax slot), honored here
+   * with NO schema change. For background depth, prefer this over a full-field
    * image entity: it stays declarative and needs no host scroll glue.
    */
   private drawBackground(ctx: Ctx, world: World, bg: Background | undefined, w: number, h: number): void {
@@ -302,19 +300,16 @@ export class Renderer {
   }
 
   private drawEntity(ctx: Ctx, e: Entity, world: World, alpha = 1): void {
-    // Honor the entity transform (0.3.2). `rotation` (radians, clockwise) and
+    // Honor the entity transform. `rotation` (radians, clockwise) and
     // `scaleX`/`scaleY` are in the FROZEN entity schema (`rotation`/`scale`) and
-    // populated on the runtime Entity since the schema froze, but the 0.3.x
-    // renderer drew everything axis-aligned and unscaled — a declared-but-ignored
-    // slot, exactly like `background.layers` before 0.3.1. We now apply it around
-    // the entity's CENTER so a sprite spins/scales in place. Collision and
-    // `entityAt` still use the un-rotated AABB (`collision.ts`, `world.ts`), so
-    // this is PURELY visual — no contract/shape change. The transform is skipped
-    // entirely at the identity (rotation 0, scale 1), so an entity that never sets
-    // them renders byte-identically to before; only `ctx.translate/rotate/scale`
-    // are used, which any real 2D context provides.
+    // populated on the runtime Entity, applied here around the entity's CENTER so a
+    // sprite spins/scales in place. Collision and `entityAt` still use the un-rotated
+    // AABB (`collision.ts`, `world.ts`), so this is PURELY visual — no contract/shape
+    // change. The transform is skipped entirely at the identity (rotation 0, scale 1),
+    // so an entity that never sets them renders byte-identically to an untransformed
+    // draw; only `ctx.translate/rotate/scale` are used, which any real 2D context provides.
     //
-    // Render interpolation (1.10.0): rotation and scale are drawn lerped between the last two ticks by
+    // Render interpolation: rotation and scale are drawn lerped between the last two ticks by
     // `alpha` — rotation along the shortest arc, scale flip-snapped (see {@link lerpAngle}/{@link lerpScale})
     // — the rotation/scale half of the position interpolation the render loop applies as a translate.
     // At `alpha 1` (the default + every headless/byte-identical caller) these collapse to the raw
@@ -325,10 +320,9 @@ export class Renderer {
     const sx = alpha < 1 ? lerpScale(e.body.prevScaleX, e.scaleX, alpha) : e.scaleX;
     const sy = alpha < 1 ? lerpScale(e.body.prevScaleY, e.scaleY, alpha) : e.scaleY;
     const transformed = rot !== 0 || sx !== 1 || sy !== 1;
-    // Honor entity opacity (0.7.0): apply it as `globalAlpha`. Another declared-but-ignored
-    // slot — `opacity`/`alpha` are whitelisted yet drawEntity never set globalAlpha, exactly
-    // like rotation/scale before 0.3.2. Multiplied (so it composes with any ambient alpha)
-    // and clamped to [0,1]; skipped at 1 so an opaque entity (the default) is byte-identical.
+    // Honor entity opacity: apply it as `globalAlpha`. `opacity`/`alpha` is whitelisted in the
+    // schema, applied here multiplied (so it composes with any ambient alpha) and clamped to
+    // [0,1]; skipped at 1 so an opaque entity (the default) is byte-identical.
     // Lets a behavior fade / damage-flash / i-frame-flicker an entity.
     const faded = e.opacity < 1;
     if (transformed || faded) ctx.save();

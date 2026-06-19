@@ -59,7 +59,7 @@ describe("ui/touch behaviors (no pointers headless → idle, no throw)", () => {
   });
 });
 
-describe("ui/key-emit (E3)", () => {
+describe("ui/key-emit", () => {
   const DT = 1 / 60;
   function setKey(world: ReturnType<typeof makeWorld>, down: boolean) {
     (world.input as unknown as { anyDown: (c: string[]) => boolean }).anyDown = () => down;

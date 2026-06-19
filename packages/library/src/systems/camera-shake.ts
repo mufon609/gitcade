@@ -5,8 +5,8 @@ import { systemState } from "../util.js";
 /**
  * `camera-shake` — data-triggered screenshake / camera juice (INDIE-ROADMAP Tier-2). On a
  * named EVENT it starts a decaying shake, writing a transient random offset to the runtime
- * `world.camera.shakeX`/`shakeY` each tick; the renderer adds that offset to the camera
- * (0.7.0), so the view shakes whether or not the scene scrolls. The offset is kept SEPARATE
+ * `world.camera.shakeX`/`shakeY` each tick; the renderer adds that offset to the camera,
+ * so the view shakes whether or not the scene scrolls. The offset is kept SEPARATE
  * from `camera.x`/`y`, so it never corrupts a `camera-follow` base or the pointer→world
  * mapping. This is the engine replacement for the old host-side DOM canvas-translate shake.
  *

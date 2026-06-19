@@ -2,19 +2,19 @@ import { describe, it, expect } from "vitest";
 import { Game, Input, EventBus, createDefaultRegistry, type Scene, type SystemFn } from "../src/index.js";
 
 /**
- * 0.5.0 — two additive SDK surfaces that retire tower-defense host bandaids:
- *   • E10: `world.events.onScene(evt, fn)` — a SCENE-SCOPED listener auto-removed on the
+ * Two additive SDK surfaces:
+ *   • `world.events.onScene(evt, fn)` — a SCENE-SCOPED listener auto-removed on the
  *     next scene transition. Generalizes the per-part "attach once per World" WeakMap
  *     dedup; `Game.loadScene` clears them next to its flow-edge teardown.
- *   • E9: `world.input.cursor()` — the button-less hover position in WORLD coords, the
+ *   • `world.input.cursor()` — the button-less hover position in WORLD coords, the
  *     channel a desktop build-preview needs (replacing a host `pointermove` listener +
  *     manual screen→world transform). Both are inert until a game uses them; `on` and the
  *     existing pointer channels are byte-identical.
  */
 
-// --- E10: scene-scoped event listeners --------------------------------------------
+// --- scene-scoped event listeners --------------------------------------------
 
-describe("E10 onScene / clearSceneListeners (0.5.0)", () => {
+describe("onScene / clearSceneListeners", () => {
   it("onScene fires like on, but clearSceneListeners removes ONLY the scene-scoped one", () => {
     const bus = new EventBus();
     let sceneHits = 0;
@@ -47,7 +47,7 @@ describe("E10 onScene / clearSceneListeners (0.5.0)", () => {
   });
 });
 
-describe("E10 a Play-again scene round-trip does not double-fire (0.5.0)", () => {
+describe("a Play-again scene round-trip does not double-fire", () => {
   it("a system re-attaching its listener on scene re-entry fires it exactly once per event", () => {
     let fireCount = 0;
     // The canonical adoption shape: attach via onScene ONCE per scene entry, guarded by a
@@ -99,7 +99,7 @@ describe("E10 a Play-again scene round-trip does not double-fire (0.5.0)", () =>
   });
 });
 
-// --- E9: button-less cursor channel ----------------------------------------------
+// --- button-less cursor channel ----------------------------------------------
 
 /** Attach a fresh Input to fake pointer/key targets; optional rect ⇒ a screen→world scale. */
 function makeCursorInput(rect?: { left: number; top: number; width: number; height: number }) {
@@ -126,7 +126,7 @@ function makeCursorInput(rect?: { left: number; top: number; width: number; heig
   };
 }
 
-describe("E9 input.cursor() (0.5.0)", () => {
+describe("input.cursor()", () => {
   it("is null until the first pointer event, then tracks a bare (button-less) hover move", () => {
     const { input, move } = makeCursorInput();
     expect(input.cursor()).toBeNull();

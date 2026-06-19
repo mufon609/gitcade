@@ -107,7 +107,7 @@ export const tapEmit: BehaviorFn = (entity, world, params) => {
 };
 
 /**
- * `key-emit` — the KEYBOARD companion to `tap-emit` (E3): emit a flow event on the
+ * `key-emit` — the KEYBOARD companion to `tap-emit`: emit a flow event on the
  * down-EDGE of any of `keys`, so a title/over screen stays keyboard-accessible as
  * pure DATA, with no host `keydown` bridge. Put it on the SAME flow-button entity as
  * `tap-emit`, emitting the SAME event, and both pointer and keyboard drive the scene's

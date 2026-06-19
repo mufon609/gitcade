@@ -1,7 +1,7 @@
 import type { SystemFn, ActionBinding } from "@gitcade/sdk";
 
 /**
- * `input-actions` — installs the scene's logical input-ACTION bindings (E1) into the
+ * `input-actions` — installs the scene's logical input-ACTION bindings into the
  * SDK input layer, so movers can read `world.input.action(name)` /
  * `actionVector(name)` and ONE action is satisfiable by keyboard OR an on-screen
  * rect/zone. This is the data part that lets a game DELETE its synthesized-

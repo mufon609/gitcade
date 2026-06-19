@@ -3,13 +3,11 @@ import { num, str } from "@gitcade/sdk";
 
 /**
  * `scale-by-state` — ramp a live entity field by a factor derived from a 1-based
- * difficulty LEVEL counter in `world.state` (0.2.1, LIBRARY-GAPS #8). The library's
- * `auto-scroll`/`ai-chase` force a STATIC `$cfg` value and `wave-spawner` bakes a
- * prototype's `$cfg` once at scene load, so before this there was NO data path to
- * make one play scene scroll faster — or its enemies tougher — as a live `level`
- * climbs. Two games hand-rolled the exact same shape (Helicopter `scroll-ramp` for
- * scroll speed, Survival Arena `swarm-scale` for enemy speed/hp); this is their
- * single generalization.
+ * difficulty LEVEL counter in `world.state`. The library's `auto-scroll`/`ai-chase`
+ * force a STATIC `$cfg` value and `wave-spawner` bakes a prototype's `$cfg` once at
+ * scene load, so this is the only data path that makes one play scene scroll faster
+ * — or its enemies tougher — as a live `level` climbs (e.g. a scroll-speed ramp, or
+ * an enemy speed/hp ramp).
  *
  * The factor is `1 + perLevel * max(0, level - 1)` — i.e. `+perLevel` of the base
  * per level above 1. It is applied to `target` in one of three modes:

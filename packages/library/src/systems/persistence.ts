@@ -14,14 +14,14 @@ interface PersistScratch extends Record<string, unknown> {
 }
 
 /**
- * Declarative cross-RUN persistence (G6). Round-trips named `world.state` keys
+ * Declarative cross-RUN persistence. Round-trips named `world.state` keys
  * through the EXISTING `world.storage` bridge — no host JS, and NO change to the
  * frozen storage wire protocol (this only *consumes* the sanctioned `world.storage`
  * adapter, the same escape hatch behaviors already use for side effects).
  *
  * Config comes from `manifest.persist` (surfaced on `world.persist`); individual
  * fields may be overridden per-instance via params. Behavior:
- *  - **Claim on boot (0.2.1, G6 race fix):** on its first tick the system calls
+ *  - **Claim on boot:** on its first tick the system calls
  *    `world.claimPersistKeys(keys)` SYNCHRONOUSLY — before any seed-once system
  *    later in the same scene's system order runs — so a seed system (e.g.
  *    `currency`) that consults `world.isPersistPending(key)` DEFERS seeding while
@@ -39,9 +39,9 @@ interface PersistScratch extends Record<string, unknown> {
  *    (and an empty snapshot is never written), so a pending restore is never
  *    overwritten before it lands.
  *
- * The mechanism stays additive: the SDK claim methods are no-ops for any seed
- * system that does not consult them (those keep their 0.2.0 "live value wins"
- * behavior), and a game that runs persistence on a non-seeding scene (Idle
+ * The SDK claim methods are no-ops for any seed system that does not consult them
+ * (those keep their "live value wins" behavior), and a game that runs persistence
+ * on a non-seeding scene (Idle
  * Clicker's title-scene workaround) is unaffected — no key it carries is seeded
  * there, so claim/defer never fires.
  *
@@ -95,8 +95,8 @@ export const persistence: SystemFn = (world, params, dt) => {
   // keys are absent ⇒ the snapshot is empty ⇒ nothing is written over the unread
   // save. Once the load resolves it WRITES the saved values (authoritative), the
   // change detector is re-baselined in `.finally`, and normal save-on-change
-  // resumes. (0.2.1: the claim/defer on the seed side is the real race fix; this
-  // skip is the matching save-side safety, unchanged in spirit from 0.2.0.)
+  // resumes. (The claim/defer on the seed side is the real race fix; this skip is
+  // the matching save-side safety.)
   const snap = snapshot(world, keys);
   if (Object.keys(snap).length === 0) return;
 

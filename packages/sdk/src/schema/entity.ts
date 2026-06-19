@@ -4,14 +4,13 @@ import { SpriteSchema } from "./sprite.js";
 import { BehaviorDefSchema } from "./behavior.js";
 
 /**
- * How an entity participates in the unified collision-resolution phase (`World.resolveBodies`,
- * 1.1.0) — the typed, first-class replacement for the tag-and-behavior encoding (`solid` tag +
- * `solid-collide`/`tilemap-collide` behaviors). One declaration of what a body IS, resolved in
- * exactly one place, instead of order-sensitive resolver behaviors.
+ * How an entity participates in the unified collision-resolution phase (`World.resolveBodies`) —
+ * the typed, first-class model for what a body IS, resolved in exactly one place rather than via
+ * order-sensitive resolver behaviors.
  *
  * Additive optional field: an entity WITHOUT a `collider` is never touched by the phase, so every
- * pre-1.1 / arcade scene is byte-identical (the phase no-ops over it exactly as `resolveHierarchy`
- * no-ops over an unparented entity).
+ * arcade scene is byte-identical (the phase no-ops over it exactly as `resolveHierarchy` no-ops
+ * over an unparented entity).
  *
  *  - `role: "dynamic"` — the body MOVES and is resolved (pushed out of solids, velocity zeroed on
  *    contact, contact flags written to `entity.body.contacts`). `role: "solid"` — an immovable
@@ -49,7 +48,7 @@ export type ColliderDef = z.infer<typeof ColliderSchema>;
  * An entity definition: a positioned, sized, tagged thing that composes behaviors.
  *
  * `{ id, sprite, size, position, behaviors[], tags[], layer }` is the FROZEN
- * Phase 1 shape. Optional presentational/transform fields (`rotation`, `scale`,
+ * core shape. Optional presentational/transform fields (`rotation`, `scale`,
  * `zIndex`, `opacity`, `visible`), an optional initial `state` bag, and the optional
  * scene-graph link (`parent` + `local`) are additive and do not change the frozen core.
  *
@@ -72,25 +71,24 @@ export const EntityDefSchema = z.object({
 
   // Additive optional fields (not part of the frozen core shape):
   zIndex: z.number().int().optional(),
-  /** Rotation in RADIANS (clockwise), applied around the entity center by the renderer
-   *  since 0.3.2. Default 0. Collision/picking stay axis-aligned (visual only). The
-   *  library `face-angle` behavior writes this from velocity/target/pointer/tilt. */
+  /** Rotation in RADIANS (clockwise), applied around the entity center by the renderer.
+   *  Default 0. Collision/picking stay axis-aligned (visual only). The library
+   *  `face-angle` behavior writes this from velocity/target/pointer/tilt. */
   rotation: z.number().optional(),
-  /** Uniform scale factor applied around the entity center by the renderer since 0.3.2
-   *  (maps to both scaleX/scaleY). Default 1. Visual only — collision uses the base size. */
+  /** Uniform scale factor applied around the entity center by the renderer (maps to both
+   *  scaleX/scaleY). Default 1. Visual only — collision uses the base size. */
   scale: z.number().optional(),
-  /** Opacity 0..1, applied by the renderer as `globalAlpha` (0.7.0). Default 1 (opaque).
-   *  Visual only — a behavior writes `entity.opacity` at runtime to fade / damage-flash /
-   *  i-frame-flicker an entity. (The `opacity`/`alpha` keys were whitelisted but the
-   *  renderer never honored them — a declared-but-ignored slot, now wired.) */
+  /** Opacity 0..1, applied by the renderer as `globalAlpha`. Default 1 (opaque). Visual
+   *  only — a behavior writes `entity.opacity` at runtime to fade / damage-flash /
+   *  i-frame-flicker an entity. */
   opacity: z.number().min(0).max(1).optional(),
-  /** Visibility toggle: the renderer SKIPS an entity with `visible:false` (0.7.0). Default
-   *  true. A behavior flips it at runtime to hide/show an entity (e.g. a hover preview)
-   *  without parking it off-screen. Visual only — a hidden entity still simulates. */
+  /** Visibility toggle: the renderer SKIPS an entity with `visible:false`. Default true.
+   *  A behavior flips it at runtime to hide/show an entity (e.g. a hover preview) without
+   *  parking it off-screen. Visual only — a hidden entity still simulates. */
   visible: z.boolean().optional(),
   state: z.record(z.string(), z.unknown()).optional(),
 
-  // Scene-graph link (0.9.0 additive). Absent ⇒ a root entity (every pre-0.9 entity):
+  // Scene-graph link (additive optional). Absent ⇒ a root entity:
   // `position`/`rotation`/`scale` are its WORLD transform exactly as before, so a scene
   // with no parenting is byte-identical. When `parent` is set, the runtime derives this
   // entity's WORLD transform each tick from the parent's world transform composed with
@@ -116,9 +114,9 @@ export const EntityDefSchema = z.object({
     .optional(),
 
   /**
-   * How this entity participates in the unified collision-resolution phase (1.1.0, additive).
-   * Absent ⇒ the entity is invisible to the phase (every pre-1.1 entity / every arcade scene),
-   * so a scene with no collider is byte-identical. See {@link ColliderSchema}.
+   * How this entity participates in the unified collision-resolution phase (additive optional).
+   * Absent ⇒ the entity is invisible to the phase (every arcade scene), so a scene with no
+   * collider is byte-identical. See {@link ColliderSchema}.
    */
   collider: ColliderSchema.optional(),
 

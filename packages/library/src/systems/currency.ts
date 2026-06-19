@@ -9,11 +9,10 @@ import { num, str } from "@gitcade/sdk";
  * (`collect-on-touch`, bounty on `health-and-death`) and spend by subtracting
  * (`upgrade-tree`), so the currency stays a single source of truth in `world.state`.
  *
- * 0.2.1 (G6 race fix): seeding `startAmount` is DEFERRED while the key is claimed
- * by an in-flight persistence load (`world.isPersistPending(currencyKey)`), so a
- * saved balance restores as the authoritative boot value instead of being clobbered
- * by the tick-1 seed. With no persistence system claiming the key this is exactly
- * the 0.2.0 behavior (the check is a no-op), so it stays additive.
+ * Seeding `startAmount` is DEFERRED while the key is claimed by an in-flight
+ * persistence load (`world.isPersistPending(currencyKey)`), so a saved balance
+ * restores as the authoritative boot value instead of being clobbered by the
+ * tick-1 seed. With no persistence system claiming the key the check is a no-op.
  *
  * Params:
  *  - `currencyKey`: `world.state` key holding the balance (default `"currency"`)
@@ -25,8 +24,8 @@ export const currency: SystemFn = (world, params, dt) => {
   const currencyKey = str(params, "currencyKey", "currency");
   const maxAmount = num(params, "maxAmount", 0);
 
-  // Defer the one-time seed while a persistence load owns this key (0.2.1, G6),
-  // so the restored save wins. Also skip the accrual this tick — there is no
+  // Defer the one-time seed while a persistence load owns this key, so the
+  // restored save wins. Also skip the accrual this tick — there is no
   // balance to grow yet, and seeding zero would defeat the restore.
   if (world.isPersistPending(currencyKey)) return;
 

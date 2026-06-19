@@ -260,7 +260,7 @@ describe("tower-defense smoke", () => {
     });
     const cell = (): Entity => w.query("build-cell")[0];
 
-    // No hover yet → cursor() is null → the preview cell is hidden (0.7.0 visibility toggle).
+    // No hover yet → cursor() is null → the preview cell is hidden (visibility toggle).
     game.stepFrames(1);
     expect(w.input.cursor()).toBeNull();
     expect(cell().visible).toBe(false);

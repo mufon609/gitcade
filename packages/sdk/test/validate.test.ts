@@ -172,7 +172,7 @@ describe("validateGame", () => {
   });
 
   // -------------------------------------------------------------------------
-  // E11 — cross-scene reference integrity
+  // cross-scene reference integrity
   // -------------------------------------------------------------------------
   it("fails a flow.on target that names a missing scene", async () => {
     const dir = track(

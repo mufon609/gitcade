@@ -2,8 +2,8 @@ import type { SystemFn, World } from "@gitcade/sdk";
 
 /**
  * `stat-modifier` — apply a `world.state`-driven value to a named behavior PARAM
- * across EVERY entity carrying a tag (0.4.0, ENGINE-ROADMAP #E6). It is the
- * SHARED/global counterpart to the entity-self `scale-by-state`: where that ramps
+ * across EVERY entity carrying a tag. It is the SHARED/global counterpart to the
+ * entity-self `scale-by-state`: where that ramps
  * one entity from its OWN state, this propagates a value held in `world.state`
  * (raised by an `upgrade-tree`, a `prestige` multiplier, a difficulty `level`, …)
  * out to a behavior param on MANY entities at once.

@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { Game, resolveSceneInheritance, type Scene } from "../src/index.js";
 
 // ---------------------------------------------------------------------------
-// E11 — scene inheritance (`extends`)
+// scene inheritance (`extends`)
 // ---------------------------------------------------------------------------
-describe("E11 — scene inheritance", () => {
+describe("scene inheritance", () => {
   const base: Scene = {
     id: "play-base",
     size: { width: 640, height: 480 },
@@ -85,9 +85,9 @@ describe("E11 — scene inheritance", () => {
 });
 
 // ---------------------------------------------------------------------------
-// E11 — manifest level sequence + reserved flow targets
+// manifest level sequence + reserved flow targets
 // ---------------------------------------------------------------------------
-describe("E11 — level sequence + @next/@first", () => {
+describe("level sequence + @next/@first", () => {
   const scenes: Scene[] = [
     { id: "title", size: { width: 100, height: 100 }, entities: [], systems: [], flow: { on: { start: "@next" }, persist: [] } },
     { id: "level-1", size: { width: 100, height: 100 }, entities: [], systems: [], flow: { on: { cleared: "@next", lose: "over" }, persist: ["score"] } },

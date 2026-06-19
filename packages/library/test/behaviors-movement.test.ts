@@ -101,7 +101,7 @@ describe("move-grid-step", () => {
     expect(e.state.__gridDir).toEqual({ x: 0, y: -1 });
   });
 
-  // --- 1.1.0 (E1): steer by a logical action vector instead of raw keys ---
+  // --- steer by a logical action vector instead of raw keys ---
   it("steers by `moveAction` actionVector (keyboard/touch unified, no synth keys)", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "snake", x: 100, y: 100 });

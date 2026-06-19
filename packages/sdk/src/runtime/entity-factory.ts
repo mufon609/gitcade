@@ -29,13 +29,13 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
     tags: def.tags,
     sprite: def.sprite,
     state: def.state ? { ...def.state } : {},
-    // Scene-graph link (0.9.0): `parent` + `local` seed the runtime parenting fields; the
+    // Scene-graph link: `parent` + `local` seed the runtime parenting fields; the
     // hierarchy phase derives this entity's world transform from the parent each tick.
     parentId: def.parent,
     local: def.local,
   });
 
-  // Resolve the authored `collider` onto the body (1.1.0) — defaults are already applied by the
+  // Resolve the authored `collider` onto the body — defaults are already applied by the
   // schema, so this just mirrors it into the runtime component the resolution phase reads. Absent
   // ⇒ left undefined, so `World.resolveBodies` skips this entity (byte-identical arcade scene).
   if (def.collider) {

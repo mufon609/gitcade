@@ -7,7 +7,7 @@ import { formatCompact, cappedOfflineGain } from "../src/util.js";
 
 const DT = 1 / 60;
 
-describe("face-angle (0.3.2)", () => {
+describe("face-angle", () => {
   it("velocity mode points rotation along travel", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "p" });
@@ -44,7 +44,7 @@ describe("face-angle (0.3.2)", () => {
   });
 });
 
-describe("ai-aim-and-fire priority targeting (1.1.0)", () => {
+describe("ai-aim-and-fire priority targeting", () => {
   it("priorityKey picks the most-advanced target, overriding nearest", () => {
     const world = makeWorld();
     const tower = makeEntity(world, { id: "tower", x: 400, y: 100, w: 0, h: 0 });
@@ -75,7 +75,7 @@ describe("ai-aim-and-fire priority targeting (1.1.0)", () => {
   });
 });
 
-describe("follow-path __pathProgress (1.1.0)", () => {
+describe("follow-path __pathProgress", () => {
   it("accumulates a monotonic distance metric while moving", () => {
     const world = makeWorld();
     const e = makeEntity(world, { id: "creep", x: 0, y: 300, w: 0, h: 0 });
@@ -89,7 +89,7 @@ describe("follow-path __pathProgress (1.1.0)", () => {
   });
 });
 
-describe("formatCompact (0.3.2)", () => {
+describe("formatCompact", () => {
   it("compacts big numbers and keeps small ones plain", () => {
     expect(formatCompact(0)).toBe("0");
     expect(formatCompact(999)).toBe("999");
@@ -101,7 +101,7 @@ describe("formatCompact (0.3.2)", () => {
   });
 });
 
-describe("cappedOfflineGain (0.3.2)", () => {
+describe("cappedOfflineGain", () => {
   it("credits rate*elapsed, clamped to the cap, floored", () => {
     const now = 1_000_000;
     expect(cappedOfflineGain(2, now - 10_000, now, 3600)).toBe(20); // 10s * 2/s

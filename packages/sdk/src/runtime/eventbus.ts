@@ -18,7 +18,7 @@ export class EventBus {
   private queue: GameEvent[] = [];
   /**
    * Unsubscribers for SCENE-SCOPED listeners registered via {@link onScene}, torn
-   * down on every scene transition by {@link clearSceneListeners} (E10). Distinct
+   * down on every scene transition by {@link clearSceneListeners}. Distinct
    * from a game-lifetime {@link on} listener, which is never auto-removed.
    */
   private sceneUnsubs: Array<() => void> = [];
@@ -31,7 +31,7 @@ export class EventBus {
   }
 
   /**
-   * Register a SCENE-SCOPED listener (0.5.0, E10): identical to {@link on}, but the
+   * Register a SCENE-SCOPED listener: identical to {@link on}, but the
    * subscription is auto-removed on the next scene transition (`Game.loadScene` calls
    * {@link clearSceneListeners}, right next to its flow-edge teardown). This is the
    * engine generalization of the per-part "attach once per World" `WeakMap` dedup that
@@ -67,7 +67,7 @@ export class EventBus {
   }
 
   /**
-   * Host-only: remove every {@link onScene} listener (0.5.0, E10). Called by
+   * Host-only: remove every {@link onScene} listener. Called by
    * `Game.loadScene` on each scene transition (next to the flow-edge teardown), so a
    * scene-scoped listener never outlives its scene. Game-lifetime {@link on} listeners
    * (including the host-installed flow edges) are untouched, as is the event {@link queue}

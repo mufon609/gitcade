@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { resolveSolids, applyContacts, type AABB, type SolidRect, type MovingBody, type SolidContacts } from "../src/index.js";
 
 /**
- * 0.7.0 — the shared AABB push-out primitive (INDIE-ROADMAP Tier-0 0.3/0.4).
+ * The shared AABB push-out primitive.
  *
  * `resolveSolids` snaps a moving body out of solid rects (X then Y, leading-edge),
  * zeroes the contacted velocity component, and reports contact flags — the same engine
  * `tilemap-collide` (solid CELLS) and `solid-collide` (solid ENTITIES) both feed. Swept
- * sub-stepping (0.4) keeps a fast body from tunnelling a thin rect. `applyContacts`
+ * sub-stepping keeps a fast body from tunnelling a thin rect. `applyContacts`
  * merges several resolvers' flags within one tick.
  */
 
@@ -17,7 +17,7 @@ function body(init: Partial<MovingBody>): MovingBody {
   return { x: 0, y: 0, w: 16, h: 16, vx: 0, vy: 0, ...init };
 }
 
-describe("resolveSolids — axis-separated push-out (0.3)", () => {
+describe("resolveSolids — axis-separated push-out", () => {
   it("lands on a solid rect from above (onGround, vy zeroed, snapped flush)", () => {
     const floor: AABB = { x: 0, y: 100, w: 200, h: 32 };
     const b = body({ x: 50, y: 90, vy: 600 }); // bottom 106 penetrates the floor top (100)
@@ -73,7 +73,7 @@ describe("resolveSolids — axis-separated push-out (0.3)", () => {
   });
 });
 
-describe("resolveSolids — swept sub-stepping prevents tunnelling (0.4)", () => {
+describe("resolveSolids — swept sub-stepping prevents tunnelling", () => {
   it("a fast faller lands ON a thin slab instead of passing through it", () => {
     const slab: AABB = { x: 0, y: 200, w: 400, h: 8 }; // only 8px thick
     // Integrated position is 210 (bottom 226) — already BELOW the 8px slab: a single pass
@@ -95,8 +95,8 @@ describe("resolveSolids — swept sub-stepping prevents tunnelling (0.4)", () =>
   });
 });
 
-describe("resolveSolids — a body sitting in a solid is not ejected sideways (0.3 lift fix)", () => {
-  // Regression: a solid that has risen INTO a resting body (a lift), or a body placed
+describe("resolveSolids — a body sitting in a solid is not ejected sideways", () => {
+  // A solid that has risen INTO a resting body (a lift), or a body placed
   // overlapping, penetrates more than the body's own fall this tick — the X pass must NOT
   // read that floor as a wall and fling the body off the side it should stand on.
   it("a body resting on a solid that rose into it lands while moving right, not ejected", () => {
@@ -128,7 +128,7 @@ describe("resolveSolids — a body sitting in a solid is not ejected sideways (0
   });
 });
 
-describe("resolveSolids — one-way (pass-through) platforms (0.7.0)", () => {
+describe("resolveSolids — one-way (pass-through) platforms", () => {
   it("lands ON a one-way platform when falling from above (onGround + onOneWay)", () => {
     const plat: SolidRect = { x: 0, y: 100, w: 200, h: 16, oneWay: true };
     const b = body({ x: 50, y: 90, vy: 600 }); // pre-fall bottom (96) ≤ top (100) → a true land-from-above

@@ -54,7 +54,7 @@ export function createGame(raw: RawGameSources, opts: CreateGameOptions = {}): G
   // Surface the manifest's cross-run persistence binding on the world (G6); an
   // explicit opts.persist still wins (lets a host override without a manifest).
   const persist = opts.persist ?? manifest.persist;
-  // Forward the level sequence (E11) so the runtime can resolve `@next`/`@first`
+  // Forward the level sequence so the runtime can resolve `@next`/`@first`
   // flow targets and track `world.state.level` by stage. Explicit opts win.
   const levels = opts.levels ?? manifest.levels;
   const levelsComplete = opts.levelsComplete ?? manifest.levelsComplete;

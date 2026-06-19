@@ -27,7 +27,7 @@ export interface AnimationState {
 }
 
 /**
- * A transform in a PARENT entity's frame (0.9.0 scene graph): `x`/`y` offset in parent-local
+ * A transform in a PARENT entity's frame (the scene graph): `x`/`y` offset in parent-local
  * px, `rotation` in radians, `scale` uniform. The hierarchy-resolution phase composes this
  * with the parent's WORLD transform to derive a parented entity's world transform each tick.
  * Identity (`{0,0,0,1}`) for a root entity.
@@ -41,7 +41,7 @@ export interface LocalTransform {
 
 /**
  * A resolved {@link ColliderSchema} living on the body — how this entity participates in the
- * unified collision-resolution phase ({@link World.resolveBodies}, 1.1.0). The runtime mirror of
+ * unified collision-resolution phase ({@link World.resolveBodies}). The runtime mirror of
  * the authored `collider` field (defaults already applied by the factory), so the phase reads one
  * typed shape with no per-tick parsing. `undefined` ⇒ no collider ⇒ the phase skips the entity.
  */
@@ -71,19 +71,19 @@ export interface BodyComponent {
   /**
    * The full RENDER TRANSFORM at the START of the current tick — position, rotation, and per-axis
    * scale — snapshotted by the host loop (`Game.update`) so the renderer can interpolate every drawn
-   * transform component between the last two ticks (1.8.0 position → 1.10.0 rotation/scale), killing
-   * judder when the rAF rate doesn't divide the fixed sim rate. `x - prevX` / `y - prevY` doubles as
-   * this tick's WORLD position delta, read by carry (a rider inherits a moving platform's per-tick
-   * delta). Position-only would be a partial history: a `face-angle` turret (rotation) or a `tween`
-   * pop (scale) still juddered until the whole transform was snapshotted. Seeded to the spawn
-   * transform (delta 0 / identity on the first tick). Render-only + carry-only — the rest of the
-   * simulation never reads these, so headless play stays byte-identical.
+   * transform component between the last two ticks, killing judder when the rAF rate doesn't divide
+   * the fixed sim rate. `x - prevX` / `y - prevY` doubles as this tick's WORLD position delta, read
+   * by carry (a rider inherits a moving platform's per-tick delta). Position alone would be a partial
+   * history: a `face-angle` turret (rotation) or a `tween` pop (scale) judders unless the whole
+   * transform is snapshotted. Seeded to the spawn transform (delta 0 / identity on the first tick).
+   * Render-only + carry-only — the rest of the simulation never reads these, so headless play stays
+   * byte-identical.
    */
   prevX: number;
   prevY: number;
-  /** Rotation (radians) at tick start — the renderer interpolates it along the SHORTEST arc (1.10.0). */
+  /** Rotation (radians) at tick start — the renderer interpolates it along the SHORTEST arc. */
   prevRotation: number;
-  /** Per-axis scale at tick start — the renderer interpolates it, snapping on a sign flip (1.10.0). */
+  /** Per-axis scale at tick start — the renderer interpolates it, snapping on a sign flip. */
   prevScaleX: number;
   prevScaleY: number;
   /**
@@ -108,7 +108,7 @@ export interface BodyComponent {
    */
   dropThrough: number;
   /**
-   * How this entity participates in the unified collision-resolution phase (1.1.0), resolved from
+   * How this entity participates in the unified collision-resolution phase, resolved from
    * the authored `collider` field by the entity factory. `undefined` for a non-colliding entity
    * (every arcade entity), which is what makes {@link World.resolveBodies} a no-op over it.
    */
@@ -136,10 +136,10 @@ export class Entity {
   rotation = 0;
   scaleX = 1;
   scaleY = 1;
-  /** Opacity 0..1, applied by the renderer as `globalAlpha` (0.7.0). Visual only;
+  /** Opacity 0..1, applied by the renderer as `globalAlpha`. Visual only;
    *  a behavior writes it to fade / damage-flash / i-frame-flicker. Default 1 (opaque). */
   opacity = 1;
-  /** When false, the renderer skips this entity (0.7.0). Visual only — it still
+  /** When false, the renderer skips this entity. Visual only — it still
    *  simulates (behaviors/collision run). Default true. */
   visible = true;
   /** Draw layer; higher draws on top. */
@@ -170,14 +170,14 @@ export class Entity {
     dropThrough: 0,
   };
   /**
-   * Id of the PARENT entity this one's world transform is derived from (0.9.0 scene graph);
+   * Id of the PARENT entity this one's world transform is derived from (the scene graph);
    * undefined ⇒ a root entity whose `x`/`y`/`rotation`/`scaleX`/`scaleY` are authoritative.
    * Set from the `parent` schema field at build or by {@link attachTo} at runtime; read by
    * the hierarchy-resolution phase ({@link World.resolveHierarchy}).
    */
   parentId?: string;
   /**
-   * This entity's transform in its PARENT's frame (0.9.0). Only consulted when
+   * This entity's transform in its PARENT's frame. Only consulted when
    * {@link parentId} is set: the hierarchy phase composes the parent's WORLD transform with
    * this to WRITE this entity's world `x`/`y`/`rotation`/`scaleX`/`scaleY`. Identity (origin,
    * unrotated, ×1) by default — seeded from the `local` schema field for a parented entity.
@@ -262,7 +262,7 @@ export class Entity {
 
   /**
    * Attach to `parent` so this entity's WORLD transform is derived from the parent's each tick
-   * (0.9.0 scene graph — carried items, riders, multi-part bodies, attached HUD/FX). With
+   * (the scene graph — carried items, riders, multi-part bodies, attached HUD/FX). With
    * `local` given, that becomes the parent-frame offset; with it OMITTED, the entity's CURRENT
    * world gap to the parent is captured as the offset (the inverse of the hierarchy compose),
    * so a runtime pickup holds the child's on-screen position with no teleport. Takes effect on
@@ -297,7 +297,7 @@ export class Entity {
   }
 
   /**
-   * Detach from a parent (0.9.0), leaving the entity at its current WORLD transform so it
+   * Detach from a parent, leaving the entity at its current WORLD transform so it
    * becomes a root again (no snap-back) — the drop half of a pickup/drop. Safe if unparented.
    */
   detach(): void {

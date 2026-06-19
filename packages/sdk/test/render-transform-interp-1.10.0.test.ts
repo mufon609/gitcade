@@ -4,13 +4,13 @@ import { Renderer } from "../src/runtime/renderer.js";
 import type { ShapeSprite } from "../src/schema/sprite.js";
 
 /**
- * 1.10.0 — render interpolation extended from POSITION-ONLY (1.8.0) to the FULL render transform:
- * rotation (shortest-arc) and per-axis scale (flip-snapped), so a spinning `face-angle` sprite or a
- * scaling `tween` is as smooth as a moving body. Pins: the rotation/scale alpha endpoints + midpoint,
- * the ±π shortest-arc wrap (a `face-angle`/`tween` discontinuity must NOT unwind the long way), the
- * `face-velocity` sign-flip snap (lerping a scale flip through 0 would collapse the sprite), the
- * interaction with position interpolation, and the alpha-1 byte-identical default. Render-only — the
- * simulation never reads `body.prevRotation`/`prevScaleX/Y`, so headless play is byte-identical.
+ * Render interpolation covers the FULL render transform: rotation (shortest-arc) and per-axis scale
+ * (flip-snapped), so a spinning `face-angle` sprite or a scaling `tween` is as smooth as a moving
+ * body. Pins: the rotation/scale alpha endpoints + midpoint, the ±π shortest-arc wrap (a
+ * `face-angle`/`tween` discontinuity must NOT unwind the long way), the `face-velocity` sign-flip
+ * snap (lerping a scale flip through 0 would collapse the sprite), the interaction with position
+ * interpolation, and the alpha-1 byte-identical default. Render-only — the simulation never reads
+ * `body.prevRotation`/`prevScaleX/Y`, so headless play is byte-identical.
  */
 const RECT: ShapeSprite = { kind: "shape", shape: "rect", color: "#fff" };
 const TAU = Math.PI * 2;

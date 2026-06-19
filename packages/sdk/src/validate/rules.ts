@@ -92,10 +92,10 @@ export function checkParams(scenes: Scene[], config: Config): Issue[] {
 }
 
 /**
- * Cross-scene REFERENCE integrity (E11). The schema validates each scene file in
- * isolation, so until now a reference to a scene that does not exist — a typo'd
+ * Cross-scene REFERENCE integrity. The schema validates each scene file in
+ * isolation, so a reference to a scene that does not exist — a typo'd
  * `flow.on` destination, an `extends` base, a `manifest.levels` entry, or the
- * `entryPoint` — passed `gitcade validate` and only surfaced at runtime (a no-op
+ * `entryPoint` — would pass `gitcade validate` and only surface at runtime (a no-op
  * transition or a thrown "scene not found"). This rule resolves all four reference
  * kinds against the actual scene-id set so a broken link fails the publish gate.
  *
@@ -194,7 +194,7 @@ export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): 
     }
   }
 
-  // Entity PARENT refs (0.9.0 scene graph): every `entity.parent` must name an entity in the
+  // Entity PARENT refs (scene graph): every `entity.parent` must name an entity in the
   // SAME inheritance-resolved scene, and the parent graph must be acyclic. At runtime a dangling
   // parent silently orphans the child and a cycle is ignored (members treated as roots) — both
   // pass the 60-frame smoke boot, so catch them at the publish gate instead, like the flow/extends
@@ -276,7 +276,7 @@ export function collectPartRefs(scenes: Scene[]): PartRef[] {
   return refs;
 }
 
-/** The catalog shape the validator needs from `@gitcade/library` (Phase 2 owns it). */
+/** The catalog shape the validator needs from `@gitcade/library`. */
 export interface LibraryCatalog {
   version: string;
   parts: Array<{ id: string; version: string }>;
@@ -284,7 +284,7 @@ export interface LibraryCatalog {
 
 /**
  * Verify every `partId@version` reference resolves within the catalog of the
- * pinned `libraryVersion`. In Phase 1 no catalog exists yet; callers pass
+ * pinned `libraryVersion`. When no catalog is available, callers pass
  * `catalog = null` and any part references therefore fail loudly (you cannot pin
  * a part with no library), while part-free games (Pong) pass vacuously.
  */
@@ -342,7 +342,7 @@ export function checkPartRefs(
 /**
  * Corner inset (px) within which the mute (top-left) / pause (top-right) DOM buttons
  * sit in every game's index.html. Canvas HUD authored inside it gets covered by the
- * button — the HUD safe-area convention (0.3.1, helicopter-05 / survival-arena-06).
+ * button — the HUD safe-area convention.
  */
 const HUD_CORNER_INSET = 52;
 
@@ -374,17 +374,16 @@ const VELOCITY_SETTERS = new Set<string>([
 const VELOCITY_INTEGRATORS = new Set<string>(["velocity", "move-grid-step", "move-platformer"]);
 
 /**
- * Non-failing presentation ADVISORIES (0.3.1). These are WARNING-level only — a game
- * that passed before still passes (`ok` ignores warnings) — surfacing two recurring
- * authoring footguns the 0.3.0 game audit hit across several games:
- *  - **HUD under a corner button** (helicopter-05 / survival-arena-06): a `hud`-tagged
- *    entity tucked into a top corner where the mute/pause DOM buttons draw. Keep canvas
- *    HUD ≥~56px from the corners.
- *  - **Full-field rect at center coords** (idle-clicker IC-10): a near-full-field rect
- *    (tap target / UI overlay) anchored at the field CENTER, so its top-left box
- *    overflows and only partly covers the field. Full-field rects anchor at {0,0}. The
- *    headless smoke boot taps dead center, so a broken AABB still boots green — which is
- *    exactly why this is an authoring advisory, not a runtime catch.
+ * Non-failing presentation ADVISORIES. These are WARNING-level only — a game that
+ * passes still passes (`ok` ignores warnings) — surfacing two recurring authoring
+ * footguns:
+ *  - **HUD under a corner button**: a `hud`-tagged entity tucked into a top corner
+ *    where the mute/pause DOM buttons draw. Keep canvas HUD ≥~56px from the corners.
+ *  - **Full-field rect at center coords**: a near-full-field rect (tap target / UI
+ *    overlay) anchored at the field CENTER, so its top-left box overflows and only
+ *    partly covers the field. Full-field rects anchor at {0,0}. The headless smoke
+ *    boot taps dead center, so a broken AABB still boots green — which is exactly why
+ *    this is an authoring advisory, not a runtime catch.
  *
  * Both are deliberately precise (corner zone / center signature) to avoid false
  * positives on legitimate edge-anchored decor tiles or origin-anchored backgrounds.
@@ -452,11 +451,10 @@ interface BehaviorLike {
 }
 
 /**
- * The two behavior-ORDERING advisories (0.3.2) — "passes-validation-but-silently-
- * broken" footguns the 0.3.x game audit surfaced. Heuristic (keyed on stable
- * published part names) and never classify a custom/unknown type, so a bespoke
- * mover can't trip a false positive. Runs on any behavior array — an authored
- * entity OR a spawn prototype.
+ * The two behavior-ORDERING advisories — "passes-validation-but-silently-broken"
+ * footguns. Heuristic (keyed on stable published part names) and never classify a
+ * custom/unknown type, so a bespoke mover can't trip a false positive. Runs on any
+ * behavior array — an authored entity OR a spawn prototype.
  */
 function checkBehaviorOrder(behaviors: BehaviorLike[], where: string): Issue[] {
   const issues: Issue[] = [];

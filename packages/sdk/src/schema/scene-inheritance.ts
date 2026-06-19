@@ -4,7 +4,7 @@ import type { EntityDef } from "./entity.js";
 import type { SystemDef } from "./system.js";
 
 /**
- * Scene inheritance (0.6.0, E11). A scene with `extends: "<baseId>"` inherits the
+ * Scene inheritance. A scene with `extends: "<baseId>"` inherits the
  * base scene's shared stage and overlays its own content, so a multi-level game
  * authors the common shell (paddle, ball, the system stack, HUD) ONCE and each
  * level declares only what differs (its layout + a `$cfg` difficulty slice).
@@ -68,7 +68,7 @@ function mergeScene(base: Scene, child: Scene): Scene {
     entities: mergeById(base.entities ?? [], child.entities ?? [], (e) => e.id),
     systems: mergeById(base.systems ?? [], child.systems ?? [], (s) => s.id),
     size: resolveSize(base.size, child.size),
-    // World bounds (0.7.0): the child's if it set them, else the base's — so a level
+    // World bounds: the child's if it set them, else the base's — so a level
     // shell can declare the scrollable world size once and each level inherits it.
     world: child.world ?? base.world,
     tilemap: child.tilemap ?? base.tilemap,

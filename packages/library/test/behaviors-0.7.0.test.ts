@@ -6,8 +6,8 @@ import { movePlatformer } from "../src/behaviors/move-platformer.js";
 const DT = 1 / 60;
 
 /**
- * 0.7.0 — the platformer enablers (INDIE-ROADMAP Tier-0):
- *  - camera-follow (0.1): pan the viewport to track a target, clamped to the world.
+ * The platformer enablers:
+ *  - camera-follow: pan the viewport to track a target, clamped to the world.
  *  - move-platformer: honor the `contacts.onGround` flag a resolver wrote (the collision phase).
  *
  * (Solid/tile push-out itself is the SDK resolution phase now; see the SDK's resolve-bodies tests.)
@@ -67,7 +67,7 @@ describe("camera-follow", () => {
   });
 });
 
-describe("move-platformer — resolver grounding hook (1.1.0)", () => {
+describe("move-platformer — resolver grounding hook", () => {
   it("jumps when a resolver marked contacts.onGround, even off the world floor", () => {
     const world = makeWorld({ bounds: { width: 800, height: 600 } });
     const e = makeEntity(world, { id: "p", x: 100, y: 100, w: 16, h: 16 }); // mid-air vs world floor

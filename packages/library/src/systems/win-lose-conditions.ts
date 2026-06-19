@@ -17,13 +17,13 @@ interface Condition {
   truthy?: boolean;
   /** Match when `world.state[key]` is falsy. */
   falsy?: boolean;
-  /** Tag whose LIVE entity count (`world.query(tag).length`) is tested (E7). */
+  /** Tag whose LIVE entity count (`world.query(tag).length`) is tested. */
   tag?: string;
   /** Count comparison: `"eq"` (default) | `"lte"` | `"gte"` | `"lt"` | `"gt"`. */
   count?: "eq" | "lte" | "gte" | "lt" | "gt";
-  /** Composite: matches when ALL sub-conditions match (E7). */
+  /** Composite: matches when ALL sub-conditions match. */
   all?: Condition[];
-  /** Composite: matches when ANY sub-condition matches (E7). */
+  /** Composite: matches when ANY sub-condition matches. */
   any?: Condition[];
   // --- outcome (top-level entries only) ---
   /** Outcome when this condition fires. */
@@ -39,10 +39,9 @@ interface Condition {
  * MATCHING one ends the game: sets `gameOver`, `outcome`, and `winner`, plays a
  * sound, and emits `"gameover"`. Idempotent once the game is over.
  *
- * The condition VOCABULARY (E7, 0.4.0 — all ADDITIVE; existing `{key,cmp,value}`
- * conditions behave byte-identically):
+ * The condition VOCABULARY:
  *  - **state threshold** `{ key, cmp?, value }` — `world.state[key]` vs a `$cfg`
- *    value with `gte` (default) / `lte` / `eq`. (The original 1.0.0 condition.)
+ *    value with `gte` (default) / `lte` / `eq`. (The base condition.)
  *  - **state truthy/falsy** `{ key, truthy }` / `{ key, falsy }` — a latched flag,
  *    no numeric literal required.
  *  - **entity count** `{ tag, count?, value? }` — `world.query(tag).length` vs
@@ -52,9 +51,9 @@ interface Condition {
  *    sub-conditions (any of the above, nestable). The outcome lives on the
  *    composite; sub-conditions are predicate-only.
  *
- * This is the additive answer to ENGINE-ROADMAP #E7: a win like tower-defense's
- * "all waves complete AND zero live creeps" is now DATA — `{ all: [ {key,truthy},
- * {tag,count} ] }` — instead of hand-rolled in a custom system.
+ * A win like tower-defense's "all waves complete AND zero live creeps" is DATA —
+ * `{ all: [ {key,truthy}, {tag,count} ] }` — instead of hand-rolled in a custom
+ * system.
  *
  * Conditions reference `world.state` keys and tags maintained by other parts
  * (`health-and-death` tallies, `score`, `currency`, a `wave-spawner`'s done flag),

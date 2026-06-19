@@ -10,7 +10,7 @@ interface SpawnerState extends Record<string, unknown> {
   // Cumulative spawn index across the WHOLE run (never reset per wave). The
   // round-robin over `spawnPoints` keys on this, not on `spawnedThisWave`, so
   // small per-wave counts (e.g. waveSize:1) still cycle through every spawn
-  // point over successive waves instead of pinning to spawnPoints[0]. (B-1)
+  // point over successive waves instead of pinning to spawnPoints[0].
   spawnCursor: number;
   started: boolean;
   done: boolean;
@@ -46,13 +46,12 @@ interface SpawnerState extends Record<string, unknown> {
  *  - `stateKey`: `world.state` scratch key for this spawner (default `"__waveSpawner"`)
  *  - `waveKey`: `world.state` key exposing the current wave number for a HUD (default `"wave"`)
  *
- * Level-aware DENSITY ramp (0.6.0, E11 — the spawn-pressure half of difficulty, the
- * companion to per-entity `scale-by-state` which ramps the SPEED half). Reads the
+ * Level-aware DENSITY ramp — the spawn-pressure half of difficulty, the
+ * companion to per-entity `scale-by-state` which ramps the SPEED half. Reads the
  * same 1-based difficulty counter `scale-by-state`/`level-progression` use (and that
  * the runtime sets per stage when a game declares `manifest.levels`), so a wave's
  * size and cadence tighten as the level climbs — with the factor
- * `1 + perLevel * max(0, level - 1)`. Both default to 0 ⇒ no ramp, exactly the
- * pre-0.6.0 behavior:
+ * `1 + perLevel * max(0, level - 1)`. Both default to 0 ⇒ no ramp:
  *  - `levelKey`: `world.state` key holding the 1-based level (default `"level"`)
  *  - `densityPerLevel`: fractional add to `waveSize` per level above 1 (balance → `$cfg`; default 0)
  *  - `intervalPerLevel`: fractional SHORTENING of the inter-spawn `interval` per level (balance → `$cfg`; default 0)
@@ -69,7 +68,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
   const stateKey = str(params, "stateKey", "__waveSpawner");
   const waveKey = str(params, "waveKey", "wave");
 
-  // Level-aware density ramp (E11). `factor(per)` = 1 + per·(level-1), level≥1, so
+  // Level-aware density ramp. `factor(per)` = 1 + per·(level-1), level≥1, so
   // it is ≥1 (a denominator-safe shortener for the timers). Read live each tick, so
   // a mid-run level-up tightens the very next spawn. `intervalPerLevel` shortens the
   // WHOLE spawn cadence — both the intra-wave `interval` and the inter-wave
@@ -86,9 +85,9 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
   const countTag = str(params, "countTag", "") || proto?.tags?.[0] || "";
   const spawnPts = points(params, "spawnPoints");
 
-  // 0.2.0 (G4): scatter spawns across free grid cells instead of the literal
-  // prototype position. Additive — `placement` defaults to "literal", which is the
-  // exact 0.1.x behavior (round-robin spawnPoints or the prototype's own position).
+  // Scatter spawns across free grid cells instead of the literal prototype
+  // position. `placement` defaults to "literal" (round-robin spawnPoints or the
+  // prototype's own position).
   const placement = str(params, "placement", "literal");
   const tileSize = num(params, "tileSize", 0);
   const occupiedTag = str(params, "occupiedTag", "") || countTag;
@@ -134,7 +133,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
     if (maxAlive === 0 || aliveOfTag < maxAlive) {
       // Resolve the spawn position. "free-cell" picks a verified-free grid cell
       // (deterministic via world.rng) and centers the prototype on it; "literal"
-      // uses the round-robin spawnPoints cursor (B-1) or the prototype's position.
+      // uses the round-robin spawnPoints cursor or the prototype's position.
       let pt: Vec2 | undefined;
       if (placement === "free-cell" && tileSize > 0) {
         const cell = randomFreeCell(world, { tileSize, occupiedTag });
@@ -143,7 +142,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
         const h = proto?.size?.h ?? 16;
         pt = { x: cell.x - w / 2, y: cell.y - h / 2 }; // top-left so center sits on the cell
       } else {
-        // Persistent cumulative cursor → spawn points cycle over the whole run. (B-1)
+        // Persistent cumulative cursor → spawn points cycle over the whole run.
         pt = spawnPts.length ? spawnPts[s.spawnCursor % spawnPts.length] : undefined;
       }
       const spawned = spawnFrom(world, params.prototype, {

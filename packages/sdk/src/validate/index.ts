@@ -41,7 +41,7 @@ const SMOKE_FRAMES = 60;
  *  4. the storage rule — ecosystem games must not touch raw localStorage/indexedDB
  *  5. the mechanical no-magic-numbers rule + `$cfg` resolution
  *  5b. cross-scene reference integrity — flow.on targets, `extends`, `levels`,
- *     `levelsComplete`, and `entryPoint` must resolve to a real scene id (E11)
+ *     `levelsComplete`, and `entryPoint` must resolve to a real scene id
  *  6. `partId@version` catalog resolution against the pinned libraryVersion
  *  7. the smoke boot — build the entry scene and run {@link SMOKE_FRAMES} fixed
  *     frames headless (falls back to the game's own `npm test` when the game
@@ -120,7 +120,7 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     issues.push(...checkParams(scenes, config));
   }
 
-  // 5b. Cross-scene reference integrity (E11): flow.on targets, scene `extends`,
+  // 5b. Cross-scene reference integrity: flow.on targets, scene `extends`,
   //     manifest `levels`/`levelsComplete`, and `entryPoint` must all resolve to a
   //     real scene id — a broken link used to slip through to runtime.
   if (scenes.length > 0) {
@@ -134,7 +134,7 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     issues.push(...checkPartRefs(refs, manifest?.libraryVersion, catalog));
   }
 
-  // 6b. Non-failing presentation advisories (0.3.1): HUD-under-corner-button and
+  // 6b. Non-failing presentation advisories: HUD-under-corner-button and
   //     full-field-rect-at-center-coords. Warnings only — never affect `ok`.
   if (scenes.length > 0) {
     issues.push(...checkAdvisories(scenes));

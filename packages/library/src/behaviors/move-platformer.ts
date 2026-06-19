@@ -47,7 +47,7 @@ import { num, strArray, str } from "@gitcade/sdk";
  *  - `dropThroughTime`: seconds the drop-through window stays open after down+jump on a
  *    one-way platform (balance → `$cfg`; default 0 = off)
  *  - `groundTag`: tag of solid ground entities (default `"ground"`)
- *  - **ladder climb (0.11.0)** — when the entity's center is over a `ladderProp` tile and `up`/
+ *  - **ladder climb** — when the entity's center is over a `ladderProp` tile and `up`/
  *    `down` is held, it climbs (gravity off, `vy = ±climbSpeed`), and can step off the side:
  *  - `ladderProp`: tile-property flag marking a climbable cell (default `"ladder"`)
  *  - `climbSpeed`: climb speed in px/sec (balance → `$cfg`; default 0 = ladders OFF)

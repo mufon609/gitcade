@@ -32,12 +32,11 @@ export const AuthorSchema = z.union([
 export type Author = z.infer<typeof AuthorSchema>;
 
 /**
- * Cross-RUN persistence binding (0.2.0 additive, G6). Declares which
+ * Cross-RUN persistence binding (additive optional). Declares which
  * `world.state` keys survive a reload, the storage slot they round-trip through
  * (the bridge already namespaces by `gameSlug + branch`), and an autosave cadence.
- * Consumed by the library `persistence` system; absent ⇒ no persistence (0.1.x
- * behavior unchanged). The cross-SCENE/in-session hand-off set lives separately on
- * `scene.flow.persist` (OQ-6 split).
+ * Consumed by the library `persistence` system; absent ⇒ no persistence. The
+ * cross-SCENE/in-session hand-off set lives separately on `scene.flow.persist`.
  */
 export const PersistSchema = z.object({
   /** `world.state` keys persisted across runs (saved on change/interval, loaded on boot). */
@@ -73,7 +72,7 @@ export type ControlHint = z.infer<typeof ControlHintSchema>;
  *  - `libraryVersion` is REQUIRED for the `ecosystem` tier (it pins which catalog
  *    `partId@version` references resolve against) and omitted for the `open` tier.
  *
- * FROZEN at the end of Phase 1.
+ * This shape is FROZEN.
  */
 export const GameManifestSchema = z
   .object({
@@ -92,12 +91,12 @@ export const GameManifestSchema = z
     license: LicenseSchema.default("MIT"),
     authors: z.array(AuthorSchema).default([]),
     tier: TierSchema,
-    /** Cross-run persistence binding (0.2.0 additive, G6); absent ⇒ no persistence. */
+    /** Cross-run persistence binding (additive optional); absent ⇒ no persistence. */
     persist: PersistSchema.optional(),
     /** Machine-readable control hints for the platform UI (additive); absent ⇒ none shown. */
     controls: z.array(ControlHintSchema).optional(),
     /**
-     * Ordered level sequence (0.6.0 additive, E11). Scene ids that make up the
+     * Ordered level sequence (additive optional). Scene ids that make up the
      * game's playable progression, in order. Makes "this game is a campaign of N
      * levels" a FIRST-CLASS, introspectable fact (a platform can show a level
      * count / level-select; the validator can prove the chain resolves) instead of
@@ -105,7 +104,7 @@ export const GameManifestSchema = z
      * targets `"@next"`/`"@first"` (no per-level destination wiring) and makes the
      * runtime set `world.state.level` to the 1-based index of the active level, so
      * the difficulty counter that `scale-by-state` reads tracks the stage for free.
-     * Absent ⇒ no campaign concept (every 0.x game), so the field is purely additive.
+     * Absent ⇒ no campaign concept, so the field is purely additive.
      */
     levels: z.array(z.string().min(1)).optional(),
     /** Scene id to route to when `"@next"` advances past the last level (e.g. a win screen). */

@@ -6,12 +6,12 @@ import config from "../config.json";
 import main from "../src/scenes/main.json";
 
 /**
- * Reuse proof — the 0.7.0 platformer enablers end-to-end (INDIE-ROADMAP Tier-0):
- *  - tilemap-collide (0.2): the player lands on a SOLID tile floor and on a mid-air
+ * Reuse proof — the platformer enablers end-to-end:
+ *  - tilemap-collide: the player lands on a SOLID tile floor and on a mid-air
  *    platform, and stops at a solid wall — no entity-per-tile, no host collision code.
- *  - move-platformer (1.1.0): jumps off the tile floor (reads tilemap-collide's
+ *  - move-platformer: jumps off the tile floor (reads tilemap-collide's
  *    contacts.onGround flag).
- *  - camera-follow + scene.world (0.1): the viewport pans to track the player across a
+ *  - camera-follow + scene.world: the viewport pans to track the player across a
  *    world wider than itself and clamps to the world's right edge.
  *
  * Scene facts: viewport 800x480, world 1600x480, 32px tiles. Floor top y=448 (player
@@ -62,7 +62,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(game.world.camera.x).toBe(0); // player near the left → camera pinned at origin
   });
 
-  it("lands on a MID-AIR platform, not the floor (the headline 0.2 fix)", () => {
+  it("lands on a MID-AIR platform, not the floor", () => {
     const game = boot();
     game.stepFrames(1); // build the world
     const player = game.world.byId("player")!;
@@ -75,7 +75,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(player.body.contacts.onGround).toBe(true);
   });
 
-  it("jumps off the tile floor when grounded (move-platformer 1.1.0 hook)", () => {
+  it("jumps off the tile floor when grounded (move-platformer hook)", () => {
     const game = boot();
     game.stepFrames(120); // land first
     const player = game.world.byId("player")!;
@@ -98,9 +98,9 @@ describe("platformer-scroll reuse proof", () => {
     expect(game.world.camera.x).toBe(800); // viewport clamped to the world's right edge (maxX)
   });
 
-  it("variable jump: holding jump climbs higher than tapping it (move-platformer 1.2.0)", () => {
-    // The scene drives the full 1.2.0 mover (accel/friction, jumpCut, buffer, apex hang) via
-    // $cfg — so a real boot exercises the new params end-to-end, validator included.
+  it("variable jump: holding jump climbs higher than tapping it (move-platformer)", () => {
+    // The scene drives the full mover (accel/friction, jumpCut, buffer, apex hang) via
+    // $cfg — so a real boot exercises the params end-to-end, validator included.
     function apexY(hold: boolean): number {
       const game = boot();
       game.stepFrames(120); // settle on the floor
@@ -119,7 +119,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(apexY(true)).toBeLessThan(apexY(false)); // a held jump reaches a smaller y (higher)
   });
 
-  it("lands on a ONE-WAY platform from above (tilemap-collide oneWay tile, 0.7.0)", () => {
+  it("lands on a ONE-WAY platform from above (tilemap-collide oneWay tile)", () => {
     const game = boot();
     game.stepFrames(1);
     const player = game.world.byId("player")!;
@@ -150,7 +150,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(player.y).toBe(424); // fell THROUGH the one-way platform and landed on the floor (448 − 24)
   });
 
-  it("animates idle↔run and flips scaleX to face movement (sprite-state-machine + face-velocity, 0.7.0)", () => {
+  it("animates idle↔run and flips scaleX to face movement (sprite-state-machine + face-velocity)", () => {
     const game = boot();
     game.stepFrames(120); // settle on the floor, no input
     const player = game.world.byId("player")!;
@@ -166,7 +166,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(player.scaleX).toBe(-1); // flipped to face left
   });
 
-  it("animates jump while rising and fall while descending (0.7.0)", () => {
+  it("animates jump while rising and fall while descending", () => {
     const game = boot();
     game.stepFrames(1);
     const player = game.world.byId("player")!;
@@ -185,7 +185,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(player.anim.current).toBe("fall");
   });
 
-  it("shakes the camera on a 'shake' event, then settles (camera-shake, 0.7.0)", () => {
+  it("shakes the camera on a 'shake' event, then settles (camera-shake)", () => {
     const game = boot();
     game.stepFrames(2); // let the system subscribe and the camera settle
     const cam = game.world.camera;
@@ -204,7 +204,7 @@ describe("platformer-scroll reuse proof", () => {
     expect(cam.shakeY).toBe(0);
   });
 
-  it("pulses the goal flag via a scale tween (visual only — physics untouched, 0.7.0)", () => {
+  it("pulses the goal flag via a scale tween (visual only — physics untouched)", () => {
     const game = boot();
     const goal = game.world.byId("goal")!;
     const x0 = goal.x;

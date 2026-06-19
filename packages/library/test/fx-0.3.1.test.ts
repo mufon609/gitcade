@@ -3,7 +3,7 @@ import { throttle } from "../src/fx/screen-effects.js";
 
 afterEach(() => vi.restoreAllMocks());
 
-describe("throttle (0.3.1 — screen-FX rate limiter)", () => {
+describe("throttle (screen-FX rate limiter)", () => {
   it("runs the first call, suppresses within the window, fires again after it", () => {
     let t = 1000;
     vi.spyOn(performance, "now").mockImplementation(() => t);

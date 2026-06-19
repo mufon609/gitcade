@@ -44,7 +44,7 @@ describe("transaction system", () => {
 });
 
 // ---------------------------------------------------------------------------
-// #4 (0.2.1) — snapToGrid / randomFreeCell are re-exported from the PACKAGE INDEX
+// #4 — snapToGrid / randomFreeCell are re-exported from the PACKAGE INDEX
 //   (not just src/util.js), so games no longer inline the grid-snap formula.
 // ---------------------------------------------------------------------------
 describe("public grid helpers re-exported from @gitcade/library (#4)", () => {
@@ -198,13 +198,12 @@ describe("persistence system", () => {
 });
 
 // ---------------------------------------------------------------------------
-// G6 race (0.2.1) — a persisted, system-SEEDED key restores authoritatively
+// G6 race — a persisted, system-SEEDED key restores authoritatively
 //   even when `currency` would seed it synchronously on the SAME scene.
-//   This is the race #6 fix: `persistence` claims the key, `currency` defers
-//   its seed while the load is in flight, the restore wins. No title-scene
-//   workaround needed.
+//   `persistence` claims the key, `currency` defers its seed while the load
+//   is in flight, the restore wins. No title-scene workaround needed.
 // ---------------------------------------------------------------------------
-describe("persistence vs currency seeding race (0.2.1, G6)", () => {
+describe("persistence vs currency seeding race (G6)", () => {
   // Flush the .then→.catch→.finally microtask chain the load promise schedules.
   const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
 
@@ -233,7 +232,7 @@ describe("persistence vs currency seeding race (0.2.1, G6)", () => {
     // Run 2 — fresh world, SAME scene (currency present), SAME storage.
     const g2 = new Game({ scenes: [raceScene], config: {}, canvas: null, persist, storage: g1.world.storage, registry: createLibraryRegistry() });
     // Tick 1: persistence claims `coins`; currency sees it pending and DEFERS its
-    // seed (no `coins: 0` clobber). On 0.2.0 currency would have written 0 here.
+    // seed (no `coins: 0` clobber).
     g2.stepFrames(1);
     expect(g2.world.isPersistPending("coins")).toBe(true); // claimed, load not yet resolved
     expect("coins" in g2.world.state).toBe(false); // seed deferred — NOT 0
@@ -255,7 +254,7 @@ describe("persistence vs currency seeding race (0.2.1, G6)", () => {
     expect(g.world.state.coins).toBe(0); // currency now seeds startAmount normally
   });
 
-  it("currency alone (no persistence claiming) seeds on tick 1 — unchanged 0.2.0 behavior", () => {
+  it("currency alone (no persistence claiming) seeds on tick 1", () => {
     const w = makeWorld();
     currency(w, { currencyKey: "gold", startAmount: 50 }, 1 / 60);
     expect(w.state.gold).toBe(50); // no claim ⇒ immediate seed (additive no-op of the check)
@@ -263,13 +262,13 @@ describe("persistence vs currency seeding race (0.2.1, G6)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Idle Clicker offline-credit ordering (Batch 3.2): a HOST-SIDE writer that
+// Idle Clicker offline-credit ordering: a HOST-SIDE writer that
 // adds earnings-while-away must defer on the SAME persist claim the seed systems
 // use, so it lands AFTER the async restore — never racing a fixed timer that the
 // restore can overwrite (the old `setTimeout(credit, 60)` silently lost coins
 // whenever the bridge round-trip took longer than 60ms).
 // ---------------------------------------------------------------------------
-describe("offline-credit ordering vs the persistence restore (3.2)", () => {
+describe("offline-credit ordering vs the persistence restore", () => {
   const flush = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
   const scene: Scene = {
     id: "play",
@@ -354,7 +353,7 @@ describe("offline-credit ordering vs the persistence restore (3.2)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// #8 (0.2.1) — scale-by-state: ramp a live field by a world.state level counter.
+// #8 — scale-by-state: ramp a live field by a world.state level counter.
 //   Generalizes Helicopter `scroll-ramp` (set velocity) and Survival Arena
 //   `swarm-scale` (multiply velocity + one-time hp bump).
 // ---------------------------------------------------------------------------

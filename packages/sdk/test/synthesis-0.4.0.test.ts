@@ -6,10 +6,10 @@ function makeScene(id: string): Scene {
 }
 
 /**
- * E1 (0.4.0) — the logical input ACTION layer. A mover reads `action(name)` /
+ * The logical input ACTION layer. A mover reads `action(name)` /
  * `actionVector(name)`; the binding decides whether keyboard, an on-screen rect,
  * or a virtual d-pad zone satisfies it — so touch feeds a keyboard-authored mover
- * WITHOUT the game synthesizing fake `KeyboardEvent`s (the bandaid this retires).
+ * WITHOUT the game synthesizing fake `KeyboardEvent`s.
  */
 
 /** Attach a fresh Input to fake key + pointer targets (no getBoundingClientRect ⇒ world coords are 1:1). */
@@ -32,7 +32,7 @@ function makeInput() {
   };
 }
 
-describe("E1 input action layer (0.4.0)", () => {
+describe("input action layer", () => {
   it("keyboard axisKeys → unit actionVector; opposed keys cancel", () => {
     const { input, keydown, keyup } = makeInput();
     input.defineActions({
@@ -144,12 +144,12 @@ describe("E1 input action layer (0.4.0)", () => {
 });
 
 /**
- * E4 (0.4.0) — the data-ish pause primitive: `togglePause()` flips the sim freeze and
+ * The data-ish pause primitive: `togglePause()` flips the sim freeze and
  * emits `pause-changed` so the host reacts (overlay/audio) without owning the logic; a
  * `pauseScenes` guard blocks pausing menus but never strands a pause. (The `pauseKeys`
  * rAF-loop handler that calls togglePause is browser-only and not exercised headless.)
  */
-describe("E4 pause primitive (0.4.0)", () => {
+describe("pause primitive", () => {
   it("togglePause flips the freeze and emits pause-changed with the new state", () => {
     const game = new Game({ scenes: [makeScene("play")], config: {}, canvas: null });
     const events: boolean[] = [];

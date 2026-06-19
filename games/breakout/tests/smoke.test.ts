@@ -94,7 +94,7 @@ describe("breakout smoke (data flow + levels)", () => {
     expect(game.scene.id).toBe("win");
   });
 
-  it("ramps the ball launch speed by stage and shows a dynamic LEVEL label (E11 unified counter)", () => {
+  it("ramps the ball launch speed by stage and shows a dynamic LEVEL label", () => {
     // Both come from `world.state.level`, which the runtime sets to the 1-based stage
     // index — no per-level config. scale-by-state(once) seeds vx/vy × (1+0.1·(level-1)).
     const ballSpeed = (g: ReturnType<typeof boot>): number => {

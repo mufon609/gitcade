@@ -33,7 +33,7 @@ function attachOnce(world: World, key: string, attach: () => void): void {
  *  - `tileSize`: grid cell size in px (structural)
  *  - `occupiedTag`: tag whose live entities mark a cell occupied (default = prototype's first tag)
  *  - `require`: optional tilemap gate, `"walkable"` | `"buildable"`
- *  - `excludeTags`: extra tags whose live entities also block their cell (0.2.1, #2) —
+ *  - `excludeTags`: extra tags whose live entities also block their cell —
  *    tag a marker at a "soon-to-be-occupied" cell (e.g. Snake's imminent head cell)
  *    to keep a placement off it.
  */

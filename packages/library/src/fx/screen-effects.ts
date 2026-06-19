@@ -167,14 +167,14 @@ export function attachScreenEffects(
 }
 
 /**
- * Wrap an event handler so it runs at most once per `ms` (0.3.1 — generalizes the
- * survival-arena audit fix). The standard guard for a SCREEN-level effect bound to a
- * high-FREQUENCY event: without it, a swarm/pile-up turns a per-hit `shake`/`flash`
- * into a constant rumble or strobe — the same over-juice the routine-action
- * full-screen-flash anti-pattern is. The convention still stands (see CONVENTIONS.md):
- * routine actions get a LOCAL particle burst, and the screen is reserved for big rare
- * beats; reach for this only when a screen effect on a frequent-but-meaningful event
- * (e.g. the player taking damage) genuinely earns its place, then rate-limit it.
+ * Wrap an event handler so it runs at most once per `ms`. The standard guard for a
+ * SCREEN-level effect bound to a high-FREQUENCY event: without it, a swarm/pile-up
+ * turns a per-hit `shake`/`flash` into a constant rumble or strobe — the same
+ * over-juice the routine-action full-screen-flash anti-pattern is. The convention
+ * (see CONVENTIONS.md): routine actions get a LOCAL particle burst, and the screen is
+ * reserved for big rare beats; reach for this only when a screen effect on a
+ * frequent-but-meaningful event (e.g. the player taking damage) genuinely earns its
+ * place, then rate-limit it.
  *
  * Usage mirrors a normal `bindToEvents` handler:
  *   fx.bindToEvents(world, {

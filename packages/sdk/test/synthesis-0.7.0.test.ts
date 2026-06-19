@@ -11,16 +11,16 @@ import {
 } from "../src/index.js";
 
 /**
- * 0.7.0 — camera + world/viewport decouple (INDIE-ROADMAP Tier-0 item 0.1).
+ * Camera + world/viewport decouple.
  *
  * `scene.world` separates the simulation bounds from the viewport (`scene.size`);
  * `world.camera` is the window the renderer pans across it. Everything is additive:
- * a scene with no `world`/camera-move renders byte-identically to pre-0.7.
+ * a scene with no `world`/camera-move renders byte-identically when the camera holds at the origin.
  */
 
 const DEFAULTS = { config: {} };
 
-describe("0.7.0 schema — scene.world + solid tile flag", () => {
+describe("schema — scene.world + solid tile flag", () => {
   it("parses an optional `world` larger than the viewport", () => {
     const s = SceneSchema.parse({
       id: "lvl",
@@ -32,7 +32,7 @@ describe("0.7.0 schema — scene.world + solid tile flag", () => {
     expect(s.world).toEqual({ width: 3200, height: 600 });
   });
 
-  it("leaves `world` undefined when absent (pre-0.7 scenes unchanged)", () => {
+  it("leaves `world` undefined when absent", () => {
     const s = SceneSchema.parse({ id: "s", entities: [], systems: [] });
     expect(s.world).toBeUndefined();
   });
@@ -48,7 +48,7 @@ describe("0.7.0 schema — scene.world + solid tile flag", () => {
   });
 });
 
-describe("0.7.0 inheritance — world bounds merge", () => {
+describe("inheritance — world bounds merge", () => {
   it("a child inherits the base's `world`, and can override it", () => {
     const base = SceneSchema.parse({ id: "shell", size: { width: 800, height: 600 }, world: { width: 4000, height: 600 } });
     const lvl1 = SceneSchema.parse({ id: "l1", extends: "shell" });
@@ -59,7 +59,7 @@ describe("0.7.0 inheritance — world bounds merge", () => {
   });
 });
 
-describe("0.7.0 World.camera", () => {
+describe("World.camera", () => {
   it("defaults the viewport to the full bounds at the origin", () => {
     const world = new World({ bounds: { width: 800, height: 600 }, config: {}, registry: createDefaultRegistry() });
     expect(world.camera).toEqual({ x: 0, y: 0, width: 800, height: 600 });
@@ -70,7 +70,7 @@ function scene(extra: Partial<Scene>): Scene {
   return SceneSchema.parse({ id: "s", entities: [], systems: [], ...extra });
 }
 
-describe("0.7.0 Game — per-scene bounds vs viewport", () => {
+describe("Game — per-scene bounds vs viewport", () => {
   it("decouples world bounds (sim) from the camera viewport when `world` is set", () => {
     const game = new Game({ scenes: [scene({ size: { width: 800, height: 600 }, world: { width: 3200, height: 600 } })], ...DEFAULTS });
     expect(game.world.bounds).toEqual({ width: 3200, height: 600 }); // sim area
@@ -79,7 +79,7 @@ describe("0.7.0 Game — per-scene bounds vs viewport", () => {
     expect(game.world.camera.x).toBe(0);
   });
 
-  it("with no `world`, bounds == viewport (byte-identical to pre-0.7)", () => {
+  it("with no `world`, bounds == viewport", () => {
     const game = new Game({ scenes: [scene({ size: { width: 480, height: 320 } })], ...DEFAULTS });
     expect(game.world.bounds).toEqual({ width: 480, height: 320 });
     expect(game.world.camera).toEqual({ x: 0, y: 0, width: 480, height: 320 });
@@ -121,7 +121,7 @@ function recordingCtx() {
   return { ctx, calls };
 }
 
-describe("0.7.0 Renderer — camera transform", () => {
+describe("Renderer — camera transform", () => {
   function worldWithBox(camX: number, camY: number) {
     const world = new World({ bounds: { width: 3200, height: 600 }, config: {}, registry: createDefaultRegistry() });
     world.camera = { x: camX, y: camY, width: 800, height: 600 };
@@ -129,7 +129,7 @@ describe("0.7.0 Renderer — camera transform", () => {
       Object.assign(Object.create(null), {
         x: 100, y: 100, w: 16, h: 16, cx: 108, cy: 108, layer: 0, zIndex: 0, rotation: 0, scaleX: 1, scaleY: 1,
         alive: true, sprite: { kind: "shape", shape: "rect", color: "#fff" },
-        // The render-interpolation source (1.8.0) — every real Entity carries `body`; this minimal stub
+        // The render-interpolation source — every real Entity carries `body`; this minimal stub
         // must too. prevX/prevY = x/y so the interpolation offset is 0 (and it's 0 anyway at the default α=1).
         body: { prevX: 100, prevY: 100 },
       }) as never,
@@ -145,7 +145,7 @@ describe("0.7.0 Renderer — camera transform", () => {
     expect(calls.fillRects[0]).toEqual([0, 0, 800, 600]);
   });
 
-  it("does NOT translate at the camera origin (pre-0.7 path is byte-identical)", () => {
+  it("does NOT translate at the camera origin (byte-identical)", () => {
     const { ctx, calls } = recordingCtx();
     new Renderer(ctx as never).render(worldWithBox(0, 0));
     expect(calls.translate).toHaveLength(0);
@@ -201,7 +201,7 @@ function alphaCtx() {
   return { ctx, fills };
 }
 
-describe("0.7.0 Renderer — opacity + visibility (declared-but-ignored slots)", () => {
+describe("Renderer — opacity + visibility (declared-but-ignored slots)", () => {
   function boxWorld(over: { opacity?: number; visible?: boolean }) {
     const world = new World({ bounds: { width: 200, height: 200 }, config: {}, registry: createDefaultRegistry() });
     world.add(
@@ -218,7 +218,7 @@ describe("0.7.0 Renderer — opacity + visibility (declared-but-ignored slots)",
     expect(ctx.globalAlpha).toBe(1); // restored after the entity
   });
 
-  it("draws fully opaque (globalAlpha 1) by default — byte-identical to pre-0.7", () => {
+  it("draws fully opaque (globalAlpha 1) by default — byte-identical", () => {
     const { ctx, fills } = alphaCtx();
     new Renderer(ctx as never).render(boxWorld({}), "#000");
     expect(fills[fills.length - 1].alpha).toBe(1);

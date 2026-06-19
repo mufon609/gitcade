@@ -111,7 +111,7 @@ function nextSpawnSeq(world: World): number {
   return n;
 }
 
-/** Snap a world point to the CENTER of the grid cell that contains it (G4). */
+/** Snap a world point to the CENTER of the grid cell that contains it. */
 export function snapToGrid(x: number, y: number, tileSize: number): Vec2 {
   const col = Math.floor(x / tileSize);
   const row = Math.floor(y / tileSize);
@@ -137,13 +137,12 @@ export interface RandomFreeCellOpts {
   require?: "walkable" | "buildable";
   /**
    * Extra tags whose live entities ALSO mark their cell occupied, beyond
-   * `occupiedTag` (0.2.1, gap #2). Lets a caller exclude a "soon-to-be-occupied"
-   * cell by tagging a marker entity there — e.g. Snake placing an invisible
-   * marker at the head's imminent next cell so a coin never spawns on it (closes
-   * the ~0.08% instant re-eat the old hand-rolled `spawnFood` excluded).
+   * `occupiedTag`. Lets a caller exclude a "soon-to-be-occupied" cell by tagging a
+   * marker entity there — e.g. Snake placing an invisible marker at the head's
+   * imminent next cell so a coin never spawns on it (prevents an instant re-eat).
    */
   excludeTags?: string[];
-  /** Extra explicit world points to exclude (each maps to its grid cell) (0.2.1, #2). */
+  /** Extra explicit world points to exclude (each maps to its grid cell). */
   excludeCells?: Vec2[];
 }
 
@@ -152,7 +151,7 @@ export interface RandomFreeCellOpts {
  * world), excluding every cell already occupied by a live `occupiedTag` entity and
  * — when `require` is set and the scene has a tilemap — every cell failing the
  * tilemap gate. Uses `world.rng` for deterministic replay, never `Math.random`.
- * Returns the cell's center point, or `null` if no cell is free (G4).
+ * Returns the cell's center point, or `null` if no cell is free.
  *
  * This is the one-line replacement for the ~60 lines of occupancy-set + retry +
  * fallback that games hand-rolled (e.g. Snake food); "first food on the wall" and
@@ -168,7 +167,7 @@ export function randomFreeCell(world: World, opts: RandomFreeCellOpts): Vec2 | n
 
   // Mark cells occupied by any live entity carrying occupiedTag (or one of the
   // optional excludeTags), keyed on the entity's center cell. Plus any explicit
-  // excludeCells the caller passed (0.2.1, #2).
+  // excludeCells the caller passed.
   const occupied = new Set<number>();
   const markCell = (cx: number, cy: number): void => {
     const col = Math.floor((cx - b.x) / ts);

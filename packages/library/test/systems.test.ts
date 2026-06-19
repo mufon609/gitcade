@@ -129,7 +129,7 @@ describe("wave-spawner", () => {
     expect(ys).toEqual([10, 10, 20, 30]); // cursor 0,1,2,0 → all three points used, first reused
   });
 
-  // --- E11: level-aware density ramp (the spawn-pressure half of difficulty) ---
+  // --- level-aware density ramp (the spawn-pressure half of difficulty) ---
   it("scales wave size by the level counter via densityPerLevel", () => {
     const world = makeWorld();
     world.state.level = 3; // factor = 1 + 0.5*(3-1) = 2
@@ -231,7 +231,7 @@ describe("win-lose-conditions", () => {
     expect(world.state.outcome).toBe("lose");
   });
 
-  // --- E7 (1.1.0): entity-count, truthy flag, and all/any composition ---
+  // --- entity-count, truthy flag, and all/any composition ---
   it("wins on a live entity-count condition (value defaults to 0 — 'field cleared')", () => {
     const world = makeWorld();
     makeEntity(world, { id: "c1", tags: ["creep"] }); // one creep alive → not yet
@@ -346,7 +346,7 @@ describe("upgrade-tree", () => {
   });
 });
 
-describe("input-actions (E1)", () => {
+describe("input-actions", () => {
   it("installs keyboard + touch bindings that the input layer evaluates (no synth keys)", () => {
     const world = makeWorld();
     const keyL: Record<string, (e: any) => void> = {};
@@ -378,7 +378,7 @@ describe("input-actions (E1)", () => {
   });
 });
 
-describe("format-binding (E2)", () => {
+describe("format-binding", () => {
   it("floors / compacts / templates / scales / maps / reads-entity into display keys", () => {
     const world = makeWorld();
     world.state.score = 99.7;
@@ -424,7 +424,7 @@ describe("format-binding (E2)", () => {
   });
 });
 
-describe("stat-modifier (E6)", () => {
+describe("stat-modifier", () => {
   /** Attach a behavior carrying `params` to an entity (the runtime shape a system writes). */
   function withBehavior(e: ReturnType<typeof makeEntity>, type: string, params: Record<string, unknown>) {
     e.behaviors.push({ id: `${e.id}.${type}`, type, fn: () => {}, params, scratch: {} });

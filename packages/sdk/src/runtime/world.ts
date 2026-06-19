@@ -27,7 +27,7 @@ export interface WorldOptions {
 }
 
 /**
- * The render VIEWPORT onto the world (0.7.0). `x`/`y` is the top-left of the
+ * The render VIEWPORT onto the world. `x`/`y` is the top-left of the
  * viewport in WORLD coordinates; `width`/`height` is its size in world px (the
  * canvas/logical size). The renderer translates by `-x`/`-y` before drawing the
  * world, so the viewport is a window that can pan across a `world.bounds` larger
@@ -40,7 +40,7 @@ export interface Camera {
   width: number;
   height: number;
   /**
-   * Transient render-only OFFSET added to `x`/`y` by the renderer (0.7.0 camera juice) —
+   * Transient render-only OFFSET added to `x`/`y` by the renderer (camera juice) —
    * the home for screenshake and the like. Kept SEPARATE from `x`/`y` so a `camera-shake`
    * system can jitter the view without corrupting a `camera-follow` base or the
    * pointer→world mapping; both default to 0 (absent ⇒ no offset, byte-identical).
@@ -48,7 +48,7 @@ export interface Camera {
   shakeX?: number;
   shakeY?: number;
   /**
-   * Camera position at the START of the current tick (1.8.0 render interpolation) — the camera's
+   * Camera position at the START of the current tick (render interpolation) — the camera's
    * `body.prevX`/`prevY` analogue, snapshotted by the host loop before systems run so the renderer can
    * lerp the scroll base between the last two ticks (smooth scrolling when rAF ≠ the fixed sim rate).
    * Render-only and DECOUPLED from `x`/`y`: the simulation never reads it, so headless play is
@@ -80,13 +80,13 @@ export interface SceneChangeRequest {
 export class World {
   /**
    * WORLD/simulation bounds in px (the playable area). Behaviors clamp/floor/bounce
-   * against this. DECOUPLED from the {@link camera} viewport since 0.7.0: a scrolling
-   * level sets `bounds` LARGER than the viewport. The host (`Game`) updates these per
+   * against this. DECOUPLED from the {@link camera} viewport: a scrolling level sets
+   * `bounds` LARGER than the viewport. The host (`Game`) updates these per
    * scene from `scene.world ?? scene.size`; parts read them, don't reassign them.
    */
   readonly bounds: { width: number; height: number };
   /**
-   * The render viewport onto the world (0.7.0). Defaults to the full bounds at the
+   * The render viewport onto the world. Defaults to the full bounds at the
    * origin (so a camera-less scene renders byte-identically); a `camera-follow`
    * system pans it and the renderer reads it. The host sizes `width`/`height` to the
    * viewport (`scene.size`).
@@ -120,7 +120,7 @@ export class World {
   private _pendingScene: SceneChangeRequest | null = null;
 
   /**
-   * Keys CLAIMED by a persistence load that is still in flight (0.2.1, G6 race
+   * Keys CLAIMED by a persistence load that is still in flight (the G6 race
    * fix). While a key is claimed, a seed-once system (e.g. `currency`) defers
    * seeding it, so the async `storage.get` restore lands as the authoritative
    * boot value instead of being clobbered by a synchronous tick-1 seed. The set
@@ -131,7 +131,7 @@ export class World {
 
   /**
    * Keys whose persistence load has COMPLETED this scene — i.e. the restore wrote
-   * any saved value and released the claim (0.3.1, IC-9). Distinct from the pending
+   * any saved value and released the claim (IC-9). Distinct from the pending
    * set: a key moves pending → restored when {@link resolvePersistKeys} runs. Scene-
    * scoped (reset by {@link resetPersistTracking} on every transition). Lets a host
    * await the restore deterministically via {@link whenRestored} instead of polling
@@ -154,7 +154,7 @@ export class World {
   constructor(opts: WorldOptions) {
     this.bounds = opts.bounds;
     // Default the viewport to the whole world at the origin — the host overrides
-    // width/height with the actual viewport (`scene.size`) when it differs (0.7.0).
+    // width/height with the actual viewport (`scene.size`) when it differs.
     this.camera = { x: 0, y: 0, width: opts.bounds.width, height: opts.bounds.height };
     this.config = opts.config;
     this.registry = opts.registry;
@@ -300,40 +300,40 @@ export class World {
   }
 
   /**
-   * Claim `keys` as pending-restore for an in-flight persistence load (0.2.1,
-   * G6 race fix). Idempotent. A persistence system calls this SYNCHRONOUSLY on
+   * Claim `keys` as pending-restore for an in-flight persistence load (the G6
+   * race fix). Idempotent. A persistence system calls this SYNCHRONOUSLY on
    * its first tick — before any seed-once system runs that frame — so a
    * seed-once system can ask {@link isPersistPending} and DEFER seeding the key.
    * When the async `storage.get` resolves, the persistence system restores the
    * saved values and calls {@link resolvePersistKeys} to release the claim
    * (keys with no saved value are simply released, so the seed system seeds them
    * on the next tick). Purely additive: a system that does not consult the claim
-   * keeps its 0.2.0 behavior exactly. The claim set is reset by `loadScene`.
+   * keeps its prior behavior exactly. The claim set is reset by `loadScene`.
    */
   claimPersistKeys(keys: Iterable<string>): void {
     for (const k of keys) this._persistPending.add(k);
   }
 
-  /** True if `key` is claimed by an unresolved persistence load (0.2.1, G6). */
+  /** True if `key` is claimed by an unresolved persistence load (G6). */
   isPersistPending(key: string): boolean {
     return this._persistPending.has(key);
   }
 
-  /** Snapshot of the currently-claimed keys (0.2.1, G6) — host uses it to reset on scene change. */
+  /** Snapshot of the currently-claimed keys (G6) — host uses it to reset on scene change. */
   persistPendingKeys(): string[] {
     return [...this._persistPending];
   }
 
   /**
-   * Release the persistence claim on `keys` (0.2.1, G6) — called by the
+   * Release the persistence claim on `keys` (G6) — called by the
    * persistence system once its async load resolves (after writing any restored
    * values). Released keys are eligible for normal seeding again.
    *
-   * Restore-complete signal (0.3.1, IC-9): each released key is also recorded as
+   * Restore-complete signal (IC-9): each released key is also recorded as
    * restored, a `"persist-restored"` event fires with `{ keys }`, and any
    * {@link whenRestored} waiter whose keys are now all restored resolves. This is
    * the deterministic "the saved state has landed" signal — purely additive (a
-   * caller that ignores the event/promise sees the exact 0.2.1 release behavior),
+   * caller that ignores the event/promise sees the plain release behavior),
    * and it does NOT touch the frozen storage-bridge wire protocol: the persistence
    * system already calls this in its load `.finally`.
    */
@@ -356,7 +356,7 @@ export class World {
   }
 
   /**
-   * Resolve once every key in `keys` has been restored this scene (0.3.1, IC-9) —
+   * Resolve once every key in `keys` has been restored this scene (IC-9) —
    * the race-free alternative to polling {@link isPersistPending}. Resolves
    * immediately if the restore already completed; otherwise resolves when
    * {@link resolvePersistKeys} releases the last awaited key. A host reads the
@@ -373,7 +373,7 @@ export class World {
 
   /**
    * Reset all persistence-restore tracking — the pending claims, the restored set,
-   * and any outstanding {@link whenRestored} waiters (0.3.1, IC-9). Called by
+   * and any outstanding {@link whenRestored} waiters (IC-9). Called by
    * `Game.loadScene` on every transition: the restore set is scene-scoped (the new
    * scene owns its own persistence/seed systems), and resolving leftover waiters
    * keeps a stale promise from the old scene from hanging forever. Replaces the
@@ -406,7 +406,7 @@ export class World {
   }
 
   /**
-   * Resolve the entity HIERARCHY (0.9.0 scene graph): for every entity with a
+   * Resolve the entity HIERARCHY (the scene graph): for every entity with a
    * {@link Entity.parentId}, derive its WORLD transform from the parent's world transform
    * composed with its {@link Entity.local} offset (carried items, riders, multi-part bodies,
    * attached HUD/FX). The host runs this as a tick PHASE AFTER behaviors + prune, so a child
@@ -476,14 +476,13 @@ export class World {
   }
 
   /**
-   * The unified collision-resolution PHASE (1.1.0): resolve every DYNAMIC collider against the solid
+   * The unified collision-resolution PHASE: resolve every DYNAMIC collider against the solid
    * world — solid tiles AND solid-role entity colliders — in one owned pass. The single, typed
-   * replacement for the order-sensitive `tilemap-collide` + `solid-collide` resolver behaviors:
-   * solidity is declared once (the `collider` component, see {@link ColliderComponent}) and resolved
-   * in exactly one place.
+   * model for solidity: it is declared once (the `collider` component, see {@link ColliderComponent})
+   * and resolved in exactly one place.
    *
    * The host runs this as a tick phase AFTER behaviors + prune, BEFORE {@link resolveHierarchy} —
-   * appended like the 0.9.0 hierarchy phase, NOT a reorder of the frozen systems→behaviors→prune
+   * appended alongside the hierarchy phase, NOT a reorder of the frozen systems→behaviors→prune
    * sequence. Resolving after the whole behavior pass means every body is at its settled intended
    * position (a moving solid has already moved this tick), so a dynamic resolves against final
    * geometry with no author-ordering rule. A mover reading `entity.body.contacts` reads last tick's
@@ -554,7 +553,7 @@ export class World {
     }
     const anyPushable = pushables.length > 0;
 
-    // STACKING (1.9.0): a `pushable` crate is now SOLID-TO-DYNAMICS — a body lands and stands on its
+    // STACKING: a `pushable` crate is SOLID-TO-DYNAMICS — a body lands and stands on its
     // top (the crate joins each body's push-out as a top-only/`oneWay` solid, so it's stood-on but not
     // blocked sideways — push still owns horizontal crate interaction) AND a rider RIDES it when it
     // moves (the crate joins the carrier set). For this to be correct in one pass, dynamics resolve in
@@ -592,12 +591,12 @@ export class World {
       if (carriers.length > 0 && body.vy >= 0) {
         const carrier = findCarrier(e, ix, iy, carriers);
         if (carrier) {
-          // Horizontal carry, CLAMPED to solids (1.10.0): a rider can't be carried THROUGH a wall. The
+          // Horizontal carry, CLAMPED to solids: a rider can't be carried THROUGH a wall. The
           // push-out below is MOTION-derived (it won't eject a passive `vx=0` rider — see
           // {@link clampShoveBySolids}), so the carry itself must stop the rider flush — the same
           // velocity-independent clamp the crate push uses. `carrier` is excluded (you don't collide
           // horizontally with the support you stand on). With no wall in the path the clamp returns the
-          // full delta, so an open-ground carry is byte-identical to the pre-1.10.0 raw shift.
+          // full delta, so an open-ground carry is byte-identical to an unclamped raw shift.
           const dxCarry = carrier.x - carrier.body.prevX;
           if (dxCarry !== 0) {
             const dir = dxCarry > 0 ? 1 : -1;
@@ -638,16 +637,16 @@ export class World {
   }
 
   /**
-   * Step 5 of {@link resolveBodies} (1.9.0 stacking): a rider standing on a `pushable` crate follows it
+   * Step 5 of {@link resolveBodies} (stacking): a rider standing on a `pushable` crate follows it
    * when the crate is shoved HORIZONTALLY in the push pass, THIS tick. The per-body carry runs before
    * push (it must, to settle riders against the static world first), so it captured only the crate's
    * pre-push x; this shifts each rider by its crate's NET push displacement (`crate.x − prePushX`).
    * Riders resolve in dependency order so a rider on a crate on a crate follows the whole stack. Only
    * the horizontal delta is applied (the vertical ride already happened in carry).
    *
-   * The ride is CLAMPED to solids (1.10.0), the exact rule the carry step and the crate push use
-   * ({@link clampShoveBySolids}): a rider can't be ridden THROUGH a wall. This is the fix for the old
-   * wall-corner residual — a raw shift drove a rider into a wall-corner and left it embedded, because the
+   * The ride is CLAMPED to solids, the exact rule the carry step and the crate push use
+   * ({@link clampShoveBySolids}): a rider can't be ridden THROUGH a wall. A raw shift would drive a
+   * rider into a wall-corner and leave it embedded, because the
    * "next tick's push-out corrects it" assumption is false: {@link resolveSolids} is motion-derived and
    * never ejects a passive `vx=0` rider, so the penetration persisted indefinitely, not one tick. The
    * crate (the rider's support) is a dynamic, not in `solids`, so it's naturally excluded from the clamp.
@@ -675,7 +674,7 @@ export class World {
    *
    * Three phases (replay-safe, deterministic; pairs scanned in entity-array order):
    *  - PHASE 1 — each pusher drives each crate it reached this tick flush ahead of it, ONCE, by the
-   *    SWEPT shove ({@link sweptShove}, 1.7.0): the pusher's leading-edge overshoot past the crate's near
+   *    SWEPT shove ({@link sweptShove}): the pusher's leading-edge overshoot past the crate's near
    *    face, NOT the settled-frame overlap — so a pusher faster than the crate's width per tick transfers
    *    its whole displacement instead of tunnelling (settled overlap ≈ 0) or being yanked backward by
    *    phase 3 (settled overlap under-reads the penetration).
@@ -717,7 +716,7 @@ export class World {
     };
 
     // Phase 1 — each pusher (non-pushable dynamic) drives each crate it reached this tick ahead of it,
-    // ONCE, by the SWEPT shove (1.7.0). The shove is the pusher's leading-edge OVERSHOOT past the crate's
+    // ONCE, by the SWEPT shove. The shove is the pusher's leading-edge OVERSHOOT past the crate's
     // near face — not the settled-frame overlap — so a pusher faster than the crate's width per tick still
     // transfers its WHOLE displacement to the crate instead of tunnelling through it (settled overlap ≈ 0,
     // old code did nothing) or being yanked backward by the phase-3 clamp while the crate barely moved
@@ -831,7 +830,7 @@ export class World {
    * floor slope via {@link resolveSlopes}, and write `e.body.contacts`. Factored out because the carry
    * step re-runs it after applying a carrier's displacement (re-broadphased from the carried position).
    *
-   * `crates` are the `pushable` dynamics (1.9.0 stacking): each is added as a TOP-ONLY (`oneWay`) solid
+   * `crates` are the `pushable` dynamics (stacking): each is added as a TOP-ONLY (`oneWay`) solid
    * — a body LANDS and stands on a crate, jumps up THROUGH it, and is never blocked SIDEWAYS by it (push
    * owns horizontal crate interaction; making a crate fully solid here would stop a walker dead instead
    * of letting it shove the crate). Empty ⇒ no crates added (byte-identical to the pre-stacking phase).
@@ -868,7 +867,7 @@ export class World {
       }
     }
 
-    // Crates (1.9.0 stacking) join as TOP-ONLY (`oneWay`) solids — the body stands on a crate but isn't
+    // Crates (stacking) join as TOP-ONLY (`oneWay`) solids — the body stands on a crate but isn't
     // blocked sideways by it (push owns horizontal). Dropped while the drop-through window is open, like
     // any one-way solid, so down+jump drops off a crate. Uses the crate's already-settled position (the
     // dependency order resolved a supporting crate before this body).
@@ -925,7 +924,7 @@ function findCarrier(e: Entity, ix: number, iy: number, carriables: Entity[]): E
 }
 
 /**
- * The stacking-phase resolution ORDER (1.9.0): the dynamics topologically sorted so a body that RESTS
+ * The stacking-phase resolution ORDER: the dynamics topologically sorted so a body that RESTS
  * ON a `pushable` crate at tick start resolves AFTER that crate — so the rider lands on / rides the
  * crate's SETTLED position, not its naive post-integration one. A topological order over the tick-start
  * "rests-on" graph (each body's support found by the same feet-probe as carry, {@link findCarrier} over
@@ -994,7 +993,7 @@ function overlapAmt(aMin: number, aLen: number, bMin: number, bLen: number): num
 }
 
 /**
- * The SWEPT pusher→crate shove (1.7.0 — phase 1 of {@link World.resolvePush}): how far, and which way,
+ * The SWEPT pusher→crate shove (phase 1 of {@link World.resolvePush}): how far, and which way,
  * a pusher must drive a `pushable` crate so the pusher ends FLUSH behind it — measured from the pusher's
  * leading edge's full sweep this tick, NOT the settled-frame AABB overlap. This is what makes push
  * non-tunnelling at speed: the swept penetration `pusherLeadingEdge − crateNearFace` stays correct (and
@@ -1026,8 +1025,8 @@ function sweptShove(pusher: Entity, crate: Entity): { dir: 1 | -1; dist: number 
  * The largest prefix of a `dir` horizontal shift of `dist` px that keeps `box`'s LEADING face at/before
  * the nearest solid in its path — i.e. how far a body can actually be driven before a wall stops it. The
  * ONE velocity-independent "clamp a horizontal displacement to the solid world" rule, shared by all three
- * places the phase moves a body sideways positionally: the swept crate PUSH (1.7.0 — its origin), and
- * (1.10.0) the carrier-driven CARRY and RIDE. It is load-bearing because {@link resolveSolids} is
+ * places the phase moves a body sideways positionally: the swept crate PUSH, and the carrier-driven
+ * CARRY and RIDE. It is load-bearing because {@link resolveSolids} is
  * MOTION-derived — it only ejects a body on an axis it has VELOCITY into a solid — so a passively
  * carried/ridden/shoved body (its own `vx` zero) would otherwise be driven straight THROUGH a wall and
  * never corrected (the velocity push-out no-ops on it). Scans solid tiles in the box's Y-span + swept

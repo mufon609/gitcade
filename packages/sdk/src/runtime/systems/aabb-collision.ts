@@ -16,7 +16,7 @@ const BROADPHASE_THRESHOLD = 256;
  * `reflect-on-hit`, `contact-damage`) to react to this tick. Run this BEFORE entity behaviors
  * (it is registered/ordered first) so collision data is fresh when behaviors read it.
  *
- * Scales via a uniform-grid broadphase (0.12.0): for a large tag pair, the `b` entities are
+ * Scales via a uniform-grid broadphase: for a large tag pair, the `b` entities are
  * bucketed into a spatial hash by cell (≈ the largest collider dimension), and each `a` tests
  * only the candidates in the cells its AABB overlaps — O(n+m) typical instead of O(n·m). The
  * result is BYTE-IDENTICAL to the naive nested loop: candidates are tested in ascending `b`-index

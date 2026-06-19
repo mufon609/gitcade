@@ -35,17 +35,16 @@ export function overlapAxis(a: Entity, b: Entity): "x" | "y" {
  * it from above — the body jumps up THROUGH it (no head-bonk), is never blocked by it
  * sideways, and (with the mover's drop-through) can fall down through it, but rests on
  * its top when falling onto it. Omitted/false ⇒ a fully solid rect (every face blocks),
- * so a plain {@link AABB} is a valid `SolidRect` and existing callers are unchanged
- * (0.7.0 one-way platforms).
+ * so a plain {@link AABB} is a valid `SolidRect` and existing callers are unchanged.
  */
 export interface SolidRect extends AABB {
   oneWay?: boolean;
 }
 
 /**
- * A moving AABB resolved against solid rects (INDIE-ROADMAP Tier-0 0.3/0.4). Position
- * + size + velocity, MUTATED in place by {@link resolveSolids}. A runtime {@link Entity}
- * already has these fields, so a solid-collision behavior passes the entity itself.
+ * A moving AABB resolved against solid rects. Position + size + velocity, MUTATED in place
+ * by {@link resolveSolids}. A runtime {@link Entity} already has these fields, so a
+ * solid-collision behavior passes the entity itself.
  */
 export interface MovingBody {
   x: number;
@@ -66,13 +65,13 @@ export interface SolidContacts {
    * The ground contact this resolve came from a ONE-WAY platform (not a fully solid
    * floor) — lets a mover offer "down+jump to drop through" only when standing on
    * pass-through terrain. False whenever `onGround` is false OR the floor was fully
-   * solid (0.7.0 one-way platforms).
+   * solid.
    */
   onOneWay: boolean;
 }
 
 /**
- * Upper bound on swept sub-steps — a cost backstop for a pathologically fast body (0.4).
+ * Upper bound on swept sub-steps — a cost backstop for a pathologically fast body.
  * With `maxStep = minDim/2`, the resolver is tunnel-free up to a per-tick displacement of
  * `MAX_SOLID_SUBSTEPS * minDim/2` (= 8× the thinnest solid's smallest side), which clears
  * any realistic speed. A body faster than that through a very thin solid can still tunnel —
@@ -192,7 +191,7 @@ function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: 
 
 /**
  * Resolve a moving AABB against a set of SOLID rects — the shared push-out primitive
- * behind platformer terrain AND entity-vs-entity solids (INDIE-ROADMAP Tier-0 0.3).
+ * behind platformer terrain AND entity-vs-entity solids.
  * `body` is mutated in place (position snapped out of the rects, the contacted velocity
  * component zeroed) and the contact flags are returned for a mover to read (jump off a
  * ground contact, etc.). The `rects` are whatever the caller treats as solid this tick: the
@@ -201,7 +200,7 @@ function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: 
  * velocity integrator (the whole behavior pass), so it corrects the position the integrator just
  * produced, in the same tick.
  *
- * Swept sub-stepping (0.4): each sub-step's displacement is capped to half the thinnest
+ * Swept sub-stepping: each sub-step's displacement is capped to half the thinnest
  * solid, so a fast body (a hard fall, a projectile) won't tunnel a thin rect between ticks
  * — up to the {@link MAX_SOLID_SUBSTEPS} budget, which covers any realistic speed (beyond
  * it an extremely fast body through a very thin solid can still slip through). A body
@@ -297,7 +296,7 @@ export function applyContacts(target: { contacts: SolidContacts; contactTick: nu
 }
 
 /**
- * A floor-SLOPE cell fed to {@link resolveSlopes} (0.11.0). `x`/`y`/`w`/`h` are the cell's AABB
+ * A floor-SLOPE cell fed to {@link resolveSlopes}. `x`/`y`/`w`/`h` are the cell's AABB
  * (top-left + size, exactly as the resolution phase builds a solid cell); `slopeL`/`slopeR` are the
  * walkable surface height in px UP FROM THE CELL BOTTOM at the cell's left/right edge (0 = the
  * cell bottom, `h` = the cell top). The surface is the straight line between them; the cell is
@@ -309,14 +308,14 @@ export interface SlopeCell extends AABB {
   slopeR: number;
 }
 
-/** The contact a {@link resolveSlopes} pass reports (0.11.0): grounded on a slope surface. */
+/** The contact a {@link resolveSlopes} pass reports: grounded on a slope surface. */
 export interface SlopeContact {
   onGround: boolean;
 }
 
 /**
- * Rest a moving AABB's BOTTOM on a tilemap floor-SLOPE surface (INDIE-ROADMAP slopes, 0.11.0) —
- * the non-AABB companion to {@link resolveSolids}, which can't express a surface whose height
+ * Rest a moving AABB's BOTTOM on a tilemap floor-SLOPE surface — the non-AABB companion to
+ * {@link resolveSolids}, which can't express a surface whose height
  * varies across the body's x-span. The resolution phase runs it as a SECOND pass AFTER the solid
  * AABB pass, so it samples the body's already-settled x (a wall at a slope's base has clamped it).
  *

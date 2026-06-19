@@ -2,7 +2,7 @@
  * Breakout bootstrap (host glue). The GAME is data — game.json + config.json + the
  * scenes, composing only @gitcade/library + SDK parts (no custom code).
  *
- * Levels are DATA via scene inheritance (E11): the three play levels each
+ * Levels are data via scene inheritance: the three play levels each
  * `extends` a single `play-base` scene (the paddle, ball, killzone, HUD, and the
  * whole system stack — authored ONCE), declaring only their own brick layout. The
  * manifest's `levels` sequence + the reserved `@next`/`@first` flow tokens drive the
@@ -107,7 +107,7 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
-// Keyboard flow access (Enter/Space → start/retry) is DATA — a `key-emit` behavior
+// Keyboard flow access (Enter/Space → start/retry) is data — a `key-emit` behavior
 // on each title/win/over flow button, the keyboard companion to `tap-emit`.
 
 // --- pause overlay + audio (the SDK owns the freeze + Esc/P key) --------------

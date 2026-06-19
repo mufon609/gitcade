@@ -4,8 +4,8 @@ import type { EntityDef } from "../schema/entity.js";
 import type { Tilemap } from "../schema/scene.js";
 import type { PersistConfig } from "../schema/manifest.js";
 import { Entity } from "./entity.js";
-import type { SolidRect } from "./collision.js";
-import { resolveSolids, applyContacts } from "./collision.js";
+import type { SolidRect, SlopeCell } from "./collision.js";
+import { resolveSolids, resolveSlopes, applyContacts } from "./collision.js";
 import { Registry } from "./registry.js";
 import { EventBus } from "./eventbus.js";
 import { Input } from "./input.js";
@@ -491,8 +491,10 @@ export class World {
    *     only on nearby geometry, not the global solid set — a far decorative solid can no longer
    *     perturb its physics (a deliberate determinism improvement over the per-behavior resolvers,
    *     which fed the whole tagged set; gated by the proofs + the candidate-keyed fuzz harness).
-   *  2. Push-out via the shared {@link resolveSolids} primitive (swept, so a fast body can't tunnel
-   *     a thin solid), writing `entity.body.contacts` via {@link applyContacts}.
+   *  2. Push-out in two passes: the shared {@link resolveSolids} primitive against the solid boxes
+   *     (swept, so a fast body can't tunnel a thin solid), then {@link resolveSlopes} against any
+   *     floor-slope tiles under the body (resting its bottom on the per-column ramp surface). Both
+   *     write `entity.body.contacts` via {@link applyContacts}, merged within the tick by frame stamp.
    *
    * `oneWay` solids (top-face-only tiles via the `oneWay` tile prop, or `oneWay` colliders) are
    * dropped while the mover's drop-through window is open (`body.dropThrough > 0`). A non-zero
@@ -534,6 +536,7 @@ export class World {
 
       const dropping = e.body.dropThrough > 0;
       const rects: SolidRect[] = [];
+      const slopeCells: SlopeCell[] = [];
 
       // Broadphase: the body's swept box (pre-move → post-move), padded so a flush-resting solid
       // stays a candidate. resolveSolids itself is precise, so over-inclusion only costs a scan.
@@ -544,7 +547,7 @@ export class World {
       const loY = Math.min(py, body.y) - BROAD_PAD;
       const hiY = Math.max(py, body.y) + body.h + BROAD_PAD;
 
-      if (t) gatherSolidTiles(t, loX, hiX, loY, hiY, dropping, rects);
+      if (t) gatherTiles(t, loX, hiX, loY, hiY, dropping, rects, slopeCells);
 
       for (const s of solids) {
         if (s === e) continue;
@@ -555,14 +558,28 @@ export class World {
         }
       }
 
+      // Pass 1 — solid AABB push-out (tiles + solid entities), writing the contact flags.
       const contacts = resolveSolids(body, rects, dt);
+      applyContacts(e.body, this.frame, contacts);
+      // Pass 2 — floor SLOPES: rest the body's bottom on the per-column ramp surface, AFTER the
+      // solid pass has settled X (a wall at a ramp's base has clamped the sample x). A grounded
+      // slope contact merges into the same-tick contacts via the frame stamp. Skipped (and so
+      // byte-identical) when no slope cell is under the body.
+      if (slopeCells.length > 0) {
+        const slope = resolveSlopes(body, slopeCells, dt);
+        if (slope.onGround) {
+          applyContacts(e.body, this.frame, { onGround: true, onCeiling: false, onWallL: false, onWallR: false, onOneWay: false });
+        }
+      }
+
+      // Map the resolved collider box back onto the entity (no-op without an inset; both passes
+      // ran on `body`, so this captures the solid push-out AND the slope snap).
       if (hasInset) {
         e.x = body.x - ix;
         e.y = body.y - iy;
         e.vx = body.vx;
         e.vy = body.vy;
       }
-      applyContacts(e.body, this.frame, contacts);
     }
   }
 }
@@ -573,36 +590,60 @@ const BROAD_PAD = 1;
 const SOLID_TILE_PROP = "solid";
 /** Tile property flagging a one-way (top-face-only) platform cell. */
 const ONE_WAY_TILE_PROP = "oneWay";
+/** Tile properties (px up from the cell bottom) marking a floor-SLOPE cell at its left/right edge. */
+const SLOPE_L_PROP = "slopeL";
+const SLOPE_R_PROP = "slopeR";
 
 /**
- * Gather the SOLID tile cells overlapping `[loX,hiX]×[loY,hiY]` into `out` as {@link SolidRect}s —
- * the static-terrain broadphase the resolution phase feeds to `resolveSolids` (absorbing the old
- * `tilemap-collide` cell scan). A cell is solid via the `solid` prop, or one-way via the `oneWay`
- * prop (top-face-only, dropped while `dropping`). Slope cells (the `slopeL`/`slopeR` props) are left
- * for the slope pass a later increment adds; they are not solid rects.
+ * Gather the tile cells overlapping `[loX,hiX]×[loY,hiY]` into `rects` (SOLID/one-way push-out boxes)
+ * and `slopeCells` (floor-slope surfaces) — the static-terrain broadphase the resolution phase feeds
+ * to `resolveSolids`/`resolveSlopes` (absorbing the old `tilemap-collide` cell scan). A cell is a
+ * SLOPE via the `slopeL`/`slopeR` props (NOT a solid rect — the slope pass owns it), else solid via
+ * `solid`, else one-way via `oneWay` (top-face-only, dropped while `dropping`).
+ *
+ * The cell range is padded ±1 CELL (not just the swept box's px pad): a body walking DOWNHILL floats
+ * up to its downhill-stick band above the next ramp cell, so that cell sits just outside the px-padded
+ * box and must still be gathered. Harmless to the candidate-keyed determinism story — tiles are
+ * uniform `tileSize`, so widening the tile set never changes `resolveSolids`'s min-dim sub-step count.
  */
-function gatherSolidTiles(
+function gatherTiles(
   t: Tilemap,
   loX: number,
   hiX: number,
   loY: number,
   hiY: number,
   dropping: boolean,
-  out: SolidRect[],
+  rects: SolidRect[],
+  slopeCells: SlopeCell[],
 ): void {
   const ts = t.tileSize;
-  const c0 = Math.max(0, Math.floor(loX / ts));
-  const c1 = Math.min(t.cols - 1, Math.floor(hiX / ts));
-  const r0 = Math.max(0, Math.floor(loY / ts));
-  const r1 = Math.min(t.rows - 1, Math.floor(hiY / ts));
+  const c0 = Math.max(0, Math.floor(loX / ts) - 1);
+  const c1 = Math.min(t.cols - 1, Math.floor(hiX / ts) + 1);
+  const r0 = Math.max(0, Math.floor(loY / ts) - 1);
+  const r1 = Math.min(t.rows - 1, Math.floor(hiY / ts) + 1);
   for (let r = r0; r <= r1; r++) {
     for (let c = c0; c <= c1; c++) {
       const idx = t.tiles[r * t.cols + c] ?? -1;
       if (idx < 0) continue;
       const props = t.properties?.[String(idx)];
       if (!props) continue;
-      if (props[SOLID_TILE_PROP] === true) out.push({ x: c * ts, y: r * ts, w: ts, h: ts });
-      else if (!dropping && props[ONE_WAY_TILE_PROP] === true) out.push({ x: c * ts, y: r * ts, w: ts, h: ts, oneWay: true });
+      const hasL = typeof props[SLOPE_L_PROP] === "number";
+      const hasR = typeof props[SLOPE_R_PROP] === "number";
+      if (hasL || hasR) {
+        // A floor slope: surface heights up from the cell bottom at its left/right edge (an absent
+        // edge defaults to 0 = cell bottom, so a single set edge is a valid wedge). Not a solid box.
+        slopeCells.push({
+          x: c * ts,
+          y: r * ts,
+          w: ts,
+          h: ts,
+          slopeL: hasL ? (props[SLOPE_L_PROP] as number) : 0,
+          slopeR: hasR ? (props[SLOPE_R_PROP] as number) : 0,
+        });
+        continue;
+      }
+      if (props[SOLID_TILE_PROP] === true) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts });
+      else if (!dropping && props[ONE_WAY_TILE_PROP] === true) rects.push({ x: c * ts, y: r * ts, w: ts, h: ts, oneWay: true });
     }
   }
 }

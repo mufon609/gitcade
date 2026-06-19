@@ -7,10 +7,10 @@ and resolves it — push-out, slopes, carry, and **push** — in one ordered pas
 
 This is the home the [`INDIE-ROADMAP`](./INDIE-ROADMAP.md) two-body section defers carry-as-a-phase
 and two-body push to. The implementation is a sequence of proof-gated increments (§8); the §9
-sign-offs are **approved**, and **increment 1 — the `resolveBodies()` phase, the `collider`
-component, and candidate-keyed solid push-out — has landed in sdk+library `1.1.0`** (the
-`platformer-solids` proof migrated to colliders at parity). Increments 2–5 (slopes, carry, push,
-finish migration + retire the behaviors) remain.
+sign-offs are **approved**. **Increments 1–2 have landed** (sdk+library `1.1.0`–`1.2.0`): the
+`resolveBodies()` phase + the `collider` component + candidate-keyed solid push-out (`1.1.0`,
+`platformer-solids` migrated), then the slope second pass (`1.2.0`, `platformer-slopes` migrated) —
+both at parity. Increments 3–5 (carry, push, finish migration + retire the behaviors) remain.
 
 > Scope note: this touches ONLY the platformer solid-resolution path. The general behavior model
 > — `velocity`, movement behaviors, `aabb-collision` *overlap detection* (for contact-damage /
@@ -208,7 +208,9 @@ green tests, and chromium browser-verification.
    component (`role`/`oneWay`/`inset` — the moving/push facets land with increments 3–4 that honor
    them); `platformer-solids` migrated at parity (all 9 smoke assertions unchanged); candidate-keyed
    sub-stepping landed, pinned by the filtered-vs-fullscan fuzz harness; browser-verified. *Foundation.*
-2. **Slopes in the phase.** Step 2's slope pass; migrate `platformer-slopes`.
+2. **Slopes in the phase — ✅ landed (sdk+library `1.2.0`).** Step 2's `resolveSlopes` second pass
+   (run after the solid push-out, on the same body, merged into the same-tick contacts);
+   `platformer-slopes` migrated at parity (4 smoke assertions unchanged), browser-verified.
 3. **Carry in the phase.** Step 3 (carrier-resolved displacement + re-resolve, dependency order);
    migrate `platformer-carry` + re-baseline; retire `ride-platform`. *The regression fix.*
 4. **Push.** Step 4 (mutual MTV, mass split, chains, fixed iterations); new `platformer-push` proof.

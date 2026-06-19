@@ -137,9 +137,9 @@ are themselves immovable. The two halves on top of it:
   same-tick), so carry-as-a-phase and push land together here, not separately. The full design —
   the additive `resolveBodies()` phase, the `collider` component, the dependency-ordered carry+push
   solver, the determinism story, and the proof-gated build order — is written up in
-  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢 (foundation landed in `1.1.0`
-  — the `resolveBodies()` phase + `collider` component + candidate-keyed solid push-out, with
-  `platformer-solids` migrated; slopes/carry/push remain).
+  [`UNIFIED-RESOLUTION-DESIGN.md`](./UNIFIED-RESOLUTION-DESIGN.md). 🟢 (foundation landed
+  `1.1.0`–`1.2.0` — the `resolveBodies()` phase + `collider` component + candidate-keyed solid
+  push-out + the slope pass, with `platformer-solids`/`platformer-slopes` migrated; carry/push remain).
 
 ---
 

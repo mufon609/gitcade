@@ -427,6 +427,9 @@
       "tags": [
         "player"
       ],
+      "collider": {
+        "role": "dynamic"
+      },
       "behaviors": [
         {
           "type": "move-platformer",
@@ -447,10 +450,6 @@
         },
         {
           "type": "velocity",
-          "params": {}
-        },
-        {
-          "type": "tilemap-collide",
           "params": {}
         }
       ]

@@ -15,8 +15,8 @@
     "validate": "gitcade validate ."
   },
   "dependencies": {
-    "@gitcade/sdk": "0.6.0",
-    "@gitcade/library": "0.6.0"
+    "@gitcade/sdk": "1.9.0",
+    "@gitcade/library": "1.9.0"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

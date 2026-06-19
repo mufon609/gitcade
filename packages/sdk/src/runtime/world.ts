@@ -535,11 +535,12 @@ export class World {
 
     // The immovable blockers this tick: every solid-role collider (solids move via their own
     // behaviors, never resolved here) — plus the CARRIABLE subset (moving platforms that carry
-    // riders). DYNAMIC bodies (resolved + pushed) are gathered too, for the push pass.
+    // riders). DYNAMIC bodies (resolved + pushed) are gathered too, for the push pass, and the
+    // PUSHABLE subset (crates) for the stacking phase.
     const solids: Entity[] = [];
     const carriables: Entity[] = [];
     const dynamics: Entity[] = [];
-    let anyPushable = false;
+    const pushables: Entity[] = [];
     for (const e of this.entities) {
       const c = e.body.collider;
       if (!e.alive || !c) continue;
@@ -548,11 +549,25 @@ export class World {
         if (c.carriable) carriables.push(e);
       } else {
         dynamics.push(e);
-        if (c.pushable) anyPushable = true;
+        if (c.pushable) pushables.push(e);
       }
     }
+    const anyPushable = pushables.length > 0;
 
-    for (const e of dynamics) {
+    // STACKING (1.9.0): a `pushable` crate is now SOLID-TO-DYNAMICS — a body lands and stands on its
+    // top (the crate joins each body's push-out as a top-only/`oneWay` solid, so it's stood-on but not
+    // blocked sideways — push still owns horizontal crate interaction) AND a rider RIDES it when it
+    // moves (the crate joins the carrier set). For this to be correct in one pass, dynamics resolve in
+    // DEPENDENCY order — a rider resolves AFTER the crate it rests on, so it lands on / rides the crate's
+    // SETTLED position — a topological order over the tick-start "rests-on" graph, exactly like
+    // resolveHierarchy's parent-first walk (ties in array order; cycle-safe). BOTH the carrier set and
+    // the order collapse to today's behavior when no entity is pushable, so a crate-less platformer (and
+    // every arcade scene) is byte-identical. The crates are passed to the push-out via `pushables`
+    // (empty ⇒ the loop adds nothing).
+    const carriers = anyPushable ? [...carriables, ...pushables] : carriables;
+    const order = anyPushable ? topoOrderByRestsOn(dynamics, pushables) : dynamics;
+
+    for (const e of order) {
       const c = e.body.collider!;
 
       // The collider box = the sprite AABB shrunk by the optional inset, carrying this tick's
@@ -565,15 +580,17 @@ export class World {
         : e;
       const dropping = e.body.dropThrough > 0;
 
-      // Step 1 — CARRY: a rider that rested on a carriable solid at tick start (and isn't rising)
-      // inherits the carrier's this-tick displacement FIRST. Applying it BEFORE the push-out (rather
-      // than after, then re-resolving) is what avoids a double-count: the push-out's own re-grounding
-      // already follows a moving platform vertically, so adding the descent again after it would sink
-      // the rider by one tick's displacement. A carrier is a solid already moved by its own behaviors
-      // this tick, so its displacement is final — no author-ordering rule and no one-tick lag (the
-      // manual "ride-platform first" the retired behavior needed).
-      if (carriables.length > 0 && body.vy >= 0) {
-        const carrier = findCarrier(e, ix, iy, carriables);
+      // Step 1 — CARRY: a rider that rested on a carrier (carriable solid OR pushable crate) at tick
+      // start (and isn't rising) inherits the carrier's this-tick displacement FIRST. Applying it BEFORE
+      // the push-out (rather than after, then re-resolving) is what avoids a double-count: the push-out's
+      // own re-grounding already follows a moving carrier vertically, so adding the descent again after
+      // it would sink the rider by one tick's displacement. A carriable SOLID is final (moved by its own
+      // behaviors); a crate carrier already resolved THIS tick (dependency order) so ITS settled
+      // displacement is read — vertical/transitive ride (a crate falling, or riding a crate on a moving
+      // platform) is lag-free. (Horizontal crate PUSH is applied after this loop, so a rider follows a
+      // horizontally-pushed crate via the post-push ride step below, not this carry.)
+      if (carriers.length > 0 && body.vy >= 0) {
+        const carrier = findCarrier(e, ix, iy, carriers);
         if (carrier) {
           body.x += carrier.x - carrier.body.prevX; // horizontal carry (always)
           const dy = carrier.y - carrier.body.prevY;
@@ -581,10 +598,11 @@ export class World {
         }
       }
 
-      // Step 2 — push the body out of the solid world (solids + slopes), writing contacts. Running it
-      // AFTER the carry settles a carried rider precisely on the (already-moved) carrier and corrects
-      // it against walls/floor the SAME tick — the same-tick re-resolution a naive carry phase lacks.
-      this.resolveColliderAgainstWorld(e, body, solids, dropping);
+      // Step 2 — push the body out of the solid world (solids + slopes + crates as top-standable solids),
+      // writing contacts. Running it AFTER the carry settles a carried rider precisely on the (already-
+      // moved) carrier and corrects it against walls/floor the SAME tick — the same-tick re-resolution a
+      // naive carry phase lacks.
+      this.resolveColliderAgainstWorld(e, body, solids, dropping, pushables);
 
       // Map the resolved collider box back onto the entity (no-op without an inset; every pass ran
       // on `body`, so this captures the solid push-out, the slope snap, AND the carry.)
@@ -598,8 +616,37 @@ export class World {
 
     // Step 4 — PUSH: resolve dynamic-vs-`pushable`-dynamic side contacts (a pusher shoves a crate),
     // after every body has settled against the static world. Skipped entirely (byte-identical) when
-    // no entity is pushable. See {@link resolvePush}.
-    if (anyPushable) this.resolvePush(dynamics, solids);
+    // no entity is pushable. See {@link resolvePush}. A rider standing on a crate that gets pushed
+    // horizontally follows it THIS tick via the post-push ride step (the per-body carry ran before
+    // push, so it saw only the crate's pre-push x).
+    if (anyPushable) {
+      const prePushX = new Map<Entity, number>();
+      for (const cr of pushables) prePushX.set(cr, cr.x);
+      this.resolvePush(dynamics, solids);
+      this.rideHorizontalPush(order, pushables, prePushX);
+    }
+  }
+
+  /**
+   * Step 5 of {@link resolveBodies} (1.9.0 stacking): a rider standing on a `pushable` crate follows it
+   * when the crate is shoved HORIZONTALLY in the push pass, THIS tick. The per-body carry runs before
+   * push (it must, to settle riders against the static world first), so it captured only the crate's
+   * pre-push x; this shifts each rider by its crate's NET push displacement (`crate.x − prePushX`).
+   * Riders resolve in dependency order so a rider on a crate on a crate follows the whole stack. Only
+   * the horizontal delta is applied (the vertical ride already happened in carry); a rider shoved into
+   * a wall alongside its crate settles on the next tick's push-out — riders-against-a-wall-corner is the
+   * one residual edge, far rarer than the common "walk a crate along open ground with something on it".
+   */
+  private rideHorizontalPush(order: Entity[], pushables: Entity[], prePushX: Map<Entity, number>): void {
+    if (pushables.length === 0) return;
+    const crateSet = new Set(pushables);
+    for (const e of order) {
+      const c = e.body.collider!;
+      const carrier = findCarrier(e, c.inset.x, c.inset.y, pushables);
+      if (!carrier || !crateSet.has(carrier)) continue;
+      const dx = carrier.x - (prePushX.get(carrier) ?? carrier.x);
+      if (dx !== 0) e.x += dx; // ride the crate's push; e's own crate-rider (a stack) rides next in order
+    }
   }
 
   /**
@@ -764,8 +811,13 @@ export class World {
    * its swept box into the solid candidates, push it out via {@link resolveSolids}, rest it on any
    * floor slope via {@link resolveSlopes}, and write `e.body.contacts`. Factored out because the carry
    * step re-runs it after applying a carrier's displacement (re-broadphased from the carried position).
+   *
+   * `crates` are the `pushable` dynamics (1.9.0 stacking): each is added as a TOP-ONLY (`oneWay`) solid
+   * — a body LANDS and stands on a crate, jumps up THROUGH it, and is never blocked SIDEWAYS by it (push
+   * owns horizontal crate interaction; making a crate fully solid here would stop a walker dead instead
+   * of letting it shove the crate). Empty ⇒ no crates added (byte-identical to the pre-stacking phase).
    */
-  private resolveColliderAgainstWorld(e: Entity, body: MovingBody, solids: Entity[], dropping: boolean): void {
+  private resolveColliderAgainstWorld(e: Entity, body: MovingBody, solids: Entity[], dropping: boolean, crates: Entity[]): void {
     const t = this.tilemap;
     const dt = this.dt;
     const rects: SolidRect[] = [];
@@ -797,7 +849,21 @@ export class World {
       }
     }
 
-    // Pass 1 — solid AABB push-out (tiles + solid entities), writing the contact flags.
+    // Crates (1.9.0 stacking) join as TOP-ONLY (`oneWay`) solids — the body stands on a crate but isn't
+    // blocked sideways by it (push owns horizontal). Dropped while the drop-through window is open, like
+    // any one-way solid, so down+jump drops off a crate. Uses the crate's already-settled position (the
+    // dependency order resolved a supporting crate before this body).
+    if (!dropping) {
+      for (const cr of crates) {
+        if (cr === e) continue;
+        const cb = colliderBox(cr);
+        if (cb.x < hiX && cb.x + cb.w > loX && cb.y < hiY && cb.y + cb.h > loY) {
+          rects.push({ ...cb, oneWay: true });
+        }
+      }
+    }
+
+    // Pass 1 — solid AABB push-out (tiles + solid entities + crates), writing the contact flags.
     const contacts = resolveSolids(body, rects, dt);
     applyContacts(e.body, this.frame, contacts);
     // Pass 2 — floor SLOPES: rest the body's bottom on the per-column ramp surface, AFTER the solid
@@ -837,6 +903,38 @@ function findCarrier(e: Entity, ix: number, iy: number, carriables: Entity[]): E
     if (Math.abs(riderBottom - top) <= CARRY_STICK && riderRight > left && riderLeft < right) return carrier;
   }
   return null;
+}
+
+/**
+ * The stacking-phase resolution ORDER (1.9.0): the dynamics topologically sorted so a body that RESTS
+ * ON a `pushable` crate at tick start resolves AFTER that crate — so the rider lands on / rides the
+ * crate's SETTLED position, not its naive post-integration one. A topological order over the tick-start
+ * "rests-on" graph (each body's support found by the same feet-probe as carry, {@link findCarrier} over
+ * the crates), exactly like {@link World.resolveHierarchy}'s parent-first walk: DFS post-order, ties in
+ * entity-array order (deterministic), cycle-safe (a degenerate mutual-rest member is treated as a root).
+ * With nothing resting on a crate the result is the plain entity-array order.
+ */
+function topoOrderByRestsOn(dynamics: Entity[], pushables: Entity[]): Entity[] {
+  const support = new Map<Entity, Entity | null>();
+  for (const e of dynamics) {
+    const c = e.body.collider!;
+    support.set(e, findCarrier(e, c.inset.x, c.inset.y, pushables));
+  }
+  const order: Entity[] = [];
+  const done = new Set<Entity>();
+  const onStack = new Set<Entity>();
+  const visit = (e: Entity): void => {
+    if (done.has(e)) return;
+    if (onStack.has(e)) return; // cycle (degenerate mutual rest) — break it, treat as a root
+    onStack.add(e);
+    const s = support.get(e);
+    if (s && s !== e) visit(s); // its support resolves first
+    onStack.delete(e);
+    done.add(e);
+    order.push(e);
+  };
+  for (const e of dynamics) visit(e);
+  return order;
 }
 
 /** Fixed push-relaxation iteration count — replay-safe (deterministic), enough for short crate chains. */

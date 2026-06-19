@@ -1,0 +1,13 @@
+{
+  "name": "Platformer Stack (stand-on / ride a crate proof)",
+  "slug": "proof-platformer-stack",
+  "description": "Reuse proof for 1.9.0 dynamic-on-dynamic stacking (the resolveBodies stacking step): a pushable crate is solid-to-dynamics, so a player stands on a crate, crates stack, and a rider rides a crate that is pushed or carried — resolved in dependency order so a rider settles on the crate's final position. Built from move-platformer + velocity + collider with no host code; the high ledge is what a crate lets the player reach.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "1.9.0",
+  "libraryVersion": "1.9.0",
+  "entryPoint": "src/scenes/main.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade" }],
+  "tier": "ecosystem"
+}

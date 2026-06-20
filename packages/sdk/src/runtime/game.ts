@@ -210,8 +210,10 @@ export class Game {
     // `on` listeners (the flow edges torn down just above, host glue) are untouched.
     this.world.events.clearSceneListeners();
 
-    // Reset world contents, then restore the kept slice.
-    this.world.entities = [];
+    // Reset world contents, then restore the kept slice. resetEntities() clears the entity array
+    // AND the id/tag indexes together (a raw `entities = []` would leave the prior scene's tag
+    // buckets stale); the per-entity add() loop below repopulates all three in lockstep.
+    this.world.resetEntities();
     for (const key of Object.keys(this.world.state)) delete this.world.state[key];
     Object.assign(this.world.state, carried);
     // Unify the difficulty counter with the stage index: when the entered

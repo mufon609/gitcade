@@ -129,6 +129,9 @@ describe("Renderer — camera transform", () => {
       Object.assign(Object.create(null), {
         x: 100, y: 100, w: 16, h: 16, cx: 108, cy: 108, layer: 0, zIndex: 0, rotation: 0, scaleX: 1, scaleY: 1,
         alive: true, sprite: { kind: "shape", shape: "rect", color: "#fff" },
+        // Every real Entity carries a `tags` Set; world.add() indexes it (the tag index), so this
+        // minimal render stub must too — the renderer itself ignores tags.
+        tags: new Set<string>(),
         // The render-interpolation source — every real Entity carries `body`; this minimal stub
         // must too. prevX/prevY = x/y so the interpolation offset is 0 (and it's 0 anyway at the default α=1).
         body: { prevX: 100, prevY: 100 },

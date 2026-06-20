@@ -26,7 +26,6 @@ _None currently — new finds get filed here._
 
 ## Design weaknesses
 
-- **Query cost** — `query`/`nearest`/`entityAt` are O(n) per call with no tag/spatial index, so populous scenes go quadratic.
 - **No per-system scratch** — event-driven systems lean on a module-level `WeakMap` that only works because the `World` is reused across scenes.
 - **"Data not code" leaks** — typo'd fields are silently dropped (no unknown-key detection).
 - **Spawn defaults** — `world.spawn` bypasses the schema-default path, so spawners hand-roll default backfill.
@@ -41,7 +40,6 @@ _None currently — new finds get filed here._
 ## Missing core improvements
 
 **Tier 1 — platform cleanliness**
-- Tag/spatial index behind the query primitives.
 - Schema versioning + migration (no `schemaVersion` stamp on any artifact).
 - Finish the validator hardening: unknown-key strictness.
 

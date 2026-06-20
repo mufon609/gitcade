@@ -149,6 +149,22 @@ export class World {
   frame = 0;
 
   private byIdIndex = new Map<string, Entity>();
+  /**
+   * Tag → the entities carrying it, in entity-array order — the index behind {@link query}/
+   * {@link nearest}/{@link entityAt} so a tag lookup costs O(matches) instead of an O(all-entities)
+   * scan (a populous FX/swarm scene no longer goes quadratic, and a query is immune to how many
+   * untagged-by-it particles are alive). Maintained incrementally on {@link add} and rebuilt wholesale
+   * by {@link prune}/{@link resetEntities} alongside {@link byIdIndex}, so the two indexes always
+   * describe the SAME entity set. Live-entity tags are immutable (set once at construction), which is
+   * what lets the bucket stay correct without per-tick re-tagging.
+   *
+   * A bucket may transiently hold an entity destroyed earlier THIS tick (it is pruned at tick end), so
+   * every reader filters `alive` — exactly as the old full scan did. Each bucket is a SUBSEQUENCE of
+   * {@link entities} in the same order, so iterating it yields matches in the identical order the old
+   * `entities.filter(...)` produced: same results, same order, same distance/topmost tie-breaks —
+   * byte-identical, so replays/ghosts/determinism are preserved.
+   */
+  private byTagIndex = new Map<string, Entity[]>();
   private spawnedThisTick = false;
 
   /**
@@ -180,8 +196,29 @@ export class World {
   add(entity: Entity): Entity {
     this.entities.push(entity);
     this.byIdIndex.set(entity.id, entity);
+    // Maintain the tag index incrementally. Appending here (entity is now last in `entities`) keeps
+    // each bucket in entity-array order, so a mid-tick spawn is visible to a later query this tick.
+    for (const tag of entity.tags) {
+      const bucket = this.byTagIndex.get(tag);
+      if (bucket) bucket.push(entity);
+      else this.byTagIndex.set(tag, [entity]);
+    }
     this.spawnedThisTick = true;
     return entity;
+  }
+
+  /**
+   * Drop every entity and reset the id + tag indexes together — the bulk clear `Game.loadScene`
+   * runs between scenes (replaces a raw `world.entities = []`, which would desync both indexes).
+   * Brings the "rebuild both indexes" that {@link prune} does on tick end forward to load time; the
+   * follow-up `add` calls then repopulate them in lockstep, so the new scene starts with all three
+   * structures describing exactly its entity set.
+   */
+  resetEntities(): void {
+    this.entities = [];
+    this.byIdIndex.clear();
+    this.byTagIndex.clear();
+    this.spawnedThisTick = false;
   }
 
   /** Spawn a new entity from a definition at runtime (e.g. bullets, enemies). */
@@ -200,17 +237,29 @@ export class World {
     return e && e.alive ? e : undefined;
   }
 
-  /** All live entities carrying `tag`. */
+  /**
+   * All live entities carrying `tag`, in entity-array order. Reads the {@link byTagIndex} bucket
+   * (O(matches)) instead of scanning every entity, then filters `alive` to drop any destroyed this
+   * tick — the same set, in the same order, the old full scan returned.
+   */
   query(tag: string): Entity[] {
-    return this.entities.filter((e) => e.alive && e.hasTag(tag));
+    const bucket = this.byTagIndex.get(tag);
+    return bucket ? bucket.filter((e) => e.alive) : [];
   }
 
-  /** The live entity with `tag` nearest to `from` (by center distance), if any. */
+  /**
+   * The live entity with `tag` nearest to `from` (by center distance), if any. Scans only the
+   * {@link byTagIndex} bucket for `tag` (so a chaser hunting a one-of-a-kind `player` is O(1), not
+   * O(all-entities)); first-encountered wins a distance tie, in entity-array order — identical to the
+   * old full scan.
+   */
   nearest(from: Entity, tag: string): Entity | undefined {
+    const bucket = this.byTagIndex.get(tag);
+    if (!bucket) return undefined;
     let best: Entity | undefined;
     let bestD = Infinity;
-    for (const e of this.entities) {
-      if (!e.alive || e === from || !e.hasTag(tag)) continue;
+    for (const e of bucket) {
+      if (!e.alive || e === from) continue;
       const dx = e.cx - from.cx;
       const dy = e.cy - from.cy;
       const d = dx * dx + dy * dy;
@@ -229,10 +278,14 @@ export class World {
    * menus, tower placement, and the `tap-emit` part instead of hand-rolled hit loops.
    */
   entityAt(x: number, y: number, tag?: string): Entity | undefined {
+    // A truthy tag narrows the scan to that bucket (entity-array order, so the topmost tie-break is
+    // unchanged); no tag — or the falsy "" non-filter, matching the old `tag && !hasTag` — walks
+    // every entity. A truthy tag with no bucket ⇒ that tag has no entities ⇒ no candidates.
+    const candidates = tag ? this.byTagIndex.get(tag) : this.entities;
+    if (!candidates) return undefined;
     let best: Entity | undefined;
-    for (const e of this.entities) {
+    for (const e of candidates) {
       if (!e.alive) continue;
-      if (tag && !e.hasTag(tag)) continue;
       if (x >= e.x && x <= e.x + e.w && y >= e.y && y <= e.y + e.h) {
         if (!best || e.layer > best.layer || (e.layer === best.layer && e.zIndex >= best.zIndex)) best = e;
       }
@@ -442,12 +495,22 @@ export class World {
     return resolveConfigPath(this.config, path);
   }
 
-  /** Prune destroyed entities and refresh the id index. Called at tick end. */
+  /** Prune destroyed entities and refresh the id + tag indexes. Called at tick end. */
   prune(): void {
     if (!this.spawnedThisTick && this.entities.every((e) => e.alive)) return;
     this.entities = this.entities.filter((e) => e.alive);
     this.byIdIndex.clear();
-    for (const e of this.entities) this.byIdIndex.set(e.id, e);
+    this.byTagIndex.clear();
+    // Rebuild both indexes from the surviving entities in array order, so each tag bucket stays a
+    // same-order subsequence of `entities` (what keeps query/nearest/entityAt byte-identical).
+    for (const e of this.entities) {
+      this.byIdIndex.set(e.id, e);
+      for (const tag of e.tags) {
+        const bucket = this.byTagIndex.get(tag);
+        if (bucket) bucket.push(e);
+        else this.byTagIndex.set(tag, [e]);
+      }
+    }
     this.spawnedThisTick = false;
   }
 

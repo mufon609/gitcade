@@ -38,8 +38,10 @@ describe("fx/emitters — event-driven systems", () => {
   it("explosion bursts particles when its event fires, at the event position", () => {
     const world = makeWorld({ seed: 11 });
     const explosion = world.registry.getSystem("explosion")!.fn;
-    // First tick attaches the listener (no event yet → no particles).
-    explosion(world, { event: "boom", count: 8, speed: 100, ttl: 0.4, size: 4, gravity: 0 }, 1 / 60);
+    // First tick attaches the listener (no event yet → no particles). `scratch` is the per-instance
+    // store the host hands back each tick; the system guards its once-per-scene attach on it.
+    const scratch = {};
+    explosion(world, { event: "boom", count: 8, speed: 100, ttl: 0.4, size: 4, gravity: 0 }, 1 / 60, scratch);
     expect(world.query("particle")).toHaveLength(0);
     world.events.emit("boom", { x: 200, y: 150 });
     const particles = world.query("particle");
@@ -51,7 +53,10 @@ describe("fx/emitters — event-driven systems", () => {
   it("attaches its listener only once across many ticks", () => {
     const world = makeWorld({ seed: 1 });
     const sparkle = world.registry.getSystem("sparkle")!.fn;
-    for (let i = 0; i < 5; i++) sparkle(world, { event: "ping", count: 3, speed: 50, ttl: 0.5, size: 3, gravity: 0 }, 1 / 60);
+    // The host hands the SAME scratch object back every tick; sharing it across the 5 calls is what
+    // makes the once-per-scene attach guard dedup (a fresh scratch each call would re-attach 5×).
+    const scratch = {};
+    for (let i = 0; i < 5; i++) sparkle(world, { event: "ping", count: 3, speed: 50, ttl: 0.5, size: 3, gravity: 0 }, 1 / 60, scratch);
     world.events.emit("ping", { x: 10, y: 10 });
     // A single attachment → exactly one burst of 3, not 5×3.
     expect(world.query("particle")).toHaveLength(3);

@@ -1,23 +1,7 @@
-import type { BehaviorFn, SystemFn, World } from "@gitcade/sdk";
+import type { BehaviorFn, SystemFn } from "@gitcade/sdk";
 import { num, str, strArray } from "@gitcade/sdk";
 import { spawnBurst, eventPos } from "./particle.js";
 import { PALETTE } from "../palette.js";
-
-/**
- * Per-world bookkeeping of which event-driven emitters have already attached their
- * listener, keyed by the emitter instance's `key` param. A WeakMap keyed by World
- * is the right structure here: the SystemFn contract gives a system no persistent
- * per-instance handle, listeners must be registered exactly once (not every tick),
- * and registrations must NOT leak across worlds/tests. It is GC'd with the world.
- */
-const ATTACHED = new WeakMap<World, Set<string>>();
-function attachOnce(world: World, key: string, attach: () => void): void {
-  let set = ATTACHED.get(world);
-  if (!set) ATTACHED.set(world, (set = new Set()));
-  if (set.has(key)) return;
-  set.add(key);
-  attach();
-}
 
 /**
  * `explosion` — an event-driven particle SYSTEM. On its first tick it subscribes to
@@ -25,54 +9,57 @@ function attachOnce(world: World, key: string, attach: () => void): void {
  * gravity-pulled debris at the event's position. Wire a mortal entity's
  * `health-and-death.deathEvent` to the same name and things explode when they die.
  *
+ * The subscription attaches exactly ONCE per scene, guarded by this instance's `scratch`
+ * (the host hands back the same object each tick): a scene-scoped {@link onScene} listener
+ * that's torn down on transition and re-attached on re-entry — the per-instance replacement
+ * for the old module-level attach-once `WeakMap`, which leaked the listener across scenes.
+ *
  * Params: `event` (listened event), `count`, `speed`, `ttl`, `size`, `gravity`,
- * `colors` (palette hex array), `key` (dedupe key, default = event).
+ * `colors` (palette hex array).
  */
-export const explosion: SystemFn = (world, params) => {
+export const explosion: SystemFn = (world, params, _dt, scratch = {}) => {
+  if (scratch.attached) return;
+  scratch.attached = true;
   const event = str(params, "event", "death");
-  const key = str(params, "key", `explosion:${event}`);
-  attachOnce(world, key, () => {
-    const colors = strArray(params, "colors");
-    world.events.on(event, (data) => {
-      const p = eventPos(world, data);
-      spawnBurst(world, {
-        x: p.x,
-        y: p.y,
-        count: num(params, "count", 14),
-        speed: num(params, "speed", 160),
-        ttl: num(params, "ttl", 0.45),
-        size: num(params, "size", 5),
-        gravity: num(params, "gravity", 220),
-        colors: colors.length ? colors : [PALETTE.orange, PALETTE.yellow, PALETTE.red, PALETTE.light],
-        direction: "radial",
-      });
+  const colors = strArray(params, "colors");
+  world.events.onScene(event, (data) => {
+    const p = eventPos(world, data);
+    spawnBurst(world, {
+      x: p.x,
+      y: p.y,
+      count: num(params, "count", 14),
+      speed: num(params, "speed", 160),
+      ttl: num(params, "ttl", 0.45),
+      size: num(params, "size", 5),
+      gravity: num(params, "gravity", 220),
+      colors: colors.length ? colors : [PALETTE.orange, PALETTE.yellow, PALETTE.red, PALETTE.light],
+      direction: "radial",
     });
   });
 };
 
 /**
  * `sparkle` — a gentler event-driven particle SYSTEM: soft upward twinkles (pickups,
- * power-ups, level-ups). Same wiring model as {@link explosion}, default event
- * `"collect"`.
+ * power-ups, level-ups). Same wiring model as {@link explosion} (once-per-scene
+ * `scratch`-guarded `onScene` subscription), default event `"collect"`.
  */
-export const sparkle: SystemFn = (world, params) => {
+export const sparkle: SystemFn = (world, params, _dt, scratch = {}) => {
+  if (scratch.attached) return;
+  scratch.attached = true;
   const event = str(params, "event", "collect");
-  const key = str(params, "key", `sparkle:${event}`);
-  attachOnce(world, key, () => {
-    const colors = strArray(params, "colors");
-    world.events.on(event, (data) => {
-      const p = eventPos(world, data);
-      spawnBurst(world, {
-        x: p.x,
-        y: p.y,
-        count: num(params, "count", 8),
-        speed: num(params, "speed", 70),
-        ttl: num(params, "ttl", 0.6),
-        size: num(params, "size", 3),
-        gravity: num(params, "gravity", -30),
-        colors: colors.length ? colors : [PALETTE.yellow, PALETTE.light, PALETTE.green],
-        direction: "up",
-      });
+  const colors = strArray(params, "colors");
+  world.events.onScene(event, (data) => {
+    const p = eventPos(world, data);
+    spawnBurst(world, {
+      x: p.x,
+      y: p.y,
+      count: num(params, "count", 8),
+      speed: num(params, "speed", 70),
+      ttl: num(params, "ttl", 0.6),
+      size: num(params, "size", 3),
+      gravity: num(params, "gravity", -30),
+      colors: colors.length ? colors : [PALETTE.yellow, PALETTE.light, PALETTE.green],
+      direction: "up",
     });
   });
 };

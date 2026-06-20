@@ -26,7 +26,6 @@ _None currently — new finds get filed here._
 
 ## Design weaknesses
 
-- **No per-system scratch** — event-driven systems lean on a module-level `WeakMap` that only works because the `World` is reused across scenes.
 - **"Data not code" leaks** — typo'd fields are silently dropped (no unknown-key detection).
 - **Spawn defaults** — `world.spawn` bypasses the schema-default path, so spawners hand-roll default backfill.
 - **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
@@ -44,7 +43,6 @@ _None currently — new finds get filed here._
 - Finish the validator hardening: unknown-key strictness.
 
 **Tier 2 — professional polish**
-- Per-system scratch.
 - `world.spawn(partialDef)` that applies the same defaults as scene load.
 - Source-position diagnostics (`file:line:col`).
 - Asset/reference integrity (sprite/tileset/background `src`; `TextSprite.bind` target).

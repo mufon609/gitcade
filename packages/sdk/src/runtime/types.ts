@@ -44,16 +44,35 @@ export type BehaviorFn = (
 ) => void;
 
 /**
- * THE SYSTEM CONTRACT — frozen.
+ * THE SYSTEM CONTRACT — frozen (extended only additively).
  *
  * A system runs once per fixed update over the WHOLE world (collision detection,
- * HUD, win/lose checks, spawners). Same purity expectations as behaviors.
+ * HUD, win/lose checks, spawners). Same purity expectations as behaviors: no
+ * MODULE-level mutable state — all side effects go through the `world` API.
  *
- * @param world  The shared world API.
- * @param params The `$cfg`-resolved params for this system instance.
- * @param dt     Fixed timestep delta in seconds.
+ * PER-INSTANCE private working state lives in `scratch`, exactly as a behavior's does:
+ * the system instance's own `Record`, handed back each tick by the host so it persists
+ * across ticks deterministically (NOT module state). The instance — and so its `scratch`
+ * — is rebuilt on every scene load, which makes it the clean, scene-scoped home for an
+ * event-driven system's "have I attached my once-per-scene {@link EventBus.onScene}
+ * listener?" guard: the per-instance replacement for the old module-level
+ * `WeakMap<World, …>` attach-once dedup (which only worked because the World outlives a
+ * scene, and silently leaked listeners across scenes). Optional in the signature so a
+ * stateless system ignores it; a system that uses it is always handed a real object by
+ * the host (a standalone/unit invocation must pass one too — the SAME object across the
+ * calls it wants deduped).
+ *
+ * @param world   The shared world API.
+ * @param params  The `$cfg`-resolved params for this system instance.
+ * @param dt      Fixed timestep delta in seconds.
+ * @param scratch This system INSTANCE's private per-tick-persistent store (rebuilt per scene).
  */
-export type SystemFn = (world: World, params: ResolvedParams, dt: number) => void;
+export type SystemFn = (
+  world: World,
+  params: ResolvedParams,
+  dt: number,
+  scratch?: Record<string, unknown>,
+) => void;
 
 /**
  * Optional Zod-or-predicate param schema a behavior/system type may register so

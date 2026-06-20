@@ -67,6 +67,13 @@ interface SystemInstance {
   type: string;
   fn: SystemFn;
   params: ResolvedParams;
+  /**
+   * This system instance's private per-tick-persistent store — the system-side analogue of
+   * {@link BehaviorInstance.scratch}. Rebuilt fresh on every {@link Game.loadScene} (the systems
+   * array is), so it is inherently scene-scoped: the clean home for an event-driven system's
+   * once-per-scene `world.events.onScene` attach guard, replacing the old module-level WeakMap.
+   */
+  scratch: Record<string, unknown>;
 }
 
 /**
@@ -265,6 +272,7 @@ export class Game {
         type: s.type,
         fn: reg.fn,
         params: resolveParams(s.params, this.world.config),
+        scratch: {}, // fresh per scene load → the system's scene-scoped private store
       };
     });
 
@@ -341,7 +349,7 @@ export class Game {
       if (e.collisions.length) e.collisions.length = 0;
     }
 
-    for (const sys of this.systems) sys.fn(this.world, sys.params, dt);
+    for (const sys of this.systems) sys.fn(this.world, sys.params, dt, sys.scratch);
 
     // Snapshot to keep iteration stable if a behavior spawns/destroys.
     const entities = this.world.entities.slice();

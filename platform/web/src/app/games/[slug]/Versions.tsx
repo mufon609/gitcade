@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ConfigDiff } from "@/components/ConfigDiff";
 import type { ConfigChange } from "@/lib/configdiff";
 
-// THE VERSIONS HUB (Phase 5 lineage, re-presented). The game's OWN/current version
+// THE VERSIONS HUB (lineage, re-presented). The game's OWN/current version
 // is the one hosted and played up top (see GamePlayer). This component is the
 // "Versions" selector: the current version featured here, plus a dropdown of THIS
 // game's forks, newest first. Forks are reference/replay links to their GitHub

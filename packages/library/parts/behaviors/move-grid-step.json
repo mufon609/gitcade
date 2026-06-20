@@ -5,7 +5,7 @@
   "category": "movement",
   "tags": ["movement", "grid", "snake", "discrete"],
   "license": "MIT",
-  "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed. 1.1.0 adds an optional `moveAction` that reads a logical input action (input-actions, E1) so keyboard and a touch d-pad steer through one channel — no synthesized key events.",
+  "description": "Discrete grid-stepping movement on a fixed cadence; continuous (Snake) or step-per-press (Sokoban). Writes position directly — no velocity integrator needed. An optional `moveAction` reads a logical input action (input-actions) so keyboard and a touch d-pad steer through one channel — no synthesized key events.",
   "dependencies": [],
   "params": {
     "tileSize": { "type": "number", "balance": false, "description": "Grid cell size in px (structural)." },

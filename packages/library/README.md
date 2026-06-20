@@ -1,14 +1,15 @@
 # @gitcade/library
 
-The **GitCade Component Library** — the logic half (Phase 2A): game-agnostic,
-param-driven **behaviors** and **systems** built on the frozen
-[`@gitcade/sdk`](../sdk). Phase 2B adds the presentational half (entities, art,
-audio, UI, FX) and extends the same `CATALOG.json`.
+The **GitCade Component Library** — game-agnostic, param-driven parts built on the
+frozen [`@gitcade/sdk`](../sdk): the logic half (**behaviors** and **systems**) and
+the presentational half (**entities**, **UI**, **FX**, and generated **assets** —
+art, audio, tilesets), all indexed in one `CATALOG.json`.
 
-Nothing here changes the SDK schema. Every part is a plain `BehaviorFn` /
-`SystemFn` registered as a new **type** through the SDK's registration API
-(`registry.registerBehavior` / `registry.registerSystem`). Games reference parts
-by `type` in their scene/entity JSON and pin a `libraryVersion` in `game.json`.
+Nothing here changes the SDK schema. Logic parts are plain `BehaviorFn` / `SystemFn`
+implementations registered as new **types** through the SDK's registration API
+(`registry.registerBehavior` / `registry.registerSystem`); presentational parts are
+data/asset definitions. Games reference parts by `type` (or by asset id) in their
+scene/entity JSON and pin a `libraryVersion` in `game.json`.
 
 ## Install & register
 
@@ -25,32 +26,54 @@ game.start();
 `registerLibrary(registry)` adds the library onto an existing registry (e.g. one
 that already has a game's `custom-behaviors/`).
 
-## What's inside (27 parts, all MIT)
+## What's inside (95 parts, all MIT)
 
-Most parts are `v1.0.0`; a few have grown additive `v1.1.0` revisions (`wave-spawner`,
-`follow-path`, `ai-aim-and-fire`). Each part carries its own semver in `CATALOG.json`.
+Most parts are `v1.0.0`; some carry additive revisions (e.g. `move-platformer`
+`v1.3.0`, `camera-follow` `v2.0.0`). Each part's exact semver lives in `CATALOG.json`.
 
-**Behaviors**
-- *movement* — `move-4dir`, `move-platformer`, `move-topdown-360`,
-  `move-grid-step`, `auto-scroll`, `follow-path`, `scale-by-state`
-- *platformer collision* — the SDK's collision-resolution PHASE (`World.resolveBodies()`
-  over a `collider` component: solid push-out, slopes, carry, two-body push), not library
-  behaviors
+**Behaviors** *(per-entity, run each tick)*
+- *movement* — `move-4dir`, `move-platformer`, `move-topdown-360`, `move-grid-step`,
+  `auto-scroll`, `follow-path`, `scale-by-state`, `face-angle`, `face-velocity`,
+  `sprite-state-machine`, `tween`
 - *combat* — `shoot`, `melee-swing`, `contact-damage`, `health-and-death`
 - *ai* — `ai-chase`, `ai-flee`, `ai-patrol`, `ai-wander`, `ai-aim-and-fire`
 - *interaction* — `collect-on-touch`, `trigger-zone`, `portal`
 
-**Systems**
-- *progression* — `score` (storage-persisted high score), `lives-respawn`,
-  `timer-countdown`, `level-progression`
+Platformer collision is **not** a behavior — it's the SDK's collision-resolution
+PHASE (`World.resolveBodies()` over a `collider` component: solid push-out, slopes,
+carry, two-body push).
+
+**Systems** *(per-scene, run before behaviors)*
+- *progression* — `score`, `lives-respawn`, `timer-countdown`, `level-progression`
 - *spawning* — `wave-spawner` *(optional `placement: "free-cell"` scatter +
   level-driven `densityPerLevel`/`intervalPerLevel` ramp)*, `place-on-free-cell`
-- *rules* — `win-lose-conditions`
-- *economy* — `simple-inventory`, `currency`, `upgrade-tree`, `transaction`
-- *persistence* — `persistence` — declarative cross-run save/load
+- *rules* — `win-lose-conditions`, `stat-modifier`
+- *economy & persistence* — `currency`, `simple-inventory`, `upgrade-tree`,
+  `transaction`, `persistence`
+- *camera* — `camera-follow`, `camera-shake`
+- *input* — `input-actions` · *ui binding* — `format-binding`
 
-Each part ships: an implementation (`src/`), a JSON definition + metadata
-(`parts/`), and a unit test (`test/`).
+**Entities** *(spawnable prototypes)* — `player-blob`, `player-humanoid`,
+`player-ship`, `enemy-chaser`, `enemy-patroller`, `enemy-shooter`, `enemy-swarm`,
+`bullet`, `laser`, `lobbed-bomb`, `coin`, `gem`, `key`, `powerup-capsule`,
+`breakable-block`, `moving-platform`, `snake-segment`, `spike`, `wall`
+
+**UI** — `hud-health-bar`, `hud-score`, `hud-timer`, `hud-wave-counter`, `menu-title`,
+`menu-pause`, `menu-game-over`, `tap-emit`, `key-emit`, `touch-controls`
+
+**FX** — `dust`, `explosion`, `sparkle`, `trail`, `screen-shake`, `screen-flash`,
+`screen-fade`
+
+**Assets** *(generated deterministically by `scripts/gen-assets.ts`)*
+- *world* — `background-gradient`, `background-starfield`, `background-parallax-2layer`,
+  `tileset-grass`, `tileset-dungeon`, `tileset-space`, `tileset-neon-arcade`,
+  `camera-fixed`, `camera-auto-scroll`
+- *audio* — `music-action`, `music-menu`, and the `sfx-*` set (`click`, `collect`,
+  `explode`, `hit`, `jump`, `lose`, `shoot`, `win`)
+
+Logic parts (behaviors, systems) each ship an implementation (`src/`), a JSON
+definition (`parts/`), and a unit test (`test/`); entities, UI, FX, and assets are
+data/generated definitions under `parts/`.
 
 ### Parts & helpers built on the SDK data primitives
 
@@ -102,7 +125,7 @@ parts are genuinely reusable. See [`proofs/README.md`](./proofs/README.md).
 
 ## CATALOG.json
 
-`CATALOG.json` is the machine-readable index Phase 6 ingests. It is **generated**
+`CATALOG.json` is the machine-readable index the marketplace ingests. It is **generated**
 from `parts/*.json` by `scripts/build-catalog.mjs` (`npm run catalog`) and
 validated against `catalog.schema.json`. Do not hand-edit it — edit the per-part
 files and regenerate.

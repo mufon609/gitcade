@@ -1,4 +1,4 @@
-// CLI harness — how Phase 4A is tested with NO web app.
+// CLI harness — how the worker is tested with NO web app.
 //
 //   worker build <repoUrl> [branch]   enqueue + run ONE job end-to-end, stream
 //                                      logs, exit 0 on SUCCESS / 1 on FAILED.

@@ -2,7 +2,7 @@
   "name": "@gitcade-examples/pong",
   "private": true,
   "version": "0.1.0",
-  "description": "Pong — the Phase 1 proof game, built entirely from SDK primitives + JSON (zero custom code).",
+  "description": "Pong — the proof game, built entirely from SDK primitives + JSON (zero custom code).",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3003",

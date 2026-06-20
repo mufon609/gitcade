@@ -1,4 +1,4 @@
-// Artifact URL conventions — must match the 4A artifact server exactly:
+// Artifact URL conventions — must match the artifact server exactly:
 //   {ARTIFACT_BASE_URL}/artifacts/{gameSlug}/{branch}/{path}
 // index.html lives at the branch root. The iframe loads this opaque cross-origin
 // URL with sandbox="allow-scripts" only (Locked Decision: game storage isolation).

@@ -1,4 +1,4 @@
-# Pong — GitCade Phase 1 Proof
+# Pong — GitCade Proof
 
 Classic Pong against a CPU paddle, **built entirely from SDK primitives and JSON —
 zero custom code**. If Pong had needed a custom behavior, that would have meant the

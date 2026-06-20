@@ -1,4 +1,4 @@
-// REAL part-upload driver (Phase 6 DoD proof: ONE custom part published through the
+// REAL part-upload driver (DoD proof: ONE custom part published through the
 // upload flow — schema validation + the unit test run IN THE SANDBOX, license chosen).
 // Drives the SHARED publishUserPart service (the same one the API route calls). The
 // worker's builder image + the docker-sibling pattern are reused; the frozen worker

@@ -1,12 +1,12 @@
 // GitHub OAuth via NextAuth (v4) with the Prisma adapter + database sessions.
 //
-// AUTH SCOPES ARE EXPLICIT AND LOAD-BEARING (per the phase contract):
+// AUTH SCOPES ARE EXPLICIT AND LOAD-BEARING:
 //   read:user user:email public_repo
-// `public_repo` is REQUIRED NOW even though forks (Phase 5) and remix commits
-// (Phase 6) are what use it — NextAuth's identity-only default would 403 there and
-// force a painful re-consent of every user. We do NOT request admin:repo_hook —
-// webhooks are app-owned (Locked Decision). The GitHub access token is stored by
-// the adapter on the Account row so later phases can act as the user.
+// `public_repo` is REQUIRED NOW even though forks and remix commits are what use
+// it — NextAuth's identity-only default would 403 there and force a painful
+// re-consent of every user. We do NOT request admin:repo_hook — webhooks are
+// app-owned (Locked Decision). The GitHub access token is stored by the adapter
+// on the Account row so the app can act as the user.
 import type { NextAuthOptions } from "next-auth";
 import GitHubProvider from "next-auth/providers/github";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
@@ -24,7 +24,7 @@ export const authOptions: NextAuthOptions = {
       clientId: env.githubOAuthId,
       clientSecret: env.githubOAuthSecret,
       authorization: { params: { scope: GITHUB_SCOPES } },
-      // Capture the GitHub login so Phase 5 can build {slug}--{username} fork slugs.
+      // Capture the GitHub login so {slug}--{username} fork slugs can be built.
       profile(profile) {
         return {
           id: String(profile.id),
@@ -50,7 +50,7 @@ export const authOptions: NextAuthOptions = {
   },
 };
 
-/** Read the stored GitHub OAuth access token for a user (repo ops in Phase 5/6).
+/** Read the stored GitHub OAuth access token for a user (used by repo ops).
  *  Returns null if the user has no linked GitHub account. */
 export async function getUserGitHubToken(userId: string): Promise<string | null> {
   const account = await prisma.account.findFirst({

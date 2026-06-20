@@ -1,7 +1,7 @@
 // The build queue is a Postgres table (Locked Decision: no external queue
 // service). This module owns enqueue (with per-(game,branch) dedup) and atomic
 // claiming (FOR UPDATE SKIP LOCKED) so N workers can process concurrently
-// without double-claiming. Phase 4B enqueues through `enqueueBuild` too — it
+// without double-claiming. The web app enqueues through `enqueueBuild` too — it
 // never builds, only enqueues + reads Build rows.
 import os from "node:os";
 import { prisma } from "./db.js";

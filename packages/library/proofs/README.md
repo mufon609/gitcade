@@ -1,7 +1,7 @@
 # The Reuse Proof
 
-The heart of Phase 2A. Four **distinct genres**, each a real `gitcade validate`-able
-ecosystem game, built from the **same four library parts**:
+The heart of the library's reuse claim. Four **distinct genres**, each a real
+`gitcade validate`-able ecosystem game, built from the **same four library parts**:
 
 | part | role across all four genres |
 |---|---|
@@ -30,8 +30,8 @@ genre seemed to want something new, an existing part was *generalized* instead:
 
 ## Running them
 
-Each demo is its own workspace package (mirroring how Phase 3 games and the
-Phase 4A build worker consume `@gitcade/library` from npm). Build the library
+Each demo is its own workspace package (mirroring how ecosystem games and the
+build worker consume `@gitcade/library` from npm). Build the library
 first, then:
 
 ```bash

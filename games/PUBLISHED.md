@@ -28,7 +28,7 @@ Default branch: `main`. Visibility: public. Current release: all six pin
 |---|---|---|
 | game-scaffold | https://github.com/gitcade-games/game-scaffold | **yes** (`isTemplate: true`) — new creators start compliant |
 
-## Build contract (for the Phase 4A worker)
+## Build contract (for the build worker)
 
 Each game repo, from a clean clone:
 

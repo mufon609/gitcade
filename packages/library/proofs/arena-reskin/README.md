@@ -1,12 +1,12 @@
-# Arena Re-Skin — Phase 2B presentational proof
+# Arena Re-Skin — presentational proof
 
-This is the Phase 2A `survival-arena mobs` demo **re-skinned** with the Phase 2B
+This is the `survival-arena mobs` logic demo **re-skinned** with the library's
 presentational half. The *logic* is unchanged — the same four reuse parts
 (`ai-chase` + `contact-damage` + `wave-spawner` + `health-and-death`) drive scaling
 waves of mobs that the player clears with contact-damage thorns. What's new is how
 it **looks and sounds**:
 
-| Layer | Phase 2A (logic proof) | Phase 2B (this re-skin) |
+| Layer | Logic proof | This re-skin |
 |---|---|---|
 | Entities | placeholder rectangles | generated sprites: `player-blob` (animated), `enemy-chaser`, spinning `coin` |
 | World | flat color | `background-starfield` backdrop + `tileset-space` accent studs |

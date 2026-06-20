@@ -1,4 +1,4 @@
-# GitCade — Security Checklist (Phase 8A Security Pass)
+# GitCade — Security Checklist
 
 *Hardening only — no new features, no frozen-contract changes. Every item below is
 marked with the **PROBE** that verified it (real output, not assertion). Dated
@@ -34,7 +34,7 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
   **PROBE (curl + browser):** index.html and a JS chunk both return the full CSP;
   `connect-src 'none'` (no network exfiltration) and `frame-ancestors` (embedder
   restricted) present. ✓
-- [x] **The ACAO `"*"` patch (Phase 4B) exposes nothing beyond static artifact
+- [x] **The ACAO `"*"` patch exposes nothing beyond static artifact
   reads.** `Access-Control-Allow-Origin: *` is set ONLY in
   `headers.ts#artifactHeaders`, which is applied ONLY to `GET /artifacts/...` static
   bundle responses. Artifacts are public, credential-free static files; the artifact
@@ -132,7 +132,7 @@ every state-changing endpoint is **rate-limited**. None of these may be weakened
   **PROBE:** `npm audit --omit=dev` per service; `npm audit fix --dry-run` confirms
   0 non-breaking fixes; `next` version + feature grep captured. ✓
 - [x] **SDK / library (`@gitcade/sdk`, `@gitcade/library`): runtime dep is only `zod`;
-  no audit findings of note.** (Frozen packages — not modified this phase.)
+  no audit findings of note.** (Frozen packages — not modified.)
 
 ## 6. Secrets hygiene
 
@@ -163,7 +163,7 @@ docker run --rm --network none gitcade-builder:local sh -c 'node -e "fetch(\"htt
 # 4. rate limit
 for i in $(seq 1 13); do curl -s -o /dev/null -w "%{http_code}\n" -X POST -d '{}' localhost:3000/api/games/snake/fork; done   # 401x10 then 429
 # 5. CSP/sandbox in a real browser
-node /tmp/csp-sandbox-probe.mjs snake     # (probe script; see DECISIONS Phase 8A)
+node /tmp/csp-sandbox-probe.mjs snake     # (probe script; see setup/archive/DECISIONS.md)
 # 6. dependency audit
 (cd platform/web && npm audit --omit=dev)
 # 7. unit tests (bridge isolation + rate-limit helpers)

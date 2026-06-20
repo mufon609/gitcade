@@ -1,9 +1,9 @@
 // THE PUBLISH SERVICE — the single internal code path for turning a GitHub repo
 // into a published Game. The API route (browser OAuth) and the seed script
 // (server-side, no browser) BOTH call `publishGame` — the flow is shared, never
-// mocked (per the phase contract). The worker is the only thing that builds; this
+// mocked. The worker is the only thing that builds; this
 // service only: validates the manifest early, enforces public-repos-only, creates
-// the Game row, and ENQUEUES a 4A build job. THE VALIDATOR IS THE GATE — a Game
+// the Game row, and ENQUEUES a build job. THE VALIDATOR IS THE GATE — a Game
 // reaches LIVE only when its Build row is SUCCESS (see refreshGameStatus).
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
@@ -100,14 +100,14 @@ export async function publishGame(input: PublishInput): Promise<PublishResult> {
   const { manifest, tier } = parsed;
   const slug = manifest.slug; // canonical: matches the worker's artifact path prefix
 
-  // 3. Slug conflict guard (forks get distinct slugs in Phase 5).
+  // 3. Slug conflict guard (forks get distinct slugs).
   const existing = await prisma.game.findUnique({ where: { slug } });
   if (existing && existing.ownerId !== input.ownerUserId) {
     return {
       ok: false,
       stage: "slug-conflict",
       errors: [
-        `A game with slug "${slug}" is already published by another user. (Forks get a distinct slug — that lands in Phase 5.)`,
+        `A game with slug "${slug}" is already published by another user. (Forks get a distinct slug.)`,
       ],
     };
   }
@@ -130,7 +130,7 @@ export async function publishGame(input: PublishInput): Promise<PublishResult> {
     ? await prisma.game.update({ where: { id: existing.id }, data })
     : await prisma.game.create({ data: { slug, ...data } });
 
-  // 5. ENQUEUE the real 4A build job (we never build). gameSlug is the manifest
+  // 5. ENQUEUE the real build job (we never build). gameSlug is the manifest
   //    slug so the worker's artifact path == this Game's slug.
   const { id: jobId, deduped } = await enqueueBuild({
     repoUrl: cloneUrl(ref),

@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/ratelimit";
 
 export async function POST(req: NextRequest) {
-  // Anonymous players are allowed (PlaySession is a Phase 7 eligibility signal), so
+  // Anonymous players are allowed (PlaySession is an eligibility signal), so
   // throttle by IP — generous, since a beat fires only every ~10s per open pane.
   const limited = await enforceRateLimit(req, RATE_LIMITS.heartbeat);
   if (limited) return limited;

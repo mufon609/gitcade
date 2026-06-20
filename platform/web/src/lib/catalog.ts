@@ -1,9 +1,9 @@
-// Phase 6 — Marketplace catalog model. Pure helpers shared by the ingest script
+// Marketplace catalog model. Pure helpers shared by the ingest script
 // and the marketplace pages. The library's CATALOG.json is the FROZEN source of
 // truth (READ here, never reshaped); the Part table is a queryable mirror.
 //
 // The 7 marketplace buckets are derived from the catalog's (kind, category) per the
-// Phase 2B convention: kind `asset` splits into World vs Audio by its category;
+// Convention: kind `asset` splits into World vs Audio by its category;
 // everything else maps 1:1 from kind.
 
 /** A raw part object as it appears in CATALOG.json. */
@@ -42,7 +42,7 @@ export type MarketplaceBucket = (typeof MARKETPLACE_BUCKETS)[number];
 
 /** Map a part's (kind, category) to its marketplace bucket. `asset` is the only
  *  kind that fans out: world tilesets/backgrounds/cameras → World; synthesized SFX
- *  + music → Audio (Phase 2B `category` disambiguates). */
+ *  + music → Audio (the `category` field disambiguates). */
 export function bucketFor(kind: string, category: string): MarketplaceBucket {
   switch (kind) {
     case "behavior":

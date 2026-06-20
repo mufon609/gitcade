@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://gitcade.dev/schemas/catalog.schema.json",
   "title": "GitCade Component Library Catalog",
-  "description": "Machine-readable index of every catalog part. Authored from packages/library/parts/*.json by scripts/build-catalog.mjs; ingested by the Phase 6 marketplace.",
+  "description": "Machine-readable index of every catalog part. Authored from packages/library/parts/*.json by scripts/build-catalog.mjs; ingested by the marketplace.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "library", "version", "parts"],

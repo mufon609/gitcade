@@ -1,4 +1,4 @@
-// INTEGRATION: enqueue → 4A worker → live, against a LOCAL repo fixture.
+// INTEGRATION: enqueue → worker → live, against a LOCAL repo fixture.
 //
 // Stands up a docker git-daemon serving a VALID copy of the snake seed game (under
 // a throwaway slug), then drives the REAL flow the web app uses: create the Game

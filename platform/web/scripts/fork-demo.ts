@@ -1,5 +1,5 @@
-// REAL fork round-trip driver (Phase 5 DoD proof). A script cannot perform browser
-// OAuth, so — exactly like the 4B seed script drives publishGame — this drives the
+// REAL fork round-trip driver (DoD proof). A script cannot perform browser
+// OAuth, so — exactly like the seed script drives publishGame — this drives the
 // SHARED forkGame service server-side: it ensures a User row for the gh-authenticated
 // account, stores that account's `gh auth token` as the user's GitHub token, then
 // forks a seed game through the real code path and reports the click→playable time.

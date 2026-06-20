@@ -1,16 +1,14 @@
 # platform/
 
-The GitCade platform services. Built across Phases 4–8.
+The GitCade platform services.
 
-| Service | Path | Phase | Role |
-|---|---|---|---|
-| Build worker | `platform/worker/` | 4A | Long-running Node service; consumes the Postgres job queue, builds `(repo, branch, commit)` into validated artifacts in sibling containers, uploads to S3/MinIO. |
-| Artifact server | `platform/artifact-server/` | 4A | Streams `/artifacts/{game}/{branch}/{path}` from the bucket with correct content-types, the strict game CSP, and immutable cache headers. Port 3001. **Never** presigned URLs or raw bucket exposure. |
-| Web app | `platform/web/` | 4B+ | Next.js (App Router) + TypeScript + Tailwind + Prisma/Postgres + GitHub OAuth. Publish, play, fork, remix, marketplace. Enqueues build jobs and reads Build rows — it **never** builds anything itself. |
+| Service | Path | Role |
+|---|---|---|
+| Build worker | `platform/worker/` | Long-running Node service; consumes the Postgres job queue, builds `(repo, branch, commit)` into validated artifacts in sibling containers, uploads to S3/MinIO. |
+| Artifact server | `platform/artifact-server/` | Streams `/artifacts/{game}/{branch}/{path}` from the bucket with correct content-types, the strict game CSP, and immutable cache headers. Port 3001. **Never** presigned URLs or raw bucket exposure. |
+| Web app | `platform/web/` | Next.js (App Router) + TypeScript + Tailwind + Prisma/Postgres + GitHub OAuth. Publish, play, fork, remix, marketplace. Enqueues build jobs and reads Build rows — it **never** builds anything itself. |
 
 Deployment topology (app vs. worker vs. storage) is documented in
 [`../infra/README.md`](../infra/README.md).
 
-> `worker/` and `artifact-server/` exist as of Phase 4A (each with its own
-> README). `web/` arrives in Phase 4B. See **MASTER-PLAN.md** for per-phase
-> prompts and Definitions of Done.
+> `worker/`, `artifact-server/`, and `web/` each have their own README.

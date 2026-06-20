@@ -1,4 +1,4 @@
-// REAL remix round-trip driver (Phase 6 DoD proof: dragon-on-Snake in <5 min, zero
+// REAL remix round-trip driver (DoD proof: dragon-on-Snake in <5 min, zero
 // code). A script can't do browser OAuth, so — like fork-demo — it ensures a User +
 // stored gh token, then drives the SHARED remix services end-to-end:
 //   ensureRemixableFork (fork-on-demand) → commitRemix (sprite + movement + tunable,

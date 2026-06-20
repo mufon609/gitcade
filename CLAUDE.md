@@ -75,7 +75,7 @@ user fork, and the build worker depend on them being stable.
   or changes the frozen tick order) → **STOP** and get a human decision. Do not
   quietly reshape a frozen contract; you will silently break published games that
   pin the old version.
-- The Phase 4A queue schema (`BuildJob` / `Build` in `platform/worker`) is
+- The worker queue schema (`BuildJob` / `Build` in `platform/worker`) is
   likewise frozen — `platform/web` extends the database **additively** and never
   reshapes those tables.
 

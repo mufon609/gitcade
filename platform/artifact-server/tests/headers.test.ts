@@ -1,4 +1,4 @@
-// Header-assertion test (Phase 4A requirement): upload a fixture artifact to the
+// Header-assertion test: upload a fixture artifact to the
 // real bucket, start the artifact server, fetch index.html + one asset, and
 // assert the strict CSP + correct content-types + cache policy. Also unit-tests
 // the pure header builders.
@@ -107,7 +107,7 @@ describe("served artifact responses", () => {
     expect(res.status).toBe(404);
   });
 
-  it("forwards an ETag and honors If-None-Match with a 304 (Phase 8B caching)", async () => {
+  it("forwards an ETag and honors If-None-Match with a 304 (caching)", async () => {
     // First load: must carry a validator so a browser/CDN can revalidate the
     // no-cache HTML entry cheaply instead of re-downloading the full body.
     const first = await fetch(`${base}/artifacts/${GAME}/${BRANCH}/index.html`);

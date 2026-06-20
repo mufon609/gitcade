@@ -1,7 +1,7 @@
 {
-  "name": "Arena Re-Skin (Phase 2B proof)",
+  "name": "Arena Re-Skin (presentational proof)",
   "slug": "proof-arena-reskin",
-  "description": "Phase 2B presentational proof: the Phase 2A survival-arena demo re-skinned with real generated sprites, a starfield + space tileset, synthesized SFX + chiptune music, and explosion/sparkle particles. Same four logic parts; now it looks and sounds like a coherent minimalist game.",
+  "description": "Presentational proof: the survival-arena logic demo re-skinned with real generated sprites, a starfield + space tileset, synthesized SFX + chiptune music, and explosion/sparkle particles. Same four logic parts; now it looks and sounds like a coherent minimalist game.",
   "version": "0.1.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "0.1.0",

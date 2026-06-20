@@ -106,12 +106,12 @@ export default async function GamePage({ params }: { params: { slug: string } })
         </div>
       </div>
 
-      {/* Phase 6: the catalog parts this ecosystem game is composed from. */}
+      {/* The catalog parts this ecosystem game is composed from. */}
       <MadeFrom
         game={{ id: game.id, repoUrl: game.repoUrl, branch: game.branch, manifest: game.manifest, tier: game.tier }}
       />
 
-      {/* Phase 5 lineage, re-presented: current version + a forks-as-versions dropdown. */}
+      {/* Lineage, re-presented: current version + a forks-as-versions dropdown. */}
       <Versions slug={game.slug} />
     </div>
   );

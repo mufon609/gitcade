@@ -1,11 +1,11 @@
 /**
- * gen-assets.ts — GitCade procedural asset generator (Phase 2B, art direction LOCKED).
+ * gen-assets.ts — GitCade procedural asset generator (art direction LOCKED).
  *
  * ALL v1 visual assets are generated HERE, by code: geometric/flat sprites on ONE
  * fixed 8-color palette, on 16px and 32px grids. Output is PNG sprite sheets under
  * `packages/library/assets/`. There is NO hand-drawn or AI-image art in the repo.
  *
- * DETERMINISM is a hard requirement (Phase 2B DoD): re-running this script must
+ * DETERMINISM is a hard requirement: re-running this script must
  * reproduce byte-identical files. It therefore uses:
  *   - a pure, dependency-free PNG encoder (raw scanlines → node:zlib deflateSync,
  *     which is deterministic for a fixed level on a given zlib build);

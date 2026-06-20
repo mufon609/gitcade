@@ -1,5 +1,5 @@
 /**
- * Arena Re-Skin bootstrap (Phase 2B proof, browser host glue).
+ * Arena Re-Skin bootstrap (presentational proof, browser host glue).
  *
  * The GAME is data (game.json + config.json + src/scenes/main.json), composing
  * only @gitcade/library + SDK parts. This host wires the PRESENTATIONAL half that

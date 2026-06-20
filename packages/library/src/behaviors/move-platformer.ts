@@ -10,8 +10,8 @@ import { num, strArray, str } from "@gitcade/sdk";
  * entity's `collider` rests on a solid tile or solid entity). SETS velocity each tick —
  * order a `velocity` behavior AFTER this one.
  *
- * 1.2.0 adds the genre-feel layer as OPTIONAL params, each defaulting to a value that
- * reproduces the original fixed-impulse/instant-velocity behavior exactly (a game that
+ * The genre-feel layer is OPTIONAL params, each defaulting to a value that
+ * reproduces the bare fixed-impulse/instant-velocity behavior exactly (a game that
  * sets none of them is byte-identical):
  *  - **run acceleration/friction** (`accel`/`friction`): ramp `vx` toward the target
  *    instead of snapping to it.
@@ -88,7 +88,7 @@ export const movePlatformer: BehaviorFn = (entity, world, params, dt, scratch) =
     else if (entity.vx > target) entity.vx = Math.max(entity.vx - rate, target);
   }
 
-  // Ladder climb (optional, 0.11.0). When the entity's CENTER is over a `ladderProp` tile and the
+  // Ladder climb (optional). When the entity's CENTER is over a `ladderProp` tile and the
   // player presses up/down, it CLIMBS: gravity suspended, `vy` driven by up/down, horizontal still
   // free (so it can step off the side). Climbing persists until the entity leaves the ladder. The
   // up keys default to the jump keys, but on a ladder they climb (this branch returns BEFORE the

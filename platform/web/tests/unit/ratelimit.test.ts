@@ -1,4 +1,4 @@
-// Phase 8A — rate limiter. Unit-tests the PURE pieces (window math, IP extraction,
+// Rate limiter. Unit-tests the PURE pieces (window math, IP extraction,
 // the rule registry). The DB-backed atomic counter + the actual 429 are proven by a
 // live HTTP probe in SECURITY.md (an infra-free unit test cannot exercise the
 // INSERT ... ON CONFLICT path).

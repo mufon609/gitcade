@@ -2,7 +2,7 @@
   "name": "@gitcade-proofs/arena-reskin",
   "private": true,
   "version": "0.1.0",
-  "description": "Phase 2B presentational proof — the 2A survival-arena demo re-skinned with generated sprites, a starfield + space tileset, synthesized SFX + chiptune music, and explosion/sparkle particles.",
+  "description": "Presentational proof — the survival-arena logic demo re-skinned with generated sprites, a starfield + space tileset, synthesized SFX + chiptune music, and explosion/sparkle particles.",
   "type": "module",
   "scripts": {
     "sync-assets": "rm -rf public/assets && cp -r ../../assets public/assets",

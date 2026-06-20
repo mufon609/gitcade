@@ -3,12 +3,10 @@ import { num, str } from "@gitcade/sdk";
 
 /**
  * `face-angle` — orient an entity by writing `entity.rotation` (radians, clockwise)
- * each tick. Pairs with the 0.3.2 renderer, which rotates a sprite around its center
- * by `entity.rotation` (a slot that was in the frozen entity schema but ignored by
- * the renderer until 0.3.2). This is the DATA path to a directional sprite: before
- * it, a flyer couldn't bank, a turret couldn't track, a bullet couldn't point along
- * its travel — every sprite was fixed-orientation. Visual only — collision/picking
- * stay axis-aligned (the renderer applies the transform purely for drawing).
+ * each tick. The renderer rotates a sprite around its center by `entity.rotation`, so
+ * this is the DATA path to a directional sprite: a flyer banking, a turret tracking, a
+ * bullet pointing along its travel. Visual only — collision/picking stay axis-aligned
+ * (the renderer applies the transform purely for drawing).
  *
  * Modes (`mode`, default `"velocity"`):
  *  - `"velocity"`: `rotation = atan2(vy, vx) + offset`, for a sprite whose forward

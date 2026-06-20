@@ -1,4 +1,4 @@
-# @gitcade/artifact-server — serves built games (Phase 4A)
+# @gitcade/artifact-server — serves built games
 
 The ONLY path by which a built game reaches a browser (Locked Decision: Artifact
 serving). Streams artifacts from the S3/MinIO bucket with load-bearing security

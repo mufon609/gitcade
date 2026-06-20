@@ -58,14 +58,14 @@ server hold bucket credentials. Everything below follows from that.
 
 ## Zone responsibilities
 
-### APP ZONE — the website (Phase 4B+)
+### APP ZONE — the website
 - **What:** Next.js App Router app (TypeScript, Tailwind, Prisma, NextAuth + GitHub OAuth).
 - **Prod:** Vercel, or a container. Serverless is fine here — requests are short.
 - **Local:** `localhost:3000`.
 - **Holds:** the user's OAuth token (for forks/remix commits) and the GitHub App webhook secret (for verifying inbound push webhooks).
 - **Never:** runs game builds; serves game artifacts. It only **enqueues** build jobs (writes a Postgres queue row) and **reads** Build rows.
 
-### WORKER ZONE — the build pipeline (Phase 4A)
+### WORKER ZONE — the build pipeline
 - **What:** a long-running Node service that polls the Postgres queue and turns `(repoUrl, branch, commit)` into a validated, stored artifact.
 - **Prod:** Docker on a VPS / Fly.io / ECS — **never serverless** (builds are multi-minute and run untrusted code). This is *why* the worker is its own zone.
 - **Local:** a Docker container on this machine.

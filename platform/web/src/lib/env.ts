@@ -47,19 +47,19 @@ export const env = {
   nextAuthUrl: optional("NEXTAUTH_URL", "http://localhost:3000"),
   nextAuthSecret: required("NEXTAUTH_SECRET"),
 
-  /// Shared secret for the GitHub App's app-level push webhook (Phase 5). The
+  /// Shared secret for the GitHub App's app-level push webhook. The
   /// receiver verifies X-Hub-Signature-256 against this; an empty secret makes
   /// verification fail closed (every delivery rejected) rather than throwing app-wide.
   githubWebhookSecret: optional("GITHUB_WEBHOOK_SECRET", ""),
   /// The smee.io channel the App delivers to in local dev (forwarded to the webhook
-  /// route by `npm run webhook:proxy`). Already set as the App's webhook URL in Phase 0.
+  /// route by `npm run webhook:proxy`). Already set as the App's webhook URL.
   webhookProxyUrl: optional("WEBHOOK_PROXY_URL", ""),
 
   /// The artifact origin the iframe loads games from (opaque-origin sandbox). The
-  /// 4A artifact server owns it (port 3001 locally / separate domain in prod).
+  /// artifact server owns it (port 3001 locally / separate domain in prod).
   artifactBaseUrl: optional("ARTIFACT_BASE_URL", "http://localhost:3001"),
 
-  /// The 4A builder image (Node 22 + Chromium + build deps). Phase 6 part uploads
+  /// The builder image (Node 22 + Chromium + build deps). Part uploads
   /// run schema validation + the part's unit test inside an ephemeral SIBLING
   /// container built from this image — the SAME isolated builder path the worker
   /// uses, never the web process. (We do NOT modify the frozen worker; we reuse its

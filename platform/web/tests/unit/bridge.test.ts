@@ -1,6 +1,6 @@
 // End-to-end protocol round-trip: the REAL SDK game-side BridgeStorage talking to
 // our parent-side ParentBridge over a fake postMessage channel. This proves the
-// two halves of the FROZEN Phase 1 protocol interoperate — identity + nonce
+// two halves of the FROZEN bridge protocol interoperate — identity + nonce
 // handshake, namespacing, and isolation — without a browser.
 import { describe, it, expect } from "vitest";
 import { BridgeStorage } from "@gitcade/sdk";

@@ -33,7 +33,7 @@ interface Catalog {
 const catalog = readJson("../CATALOG.json") as Catalog;
 const schema = readJson("../catalog.schema.json") as object;
 
-// Every parts/ subdirectory the build script aggregates (2A logic + 2B presentation).
+// Every parts/ subdirectory the build script aggregates (logic + presentation).
 const PART_DIRS = ["behaviors", "systems", "entities", "assets", "ui", "fx"];
 
 describe("CATALOG.json", () => {
@@ -70,7 +70,7 @@ describe("CATALOG.json", () => {
 
   it("covers every registered behavior/system type as kind behavior/system, and only those", () => {
     // FX/UI parts also register runtime types but are catalogued as kind fx/ui, so
-    // the behavior/system KINDS still map 1:1 to the 2A logic library.
+    // the behavior/system KINDS still map 1:1 to the logic library.
     const behaviorIds = catalog.parts.filter((p) => p.kind === "behavior").map((p) => p.id).sort();
     const systemIds = catalog.parts.filter((p) => p.kind === "system").map((p) => p.id).sort();
     expect(behaviorIds).toEqual([...LIBRARY_BEHAVIOR_TYPES].sort());
@@ -125,7 +125,7 @@ describe("CATALOG.json", () => {
     }
   });
 
-  it("registers every FX/UI runtime type referenced by 2B parts", () => {
+  it("registers every FX/UI runtime type referenced by presentational parts", () => {
     const reg = createLibraryRegistry();
     for (const t of LIBRARY_FX_PARTICLE_TYPES) {
       expect(reg.hasBehavior(t) || reg.hasSystem(t), `fx type ${t} not registered`).toBe(true);

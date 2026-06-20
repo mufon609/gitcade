@@ -81,9 +81,9 @@ export async function getRepoFile(
   return { ok: true, content: await res.text() };
 }
 
-// ─────────────────────────── Phase 5: fork + branch ops ───────────────────────────
-// These act under a USER's OAuth token (the `public_repo` scope 4B already
-// requested — never a new scope, never admin:repo_hook). Forking creates a REAL
+// ─────────────────────────────── fork + branch ops ────────────────────────────────
+// These act under a USER's OAuth token (the `public_repo` scope already
+// requested at sign-in — never a new scope, never admin:repo_hook). Forking creates a REAL
 // public repo under the acting user's account.
 
 export interface ForkResult {
@@ -326,7 +326,7 @@ export interface CommitFile {
 
 /** Commit MULTIPLE file changes as ONE readable commit on `branch`, via the git
  *  data API (get ref HEAD → base tree → create blobs → create tree → create commit
- *  → fast-forward the branch ref). Phase 6 remixes touch scene + config + maybe a
+ *  → fast-forward the branch ref). Remixes touch scene + config + maybe a
  *  vendored part in a single commit, so a one-file contents PUT (one commit each)
  *  is insufficient. */
 export async function commitFiles(

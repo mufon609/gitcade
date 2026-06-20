@@ -1,9 +1,9 @@
-# PERFORMANCE.md — GitCade Phase 8B Performance Pass
+# PERFORMANCE.md — GitCade Performance Pass
 
 Optimization only — **no new features**. Every item below is backed by a **measured
 before/after** (Lighthouse scores, `EXPLAIN ANALYZE` plans, query counts, queue
 load numbers), not "should be faster". Frozen contracts were respected: no table was
-reshaped (the frozen 4A/4B `BuildJob`/`Build` tables are byte-identical), and no
+reshaped (the frozen `BuildJob`/`Build` tables are byte-identical), and no
 SDK/library/queue-schema/artifact-URL/storage-bridge/CSP contract changed.
 
 Measured on the dev box (Postgres 16, MinIO, Chrome-for-Testing 148) on 2026-06-15.
@@ -20,7 +20,7 @@ games, 1,500 forks of one game), then `ANALYZE`d.
 Each candidate was tested with the **exact SQL Prisma emits** (captured via the
 Prisma query-event log), `EXPLAIN ANALYZE` run with and without the index.
 
-The governing rule from the phase prompt — *"add only indexes a real query uses;
+The governing rule — *"add only indexes a real query uses;
 prove each with an index scan, not a seq scan"* — was applied strictly. A
 candidate that the planner **refused to use** was dropped rather than shipped as
 dead write-overhead.
@@ -30,7 +30,7 @@ dead write-overhead.
   `Game_parentGameId_idx`** (2.57 ms for 1,500 direct forks). Already optimal.
 - **Heartbeat PlaySession** — `WHERE userId=? AND gameId=?`
   uses the existing `PlaySession_userId_gameId_idx`; heartbeat read/update is by PK.
-- **Build queue (frozen 4A — not modified)** — the claim (`WHERE status='PENDING'
+- **Build queue (frozen — not modified)** — the claim (`WHERE status='PENDING'
   ORDER BY createdAt`) is covered by `BuildJob_status_createdAt_idx`; the dedup
   lookup (`gameSlug, branch, status`) by `BuildJob_gameSlug_branch_status_idx`.
   Both already exist; the frozen tables were left byte-identical.
@@ -101,7 +101,7 @@ remaining sub-100 perf audits on the game page (`legacy-javascript`,
 `render-blocking`, `bf-cache`) are **Next.js framework internals** — the SWC
 legacy-JS target, framework CSS delivery, and `force-dynamic` `no-store` defeating
 the back/forward cache. Addressing them requires a Next config eject or a framework
-upgrade (the Phase 8A audit already tracks a dedicated Next 16 upgrade) and/or
+upgrade (the security audit already tracks a dedicated Next 16 upgrade) and/or
 behaviour changes — out of scope for a no-feature perf pass. No image-dimension or
 unsized-element findings exist (the SDK/game art is canvas-rendered; the platform
 uses no `next/image`).
@@ -162,7 +162,7 @@ one after another) — coalesce correctly:
 20 rapid SEQUENTIAL enqueues of the same (game, branch) → created=1, deduped=19, 1 PENDING row
 ```
 
-### ⚠ Finding: dedup is best-effort, not atomic (pre-existing, frozen 4A)
+### ⚠ Finding: dedup is best-effort, not atomic (pre-existing, frozen queue)
 Under **artificially simultaneous** parallel enqueues of the *identical*
 `(game, branch)`, the `findFirst`-then-`create` window races and can stack redundant
 jobs:
@@ -170,7 +170,7 @@ jobs:
 25 truly-concurrent enqueues (Promise.all) → trial 1: created=1 (cold pool serialized);
                                              trials 2–6: created=25 (RACE — stacked)
 ```
-This is a **pre-existing property of the frozen 4A queue**, not introduced here, and
+This is a **pre-existing property of the frozen queue**, not introduced here, and
 its blast radius is **bounded by the (working) concurrency cap** — redundant jobs
 drain ≤ 2 at a time, never a container storm; and rebuilds are idempotent (same
 commit → same artifact). It does **not** affect the real access pattern (webhook /
@@ -179,18 +179,18 @@ poll / fork / publish each enqueue **once**, sequentially).
 A robust fix is a **partial unique index** on `BuildJob(gameSlug, branch) WHERE
 status IN ('PENDING','RUNNING')` + `INSERT … ON CONFLICT` — but that alters the
 **frozen queue/Build schema contract**, which this perf pass must not touch
-(it would HALT for a human decision). **Recommended as a dedicated 4A queue patch.**
+(it would HALT for a human decision). **Recommended as a dedicated queue patch.**
 Documented here and in DECISIONS.md; not silently changed.
 
 ---
 
-## What 8C–8E inherit
+## Outstanding follow-ups
 - **Existing hot-path indexes verified adequate** (fork lineage, heartbeat
-  PlaySession, the frozen 4A build-queue indexes); frozen `BuildJob`/`Build`
+  PlaySession, the frozen build-queue indexes); frozen `BuildJob`/`Build`
   byte-identical.
 - **Constant-query "made-from" path** + a parallelized game page.
 - **Conditional-GET (ETag/304)** on the artifact server (CDN-ready).
-- **A documented, bounded queue-dedup race** to fix as a 4A queue patch (not a
+- **A documented, bounded queue-dedup race** to fix as a queue patch (not a
   blocker; the cap contains it).
 
 ## How to re-run the proofs

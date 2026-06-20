@@ -1,4 +1,4 @@
-// The web app's enqueue path. This MIRRORS the frozen 4A enqueue contract
+// The web app's enqueue path. This MIRRORS the frozen worker enqueue contract
 // (platform/worker/src/queue.ts) VERBATIM in shape and semantics — same
 // EnqueueInput, same canonical slug derivation, same per-(game,branch) dedup —
 // but runs against the web app's Prisma client.
@@ -8,7 +8,7 @@
 // client; importing them into the Next bundler is fragile. The REAL interface
 // between the two services is the shared Postgres `BuildJob` table, and the web
 // app's Prisma client writes byte-identical rows to it. The worker is, and stays,
-// the only thing that BUILDS — the web app only enqueues and reads. If the 4A
+// the only thing that BUILDS — the web app only enqueues and reads. If the
 // enqueue contract ever changes, that is a CORE blocker (HALT), not a web edit.
 import { prisma } from "./prisma";
 

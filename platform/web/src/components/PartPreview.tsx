@@ -12,7 +12,7 @@ export type Preview =
   | { kind: "none" };
 
 /**
- * Live part preview, "where feasible" (Phase 6):
+ * Live part preview, "where feasible":
  *  - sprite → render the served PNG (sheets show the first frame, cropped on canvas)
  *  - sfx    → a play button driving the LIBRARY's runtime Web Audio synth (dynamic-
  *             imported on first click so it stays out of the initial bundle)

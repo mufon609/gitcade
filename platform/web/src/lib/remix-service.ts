@@ -76,7 +76,7 @@ export interface EnsureForkFailure {
 /**
  * Ensure the user has an OWN copy of `parentSlug` to remix. If they already own
  * the game (it's theirs, or they own its fork), return that. Otherwise fork it on
- * demand (reusing the Phase 5 forkGame), so remix mode always operates on a repo
+ * demand (reusing forkGame), so remix mode always operates on a repo
  * the user can commit to.
  */
 export async function ensureRemixableFork(

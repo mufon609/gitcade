@@ -1,7 +1,7 @@
-// PARENT SIDE of the GitCade storage bridge (Phase 1 protocol, FROZEN in
-// packages/sdk/src/storage/protocol.ts). This is the FIRST time the parent half
-// runs end-to-end. It is written framework-agnostic and DOM-free so it is unit
-// testable; the React <GameFrame> wires it to a real iframe + window.
+// PARENT SIDE of the GitCade storage bridge (FROZEN protocol, defined in
+// packages/sdk/src/storage/protocol.ts). It is written framework-agnostic and
+// DOM-free so it is unit testable; the React <GameFrame> wires it to a real
+// iframe + window.
 //
 // SECURITY MODEL — IDENTITY, NOT ORIGIN. An opaque-origin iframe
 // (sandbox="allow-scripts") reports `event.origin === "null"`, so origin strings

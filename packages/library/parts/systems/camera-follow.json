@@ -5,7 +5,7 @@
   "category": "world",
   "tags": ["world", "camera", "follow", "scrolling", "platformer"],
   "license": "MIT",
-  "description": "Moves the render viewport (world.camera) to keep a tagged entity centered, with optional smoothing (ease) and a centered deadzone, clamped to the world bounds. The runtime camera for scrolling levels — pair with a scene.world larger than scene.size (SDK 0.7.0). Promotes the 1.x host-hint asset of the same id to a real runtime system.",
+  "description": "Moves the render viewport (world.camera) to keep a tagged entity centered, with optional smoothing (ease) and a centered deadzone, clamped to the world bounds. The runtime camera for scrolling levels — pair with a scene.world larger than scene.size.",
   "dependencies": [],
   "params": {
     "targetTag": { "type": "string", "balance": false, "description": "Tag of the entity to keep centered (first live match)." },

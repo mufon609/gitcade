@@ -1,4 +1,4 @@
-// THE REMIX ENGINE (Phase 6) — turn point-and-click edits on a game you own (or a
+// THE REMIX ENGINE — turn point-and-click edits on a game you own (or a
 // fork-on-demand) into a single readable commit that still PASSES `gitcade validate`.
 // Three edit kinds, all derived from the catalog so nothing new is invented:
 //   a. swap an entity's sprite for another catalog entity's sprite (structural)

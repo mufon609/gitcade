@@ -1,5 +1,5 @@
-// Per-user / per-IP rate limiting for state-changing endpoints (Phase 8A — Security
-// pass). Postgres-backed FIXED-WINDOW counter (the additive `RateLimit` table): one
+// Per-user / per-IP rate limiting for state-changing endpoints.
+// Postgres-backed FIXED-WINDOW counter (the additive `RateLimit` table): one
 // row per (bucket, identity, windowStart), incremented ATOMICALLY via
 // INSERT ... ON CONFLICT DO UPDATE so it is correct under concurrency and survives a
 // process restart / multiple app instances — an in-memory map would not, and the

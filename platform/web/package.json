@@ -2,7 +2,7 @@
   "name": "@gitcade/web",
   "version": "0.1.0",
   "private": true,
-  "description": "GitCade platform site — publish a game from a GitHub repo, play it in a sandboxed iframe, browse the grid. Enqueues 4A build jobs and reads Build rows; it NEVER builds.",
+  "description": "GitCade platform site — publish a game from a GitHub repo, play it in a sandboxed iframe, browse the grid. Enqueues build jobs and reads Build rows; it NEVER builds.",
   "type": "module",
   "scripts": {
     "predev": "node scripts/sync-library-assets.mjs",

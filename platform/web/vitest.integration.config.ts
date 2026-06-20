@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
-// Integration test: enqueue → 4A worker → live, against a local git-fixture repo.
+// Integration test: enqueue → worker → live, against a local git-fixture repo.
 // Requires Postgres + MinIO + Docker + the builder image + a running worker
 // poller (see DECISIONS.md). Long timeout for a real container build.
 export default defineConfig({

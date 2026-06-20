@@ -5,7 +5,7 @@
   "category": "ai",
   "tags": ["ai", "enemy", "turret", "shooter", "projectile", "targeting"],
   "license": "MIT",
-  "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot. 1.1.0 adds optional priorityKey/priorityOrder targeting — prefer the most-advanced creep (follow-path __pathProgress) or the strongest/weakest by an entity-state key — defaulting to nearest.",
+  "description": "Turret AI: when a target tag is within range, fire a projectile at it on a cooldown. The aiming counterpart to the player-driven shoot. Optional priorityKey/priorityOrder targeting — prefer the most-advanced creep (follow-path __pathProgress) or the strongest/weakest by an entity-state key — defaults to nearest.",
   "dependencies": ["velocity", "contact-damage", "health-and-death"],
   "params": {
     "targetTag": { "type": "string", "balance": false, "description": "Tag of entities to fire at." },

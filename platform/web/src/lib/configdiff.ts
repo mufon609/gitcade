@@ -1,4 +1,4 @@
-// THE CONFIG DIFF — the most load-bearing piece of Phase 5. A config.json is a
+// THE CONFIG DIFF — a load-bearing piece of the remix engine. A config.json is a
 // recursive record of tunable leaves (number | string | boolean); the SDK resolves
 // `$cfg.<dotted.path>` references against it. A rebalance is therefore a set of
 // leaf-value changes ("towerCost.arrow: 50 → 30"). This module flattens two config

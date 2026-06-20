@@ -1,4 +1,4 @@
-# Phase 0 — Credential Checklist
+# Credential Checklist
 
 The only thing between this machine and starting the GitCade build. Local infra
 (Postgres, MinIO, Node, Docker, gh auth) is **already done** — this list is the
@@ -24,7 +24,7 @@ First, from the repo root: copy the template → `.env` with `cp setup/.env.exam
 **Notes**
 - **No second account needed.** An organization is *not* a separate GitHub login — it's a free namespace created from your existing account; you stay the owner with the same email/password. Optional: skip the org and set `GITHUB_ORG=<your-username>` to publish game repos under your personal account instead.
 - **slug vs display name.** The *slug* is the URL segment — `gitcade-games` from `github.com/gitcade-games` — not any prettified display name. So `GITHUB_ORG=gitcade-games`.
-- **This repo ≠ the game repos.** `GITHUB_ORG` only controls where the Phase 3 *game* repos (snake, breakout, forks…) get created — not where this platform/control repo lives.
+- **This repo ≠ the game repos.** `GITHUB_ORG` only controls where the *game* repos (snake, breakout, forks…) get created — not where this platform/control repo lives.
 
 ## 2. GitHub OAuth App → `GITHUB_OAUTH_ID`, `GITHUB_OAUTH_SECRET`
 Platform login + repo operations under each user's token.
@@ -37,7 +37,7 @@ Platform login + repo operations under each user's token.
 
 **Notes**
 - **Enable Device Flow → leave unchecked.** GitCade logs users in via the browser redirect (Authorization Code) flow using the callback URL above. Device Flow is for browserless/CLI devices and isn't used here.
-- **The scopes line is informational, not a step.** Classic OAuth Apps don't set scopes on the creation form — the app requests `read:user user:email public_repo` at login time (wired into the NextAuth provider in Phase 4B). Nothing to fill on this page for scopes.
+- **The scopes line is informational, not a step.** Classic OAuth Apps don't set scopes on the creation form — the app requests `read:user user:email public_repo` at login time (wired into the NextAuth provider). Nothing to fill on this page for scopes.
 - **The client secret is saved the instant you generate it — copy it immediately.** The full value is shown only once; afterward you can only regenerate, not re-view. The **"Update application"** button only saves the URL/name fields — you don't need it to keep the secret, and clicking it won't wipe the secret.
 
 ## 3. GitHub App → `GITHUB_WEBHOOK_SECRET`
@@ -69,7 +69,7 @@ GitHub can't reach localhost; smee relays webhooks to your machine.
 
 **Notes**
 - Creating the channel is just "Start a new channel" + copy the URL — but the channel alone does nothing until you run the smee client locally.
-- Follow the instructions shown on the smee.io page: `npm i -g smee-client`, then `smee -u <your-url> -t <target>`. With no `-t` it forwards to `http://127.0.0.1:3000` by default — fine for now; the real webhook path gets set when the receiver is built (Phase 5).
+- Follow the instructions shown on the smee.io page: `npm i -g smee-client`, then `smee -u <your-url> -t <target>`. With no `-t` it forwards to `http://127.0.0.1:3000` by default — fine for now; the real webhook path gets set when the receiver is built.
 - Only needed during local dev — in production the webhook points straight at your real public server and smee is dropped.
 
 ## 5. NextAuth secret → `NEXTAUTH_SECRET`
@@ -77,7 +77,7 @@ GitHub can't reach localhost; smee relays webhooks to your machine.
 - [x] Paste the output into `NEXTAUTH_SECRET`.
 
 ## 6. npm — publish access for `@gitcade` (no `.env` key; gate-time)
-Not needed to start; required at the Phase 1 and Phase 2B **publish gates**.
+Not needed to start; required at the **publish gates**.
 - [x] `npm login` (creates/uses your npmjs account).
 - [x] Claim the scope: create an npm org/scope named `gitcade` (npmjs.com → add org), or confirm `@gitcade` is yours. Publishing `@gitcade/sdk` later needs this.
 
@@ -96,7 +96,7 @@ One value is *expected* to show as empty and is NOT a problem:
 
 Don't use `grep -E '=$'` here — it false-flags any base64 secret (e.g. `NEXTAUTH_SECRET` from `openssl rand -base64 32`) because base64 padding ends in `=`. The anchored `^[A-Za-z_]+=$` above matches only lines with an empty value.
 
-When the only empty keys are the expected ones above, you're ready for the **Phase 1** single-shot prompt.
+When the only empty keys are the expected ones above, you're ready to go.
 
 ---
 
@@ -112,7 +112,7 @@ Things that tripped up the first run-through — read these if a step feels ambi
 
 - **OAuth App "Enable Device Flow"** → leave unchecked (browser redirect flow, not device flow).
 
-- **OAuth App scopes** aren't set on the creation page — the app requests them at login (Phase 4B).
+- **OAuth App scopes** aren't set on the creation page — the app requests them at login.
 
 - **OAuth App client secret** is saved the moment you generate it; copy it immediately (shown once). "Update application" only saves the URL/name fields, not the secret.
 

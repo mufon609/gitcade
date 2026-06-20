@@ -14,7 +14,7 @@ function ghToken(): string | undefined {
 }
 
 /**
- * The "Made from" panel (Phase 6): the catalog parts an ecosystem game composes,
+ * The "Made from" panel: the catalog parts an ecosystem game composes,
  * parsed from its scene JSON's `partId@version` provenance refs and resolved
  * against the catalog. Reads the indexed GamePart mirror; if the game has never
  * been indexed, indexes it lazily (cached thereafter). Each part links to its

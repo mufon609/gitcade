@@ -2,7 +2,7 @@
 // refs. PURE + framework-free (no I/O), so it is trivially unit-testable and shared
 // by the usage indexer and any preview tooling.
 //
-// The Phase 3 seed scenes annotate every composed catalog part with a `part`
+// The seed scenes annotate every composed catalog part with a `part`
 // provenance ref, e.g. `{ "type": "score", "part": "score@1.0.0", "params": {…} }`.
 // Refs appear on behavior instances, system instances, and (per the frozen SDK
 // schema) optionally on entities. They can also be nested inside prototype params

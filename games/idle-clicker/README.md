@@ -32,8 +32,7 @@ npm run validate   # enforces the no-magic-numbers rule AND the no-raw-storage r
 The idle loop isn't in the action library, so three small, fully `$cfg`-driven
 systems live in [`src/custom-behaviors/`](src/custom-behaviors/index.ts):
 **`click-to-earn`** (coins per tap), **`auto-income`** (coins/sec from generators),
-and **`interval-bonus`** (the periodic bonus + its countdown). All are logged in
-[`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md).
+and **`interval-bonus`** (the periodic bonus + its countdown).
 
 **Offline progress** is in [`src/main.ts`](src/main.ts): on resume it loads the
 save via `world.storage`, credits `autoRate × time-away` (capped at

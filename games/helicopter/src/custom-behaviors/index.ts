@@ -8,9 +8,9 @@ import { num, str, strArray } from "@gitcade/sdk";
  * `entity.vy` for a following SDK `velocity` integrator; horizontal position is
  * fixed (the world scrolls past).
  *
- * Written param-driven — all balance via `$cfg`, no magic numbers — and logged in
- * games/LIBRARY-GAPS.md as a generalization candidate ("one-axis thrust /
- * flappy-style control"), since auto-scrollers and jetpack games all want it.
+ * Written param-driven — all balance via `$cfg`, no magic numbers. A one-axis
+ * thrust / flappy-style control, the kind of mechanic auto-scrollers and jetpack
+ * games all want.
  *
  * The lift intent is read through the logical `thrustAction` when set — so keyboard
  * AND a hold-anywhere touch zone (both declared by the `input-actions` system in

@@ -38,9 +38,7 @@ part, no host scroll glue, and no `$cfg` key (it's presentational).
 
 A one-button flyer's lift is the single mechanic no library part covers, so it
 lives in [`src/custom-behaviors/`](src/custom-behaviors/index.ts) as the
-**`thrust-lift`** behavior (param-driven, all balance via `$cfg`). It's logged in
-[`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as a generalization candidate
-("one-axis thrust / flappy control").
+**`thrust-lift`** behavior (param-driven, all balance via `$cfg`).
 
 ## Rebalance it
 

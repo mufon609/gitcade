@@ -44,8 +44,7 @@ a map click into a buildable-tile-checked, grid-snapped turret, reading the SDK 
 edge and routing the cost through `transaction`) and **`creep-accounting`** (bounty +
 leak counters on each kill/leak, and the one-line bridge of the spawner's
 `waves-complete` event to a flag). Both are fully param-driven (every number a `$cfg`)
-and restart-safe, and are logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as
-generalization candidates. The shared upgrade-stamp (the `stat-modifier` system,
+and restart-safe. The shared upgrade-stamp (the `stat-modifier` system,
 which writes the upgraded range/cooldown onto every tower each tick) and the win
 decision (`win-lose-conditions@1.1.0`'s composed condition) are library data, not
 hand-rolled here.

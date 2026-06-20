@@ -5,9 +5,8 @@ import { num, str } from "@gitcade/sdk";
  * `snake-body` — the one mechanic Snake needs that no @gitcade/library part
  * provides: a trailing body that follows the head's path cell-by-cell, grows when
  * food is eaten, and ends the run on a self- or wall-collision. It is written
- * param-driven (all balance via `$cfg`, all geometry structural) and is logged in
- * games/LIBRARY-GAPS.md as a generalization candidate ("path-history follower /
- * trailing body").
+ * param-driven (all balance via `$cfg`, all geometry structural). A path-history
+ * follower / trailing body.
  *
  * It is a SYSTEM (not a per-entity behavior) because it owns several entities at
  * once — the body segments — and the head's grid stepping (`move-grid-step`) emits
@@ -133,7 +132,7 @@ export const snakeBody: SystemFn = (world, params, _dt) => {
   // library `place-on-free-cell` system — we only request a drop when the board is
   // empty (the first food, and each respawn after an eat). The handler excludes every
   // live `snake-cell` (head + segments) by construction, so food never lands on the
-  // snake; see games/LIBRARY-GAPS.md for the one residual edge.
+  // snake.
   if (world.query(foodTag).length === 0) {
     world.events.emit(str(params, "placeEvent", "place-food"));
   }

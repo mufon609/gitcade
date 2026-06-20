@@ -2,8 +2,8 @@
  * Idle Clicker bootstrap (host glue). The GAME is data — game.json + config.json +
  * src/scenes/{title,play}.json composing the library `currency` + `upgrade-tree`
  * economy with four small custom economy systems (`click-to-earn`, `auto-income`,
- * `interval-bonus`, `prestige` — the idle loop the action library doesn't cover;
- * logged in LIBRARY-GAPS.md). 100% of the balance is in config.json. Flow is
+ * `interval-bonus`, `prestige` — the idle loop the action library doesn't cover).
+ * 100% of the balance is in config.json. Flow is
  * `title → play`, also data.
  *
  * What lives host-side (no data primitive covers it):

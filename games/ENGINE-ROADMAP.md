@@ -1,16 +1,8 @@
 # ENGINE-ROADMAP.md — Live Engine-Core Bandaid Log
 
-The **engine-core** counterpart to [`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md) (library-part
-extraction candidates) and [`GAME-IMPROVEMENTS.md`](./GAME-IMPROVEMENTS.md) (per-game
-polish). This file now carries only **concrete workarounds that exist in shipped game
-source today** — the live evidence of an engine gap, where a game patches in host JS or a
+This file carries only **concrete workarounds that exist in shipped game source
+today** — the live evidence of an engine gap, where a game patches in host JS or a
 custom part what the engine should provide.
-
-> **Forward-looking engine direction lives in [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md)**,
-> which is the authoritative roadmap and takes priority. The "what should the engine grow
-> next" material (camera, collision/physics, rendering, audio, input, animation, juice,
-> authoring, and the genre-unlock library parts) was consolidated there. This file is the
-> bug-evidence log; that file is the plan.
 
 > Only **open** bandaids are listed here. Shipped engine capabilities live in git history
 > and the SDK/library package history — not re-listed once done.
@@ -25,8 +17,7 @@ doing only what has no data primitive. So the audit rule is:
 
 > **Any real game logic in `main.ts`, and any custom behavior/system, is a candidate
 > bandaid.** If the same bandaid appears in several games, it's an engine gap — log it here
-> with the source location, and capture the *fix direction* in
-> [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md).
+> with the source location and the *fix direction*.
 
 ---
 
@@ -44,13 +35,10 @@ doing only what has no data primitive. So the audit rule is:
 
 None currently — no shipped game carries an engine-gap workaround (host JS or a custom part
 doing what the engine should provide). When one appears, log it here with its source location
-and capture the fix direction in [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md).
+and the fix direction.
 
 ---
 
 ## Cross-references
 
-- Forward engine roadmap + contract-change decisions: [`INDIE-ROADMAP.md`](./INDIE-ROADMAP.md).
-- Library-part extraction candidates: [`LIBRARY-GAPS.md`](./LIBRARY-GAPS.md).
-- Per-game balance/content/asset work: [`GAME-IMPROVEMENTS.md`](./GAME-IMPROVEMENTS.md).
 - Frozen-contract patch protocol: [`CLAUDE.md`](../CLAUDE.md) → "Frozen contracts".

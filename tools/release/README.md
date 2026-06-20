@@ -82,8 +82,7 @@ node tools/release/publish-artifacts.mjs --only=idle-clicker --dry-run
 ## What is NOT automated (on purpose)
 
 The version bump, the per-game repins/migrations, the catalog regen, and the docs
-(`CONVENTIONS.md`, `LIBRARY-GAPS.md`, `games/GAME-IMPROVEMENTS.md`) are authored
-changes that land in the **monorepo commit** before a release. These scripts only
+are authored changes that land in the **monorepo commit** before a release. These scripts only
 *propagate* that committed state outward. They also never touch the frozen
 artifact-server URL/headers or the storage protocol — `publish-artifacts.mjs`
 mirrors the worker's upload (content-type only); cache + per-game CSP headers are

@@ -54,8 +54,7 @@ balance via `$cfg`:
   into a wall/its own body and clamps it back on-screen (exploits the frozen tick
   order; runs after `move-grid-step`).
 
-Both are logged in [`../LIBRARY-GAPS.md`](../LIBRARY-GAPS.md) as generalization
-candidates. The remaining host glue in [`src/main.ts`](src/main.ts) is only what
+The remaining host glue in [`src/main.ts`](src/main.ts) is only what
 has no data primitive: audio, screen juice (flash/shake), the mobile d-pad (which
 drives the data `move` action via `input.setActionVector`), and a pause toggle.
 

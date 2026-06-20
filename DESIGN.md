@@ -139,9 +139,8 @@ built against. Parts are game-agnostic, versioned, and carry machine-readable
 catalog metadata, so a game's bill of materials is browsable and a part is
 swappable. When a game genuinely needs a mechanic no part provides, it lives as a
 param-driven custom part (all balance still via `$cfg`, so it still validates)
-and is logged in [`games/LIBRARY-GAPS.md`](./games/LIBRARY-GAPS.md) as a
-candidate for promotion — so the catalog grows from proven demand, never
-speculation.
+and becomes a candidate for promotion once a second consumer proves the demand —
+so the catalog grows from proven demand, never speculation.
 
 The design tension to hold consciously: **the more a game reaches for custom
 code, the weaker the "compose, don't write" promise.** Closing recurring gaps
@@ -202,11 +201,9 @@ the same decision viewed from two sides.
 
 ## Where the concept goes
 
-This is direction, not a task list — the concrete roadmaps live in
-[`games/INDIE-ROADMAP.md`](./games/INDIE-ROADMAP.md) (engine fundamentals),
-[`games/ENGINE-ROADMAP.md`](./games/ENGINE-ROADMAP.md), and
-[`games/LIBRARY-GAPS.md`](./games/LIBRARY-GAPS.md). The design lens on all of
-them is the same question: **does this make the bet more true?**
+This is direction, not a task list — the live engine-gap log is
+[`games/ENGINE-ROADMAP.md`](./games/ENGINE-ROADMAP.md). The design lens on it is
+the same question: **does this make the bet more true?**
 
 - **Harvest determinism.** With conformance now proven and gated (every game re-runs
   byte-identically on a fixed seed + input, and the validator advises on drift), the

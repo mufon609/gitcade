@@ -165,7 +165,7 @@ client honors it so the same code works against both.
 | **[platform/README.md](./platform/README.md)** | The three platform services and how they share the queue, database, and bucket. |
 | **[platform/SECURITY.md](./platform/SECURITY.md)** · **[platform/PERFORMANCE.md](./platform/PERFORMANCE.md)** | The Phase 8 hardening and performance audits. |
 | **[packages/sdk/README.md](./packages/sdk/README.md)** · **[packages/library/README.md](./packages/library/README.md)** | Package-level API and authoring docs. |
-| **[games/PUBLISHED.md](./games/PUBLISHED.md)** · **[games/LIBRARY-GAPS.md](./games/LIBRARY-GAPS.md)** | The published seed-game repos and the generalization candidates for a future library release. |
+| **[games/PUBLISHED.md](./games/PUBLISHED.md)** | The published seed-game repos. |
 | **[setup/archive/](./setup/archive/)** | Historical: `MASTER-PLAN.md` (the original build plan + locked decisions), `DECISIONS.md`, `ENVIRONMENT.md`, `BLOCKED.md`. |
 
 ---

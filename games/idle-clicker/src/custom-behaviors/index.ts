@@ -7,7 +7,6 @@ import { num, str } from "@gitcade/sdk";
  * `$cfg` from config.json, so the game keeps 100% of its balance in config.json)
  * and each poll/tick-based with NO event listeners, so a restart (which clears
  * `world.state` but not the event bus) can never double-count.
- * Logged in games/LIBRARY-GAPS.md as generalization candidates.
  *
  * `click-to-earn` reads the SDK's pointer-click EDGE (`world.input.justReleased()`
  * + `world.entityAt`) directly, so the click is data — no host listener. Purchases

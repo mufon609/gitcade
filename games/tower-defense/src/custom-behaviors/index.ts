@@ -1,15 +1,14 @@
 import type { Registry, SystemFn, World } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
 // Grid-snap (cell-center) — the one canonical helper, re-exported from the library
-// index (a LIBRARY-GAPS #4 generalization), so there's a single source of truth.
+// index, so there's a single source of truth.
 import { snapToGrid } from "@gitcade/library";
 
 /**
  * Tower Defense's two custom systems. Both are written param-driven — every
  * balance value arrives via `$cfg` from config.json, none is hardcoded here — so
- * Tower Defense keeps 100% of its balance in config.json. Logged in
- * games/LIBRARY-GAPS.md as generalization candidates ("click-to-place build
- * system" and "event-driven economy/objective counters").
+ * Tower Defense keeps 100% of its balance in config.json. A click-to-place build
+ * system and event-driven economy/objective counters.
  *
  * `tower-build` is the geometry of placement: it reads the SDK click EDGE, snaps the
  * tap to a grid cell via the library `snapToGrid`, refuses non-buildable (road/lane)

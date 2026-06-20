@@ -8,7 +8,7 @@
 // refreshGameStatus() flips the Game to LIVE, and confirm the artifact server
 // serves the built index.html.
 //
-// REQUIRES (see DECISIONS.md): Postgres + MinIO + Docker + the builder image + a
+// REQUIRES (see setup/archive/DECISIONS.md): Postgres + MinIO + Docker + the builder image + a
 // RUNNING worker poller + the artifact server. If the build does not progress, the
 // test fails with a clear message rather than hanging forever.
 import { describe, it, expect, beforeAll, afterAll } from "vitest";

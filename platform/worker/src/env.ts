@@ -1,5 +1,5 @@
 // Centralized env access. The populated .env lives at the repo root (gitignored,
-// per ENVIRONMENT.md); we load it explicitly since the worker runs from
+// per setup/archive/ENVIRONMENT.md); we load it explicitly since the worker runs from
 // platform/worker. Local Postgres/MinIO defaults may be used freely; a MISSING
 // key for DB/storage is a [CRITICAL] condition (we throw loudly rather than
 // invent a value).

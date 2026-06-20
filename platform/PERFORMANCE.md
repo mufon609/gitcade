@@ -180,7 +180,7 @@ A robust fix is a **partial unique index** on `BuildJob(gameSlug, branch) WHERE
 status IN ('PENDING','RUNNING')` + `INSERT … ON CONFLICT` — but that alters the
 **frozen queue/Build schema contract**, which this perf pass must not touch
 (it would HALT for a human decision). **Recommended as a dedicated queue patch.**
-Documented here and in DECISIONS.md; not silently changed.
+Documented here and in [DECISIONS.md](../setup/archive/DECISIONS.md); not silently changed.
 
 ---
 

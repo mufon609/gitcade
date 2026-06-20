@@ -1,6 +1,6 @@
 // Centralized, server-only env access. The web app shares the repo-root .env with
 // the worker + artifact-server (one source of truth for secrets, per
-// ENVIRONMENT.md). We load it explicitly here — like the worker does — so server
+// setup/archive/ENVIRONMENT.md). We load it explicitly here — like the worker does — so server
 // code never depends on Next's cwd-based .env discovery. A MISSING core key
 // (DB / OAuth / artifact origin) is a [CRITICAL] condition: we throw loudly
 // rather than invent a value for an external service.

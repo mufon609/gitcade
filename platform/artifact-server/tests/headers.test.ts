@@ -68,7 +68,7 @@ describe("pure header builders", () => {
     expect(h["Content-Security-Policy"]).toContain("default-src 'none'");
     expect(h["X-Content-Type-Options"]).toBe("nosniff");
     // Regression guard: opaque-origin iframes fetch module scripts in CORS mode,
-    // so artifacts MUST carry ACAO or in-iframe play breaks (see BLOCKED.md fix).
+    // so artifacts MUST carry ACAO or in-iframe play breaks (see setup/archive/BLOCKED.md fix).
     expect(h["Access-Control-Allow-Origin"]).toBe("*");
   });
 });

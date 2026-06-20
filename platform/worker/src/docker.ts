@@ -1,5 +1,5 @@
 // Sibling-container orchestration. The worker launches each build BESIDE itself
-// via the host Docker CLI/socket (NOT Docker-in-Docker; ENVIRONMENT.md). The
+// via the host Docker CLI/socket (NOT Docker-in-Docker; setup/archive/ENVIRONMENT.md). The
 // build workspace is a NAMED Docker volume shared between the two stage
 // containers — never the worker's own (host-invisible) filesystem.
 import { spawn, spawnSync } from "node:child_process";

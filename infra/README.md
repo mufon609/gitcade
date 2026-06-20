@@ -2,8 +2,8 @@
 
 How GitCade is deployed: three trust zones — **app**, **worker**, **storage** —
 deliberately kept separate. This document is the topology contract derived from
-the Locked Architecture Decisions (MASTER-PLAN.md §2). Local dev runs the same
-shapes on one machine via Docker; see [ENVIRONMENT.md](../ENVIRONMENT.md) for
+the Locked Architecture Decisions ([MASTER-PLAN.md](../setup/archive/MASTER-PLAN.md) §2). Local dev runs the same
+shapes on one machine via Docker; see [ENVIRONMENT.md](../setup/archive/ENVIRONMENT.md) for
 the concrete local endpoints.
 
 ## Why three zones
@@ -98,4 +98,4 @@ server hold bucket credentials. Everything below follows from that.
 
 All values come from `.env` (template: [`../setup/.env.example`](../setup/.env.example)).
 Never invent values for external services — a missing external key is a
-`[CRITICAL]` halt per [ENVIRONMENT.md](../ENVIRONMENT.md), not a thing to guess.
+`[CRITICAL]` halt per [ENVIRONMENT.md](../setup/archive/ENVIRONMENT.md), not a thing to guess.

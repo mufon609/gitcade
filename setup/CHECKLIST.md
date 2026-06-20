@@ -120,4 +120,4 @@ Things that tripped up the first run-through — read these if a step feels ambi
 
 - **smee.io** is just a relay so GitHub can reach `localhost`. Creating the channel is one click, but you must also run the `smee-client` locally for events to flow (and only during local dev).
 
-- **No `sudo` is needed anywhere in this build.** Local infra (Postgres, MinIO, Docker, Node, build libs) and headless Chromium (bundled with Playwright, dependency-validated) are all already installed. If a tool seems missing, check the bundled/aliased path before reaching for apt — see `ENVIRONMENT.md`.
+- **No `sudo` is needed anywhere in this build.** Local infra (Postgres, MinIO, Docker, Node, build libs) and headless Chromium (bundled with Playwright, dependency-validated) are all already installed. If a tool seems missing, check the bundled/aliased path before reaching for apt — see [`archive/ENVIRONMENT.md`](./archive/ENVIRONMENT.md).

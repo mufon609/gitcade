@@ -8,7 +8,7 @@
 //   tsx scripts/seed.ts            # enqueue all six (returns once enqueued)
 //   tsx scripts/seed.ts --wait     # also poll until each build is LIVE/FAILED
 //
-// The build worker MUST be running for builds to progress (see DECISIONS.md).
+// The build worker MUST be running for builds to progress (see setup/archive/DECISIONS.md).
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

@@ -39,7 +39,7 @@ rules that still bite:
    Docker socket), never Docker-in-Docker. Two traps inside containers:
    `localhost` is not the host (address infra by service name on the compose
    network, or `--network host`), and `-v` paths resolve on the *host* (share
-   build workspaces via named volumes). See ENVIRONMENT.md before touching the
+   build workspaces via named volumes). See `setup/archive/ENVIRONMENT.md` before touching the
    worker's container plumbing.
 7. **`.env`, `*.pem`, and `setup/secrets/` are secret and gitignored.** Never
    commit them; never invent values for external services — if an env key is

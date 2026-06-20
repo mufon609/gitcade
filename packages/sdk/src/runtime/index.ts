@@ -6,6 +6,25 @@
  */
 export { Game, DEFAULT_FIXED_DT, type GameOptions } from "./game.js";
 export { World, type WorldOptions, type Camera } from "./world.js";
+// The engine-independent transcendental seam exposed as `world.math` (additive). Behaviors and
+// systems reach it via the World; the named exports let tests + the runtime internals use it
+// directly, and `CanonicalMath` is the shared frozen singleton every World references.
+export {
+  CanonicalMath,
+  type MathOps,
+  sin,
+  cos,
+  tan,
+  atan,
+  atan2,
+  asin,
+  acos,
+  exp,
+  log,
+  pow,
+  powInt,
+  hypot,
+} from "./fdmath.js";
 export { Entity, type BehaviorInstance, type AnimationState, type BodyComponent } from "./entity.js";
 export { Registry, type BehaviorRegistration, type SystemRegistration } from "./registry.js";
 export { EventBus, type GameEvent } from "./eventbus.js";

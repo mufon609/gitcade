@@ -5,7 +5,7 @@ import { tween } from "../src/behaviors/tween.js";
 const DT = 1 / 60;
 
 /**
- * 0.7.0 — the tween primitive (INDIE-ROADMAP Tier-2 polish). Animates one numeric entity
+ * The tween primitive. Animates one numeric entity
  * property to a target over a duration with an easing curve; loop none/loop/pingpong.
  * Pure per-tick math off dt → deterministic.
  */

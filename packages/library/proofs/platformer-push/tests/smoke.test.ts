@@ -6,7 +6,7 @@ import config from "../config.json";
 import main from "../src/scenes/main.json";
 
 /**
- * Reuse proof — the 1.4.0 two-body PUSH (the `resolveBodies` push step, INDIE-ROADMAP Tier-1):
+ * Reuse proof — the two-body PUSH (the `resolveBodies` push step):
  *  - a `player` shoves a `pushable` crate sideways and the crate STOPS flush against a wall while
  *    the player stops behind it;
  *  - a crate PUSHED past a ledge FALLS into the pit (its own gravity, once unsupported);

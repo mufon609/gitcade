@@ -3,7 +3,7 @@ import { num, str } from "@gitcade/sdk";
 import { systemState } from "../util.js";
 
 /**
- * `camera-shake` — data-triggered screenshake / camera juice (INDIE-ROADMAP Tier-2). On a
+ * `camera-shake` — data-triggered screenshake / camera juice. On a
  * named EVENT it starts a decaying shake, writing a transient random offset to the runtime
  * `world.camera.shakeX`/`shakeY` each tick; the renderer adds that offset to the camera,
  * so the view shakes whether or not the scene scrolls. The offset is kept SEPARATE

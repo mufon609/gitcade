@@ -2,7 +2,7 @@
   "name": "@gitcade-proofs/platformer-solids",
   "private": true,
   "version": "0.1.0",
-  "description": "Reuse proof — entity-vs-entity solid resolution + swept collision (solid-collide, resolveSolids sweep) for the 0.7.0 INDIE-ROADMAP Tier-0 0.3/0.4 enablers.",
+  "description": "Reuse proof — entity-vs-entity solid resolution + swept collision (solid-collide, resolveSolids sweep).",
   "type": "module",
   "scripts": {
     "test": "vitest run",

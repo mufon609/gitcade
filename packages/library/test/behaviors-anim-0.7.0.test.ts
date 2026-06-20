@@ -7,7 +7,7 @@ import { faceVelocity } from "../src/behaviors/face-velocity.js";
 const DT = 1 / 60;
 
 /**
- * 0.7.0 — the animation layer (INDIE-ROADMAP Tier-1 "feels like a platformer"):
+ * The animation layer ("feels like a platformer"):
  *  - sprite-state-machine maps motion state (grounded/vx/vy) → a named sheet clip,
  *    with a one-shot land that holds until it finishes.
  *  - face-velocity flips entity.scaleX to face the movement direction.

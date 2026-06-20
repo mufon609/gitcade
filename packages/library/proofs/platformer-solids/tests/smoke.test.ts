@@ -6,12 +6,12 @@ import config from "../config.json";
 import main from "../src/scenes/main.json";
 
 /**
- * Reuse proof — the 0.7.0 entity-solid enablers end-to-end (INDIE-ROADMAP Tier-0):
- *  - solid-collide (0.3): the player LANDS ON a solid crate entity, is BLOCKED by its
+ * Reuse proof — the entity-solid enablers end-to-end:
+ *  - solid-collide: the player LANDS ON a solid crate entity, is BLOCKED by its
  *    side, BONKS a solid overhead ledge, JUMPS OFF the crate (move-platformer reads
  *    solid-collide's contacts.onGround), and RIDES a vertical lift — all with no host code, a
  *    crate exactly as solid as a tile.
- *  - resolveSolids swept sub-stepping (0.4): a fast faller lands ON a thin platform
+ *  - resolveSolids swept sub-stepping: a fast faller lands ON a thin platform
  *    instead of tunnelling through it.
  *
  * Scene facts: viewport 800x480, 32px tiles, floor top y=448 (player h=24 → rests at

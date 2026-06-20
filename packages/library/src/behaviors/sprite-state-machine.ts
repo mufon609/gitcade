@@ -2,7 +2,7 @@ import type { BehaviorFn, SheetSprite } from "@gitcade/sdk";
 import { num, str, advanceAnim } from "@gitcade/sdk";
 
 /**
- * `sprite-state-machine` — data-driven platformer animation (INDIE-ROADMAP Tier-1). Maps
+ * `sprite-state-machine` — data-driven platformer animation. Maps
  * an entity's MOTION STATE (grounded / horizontal speed / vertical direction) to a named
  * `sheet` animation each tick and advances its frames, so a sprite switches idle → run →
  * jump → fall → land with no hand-wired `play` param. The grounded test reads the typed

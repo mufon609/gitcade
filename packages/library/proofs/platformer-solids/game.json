@@ -1,7 +1,7 @@
 {
   "name": "Platformer Solids (entity solids + swept collision proof)",
   "slug": "proof-platformer-solids",
-  "description": "Reuse proof for entity-vs-entity solid resolution + swept collision (the collision-resolution phase, INDIE-ROADMAP Tier-0): a player lands on, is blocked by, bonks, and jumps off solid crate + ledge entities (each a role:\"solid\" collider), rides a vertical lift, and a fast faller lands on a thin platform without tunnelling. Built from move-platformer + velocity + a collider, with no host code.",
+  "description": "Reuse proof for entity-vs-entity solid resolution + swept collision (the collision-resolution phase): a player lands on, is blocked by, bonks, and jumps off solid crate + ledge entities (each a role:\"solid\" collider), rides a vertical lift, and a fast faller lands on a thin platform without tunnelling. Built from move-platformer + velocity + a collider, with no host code.",
   "version": "0.1.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "0.7.0",

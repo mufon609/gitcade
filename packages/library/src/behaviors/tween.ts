@@ -3,15 +3,15 @@ import { num, str } from "@gitcade/sdk";
 
 /**
  * `tween` — animate one numeric entity property from a start value to a target over a
- * duration with an easing curve (INDIE-ROADMAP Tier-2 polish). The data path to the small
+ * duration with an easing curve. The data path to the small
  * motions that read as "juice": a coin pop (`scale` with `out-back` overshoot), a bobbing
  * pickup (`y`, `pingpong`), a fade-in (`opacity`), a menu slide-in (`x`), a pulsing beacon
  * (`scale`, `loop`). Auto-starts when the behavior begins; pure per-tick math off `dt`
  * (no RNG/IO), so determinism + the frozen tick order hold.
  *
  * It drives the renderer-honored transform/visual slots — `x`/`y` (position), `scaleX`/
- * `scaleY`/`scale` (uniform), `rotation`, and `opacity` (clamped 0..1, the slot wired in
- * 0.7.0). Visual/positional only; collision uses the base AABB, so a scale/rotation tween
+ * `scaleY`/`scale` (uniform), `rotation`, and `opacity` (clamped 0..1). Visual/positional
+ * only; collision uses the base AABB, so a scale/rotation tween
  * is purely cosmetic. State is namespaced by `property` (`__tw_<property>_*`), so a tween
  * of `x` and a tween of `opacity` on the same entity don't collide — but two tweens of the
  * SAME property fight, which is nonsensical anyway.

@@ -6,9 +6,9 @@ import { movePlatformer } from "../src/behaviors/move-platformer.js";
 const DT = 1 / 60;
 
 /**
- * 1.2.0 — the move-platformer genre-feel layer (INDIE-ROADMAP Tier-1 "proper platformer
- * mover"). Every new mechanic is an OPTIONAL param defaulting to the original behavior;
- * these tests pin both the new feel AND that the defaults are no-ops.
+ * The move-platformer genre-feel layer ("proper platformer mover"). Every feel mechanic is
+ * an OPTIONAL param defaulting to the bare-mover behavior; these tests pin both the feel
+ * AND that the defaults are no-ops.
  */
 
 function setInput(world: World, opts: { axis?: number; jump?: boolean }): void {

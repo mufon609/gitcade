@@ -11,7 +11,7 @@ import {
 import { checkSceneRefs } from "../src/validate/rules.js";
 
 /**
- * 0.9.0 — the entity HIERARCHY / transform parenting (INDIE-ROADMAP scene graph). A parented
+ * Entity HIERARCHY / transform parenting. A parented
  * entity's WORLD transform is derived from its parent's world transform composed with a
  * parent-frame `local` offset, each tick, by `World.resolveHierarchy()`. `entity.x/y/rotation/
  * scale*` stay WORLD-space (renderer/collision unchanged); the offset lives in `entity.local`.

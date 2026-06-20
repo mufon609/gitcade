@@ -6,7 +6,7 @@ import config from "../config.json";
 import main from "../src/scenes/main.json";
 
 /**
- * Reuse proof — the 0.11.0 platformer terrain (INDIE-ROADMAP slopes + ladders):
+ * Reuse proof — platformer terrain (slopes + ladders):
  *  - the player walks UP a 45° ramp to a plateau and DOWN the far side (floor slopes resolved by
  *    `resolveSlopes` inside `tilemap-collide`), staying grounded with no launch at the crest;
  *  - the player CLIMBS a ladder (`move-platformer` climb mode: gravity off, vy from up/down).

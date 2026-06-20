@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { resolveSlopes, type SlopeCell, type MovingBody } from "../src/index.js";
 
 /**
- * 0.11.0 — resolveSlopes (INDIE-ROADMAP floor slopes): rest a moving AABB's bottom on a tilemap
+ * resolveSlopes (floor slopes): rest a moving AABB's bottom on a tilemap
  * floor-slope surface sampled at the body's center x. Walk up/down a ramp; stick downhill; pass
  * up through while rising; no-op (byte-identical) when there are no slope cells.
  *

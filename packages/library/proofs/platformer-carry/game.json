@@ -1,7 +1,7 @@
 {
   "name": "Platformer Carry (moving-platform ride proof)",
   "slug": "proof-platformer-carry",
-  "description": "Reuse proof for the CARRY step of the collision-resolution phase (INDIE-ROADMAP two-body carry): a player rides a horizontally-tweened carriable solid platform and can walk while carried; a passenger follows a vertically-descending platform down. Built from move-platformer + velocity + a collider, with no host code.",
+  "description": "Reuse proof for the CARRY step of the collision-resolution phase (two-body carry): a player rides a horizontally-tweened carriable solid platform and can walk while carried; a passenger follows a vertically-descending platform down. Built from move-platformer + velocity + a collider, with no host code.",
   "version": "0.1.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "0.10.0",

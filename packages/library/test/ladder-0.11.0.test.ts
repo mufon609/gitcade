@@ -4,7 +4,7 @@ import { makeWorld, makeEntity } from "./helpers.js";
 import { movePlatformer } from "../src/behaviors/move-platformer.js";
 
 /**
- * 0.11.0 — move-platformer LADDER climb (INDIE-ROADMAP slopes+ladders): when the entity's center
+ * move-platformer LADDER climb: when the entity's center
  * is over a `ladder` tile and up/down is held, it climbs (gravity off, vy = ±climbSpeed) and can
  * step off the side. Default (`climbSpeed` 0) is byte-identical to the pre-ladder mover.
  *

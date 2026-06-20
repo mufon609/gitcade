@@ -5,7 +5,7 @@ import { cameraShake } from "../src/systems/camera-shake.js";
 const DT = 1 / 60;
 
 /**
- * 0.7.0 — camera-shake (INDIE-ROADMAP Tier-2 juice): a data-triggered, decaying screenshake
+ * camera-shake: a data-triggered, decaying screenshake
  * written to world.camera.shakeX/shakeY (the renderer adds it). Deterministic off world.rng.
  */
 describe("camera-shake — data-triggered screenshake", () => {

@@ -6,7 +6,7 @@ import config from "../config.json";
 import main from "../src/scenes/main.json";
 
 /**
- * Reuse proof — the 0.10.0 resolver CARRY mode (`ride-platform`, INDIE-ROADMAP two-body carry):
+ * Reuse proof — the resolver CARRY mode (`ride-platform`, two-body carry):
  *  - a `player` rides a horizontally-tweened solid `carrier` platform (x tracks it rigidly) and
  *    can WALK while carried (moves relative to the platform), staying grounded;
  *  - a `passenger` follows a vertically-descending `descender` platform DOWN (and is pushed back
@@ -81,7 +81,7 @@ describe("platformer-carry reuse proof", () => {
     expect(glued).toBe(true); // passenger tracked its top every tick (carry down + push-out up)
   });
 
-  it("a passive rider carried into a wall stops FLUSH — never penetrates (1.10.0 solid-aware carry)", () => {
+  it("a passive rider carried into a wall stops FLUSH — never penetrates (solid-aware carry)", () => {
     const game = boot();
     drive(game, { axis: 0 }); // no input ⇒ the rider's own vx stays 0 — the passive case the motion-derived push-out can't eject
     const wall = game.world.byId("cornerWall")!;

@@ -2,7 +2,7 @@ import type { BehaviorFn } from "@gitcade/sdk";
 import { num, bool } from "@gitcade/sdk";
 
 /**
- * `face-velocity` — the side-scroller FLIP convention (INDIE-ROADMAP Tier-1). Sets the
+ * `face-velocity` — the side-scroller FLIP convention. Sets the
  * sign of `entity.scaleX` from the entity's horizontal velocity so a side-view sprite
  * faces the way it moves: moving right ⇒ `scaleX = +|scaleX|`, left ⇒ `-|scaleX|`. The
  * renderer already honors a negative `scaleX` as a horizontal flip around the entity

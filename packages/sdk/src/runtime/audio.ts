@@ -52,6 +52,11 @@ export class AudioPlayer {
   play(key: string, opts: { volume?: number } = {}): void {
     const ctx = this.context();
     if (!ctx) return; // headless / unsupported → no-op
+    // A browser AudioContext starts SUSPENDED under the autoplay policy. Self-resume on first
+    // real use so a sound triggered by the gesture that started the game plays, instead of being
+    // dropped on a still-suspended context (resume() is a no-op when already running or outside a
+    // gesture, so this is safe to call every play).
+    this.resume();
     try {
       const preset = TONES[key] ?? TONES.__default;
       const now = ctx.currentTime;
@@ -60,7 +65,10 @@ export class AudioPlayer {
       osc.type = preset.wave;
       osc.frequency.setValueAtTime(preset.freq, now);
       if (preset.sweepTo) osc.frequency.exponentialRampToValueAtTime(preset.sweepTo, now + preset.dur);
-      const vol = (opts.volume ?? 0.2) * preset.gain;
+      // Clamp the start gain to a tiny positive: an exponential ramp is undefined from 0 (the spec
+      // requires non-zero endpoints — stricter engines throw, which the catch below would swallow),
+      // and volume 0 is inaudible at 0.0001 anyway. Mirrors the library synth's identical guard.
+      const vol = Math.max(0.0001, (opts.volume ?? 0.2) * preset.gain);
       gain.gain.setValueAtTime(vol, now);
       gain.gain.exponentialRampToValueAtTime(0.0001, now + preset.dur);
       osc.connect(gain).connect(ctx.destination);

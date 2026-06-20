@@ -20,7 +20,6 @@ and "clean to build a hundred games on."
 
 ## Open bugs
 
-- **Audio** — `volume: 0` throws inside a swallowed ramp; the first sound on a suspended audio context is dropped.
 - **Anim runtime guards** — no internal `fps > 0` / `to ≥ from` guard (schema-defended today; defense-in-depth only).
 
 ---

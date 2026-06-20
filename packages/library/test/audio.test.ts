@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { AudioPlayer } from "@gitcade/sdk";
@@ -65,6 +65,104 @@ describe("LibraryAudioPlayer (headless no-op)", () => {
     expect(() => audio.resume()).not.toThrow();
     // Music never actually starts with no audio backend.
     expect(audio.nowPlaying).toBeNull();
+  });
+});
+
+// A minimal mock AudioContext to drive the real play()/startMusic() paths (node/jsdom has none,
+// so the no-op tests above never reach them). Exercised with non-noise SFX keys so only
+// oscillator + gain nodes are created.
+class MockParam {
+  sets: Array<{ value: number; time: number }> = [];
+  value = 0;
+  setValueAtTime(value: number, time: number): this {
+    this.sets.push({ value, time });
+    return this;
+  }
+  exponentialRampToValueAtTime(value: number): this {
+    if (value <= 0) throw new RangeError("exponential ramp target must be > 0");
+    return this;
+  }
+}
+class MockNode {
+  type = "";
+  frequency = new MockParam();
+  gain = new MockParam();
+  buffer: unknown = null;
+  connect(n: unknown): unknown {
+    return n;
+  }
+  start(): void {}
+  stop(): void {}
+}
+class MockAudioContext {
+  static instances: MockAudioContext[] = [];
+  state: "suspended" | "running" = "suspended";
+  currentTime = 0;
+  sampleRate = 8;
+  destination = new MockNode();
+  resumeCalls = 0;
+  gains: MockNode[] = [];
+  constructor() {
+    MockAudioContext.instances.push(this);
+  }
+  createOscillator(): MockNode {
+    return new MockNode();
+  }
+  createGain(): MockNode {
+    const n = new MockNode();
+    this.gains.push(n);
+    return n;
+  }
+  createBufferSource(): MockNode {
+    return new MockNode();
+  }
+  createBiquadFilter(): MockNode {
+    return new MockNode();
+  }
+  createBuffer(): { sampleRate: number; getChannelData: () => Float32Array } {
+    return { sampleRate: this.sampleRate, getChannelData: () => new Float32Array(this.sampleRate) };
+  }
+  resume(): Promise<void> {
+    this.resumeCalls++;
+    this.state = "running";
+    return Promise.resolve();
+  }
+}
+
+describe("LibraryAudioPlayer — autoplay self-resume (mock context)", () => {
+  let savedAC: unknown;
+  beforeEach(() => {
+    savedAC = (globalThis as Record<string, unknown>).AudioContext;
+    MockAudioContext.instances = [];
+    (globalThis as Record<string, unknown>).AudioContext = MockAudioContext;
+  });
+  afterEach(() => {
+    (globalThis as Record<string, unknown>).AudioContext = savedAC;
+  });
+
+  it("play() self-resumes a suspended context, then stops once running", () => {
+    const audio = new LibraryAudioPlayer();
+    audio.play("jump");
+    const ctx = MockAudioContext.instances[0];
+    expect(ctx.resumeCalls).toBe(1);
+    expect(ctx.state).toBe("running");
+    audio.play("jump");
+    expect(ctx.resumeCalls).toBe(1); // already running
+  });
+
+  it("startMusic() self-resumes a suspended context", () => {
+    const audio = new LibraryAudioPlayer();
+    audio.startMusic("action");
+    expect(MockAudioContext.instances[0].resumeCalls).toBe(1);
+    audio.stopMusic(); // clear the lookahead setInterval
+  });
+
+  it("a volume:0 SFX never throws and clamps the layer gain to a positive value", () => {
+    const audio = new LibraryAudioPlayer();
+    expect(() => audio.play("jump", { volume: 0 })).not.toThrow();
+    const sfxGain = MockAudioContext.instances[0].gains.find((g) => g.gain.sets.length > 0);
+    expect(sfxGain).toBeDefined();
+    expect(sfxGain!.gain.sets[0].value).toBeGreaterThanOrEqual(0.0001);
   });
 });
 

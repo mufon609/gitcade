@@ -54,6 +54,9 @@ export class LibraryAudioPlayer extends AudioPlayer {
   override play(key: string, opts: { volume?: number } = {}): void {
     const bus = this.bus();
     if (!bus) return;
+    // The context starts suspended under the autoplay policy — self-resume on first real use so a
+    // gesture-triggered sound isn't dropped (no-op when already running or outside a gesture).
+    this.resume();
     try {
       playSfx(bus.ctx, bus.master, key, opts.volume ?? 1);
     } catch {
@@ -65,6 +68,9 @@ export class LibraryAudioPlayer extends AudioPlayer {
   startMusic(track: MusicLoop | string): void {
     const bus = this.bus();
     if (!bus) return;
+    // Same autoplay self-resume as play(): the lookahead scheduler reads ctx.currentTime, which is
+    // frozen while suspended, so the loop wouldn't actually sound until the context resumes.
+    this.resume();
     if (this.currentTrack === track && this.music) return;
     this.stopMusic();
     try {

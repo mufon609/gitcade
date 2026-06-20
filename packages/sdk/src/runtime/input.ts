@@ -184,6 +184,30 @@ export class Input {
     this.releasedThisFrame.length = 0;
   }
 
+  // --- Headless input scripting ------------------------------------------------
+  // Drive input deterministically with no DOM — the sanctioned entrypoint for headless
+  // tests and the determinism-conformance harness, replacing the fragile monkeypatching of
+  // isDown/axis/etc. Both mutate the same held-set / edge buffers the DOM listeners do, so a
+  // scripted key reads identically to a real one (isDown/anyDown/axis/action/actionVector) and
+  // a scripted tap drives the same one-frame edge (justPressed/justReleased/taps/clicked).
+
+  /** Hold (`down=true`) or release (`down=false`) a key by its `KeyboardEvent.code`. */
+  setKey(code: string, down: boolean): void {
+    if (down) this.down.add(code);
+    else this.down.delete(code);
+  }
+
+  /**
+   * Inject a one-frame pointer TAP (a press+release edge) at world point `(x, y)` — it lives
+   * exactly the next tick, then {@link endFrame} clears it, like a real click edge. Drives the
+   * tap-reading paths (`taps`/`justReleased`/`justPressed`/`clicked`); it does not add a HELD
+   * pointer (so hold-zone actions are unaffected — intentional for a discrete tap).
+   */
+  tap(x: number, y: number): void {
+    this.pressedThisFrame.push({ id: -1, x, y });
+    this.releasedThisFrame.push({ id: -1, x, y });
+  }
+
   // --- Logical-action layer ----------------------------------------------------
 
   /**

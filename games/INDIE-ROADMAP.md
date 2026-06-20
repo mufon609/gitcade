@@ -52,6 +52,12 @@ The difference between "the platformer runs" and "this feels like a finished pro
   **squash-stretch**. Hitstop touches the fixed-step loop → handle carefully. 🟢
 - **Screen transitions as data** (fade/wipe between scenes) instead of an instant `loadScene`
   swap. 🟢
+- **Replay, ghosts & seeded runs.** The simulation is deterministic and conformance-gated — a
+  fixed seed + input stream re-runs byte-identically (`seededRng` is the public seam; the validator
+  advises on drift) — so this capability is bankable: record the seed + per-frame input and replay
+  it through the same `Game` (headless or in-browser), then layer **ghost races** and **seeded daily
+  challenges** on top. Uniquely ours; a freeform-code platform can't promise it. 🟢 (record/playback
+  around the existing fixed-step loop; no frozen-shape change).
 
 ---
 

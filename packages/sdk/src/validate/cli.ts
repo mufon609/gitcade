@@ -60,6 +60,15 @@ function printResult(r: ValidationResult): void {
     console.log(`  [${tag}] ${issue.code}: ${issue.message}${loc}`);
   }
 
+  // Determinism conformance advisory (when it ran — the default-registry path).
+  if (r.determinism?.checked) {
+    console.log(
+      r.determinism.deterministic
+        ? `  determinism: ✓ re-runs byte-identically on a fixed seed + input`
+        : `  determinism: ⚠ diverged at frame ${r.determinism.divergedAtFrame} (advisory only)`,
+    );
+  }
+
   console.log("");
   if (r.ok) {
     const smoke = r.framesRun > 0 ? `, smoke boot ran ${r.framesRun} frames` : "";

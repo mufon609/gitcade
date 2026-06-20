@@ -7,6 +7,12 @@ import { ConfigSchema, type Config } from "../schema/config.js";
 import { SceneSchema, type Scene } from "../schema/scene.js";
 import { createGame } from "../load.js";
 import {
+  runDeterminismCheck,
+  scriptedConformanceInput,
+  seededRng,
+  type DeterminismReport,
+} from "../runtime/determinism.js";
+import {
   type Issue,
   checkParams,
   checkSceneRefs,
@@ -28,10 +34,20 @@ export interface ValidationResult {
   issues: Issue[];
   /** Number of fixed frames the smoke boot ran (0 if it didn't run). */
   framesRun: number;
+  /**
+   * Determinism-conformance ADVISORY outcome (additive). Present only when the check ran — i.e. the
+   * game booted on the default registry (a custom-part game is covered by its own suite). `checked`
+   * is then true; `deterministic` is the verdict and `divergedAtFrame` the first mismatching frame.
+   * A non-deterministic verdict is a WARNING only — it never affects {@link ValidationResult.ok}.
+   */
+  determinism?: { checked: boolean; deterministic?: boolean; divergedAtFrame?: number };
 }
 
 const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const SMOKE_FRAMES = 60;
+/** Determinism advisory: fixed seed + frame budget for the twice-run conformance check. */
+const DETERMINISM_SEED = 0x5eed;
+const DETERMINISM_FRAMES = 120;
 
 /**
  * Validate a GitCade game directory. Performs, in order:
@@ -143,10 +159,24 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
   // 7. Smoke boot — only attempt if the structural checks passed (errors so far
   //    would otherwise mask a confusing runtime failure).
   const hasErrors = issues.some((i) => i.level === "error");
+  let determinism: ValidationResult["determinism"];
   if (!hasErrors && manifest && scenes.length > 0) {
     const smoke = await runSmoke(absDir, manifest, config, scenes);
     framesRun = smoke.framesRun;
     issues.push(...smoke.issues);
+
+    // 7b. Determinism-conformance ADVISORY (warning-only; never affects `ok`). Only on the
+    //     default-registry fast path — a custom-part game is covered by its own determinism
+    //     suite, and this Node validator can't construct its custom registry.
+    if (smoke.usedDefaultRegistry && !smoke.issues.some((i) => i.level === "error")) {
+      const adv = runDeterminismAdvisory(manifest, config, scenes);
+      issues.push(...adv.issues);
+      determinism = {
+        checked: true,
+        deterministic: adv.report?.deterministic,
+        divergedAtFrame: adv.report?.divergedAtFrame,
+      };
+    }
   }
 
   return {
@@ -156,6 +186,7 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     tier,
     issues,
     framesRun,
+    determinism,
   };
 }
 
@@ -166,6 +197,12 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
 interface SmokeOutcome {
   framesRun: number;
   issues: Issue[];
+  /**
+   * True iff the game booted on the DEFAULT registry (the fast path) — i.e. it uses only
+   * built-in/SDK parts. The determinism advisory runs only in this case; a custom-part game
+   * (the `npm test` fallback) is covered by its own determinism suite, not from here.
+   */
+  usedDefaultRegistry: boolean;
 }
 
 async function runSmoke(
@@ -175,14 +212,15 @@ async function runSmoke(
   scenes: Scene[],
 ): Promise<SmokeOutcome> {
   // Fast path: boot with the default registry (works for any game using only
-  // built-in/SDK behaviors — e.g. pure-JSON games like Pong).
+  // built-in/SDK behaviors — e.g. pure-JSON games like Pong). Seed the boot so the
+  // smoke run is itself reproducible (it only asserts no-throw, so this changes no outcome).
   try {
     const game = createGame(
       { manifest, config, scenes },
-      { canvas: null },
+      { canvas: null, rng: seededRng(DETERMINISM_SEED) },
     );
     game.stepFrames(SMOKE_FRAMES);
-    return { framesRun: SMOKE_FRAMES, issues: [] };
+    return { framesRun: SMOKE_FRAMES, issues: [], usedDefaultRegistry: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const usesCustom = /unknown (behavior|system) type/.test(msg);
@@ -190,6 +228,7 @@ async function runSmoke(
       return {
         framesRun: 0,
         issues: [{ level: "error", code: "smoke-failed", message: `smoke boot threw: ${msg}` }],
+        usedDefaultRegistry: false,
       };
     }
     // Custom-behavior path: the default registry can't supply the game's custom
@@ -219,6 +258,7 @@ function runNpmSmoke(dir: string): SmokeOutcome {
             "game uses custom behaviors but has no `test` script for the validator to run as its smoke test",
         },
       ],
+      usedDefaultRegistry: false,
     };
   }
   // Deferred to the game's own runner, which imports the custom behaviors.
@@ -227,7 +267,7 @@ function runNpmSmoke(dir: string): SmokeOutcome {
     encoding: "utf8",
     stdio: "pipe",
   });
-  if (res.status === 0) return { framesRun: SMOKE_FRAMES, issues: [] };
+  if (res.status === 0) return { framesRun: SMOKE_FRAMES, issues: [], usedDefaultRegistry: false };
   return {
     framesRun: 0,
     issues: [
@@ -237,7 +277,50 @@ function runNpmSmoke(dir: string): SmokeOutcome {
         message: `game smoke test (npm test) failed:\n${(res.stdout ?? "") + (res.stderr ?? "")}`.trim(),
       },
     ],
+    usedDefaultRegistry: false,
   };
+}
+
+/**
+ * The determinism-conformance ADVISORY (warning-only). Boots the game twice on the same seed +
+ * the same scripted input, steps {@link DETERMINISM_FRAMES} fixed frames, and confirms the two
+ * runs are byte-identical at every frame. A divergence is the reproducibility track's enemy
+ * (replays, ghosts, seeded challenges all need a run to re-play identically), so it is surfaced —
+ * but only as a WARNING, never an error: this check must not reject a previously-publishable game.
+ *
+ * Runs only on the default-registry fast path (the caller gates on `usedDefaultRegistry`); a
+ * custom-part game is proven deterministic by its own suite instead. Any unexpected throw is
+ * swallowed to a "no advisory" result — a non-authoritative check must never fail a validation.
+ */
+function runDeterminismAdvisory(
+  manifest: GameManifest,
+  config: Config,
+  scenes: Scene[],
+): { issues: Issue[]; report?: DeterminismReport } {
+  try {
+    const report = runDeterminismCheck(
+      (rng) => createGame({ manifest, config, scenes }, { canvas: null, rng }),
+      { seed: DETERMINISM_SEED, frames: DETERMINISM_FRAMES, script: scriptedConformanceInput() },
+    );
+    if (report.deterministic) return { issues: [], report };
+    return {
+      report,
+      issues: [
+        {
+          level: "warning",
+          code: "nondeterministic",
+          message:
+            `determinism advisory: two headless runs on the same seed + input diverged at frame ` +
+            `${report.divergedAtFrame}/${report.frames}. Replays, ghosts, and seeded challenges need a ` +
+            `run to reproduce byte-for-byte — route all simulation randomness through world.rng and keep ` +
+            `wall-clock reads (Date.now/performance.now) out of behaviors/systems. (Advisory only — does ` +
+            `not affect publishability.)`,
+        },
+      ],
+    };
+  } catch {
+    return { issues: [] };
+  }
 }
 
 // ---------------------------------------------------------------------------

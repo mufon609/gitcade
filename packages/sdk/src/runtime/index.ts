@@ -32,6 +32,18 @@ export { advanceAnim } from "./anim.js";
 export { createDefaultRegistry } from "./defaults.js";
 export type { BehaviorFn, SystemFn, ResolvedParams, ParamSpec } from "./types.js";
 
+// Determinism conformance: the seedable RNG, a byte-stable state snapshot, and the
+// twice-run check that proves a game reproduces under a fixed seed + input (additive).
+export {
+  seededRng,
+  snapshotWorld,
+  runDeterminismCheck,
+  assertDeterministic,
+  scriptedConformanceInput,
+  type DeterminismOptions,
+  type DeterminismReport,
+} from "./determinism.js";
+
 export {
   BUILTIN_BEHAVIOR_TYPES,
   registerBuiltinBehaviors,

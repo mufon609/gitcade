@@ -83,6 +83,28 @@ root of a whole family of things a freeform-code platform cannot reliably offer:
 We treat these not as a roadmap of features to build but as *consequences to
 harvest*. The architecture already paid for them.
 
+**Proven, not just intended.** Determinism is only a foundation you can build on if
+it actually holds, so the SDK ships a conformance harness that turns the property
+into a checkable fact: `snapshotWorld` serializes the full simulation state
+byte-stably, and `runDeterminismCheck` boots a game twice on the same seed and the
+same scripted input, steps N frames, and asserts the two runs never diverge (down
+to the first offending frame). A single parameterized suite runs it over every seed
+game and every library proof, and `gitcade validate` runs it as a non-failing
+**advisory** — it flags a game whose two runs drift (the fingerprint of stray
+`Math.random` or a wall-clock read in a behavior) without rejecting it, because
+hardening this into a hard publish gate is a deliberate, separate decision, not a
+silent contract change. Reproducible play needs no new knob: pass the canonical
+seedable RNG as the existing option — `createGame(sources, { rng: seededRng(seed) })`
+— and that run replays byte-for-byte.
+
+The check is sound only because of one invariant it cannot itself see: **rendering is
+pure.** `render()` may read world state but must never advance `world.rng` or mutate
+the world — all entropy and all state change live in the `update` phase. An
+update-only conformance check is blind to a render-path violation by construction, so
+this rule is what keeps the guarantee true as the engine grows (camera shake, for
+instance, draws its RNG inside its update-phase system and only *writes* a
+render-applied offset — never the reverse).
+
 ---
 
 ## The validator is the keystone
@@ -141,8 +163,11 @@ system worse — it makes it a different, ordinary system.
 3. **Balance is always data.** No magic numbers, ever. This is what keeps forks
    diffable and votes mappable to diffs.
 4. **Determinism is preserved.** New runtime is additive and no-ops over scenes
-   that don't use it, so headless play stays byte-identical. Reproducibility is
-   never traded away for a feature.
+   that don't use it, so headless play stays byte-identical. All simulation entropy
+   flows through `world.rng`; no behavior or system reads a wall clock; rendering is
+   pure (it never advances RNG or mutates the world). This is enforced, not trusted:
+   the conformance harness re-runs every game and proof on a fixed seed and proves
+   the two runs match. Reproducibility is never traded away for a feature.
 5. **Untrusted game code never escapes the sandbox.** Isolation is not negotiable
    for a platform of AI-built, user-published artifacts.
 
@@ -183,8 +208,11 @@ This is direction, not a task list — the concrete roadmaps live in
 [`games/LIBRARY-GAPS.md`](./games/LIBRARY-GAPS.md). The design lens on all of
 them is the same question: **does this make the bet more true?**
 
-- **Harvest determinism.** Ship replay/record-playback, ghosts, and seeded runs —
-  high value, small surface, and uniquely ours.
+- **Harvest determinism.** With conformance now proven and gated (every game re-runs
+  byte-identically on a fixed seed + input, and the validator advises on drift), the
+  capability is bankable — so build on it: replay/record-playback first (record the
+  seed + input stream, replay through the same `Game`), then ghosts and seeded daily
+  runs. High value, small surface, and uniquely ours.
 - **Harden the validator.** Treat it as the moat; fuzz it until the guarantees are
   unbreakable.
 - **Close catalog gaps with parts, not custom code,** so "compose, don't write"

@@ -115,6 +115,31 @@ function gate() {
   log.ok("gate PASS");
 }
 
+/**
+ * Block until every just-published version is visible on PUBLIC npm. The registry/CDN
+ * lags a few seconds after `npm publish`, and the repos phase clean-clone-installs from
+ * public npm — so without this, repos ETARGETs on a version that IS published but hasn't
+ * propagated. On timeout it throws with a resumable hint (the publish is idempotent: a
+ * re-run skips the now-live npm step and completes repos + artifacts).
+ */
+function waitForNpm(pkgs, isLive) {
+  const TRIES = 24, GAP = 5; // ~2 min
+  for (const p of pkgs) {
+    for (let i = 0; ; i++) {
+      if (isLive(p.name, p.version)) break;
+      if (i >= TRIES) {
+        throw new Error(
+          `${p.name}@${p.version} not visible on public npm after ~${TRIES * GAP}s (registry propagation lag). ` +
+            `It IS published — wait a moment and re-run \`npm run release:publish -- --yes\` to resume (npm skips, repos + artifacts complete).`,
+        );
+      }
+      log.note(`waiting for ${p.name}@${p.version} to propagate on npm…`);
+      run("sleep", [String(GAP)]);
+    }
+  }
+  log.ok("published versions are visible on public npm");
+}
+
 // ── publish (divergence-aware, idempotent, SAFE-BY-DEFAULT dry-run) ──────────
 function publish() {
   // SAFE BY DEFAULT: a real publish happens ONLY with an explicit `-- --yes` and no
@@ -152,6 +177,13 @@ function publish() {
   log.banner("monorepo — push main");
   if (dryRun) log.warn("dry-run: would git push origin main");
   else run("git", ["push", "origin", "main"]);
+
+  // 2b. Wait for npm propagation before repos (which installs from PUBLIC npm). No-op in
+  //     dry-run (repos uses --no-verify there) and instant when versions are already live.
+  if (!dryRun) {
+    log.banner("npm — await propagation");
+    waitForNpm([{ name: "@gitcade/sdk", version: sdk }, { name: "@gitcade/library", version: library }], isLive);
+  }
 
   // 3. game repos (idempotent; needs npm live first → skip the clean-clone verify in dry-run).
   log.banner("repos — sync gitcade-games/<slug>");

@@ -47,21 +47,27 @@ rules that still bite:
 
 ---
 
-## Frozen contracts — the rule that still matters most
+## Frozen contracts — improve them deliberately, never silently
 
-`@gitcade/sdk` and `@gitcade/library` are **published packages with frozen
-public contracts**. The SDK schema (the `game.json` / `config.json` / scene /
-entity / behavior / system shapes), the published exported API, the storage-
-bridge postMessage protocol, the validator's rules, and the artifact-server's
-URL convention + headers are all load-bearing — six standalone game repos, every
-user fork, and the build worker depend on them being stable.
+`@gitcade/sdk` and `@gitcade/library` are **published packages**. The SDK schema
+(the `game.json` / `config.json` / scene / entity / behavior / system shapes), the
+published exported API, the storage-bridge postMessage protocol, the validator's
+rules, and the artifact-server's URL convention + headers are **load-bearing**:
+six standalone game repos, every user fork, and the build worker pin specific
+versions of them. "Frozen" means *consumers depend on these, so a change to them
+is a versioned, visible event* — **not** that they are unimprovable. A cleaner,
+faster, or simpler contract is a real improvement worth making; the discipline is
+to do it **deliberately and in the open**, never to drift behavior silently under
+a bug-fix.
 
-**Frozen ≠ unfixable — the release protocol:**
-- A bug fix that changes **no contract** (no schema shape, exported type,
-  function signature, param shape, message protocol, or header convention) →
-  fix it, bump the **PATCH** version, run `npm pack --dry-run`, and note that a
-  republish + consumer repin is needed. This is exactly how `sdk@0.1.1` /
-  `library@0.1.1` shipped.
+**The release protocol — pick the smallest tier that fits, and surface the cost:**
+- A change that keeps the **same observable behavior** — no change to a schema
+  shape, exported type, signature, param shape, message protocol, header, return
+  shape, or result ordering; whether a bug fix OR an internal rewrite that makes a
+  primitive faster or cleaner behind the identical surface — is a **PATCH**. No
+  hesitation: fix it, bump the patch version, run `npm pack --dry-run`, and note a
+  republish + consumer repin is needed. (Exactly how `sdk@0.1.1` / `library@0.1.1`
+  shipped.)
 - An **additive** change — a NEW *optional* schema field, a new optional SDK
   method, a new behavior/system part, or new *optional* params on an existing
   part — is sanctioned as a **MINOR** bump. Old games stay byte-valid (they never
@@ -71,10 +77,23 @@ user fork, and the build worker depend on them being stable.
   `sdk@0.6.0` / `library@0.6.0` shipped scene `extends`, the manifest `levels`
   sequence, and the level-aware `wave-spawner` density ramp.
 - A change that **reshapes or removes** a frozen shape (renames/retypes a field,
-  changes a function signature, alters the message protocol or header convention,
-  or changes the frozen tick order) → **STOP** and get a human decision. Do not
-  quietly reshape a frozen contract; you will silently break published games that
-  pin the old version.
+  changes a signature, alters the message protocol or header convention, changes
+  **result ordering**, or changes the **tick order**) is a legitimate improvement
+  when it is the cleanest long-term answer — **do not contort the internals to
+  avoid it.** But it breaks anything pinned to the old version, and forks /
+  already-published games cannot be migrated from this repo, so treat it as the
+  breaking change it is: prefer an additive or internal path when one is *equally*
+  clean; otherwise design it as a **MAJOR** bump, migrate every in-repo consumer
+  (`games/`, `packages/library/proofs/`, `examples/`, the worker), and **flag the
+  break + migration + version bump prominently** in your summary. You do not need
+  permission to design and build it — a reshape in the working tree is reversible,
+  and the outward-facing step, **publish, is already human-gated** (that is where
+  the fork / published-game impact is weighed). The one thing forbidden is shipping
+  changed behavior **silently** under a patch, where pinned consumers break
+  invisibly. **Determinism is the hard line:** result ordering and tick order feed
+  byte-replay, so changing them breaks replays/ghosts for *everyone*, not just
+  version-pinned consumers — they may change, but only as a surfaced, deliberate
+  MAJOR, never slipped in.
 - The worker queue schema (`BuildJob` / `Build` in `platform/worker`) is
   likewise frozen — `platform/web` extends the database **additively** and never
   reshapes those tables.

@@ -15,7 +15,7 @@
  *   • the offline-credit shim: a timestamp + a credit formula on top of the value
  *     persistence — see `armOfflineCredit` below.
  */
-import { createGame } from "@gitcade/sdk";
+import { createGame, powInt } from "@gitcade/sdk";
 import type { World } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects, formatCompact, cappedOfflineGain } from "@gitcade/library";
 import manifest from "../game.json";
@@ -71,7 +71,9 @@ document.querySelectorAll<HTMLButtonElement>("#idlebar button[data-up]").forEach
 const shopLabelCache = new Map<string, string>();
 
 function nextCost(cost: number, growth: number, owned: number): number {
-  return Math.round(cost * Math.pow(growth > 0 ? growth : 1, owned));
+  // Cross-engine-deterministic integer power (owned is a level count) — the standing rule for
+  // systems-layer curves; keeps a host-computed cost identical on every engine.
+  return Math.round(cost * powInt(growth > 0 ? growth : 1, owned));
 }
 function updateShop(w: World): void {
   const coins = (w.state.coins as number) ?? 0;

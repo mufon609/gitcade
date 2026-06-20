@@ -64,7 +64,9 @@ export const cameraShake: SystemFn = (world, params, dt) => {
 
   if (st.t > 0) {
     st.t = Math.max(0, st.t - dt);
-    const k = st.dur > 0 ? Math.pow(st.t / st.dur, falloff) : 0; // decaying amplitude 1 → 0
+    // `cam.shakeX/Y` is snapshotted (an RNG-desync canary), so the falloff curve must be
+    // cross-engine-deterministic — world.math.pow, never the engine-variable Math.pow.
+    const k = st.dur > 0 ? world.math.pow(st.t / st.dur, falloff) : 0; // decaying amplitude 1 → 0
     const amp = st.mag * k;
     cam.shakeX = (world.rng() * 2 - 1) * amp;
     cam.shakeY = (world.rng() * 2 - 1) * amp;

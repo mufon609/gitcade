@@ -12,7 +12,7 @@
  *     `format-binding` system in each scene);
  *   • a screen-FX juice bind + the audio gesture.
  */
-import { createGame } from "@gitcade/sdk";
+import { createGame, powInt } from "@gitcade/sdk";
 import type { World } from "@gitcade/sdk";
 import { createLibraryRegistry, LibraryAudioPlayer, ScreenEffects, attachScreenEffects } from "@gitcade/library";
 import manifest from "../game.json";
@@ -59,7 +59,9 @@ document.querySelectorAll<HTMLButtonElement>("#tdbar button[data-up]").forEach((
 
 const labelCache = new Map<string, string>();
 function nextCost(cost: number, growth: number, owned: number): number {
-  return Math.round(cost * Math.pow(growth > 0 ? growth : 1, owned));
+  // Cross-engine-deterministic integer power (owned is a level count) — the standing rule for
+  // systems-layer curves; keeps a host-computed cost identical on every engine.
+  return Math.round(cost * powInt(growth > 0 ? growth : 1, owned));
 }
 function updateBar(w: World): void {
   const gold = (w.state.gold as number) ?? 0;

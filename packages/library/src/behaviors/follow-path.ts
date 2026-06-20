@@ -43,7 +43,8 @@ export const followPath: BehaviorFn = (entity, world, params, dt, scratch) => {
   const dx = target.x - entity.cx;
   const dy = target.y - entity.cy;
 
-  if (Math.hypot(dx, dy) <= arriveRadius) {
+  // Arrival gate on SQUARED distance — deterministic, sqrt-free (the magnitude isn't needed).
+  if (dx * dx + dy * dy <= arriveRadius * arriveRadius) {
     i += 1;
     if (i >= wps.length) {
       if (loop) i = 0;

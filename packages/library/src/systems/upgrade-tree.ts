@@ -1,5 +1,5 @@
 import type { SystemFn, World } from "@gitcade/sdk";
-import { str } from "@gitcade/sdk";
+import { str, powInt } from "@gitcade/sdk";
 
 interface Upgrade {
   /** Stable id used in the purchase request and the levels record. */
@@ -85,7 +85,9 @@ export const upgradeTree: SystemFn = (world, params) => {
 
 function costFor(up: Upgrade, owned: number): number {
   const growth = typeof up.costGrowth === "number" && up.costGrowth > 0 ? up.costGrowth : 1;
-  return Math.round((up.cost ?? 0) * Math.pow(growth, owned));
+  // `owned` is a level COUNT (integer), so the exact integer-power path keeps the cost — which
+  // gates a purchase that mutates world.state — cross-engine-deterministic (no engine-variable pow).
+  return Math.round((up.cost ?? 0) * powInt(growth, owned));
 }
 
 function emitPurchase(world: World, up: Upgrade, level: number, cost: number): void {

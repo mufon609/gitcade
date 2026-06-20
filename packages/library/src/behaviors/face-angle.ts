@@ -54,20 +54,21 @@ export const faceAngle: BehaviorFn = (entity, world, params) => {
     const targetTag = str(params, "targetTag", "");
     const t = targetTag ? world.nearest(entity, targetTag) : undefined;
     if (!t) return; // no target → keep current facing
-    entity.rotation = Math.atan2(t.cy - entity.cy, t.cx - entity.cx) + offset;
+    entity.rotation = world.math.atan2(t.cy - entity.cy, t.cx - entity.cx) + offset;
     return;
   }
 
   if (mode === "pointer") {
     const p = world.input.activePointers()[0];
     if (!p) return; // no active pointer → keep current facing
-    entity.rotation = Math.atan2(p.y - entity.cy, p.x - entity.cx) + offset;
+    entity.rotation = world.math.atan2(p.y - entity.cy, p.x - entity.cx) + offset;
     return;
   }
 
-  // mode === "velocity" (default)
+  // mode === "velocity" (default). `entity.rotation` feeds `snapshotWorld`, so the angle MUST be
+  // cross-engine-deterministic — route atan2 through `world.math` (see fdmath). The min-speed gate
+  // compares SQUARED speed (sqrt-free + deterministic); the magnitude itself isn't needed.
   const minSpeed = num(params, "minSpeed", 0);
-  const speed = Math.hypot(entity.vx, entity.vy);
-  if (speed <= minSpeed) return; // (near-)stationary → hold previous rotation
-  entity.rotation = Math.atan2(entity.vy, entity.vx) + offset;
+  if (entity.vx * entity.vx + entity.vy * entity.vy <= minSpeed * minSpeed) return;
+  entity.rotation = world.math.atan2(entity.vy, entity.vx) + offset;
 };

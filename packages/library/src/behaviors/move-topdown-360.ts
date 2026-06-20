@@ -29,9 +29,12 @@ export const moveTopdown360: BehaviorFn = (entity, world, params, dt) => {
     const pointers = world.input.activePointers();
     if (pointers.length > 0) {
       const p = pointers[0]!;
-      const dir = normalize({ x: p.x - entity.cx, y: p.y - entity.cy });
+      const pdx = p.x - entity.cx;
+      const pdy = p.y - entity.cy;
+      const dir = normalize({ x: pdx, y: pdy });
       const DEADZONE_PX = 4; // structural, source-level — not a balance value
-      if (Math.hypot(p.x - entity.cx, p.y - entity.cy) > DEADZONE_PX) {
+      // Deadzone gate on SQUARED distance — deterministic, sqrt-free.
+      if (pdx * pdx + pdy * pdy > DEADZONE_PX * DEADZONE_PX) {
         dx = dir.x;
         dy = dir.y;
       }

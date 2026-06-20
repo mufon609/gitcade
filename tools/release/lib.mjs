@@ -35,9 +35,10 @@ export const log = {
 
 /** Parse simple CLI flags: --only=a,b  --dry-run  --message="..."  → { only:[...], dryRun:true, message:"..." }. */
 export function parseArgs(argv = process.argv.slice(2)) {
-  const out = { only: null, dryRun: false, noVerify: false, noPush: false, noBuild: false, message: null, phase: null, branch: "main", _: [] };
+  const out = { only: null, dryRun: false, yes: false, noVerify: false, noPush: false, noBuild: false, message: null, phase: null, branch: "main", _: [] };
   for (const a of argv) {
     if (a === "--dry-run") out.dryRun = true;
+    else if (a === "--yes" || a === "-y") out.yes = true;
     else if (a === "--no-verify") out.noVerify = true;
     else if (a === "--no-push") out.noPush = true;
     else if (a === "--no-build") out.noBuild = true;

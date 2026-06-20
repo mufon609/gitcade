@@ -196,6 +196,20 @@ export function auditPackages(root = REPO_ROOT) {
 }
 
 /**
+ * Resolve whether `publish` should run as a DRY-RUN. Publish is SAFE BY DEFAULT: it
+ * mutates ONLY when `--yes` is explicitly passed AND no dry-run signal is present.
+ *   - `npm run release:publish`                 → dry-run (no --yes)
+ *   - `npm run release:publish --dry-run`       → dry-run (npm swallows --dry-run → npmDryRun)
+ *   - `npm run release:publish --yes`           → dry-run (npm swallows --yes; the script never sees it)
+ *   - `npm run release:publish -- --dry-run`    → dry-run (explicit)
+ *   - `npm run release:publish -- --yes`        → REAL  (the only way to actually publish)
+ * A dry-run signal always WINS over `--yes`, so `-- --yes --dry-run` is still a rehearsal.
+ */
+export function resolveDryRun({ dryRun = false, yes = false, npmDryRun = false } = {}) {
+  return dryRun || npmDryRun || !yes;
+}
+
+/**
  * Plan the npm-publish step per publishable package, reading EACH package's OWN version
  * independently (no single-`<v>` lockstep). A version already live on npm is SKIPPED
  * (idempotent/resumable). `isLive(name, version) → boolean` is injected so tests can mock it.

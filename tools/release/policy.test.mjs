@@ -17,6 +17,7 @@ import {
   auditPackages,
   planNpmPublish,
   runNpmPublish,
+  resolveDryRun,
   SDK_PEER,
 } from "./policy.mjs";
 
@@ -163,6 +164,15 @@ test("runNpmPublish --dry-run mutates NOTHING (exec is never called)", () => {
   const published = runNpmPublish(steps, { dryRun: true, exec });
   assert.equal(calls.length, 0);
   assert.deepEqual(published, []);
+});
+
+test("resolveDryRun is SAFE-BY-DEFAULT: real publish only on explicit --yes with no dry-run signal", () => {
+  assert.equal(resolveDryRun({}), true); // bare `release:publish` → rehearsal
+  assert.equal(resolveDryRun({ dryRun: true }), true); // -- --dry-run
+  assert.equal(resolveDryRun({ npmDryRun: true }), true); // npm swallowed --dry-run (the footgun) → still safe
+  assert.equal(resolveDryRun({ yes: true }), false); // -- --yes → the ONLY real run
+  assert.equal(resolveDryRun({ yes: true, dryRun: true }), true); // a dry-run signal always wins over --yes
+  assert.equal(resolveDryRun({ yes: true, npmDryRun: true }), true);
 });
 
 test("runNpmPublish executes publishes and honors skip", () => {

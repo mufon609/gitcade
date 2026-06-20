@@ -33,7 +33,9 @@ sync     apply the role pin policy (internal→"*", games→exact current, libra
 gate     `npm ci` (clean no-flags install) + build + test + validate:pong + validate:proofs
          + `npm pack --dry-run` per publishable package AT ITS OWN VERSION.
 publish  per-package npm publish (reads EACH package's own version; skips one already on npm)
-         → push monorepo → sync game repos → (re)publish MinIO artifacts. First-class --dry-run.
+         → push monorepo → sync game repos → (re)publish MinIO artifacts.
+         SAFE BY DEFAULT: a rehearsal unless you pass `-- --yes` (--dry-run, or a `--yes` npm
+         swallows, stay rehearsals), so a mistyped flag can never trigger a real publish.
 ```
 
 sdk and library are **not assumed to be in lockstep** — `publish` reads each package's own
@@ -46,8 +48,8 @@ version independently and skips any already live (so a re-run after a partial fa
 npm run release:doctor                  # audit; fix any issue before continuing
 npm run release:sync                    # bring pins/catalog/lockfile to policy
 npm run release:gate                    # full clean-install gate + pack dry-run
-npm run release:publish -- --dry-run    # rehearse the whole publish, mutating nothing
-npm run release:publish                 # the real thing
+npm run release:publish                 # SAFE BY DEFAULT — a rehearsal (dry-run), mutates nothing
+npm run release:publish -- --yes        # the REAL publish
 
 # Lower-level, direct (both honor --dry-run):
 node tools/release/sync-game-repos.mjs --only=tower-defense --no-push

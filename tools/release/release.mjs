@@ -21,10 +21,15 @@ import {
   computeRepins,
   planNpmPublish,
   runNpmPublish,
+  resolveDryRun,
 } from "./policy.mjs";
 
 const args = parseArgs();
 const cmd = args._[0];
+// `npm run release:* --dry-run` makes npm consume --dry-run as ITS OWN flag (it never
+// reaches the script's argv) and export `npm_config_dry_run=true` to children. Honor it
+// so a dry-run works WITH or WITHOUT the `--` separator — never silently a real run.
+const npmDryRun = process.env.npm_config_dry_run === "true";
 
 // ── creds (read-only, best-effort) ───────────────────────────────────────────
 function credChecks() {
@@ -76,18 +81,19 @@ function doctor() {
 
 // ── sync ───────────────────────────────────────────────────────────────────
 function sync() {
-  log.banner(`SYNC — apply role pin policy${args.dryRun ? " (dry-run)" : ""}`);
+  const dryRun = args.dryRun || npmDryRun;
+  log.banner(`SYNC — apply role pin policy${dryRun ? " (dry-run)" : ""}`);
   const repins = computeRepins();
   if (repins.length === 0) log.note("pins already clean");
   for (const { path: rel, after } of repins) {
-    if (args.dryRun) log.warn(`dry-run: would repin ${rel}`);
+    if (dryRun) log.warn(`dry-run: would repin ${rel}`);
     else { fs.writeFileSync(path.join(REPO_ROOT, rel), after); log.ok(`repinned ${rel}`); }
   }
   if (catalogVersion() !== coreVersions().library) {
-    if (args.dryRun) log.warn("dry-run: would regenerate CATALOG.json");
+    if (dryRun) log.warn("dry-run: would regenerate CATALOG.json");
     else { run("node", ["packages/library/scripts/build-catalog.mjs"]); log.ok("regenerated CATALOG.json"); }
   } else log.note("catalog already in sync");
-  if (args.dryRun) return log.warn("dry-run: skipping npm install");
+  if (dryRun) return log.warn("dry-run: skipping npm install");
   if (repins.length) { log.note("npm install (refresh lockfile)…"); run("npm", ["install", "--no-audit", "--no-fund"]); }
   log.ok("sync complete — repo installable + publish-ready");
 }
@@ -109,9 +115,13 @@ function gate() {
   log.ok("gate PASS");
 }
 
-// ── publish (divergence-aware, idempotent, dry-runnable) ─────────────────────
+// ── publish (divergence-aware, idempotent, SAFE-BY-DEFAULT dry-run) ──────────
 function publish() {
-  log.banner(`PUBLISH${args.dryRun ? " — DRY-RUN (mutates nothing)" : ""}`);
+  // SAFE BY DEFAULT: a real publish happens ONLY with an explicit `-- --yes` and no
+  // dry-run signal. Bare, `--dry-run`, or a `--yes` npm swallows → a rehearsal that
+  // mutates nothing (resolveDryRun). An irreversible action never runs by accident.
+  const dryRun = resolveDryRun({ dryRun: args.dryRun, yes: args.yes, npmDryRun });
+  log.banner(`PUBLISH${dryRun ? " — DRY-RUN (mutates nothing)" : ""}`);
 
   // Preflight: doctor must be clean, and creds present (creds only enforced on a real run).
   const { issues } = auditPackages();
@@ -122,7 +132,7 @@ function publish() {
   const creds = credChecks();
   for (const c of creds) (c.ok ? log.ok : log.warn)(`${c.name}: ${c.detail}`);
   const missing = creds.filter((c) => !c.ok);
-  if (missing.length && !args.dryRun) {
+  if (missing.length && !dryRun) {
     log.err(`refusing: missing credentials — ${missing.map((c) => c.name).join(", ")}. Resolve, then re-run.`);
     process.exit(1);
   }
@@ -136,18 +146,18 @@ function publish() {
     return r.status === 0 && r.stdout.trim() === version;
   };
   const steps = planNpmPublish([{ name: "@gitcade/sdk", version: sdk }, { name: "@gitcade/library", version: library }], isLive);
-  runNpmPublish(steps, { dryRun: args.dryRun, exec: (c, a) => run(c, a), log: (m) => log.ok(m) });
+  runNpmPublish(steps, { dryRun, exec: (c, a) => run(c, a), log: (m) => log.ok(m) });
 
   // 2. monorepo push.
   log.banner("monorepo — push main");
-  if (args.dryRun) log.warn("dry-run: would git push origin main");
+  if (dryRun) log.warn("dry-run: would git push origin main");
   else run("git", ["push", "origin", "main"]);
 
   // 3. game repos (idempotent; needs npm live first → skip the clean-clone verify in dry-run).
   log.banner("repos — sync gitcade-games/<slug>");
   const repoArgs = [
-    args.dryRun ? "--dry-run" : null,
-    args.dryRun ? "--no-verify" : null, // public npm can't have the new versions until step 1 actually runs
+    dryRun ? "--dry-run" : null,
+    dryRun ? "--no-verify" : null, // public npm can't have the new versions until step 1 actually runs
     args.only ? `--only=${args.only.join(",")}` : null,
     `--message=chore: sync sdk ${sdk} + library ${library} from monorepo`,
   ].filter(Boolean);
@@ -155,10 +165,11 @@ function publish() {
 
   // 4. MinIO artifacts.
   log.banner("artifacts — (re)publish MinIO");
-  const artArgs = [args.dryRun ? "--dry-run" : null, args.only ? `--only=${args.only.join(",")}` : null].filter(Boolean);
+  const artArgs = [dryRun ? "--dry-run" : null, args.only ? `--only=${args.only.join(",")}` : null].filter(Boolean);
   run("node", ["tools/release/publish-artifacts.mjs", ...artArgs]);
 
-  log.ok(`publish ${args.dryRun ? "dry-run " : ""}complete`);
+  if (dryRun) log.warn("DRY-RUN complete — nothing was published. Re-run with `npm run release:publish -- --yes` to publish for real.");
+  else log.ok("publish complete");
 }
 
 const COMMANDS = { doctor, sync, gate, publish };
@@ -168,7 +179,8 @@ if (!cmd || !COMMANDS[cmd]) {
       `  doctor   audit role→pin invariants + creds (read-only)\n` +
       `  sync     apply the pin policy + regen catalog + refresh lockfile (idempotent)\n` +
       `  gate     clean install + build + test + validate + pack dry-run\n` +
-      `  publish  divergence-aware npm + repos + MinIO (run with --dry-run first)`,
+      `  publish  divergence-aware npm + repos + MinIO. SAFE BY DEFAULT (dry-run);\n` +
+      `           pass \`-- --yes\` to publish for real.`,
   );
   process.exit(cmd ? 1 : 0);
 }

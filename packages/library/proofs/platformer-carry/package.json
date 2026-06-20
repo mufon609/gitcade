@@ -9,8 +9,8 @@
     "validate": "gitcade validate ."
   },
   "dependencies": {
-    "@gitcade/sdk": "0.10.0",
-    "@gitcade/library": "0.10.0"
+    "@gitcade/sdk": "*",
+    "@gitcade/library": "*"
   },
   "devDependencies": {
     "vitest": "^2.1.0"

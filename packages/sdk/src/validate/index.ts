@@ -139,6 +139,13 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
   //     is exempt (it legitimately reads the wall clock for non-sim concerns like offline credit).
   issues.push(...scanNonDeterministicSource(absDir));
 
+  // 4c. Cross-engine transcendental scan (warning-only, all tiers): raw transcendental `Math.*`
+  //     (sin/cos/atan2/pow/hypot/…) and the `**` operator are implementation-approximated, so they
+  //     differ in the last ULP across JS engines — a value feeding the snapshot then drifts
+  //     cross-engine and breaks ghosts / speedrun verification. Authors route them through
+  //     `world.math`. Advisory only (promotion to a hard gate is a separate, deliberate decision).
+  issues.push(...scanRawTranscendentals(absDir));
+
   // 5. No-magic-numbers + $cfg resolution
   if (scenes.length > 0) {
     issues.push(...checkParams(scenes, config));
@@ -423,6 +430,71 @@ function scanNonDeterministicSource(dir: string): Issue[] {
             code: "nondeterministic-source",
             message:
               "simulation source reads the wall clock or Math.random — these desync replays, ghosts, and seeded challenges. Route randomness through world.rng and derive time from world.time/world.frame (main.ts host glue is exempt)",
+            where: path.relative(dir, full),
+          });
+        }
+      }
+    }
+  };
+  walk(srcDir);
+  return issues;
+}
+
+/**
+ * Scan a game's `src/` simulation source for RAW transcendental `Math.*` calls (sin/cos/tan/atan/
+ * atan2/exp/log/pow/hypot/…) and the `**` exponentiation operator. ECMAScript leaves these
+ * "implementation-approximated", so their LAST ULP differs across JS engines (V8/SpiderMonkey ship
+ * fdlibm; JavaScriptCore binds the system libm) — a value computed from them that feeds the
+ * simulation snapshot (rotation, velocity, camera shake, a gated branch) then drifts cross-engine
+ * and breaks cross-browser ghosts and server-side speedrun verification. Authors route simulation
+ * transcendentals through the engine-independent `world.math` seam (and prefer squared-distance, or
+ * `world.math.hypot`, for lengths). Correctly-rounded ops (`Math.sqrt`/`abs`/`floor`/`round`/`min`/
+ * `max`/`trunc`/`sign`) and the spec-fixed constants (`Math.PI`, `Math.LN2`, …) are bit-identical
+ * everywhere and are NOT flagged.
+ *
+ * WARNING only — never fails a publish (promoting it to a hard gate is a separate, deliberate
+ * decision, not a silent contract change) — and exempts `main.ts` host glue (render/audio/DOM math
+ * there never reaches the snapshot). Mirrors {@link scanNonDeterministicSource}: the committed
+ * cross-engine golden is the runtime anchor, this is its static, author-facing companion.
+ */
+function scanRawTranscendentals(dir: string): Issue[] {
+  const issues: Issue[] = [];
+  // Match the FUNCTION CALL form (trailing `(`), so the spec-fixed `Math.PI`/`Math.LN2` constants
+  // and correctly-rounded `Math.sqrt`/`abs`/… are left alone. Longest names first so the alternation
+  // is unambiguous. The `**` heuristic requires an operand char on the left so JSDoc `/**` and
+  // markdown `**bold**` in comments don't trip it.
+  const transcendental =
+    /\bMath\.(sinh|cosh|tanh|asin|acos|atan2|atan|sin|cos|tan|expm1|exp|log10|log1p|log2|log|pow|cbrt|hypot)\s*\(/;
+  const expOperator = /[\w$)\]]\s*\*\*\s*[\w$(.]/;
+  const srcDir = path.join(dir, "src");
+  if (!fs.existsSync(srcDir)) return issues;
+  const skip = new Set(["node_modules", "dist", ".git", ".next"]);
+
+  const walk = (current: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      if (ent.name.startsWith(".") && ent.isDirectory()) continue;
+      const full = path.join(current, ent.name);
+      if (ent.isDirectory()) {
+        if (!skip.has(ent.name)) walk(full);
+      } else if (SOURCE_EXTS.has(path.extname(ent.name)) && ent.name !== "main.ts") {
+        let text: string;
+        try {
+          text = fs.readFileSync(full, "utf8");
+        } catch {
+          continue;
+        }
+        if (transcendental.test(text) || expOperator.test(text)) {
+          issues.push({
+            level: "warning",
+            code: "raw-transcendental",
+            message:
+              "simulation source calls a raw transcendental Math.* (sin/cos/atan2/pow/hypot/…) or the ** operator — these are implementation-approximated and differ in the last ULP across JS engines, so a value feeding the snapshot drifts cross-engine and breaks ghosts/speedrun verification. Route simulation transcendentals through the engine-independent world.math seam (prefer squared-distance, or world.math.hypot, for lengths; main.ts host glue is exempt)",
             where: path.relative(dir, full),
           });
         }

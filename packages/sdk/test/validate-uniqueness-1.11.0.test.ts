@@ -11,7 +11,8 @@ import { validateGame } from "../src/validate/index.js";
  *  - duplicate SCENE ids (a whole scene silently dropped at runtime),
  *  - duplicate ENTITY ids within a scene (byId/parent/tag resolution collapses),
  *  - bare numeric ARRAYS smuggling balance past the structural-key whitelist,
- * plus the warning-only determinism source scan (wall-clock / Math.random in sim source).
+ * plus two warning-only determinism source scans: wall-clock / Math.random, and (1.11.0) raw
+ * cross-engine transcendentals (`Math.sin`/`pow`/`hypot`/… and the `**` operator) in sim source.
  */
 
 const SHAPE = { kind: "shape", shape: "rect", color: "#fff" } as const;
@@ -126,5 +127,55 @@ describe("determinism source scan (validateGame, warning-only)", () => {
     });
     const res = await validateGame(dir);
     expect(res.issues.filter((i) => i.code === "nondeterministic-source")).toHaveLength(0);
+  });
+
+  it("warns (does not fail) on a raw transcendental Math.* in a non-main sim source file", async () => {
+    const dir = writeGame({
+      "game.json": MANIFEST,
+      "config.json": {},
+      "src/scenes/main.json": SCENE,
+      "src/custom-behaviors/spin.ts":
+        "export const spin = (e: any, _w: any, _p: any, dt: number) => { e.rotation = Math.sin(dt) + Math.atan2(e.vy, e.vx); };\n",
+    });
+    const res = await validateGame(dir);
+    const scan = res.issues.filter((i) => i.code === "raw-transcendental");
+    expect(scan).toHaveLength(1);
+    expect(scan[0].level).toBe("warning");
+    expect(scan[0].where).toContain("custom-behaviors");
+    expect(res.ok).toBe(true); // advisory only — never blocks publish
+  });
+
+  it("flags the ** exponentiation operator (also implementation-approximated)", async () => {
+    const dir = writeGame({
+      "game.json": MANIFEST,
+      "config.json": {},
+      "src/scenes/main.json": SCENE,
+      "src/custom-behaviors/curve.ts": "export const f = (x: number, k: number) => x ** k;\n",
+    });
+    const res = await validateGame(dir);
+    expect(res.issues.filter((i) => i.code === "raw-transcendental")).toHaveLength(1);
+  });
+
+  it("does NOT flag correctly-rounded Math.sqrt or the spec-fixed Math.PI constant", async () => {
+    const dir = writeGame({
+      "game.json": MANIFEST,
+      "config.json": {},
+      "src/scenes/main.json": SCENE,
+      "src/custom-behaviors/ok.ts":
+        "export const d = (x: number, y: number) => Math.sqrt(x * x + y * y) * Math.PI * Math.abs(x);\n",
+    });
+    const res = await validateGame(dir);
+    expect(res.issues.filter((i) => i.code === "raw-transcendental")).toHaveLength(0);
+  });
+
+  it("exempts main.ts host glue (a raw transcendental is allowed there)", async () => {
+    const dir = writeGame({
+      "game.json": MANIFEST,
+      "config.json": {},
+      "src/scenes/main.json": SCENE,
+      "src/main.ts": "export const f = Math.cos(1.23);\n",
+    });
+    const res = await validateGame(dir);
+    expect(res.issues.filter((i) => i.code === "raw-transcendental")).toHaveLength(0);
   });
 });

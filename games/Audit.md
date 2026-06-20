@@ -20,7 +20,7 @@ and "clean to build a hundred games on."
 
 ## Open bugs
 
-- **Anim runtime guards** — no internal `fps > 0` / `to ≥ from` guard (schema-defended today; defense-in-depth only).
+_None currently — new finds get filed here._
 
 ---
 

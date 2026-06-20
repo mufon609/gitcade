@@ -37,13 +37,21 @@ export function advanceAnim(
   }
   if (fpsOverride > 0) fps = fpsOverride;
 
+  // Runtime guards (defense-in-depth — the schema enforces both for a loaded game; these keep the
+  // exported primitive deterministic and hang-free for a hand-built sheet or a direct caller). An
+  // inverted range (to < from) makes the span <= 0, and the `% span` wrap below then produces a NaN
+  // playhead, so collapse it to a single frame at `from`.
+  if (to < from) to = from;
+
   if (anim.current !== clip) {
     anim.current = clip;
     anim.frame = from;
     anim.elapsed = 0;
   }
 
-  const frameDur = 1 / fps;
+  // A non-positive fps has no valid frame duration — a NEGATIVE one makes frameDur < 0 and spins the
+  // advance loop forever — so treat it as a held frame (no advance) instead of dividing by it.
+  const frameDur = fps > 0 ? 1 / fps : Infinity;
   anim.elapsed += dt;
   while (anim.elapsed >= frameDur) {
     anim.elapsed -= frameDur;

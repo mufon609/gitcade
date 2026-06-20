@@ -33,30 +33,87 @@ function deepResolve(value: unknown, config: Config): unknown {
   return value;
 }
 
-/** Coerce a resolved param to a number with a default. */
+/**
+ * The scalar param readers (`num`/`str`/`bool`) and {@link strArray} pull a value out of a
+ * `$cfg`-resolved params block as the type the consuming part expects. They split apart two
+ * cases that used to collapse into the same silent fallback:
+ *
+ *  - **absent** — the key is missing, or authored as `null` ("explicitly unset"). Returns the
+ *    caller's default. This is the legitimate optional-param path; it is byte-identical to before,
+ *    so every game that simply omits an optional param is unaffected.
+ *  - **present but the WRONG type** — e.g. a string or boolean read by `num`. THROWS. This is
+ *    always an authoring mistake, almost always a `"$cfg.<path>"` reference pointing at a
+ *    config.json value of the wrong primitive type (config leaves are `number | string | boolean`).
+ *    Silently coercing it to the default — a numeric param reading `0`, a flag reading `false` —
+ *    hides a broken game behind one that boots, so it is surfaced loudly instead.
+ *
+ * Because behaviors run inside the validator's headless smoke boot (and a custom-part game's own
+ * `npm test`), the throw is caught at the publish gate: a once-silent mismatch becomes a build
+ * error rather than a 0 that ships. `$cfg` refs are already resolved to their primitive by
+ * {@link resolveParams} before any of these run, so the originating path is no longer visible —
+ * hence the generic "$cfg" hint in the message rather than the exact key.
+ */
+function readScalar(
+  params: ResolvedParams,
+  key: string,
+  type: "number" | "string" | "boolean",
+): number | string | boolean | undefined {
+  const v = params[key];
+  if (v === undefined || v === null) return undefined; // absent → the caller's fallback
+  if (typeof v !== type) {
+    throw new Error(
+      `param "${key}" must be a ${type}, but got ${formatValue(v)} — likely a "$cfg.<path>" ` +
+        `reference resolving to a config.json value of the wrong type (a $cfg leaf is ` +
+        `number | string | boolean and must match how the param is read)`,
+    );
+  }
+  // Runtime-verified above; a dynamic `typeof v !== type` cannot narrow `unknown` for the compiler.
+  return v as number | string | boolean;
+}
+
+/** Render a rejected param value for an error message: its runtime type + JSON form. */
+function formatValue(v: unknown): string {
+  const type = Array.isArray(v) ? "array" : typeof v;
+  return `${type} (${JSON.stringify(v)})`;
+}
+
+/** Read a resolved param as a number; absent → `fallback`, present-but-not-a-number → throws. */
 export function num(params: ResolvedParams, key: string, fallback = 0): number {
-  const v = params[key];
-  return typeof v === "number" ? v : fallback;
+  return (readScalar(params, key, "number") as number | undefined) ?? fallback;
 }
 
-/** Coerce a resolved param to a string with a default. */
+/** Read a resolved param as a string; absent → `fallback`, present-but-not-a-string → throws. */
 export function str(params: ResolvedParams, key: string, fallback = ""): string {
-  const v = params[key];
-  return typeof v === "string" ? v : fallback;
+  return (readScalar(params, key, "string") as string | undefined) ?? fallback;
 }
 
-/** Coerce a resolved param to a boolean with a default. */
+/** Read a resolved param as a boolean; absent → `fallback`, present-but-not-a-boolean → throws. */
 export function bool(params: ResolvedParams, key: string, fallback = false): boolean {
-  const v = params[key];
-  return typeof v === "boolean" ? v : fallback;
+  return (readScalar(params, key, "boolean") as boolean | undefined) ?? fallback;
 }
 
-/** Read a resolved param as a string array (single strings are wrapped). */
+/**
+ * Read a resolved param as a string array: absent → `[]`, a single string → wrapped (`["x"]`), an
+ * array → returned once every element is confirmed a string. A present non-array/non-string value,
+ * or an array holding a non-string element (e.g. a `$cfg` ref that resolved to a number), THROWS —
+ * the array counterpart of the scalar guard above, rather than silently dropping the offender.
+ */
 export function strArray(params: ResolvedParams, key: string): string[] {
   const v = params[key];
-  if (Array.isArray(v)) return v.filter((x): x is string => typeof x === "string");
+  if (v === undefined || v === null) return [];
   if (typeof v === "string") return [v];
-  return [];
+  if (Array.isArray(v)) {
+    for (const el of v) {
+      if (typeof el !== "string") {
+        throw new Error(
+          `param "${key}" must be an array of strings, but an element is ${formatValue(el)} — ` +
+            `likely a "$cfg.<path>" reference resolving to a non-string config.json value`,
+        );
+      }
+    }
+    return v as string[];
+  }
+  throw new Error(`param "${key}" must be a string or an array of strings, but got ${formatValue(v)}`);
 }
 
 /**

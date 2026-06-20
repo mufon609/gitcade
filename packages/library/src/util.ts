@@ -92,14 +92,8 @@ export function spawnFrom(
   def.id = `${opts.idPrefix ?? base}#${nextSpawnSeq(world)}`;
   if (opts.position) def.position = { x: opts.position.x, y: opts.position.y };
   if (opts.state) def.state = { ...(def.state as Record<string, unknown> | undefined), ...opts.state };
-  // The SDK schema applies entity defaults at scene-parse time; runtime-spawned
-  // defs bypass that path, so backfill the fields buildEntity reads directly.
-  def.sprite ??= { kind: "none" };
-  def.size ??= { w: 16, h: 16 };
-  def.position ??= { x: 0, y: 0 };
-  def.behaviors ??= [];
-  def.tags ??= [];
-  def.layer ??= 0;
+  // `world.spawn` parses through EntityDefSchema, applying the SAME defaults as scene load — a
+  // partial prototype (missing size/layer/behaviors/…) is completed there, so no hand-roll here.
   return world.spawn(def as never);
 }
 

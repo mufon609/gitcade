@@ -1,6 +1,6 @@
 import type { Config, ConfigLeaf } from "../schema/config.js";
 import { isCfgRef, cfgRefPath, resolveConfigPath } from "../schema/config.js";
-import type { EntityDef } from "../schema/entity.js";
+import { EntityDefSchema, type EntityDefInput } from "../schema/entity.js";
 import type { Tilemap } from "../schema/scene.js";
 import type { PersistConfig } from "../schema/manifest.js";
 import { Entity } from "./entity.js";
@@ -221,9 +221,17 @@ export class World {
     this.spawnedThisTick = false;
   }
 
-  /** Spawn a new entity from a definition at runtime (e.g. bullets, enemies). */
-  spawn(def: EntityDef): Entity {
-    return this.add(buildEntity(def, this.registry, this.config));
+  /**
+   * Spawn a new entity from a (possibly PARTIAL) definition at runtime (bullets, enemies, particles).
+   * The def is parsed through {@link EntityDefSchema} FIRST — the same path scene-load entities take —
+   * so schema defaults are applied (a spawner may omit `size`/`layer`/`behaviors`/… and pass just the
+   * fields it sets) and unknown keys are rejected, exactly as for an authored entity. This is the single
+   * source of entity defaults: spawners no longer hand-roll the `sprite ??= {kind:"none"}` backfill that
+   * duplicated the schema. A malformed def throws here (like {@link buildEntity}'s unknown-type throw);
+   * the validator's smoke boot exercises the spawn paths, so it surfaces at publish.
+   */
+  spawn(def: EntityDefInput): Entity {
+    return this.add(buildEntity(EntityDefSchema.parse(def), this.registry, this.config));
   }
 
   /** Mark an entity destroyed; it is pruned at the end of the current tick. */

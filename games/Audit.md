@@ -29,7 +29,6 @@ _None currently — new finds get filed here._
 Ordered by implementation priority (top first): schema/runtime honesty before
 features, hygiene, and tooling; the invasive channels refactor last.
 
-- **Spawn defaults** — `world.spawn` bypasses the schema-default path, so spawners hand-roll default backfill.
 - **Scene `extends` granularity** — merges whole entities by id; no per-field / `$cfg`-slice override of an inherited entity.
 - **Dead schema fields** — `scene.music` and tile `ladder`/`lane`/`walkable` advertise capability the runtime never consumes.
 - **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
@@ -44,7 +43,6 @@ features, hygiene, and tooling; the invasive channels refactor last.
 - Schema versioning + migration (no `schemaVersion` stamp on any artifact).
 
 **Tier 2 — professional polish**
-- `world.spawn(partialDef)` that applies the same defaults as scene load.
 - Source-position diagnostics (`file:line:col`).
 - Asset/reference integrity (sprite/tileset/background `src`; `TextSprite.bind` target).
 - Audio rework — master gain bus, sample/buffer playback, polyphony cap.

@@ -125,3 +125,12 @@ export const EntityDefSchema = z.strictObject({
 });
 
 export type EntityDef = z.infer<typeof EntityDefSchema>;
+
+/**
+ * The INPUT shape of an entity definition: every field carrying a schema DEFAULT is optional, so a
+ * caller may pass a PARTIAL def. {@link World.spawn} parses runtime spawns through
+ * {@link EntityDefSchema}, applying the same defaults (and strict unknown-key check) as scene load,
+ * so a spawned entity is built exactly like an authored one and spawners need not hand-roll default
+ * backfill. (`EntityDef` is the post-parse OUTPUT — every field present.)
+ */
+export type EntityDefInput = z.input<typeof EntityDefSchema>;

@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   createGame,
   assertDeterministic,
   scriptedConformanceInput,
+  snapshotWorld,
+  seededRng,
   type Game,
   type Registry,
   type RawGameSources,
@@ -107,6 +110,25 @@ const gameCases: Case[] = Object.keys(GAME_CUSTOM).map((name) => {
 
 const CASES: Case[] = [...proofCases, ...gameCases];
 
+/**
+ * A SHA-256 fingerprint of an ENTIRE conformance run: boot on the fixed seed, apply the scripted
+ * input, step `frames`, and fold every per-frame {@link snapshotWorld} into one digest. Mirrors the
+ * `assertDeterministic` run exactly (same seed + script + frame budget), so the digest is a stable
+ * function of the simulation's bytes alone.
+ */
+function fingerprint(make: (rng: () => number) => Game, frames: number): string {
+  const game = make(seededRng(0x5eed));
+  const script = scriptedConformanceInput();
+  const h = createHash("sha256");
+  for (let f = 0; f < frames; f++) {
+    script(game.world.input, f);
+    game.stepFrames(1);
+    h.update(snapshotWorld(game.world));
+    h.update("\n");
+  }
+  return h.digest("hex");
+}
+
 describe("determinism conformance (seed games + library proofs)", () => {
   it("enumerates every proof and all six seed games (no silent skip)", () => {
     expect(proofCases.length).toBeGreaterThanOrEqual(12);
@@ -119,4 +141,39 @@ describe("determinism conformance (seed games + library proofs)", () => {
       assertDeterministic(make, { seed: 0x5eed, frames, script: scriptedConformanceInput() });
     },
   );
+});
+
+/**
+ * CROSS-ENGINE GOLDEN (anchored to 1.11.0). `assertDeterministic` proves only SAME-engine
+ * reproducibility (it runs both passes in one engine). This table closes that gap: it pins the exact
+ * fingerprint each run produces, generated under the canonical `world.math` transcendentals — which
+ * are bit-identical on every conformant JS engine. Any engine reproducing these digests is therefore
+ * byte-identical to the one that produced them, so a player's run in another browser, a server-side
+ * speedrun re-check, and a ghost recorded elsewhere all stay in lockstep.
+ *
+ * This is also a regression fence: a change to fdmath, a migrated part, or the tick/snapshot shape
+ * shifts a digest and trips this. Regenerate ONLY as a DELIBERATE, surfaced determinism re-base
+ * (a MAJOR-worthy event for stored replays) with: `UPDATE_GOLDEN=1 npx vitest run` in this package,
+ * then commit the new `determinism-golden-1.11.0.json` and say so in the changelog.
+ */
+const GOLDEN_PATH = path.resolve(here, "determinism-golden-1.11.0.json");
+
+describe("cross-engine determinism golden (committed fingerprints, 1.11.0)", () => {
+  const fingerprints: Record<string, string> = {};
+  for (const c of CASES) fingerprints[c.name] = fingerprint(c.make, c.frames);
+
+  if (process.env.UPDATE_GOLDEN) {
+    fs.writeFileSync(GOLDEN_PATH, JSON.stringify(fingerprints, null, 2) + "\n");
+  }
+  const golden: Record<string, string> = fs.existsSync(GOLDEN_PATH)
+    ? (JSON.parse(fs.readFileSync(GOLDEN_PATH, "utf8")) as Record<string, string>)
+    : {};
+
+  it("golden covers exactly the conformance cases (no silent set drift)", () => {
+    expect(Object.keys(golden).sort()).toEqual(CASES.map((c) => c.name).sort());
+  });
+
+  it.each(CASES)("$name reproduces the committed cross-engine fingerprint", ({ name }) => {
+    expect(fingerprints[name]).toBe(golden[name]);
+  });
 });

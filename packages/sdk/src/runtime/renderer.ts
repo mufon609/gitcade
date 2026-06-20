@@ -35,6 +35,9 @@ function interpOffset(prev: number, cur: number, alpha: number, snap: number): n
  * at most a half-turn for a single frame — far milder than a position teleport streaking the whole screen.)
  */
 function lerpAngle(prev: number, cur: number, alpha: number): number {
+  // Raw Math.* is fine here (NOT the world.math seam): this is RENDER interpolation — the result
+  // is drawn, never written back to the world or `snapshotWorld`, so a cross-engine last-ULP
+  // difference is purely cosmetic and the simulation stays byte-identical.
   const d = Math.atan2(Math.sin(prev - cur), Math.cos(prev - cur)); // (prev − cur) wrapped to (−π, π]
   return cur + d * (1 - alpha);
 }
@@ -193,6 +196,8 @@ export class Renderer {
     const sxMax = alpha < 1 ? Math.max(Math.abs(e.scaleX), Math.abs(e.body.prevScaleX)) : Math.abs(e.scaleX);
     const syMax = alpha < 1 ? Math.max(Math.abs(e.scaleY), Math.abs(e.body.prevScaleY)) : Math.abs(e.scaleY);
     const strokeHalf = s.kind === "shape" && s.stroke ? (s.strokeWidth ?? 1) : 0;
+    // Raw Math.hypot is fine: this cull radius only decides whether to DRAW an entity — it never
+    // reaches `snapshotWorld`, so its cross-engine variance can't desync the simulation.
     const r = Math.hypot(sxMax * (e.w / 2 + strokeHalf), syMax * (e.h / 2 + strokeHalf));
     return icx + r >= cull.l && icx - r <= cull.r && icy + r >= cull.t && icy - r <= cull.b;
   }

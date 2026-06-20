@@ -1,3 +1,5 @@
+import { hypot } from "./fdmath.js";
+
 /** An active pointer/touch in world (canvas) coordinates. */
 export interface Pointer {
   id: number;
@@ -308,7 +310,10 @@ export class Input {
         if (!p.down) continue;
         const dx = p.x - z.x;
         const dy = p.y - z.y;
-        const dist = Math.hypot(dx, dy);
+        // Cross-engine-deterministic length: this analog vector becomes entity velocity, which
+        // feeds `snapshotWorld`, so a replayed touch run must classify the zone identically on
+        // every engine (`Math.hypot` runs its own engine-variable algorithm; `hypot` is sqrt-form).
+        const dist = hypot(dx, dy);
         if (dist > z.radius * 1.6) continue; // pointer is elsewhere on screen
         const DEADZONE = 0.25; // structural, source-level — not a balance value
         if (dist < z.radius * DEADZONE) return { x: 0, y: 0 };

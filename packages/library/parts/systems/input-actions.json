@@ -5,7 +5,7 @@
   "category": "interaction",
   "tags": ["input", "controls", "touch", "actions", "mobile"],
   "license": "MIT",
-  "description": "Install logical input ACTION bindings (E1): map an action name to keyboard codes and/or an on-screen rect/zone, so movers read world.input.action(...)/actionVector(...) and one action is satisfiable by keyboard OR touch — no synthesized key events. Pure data; idle on desktop with no touch. Pair with a mover's `moveAction`/`thrustAction`-style param.",
+  "description": "Install logical input ACTION bindings: map an action name to keyboard codes and/or an on-screen rect/zone, so movers read world.input.action(...)/actionVector(...) and one action is satisfiable by keyboard OR touch — no synthesized key events. Pure data; idle on desktop with no touch. Pair with a mover's `moveAction`/`thrustAction`-style param.",
   "dependencies": [],
   "params": {
     "bindings": {

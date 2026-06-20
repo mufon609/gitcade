@@ -16,7 +16,7 @@
     "right": { "type": "array", "balance": false, "description": "Right key codes." },
     "continuous": { "type": "boolean", "balance": false, "description": "Keep moving without input, Snake-style." },
     "snap": { "type": "boolean", "balance": false, "description": "Snap to the tile grid each step." },
-    "moveAction": { "type": "string", "balance": false, "description": "Optional logical-action name (E1) to steer by instead of raw keys — unifies keyboard + touch via input-actions. Unset = key path (default, byte-identical)." }
+    "moveAction": { "type": "string", "balance": false, "description": "Optional logical-action name to steer by instead of raw keys — unifies keyboard + touch via input-actions. Unset = key path (default, byte-identical)." }
   },
   "definition": {
     "type": "move-grid-step",

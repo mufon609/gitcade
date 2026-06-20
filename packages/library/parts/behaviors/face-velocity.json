@@ -5,7 +5,7 @@
   "category": "movement",
   "tags": ["facing", "flip", "sprite", "platformer", "presentation"],
   "license": "MIT",
-  "description": "The side-scroller flip convention: sets the sign of entity.scaleX from horizontal velocity so a side-view sprite faces the way it moves (moving right = scaleX positive, left = negative). The renderer honors a negative scaleX as a horizontal flip (0.3.2), so this just wires that to motion. Preserves the scale magnitude and holds facing below a threshold (a stopped sprite keeps its last facing). Distinct from face-angle, which rotates; this only mirrors left/right. Visual only. Order it after the mover.",
+  "description": "The side-scroller flip convention: sets the sign of entity.scaleX from horizontal velocity so a side-view sprite faces the way it moves (moving right = scaleX positive, left = negative). The renderer honors a negative scaleX as a horizontal flip, so this just wires that to motion. Preserves the scale magnitude and holds facing below a threshold (a stopped sprite keeps its last facing). Distinct from face-angle, which rotates; this only mirrors left/right. Visual only. Order it after the mover.",
   "dependencies": [],
   "params": {
     "threshold": { "type": "number", "balance": true, "description": "Min |vx| (px/sec) to change facing (default 1)." },

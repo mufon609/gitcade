@@ -506,7 +506,7 @@
         "juice",
         "presentation"
       ],
-      "description": "Orient an entity by writing entity.rotation (radians) each tick — the data path to a directional sprite now that the renderer honors rotation (0.3.2). Modes: velocity (point along travel), target (track the nearest tagged entity), pointer (twin-stick aim at the cursor), tilt (bank by a velocity axis, e.g. a flyer pitching with vertical speed). Visual only; collision stays axis-aligned.",
+      "description": "Orient an entity by writing entity.rotation (radians) each tick — the data path to a directional sprite, since the renderer honors rotation. Modes: velocity (point along travel), target (track the nearest tagged entity), pointer (twin-stick aim at the cursor), tilt (bank by a velocity axis, e.g. a flyer pitching with vertical speed). Visual only; collision stays axis-aligned.",
       "license": "MIT",
       "dependencies": [],
       "params": {
@@ -566,7 +566,7 @@
         "platformer",
         "presentation"
       ],
-      "description": "The side-scroller flip convention: sets the sign of entity.scaleX from horizontal velocity so a side-view sprite faces the way it moves (moving right = scaleX positive, left = negative). The renderer honors a negative scaleX as a horizontal flip (0.3.2), so this just wires that to motion. Preserves the scale magnitude and holds facing below a threshold (a stopped sprite keeps its last facing). Distinct from face-angle, which rotates; this only mirrors left/right. Visual only. Order it after the mover.",
+      "description": "The side-scroller flip convention: sets the sign of entity.scaleX from horizontal velocity so a side-view sprite faces the way it moves (moving right = scaleX positive, left = negative). The renderer honors a negative scaleX as a horizontal flip, so this just wires that to motion. Preserves the scale magnitude and holds facing below a threshold (a stopped sprite keeps its last facing). Distinct from face-angle, which rotates; this only mirrors left/right. Visual only. Order it after the mover.",
       "license": "MIT",
       "dependencies": [],
       "params": {
@@ -915,7 +915,7 @@
         "moveAction": {
           "type": "string",
           "balance": false,
-          "description": "Optional logical-action name (E1) to steer by instead of raw keys — unifies keyboard + touch via input-actions. Unset = key path (default, byte-identical)."
+          "description": "Optional logical-action name to steer by instead of raw keys — unifies keyboard + touch via input-actions. Unset = key path (default, byte-identical)."
         }
       },
       "definition": {
@@ -1728,7 +1728,7 @@
         "actions",
         "mobile"
       ],
-      "description": "Install logical input ACTION bindings (E1): map an action name to keyboard codes and/or an on-screen rect/zone, so movers read world.input.action(...)/actionVector(...) and one action is satisfiable by keyboard OR touch — no synthesized key events. Pure data; idle on desktop with no touch. Pair with a mover's `moveAction`/`thrustAction`-style param.",
+      "description": "Install logical input ACTION bindings: map an action name to keyboard codes and/or an on-screen rect/zone, so movers read world.input.action(...)/actionVector(...) and one action is satisfiable by keyboard OR touch — no synthesized key events. Pure data; idle on desktop with no touch. Pair with a mover's `moveAction`/`thrustAction`-style param.",
       "license": "MIT",
       "dependencies": [],
       "params": {
@@ -2546,7 +2546,7 @@
         "lose",
         "game-over"
       ],
-      "description": "Generalized end-of-game check: a list of conditions, first match ends the game with a win or lose outcome. 1.1.0 (E7) adds — additively — a live entity-count condition ({ tag, count?, value? } via world.query(tag).length), a state truthy/falsy flag check ({ key, truthy|falsy }), and all/any composition, so a win like 'all waves complete AND zero live creeps' is data. The original { key, cmp?, value } state-threshold condition is byte-identical.",
+      "description": "Generalized end-of-game check: a list of conditions, first match ends the game with a win or lose outcome. Conditions: a state-threshold ({ key, cmp?, value }), a live entity-count ({ tag, count?, value? } via world.query(tag).length), a state truthy/falsy flag ({ key, truthy|falsy }), and all/any composition — so a win like 'all waves complete AND zero live creeps' is data.",
       "license": "MIT",
       "dependencies": [],
       "params": {
@@ -4372,7 +4372,7 @@
         "flow",
         "menu"
       ],
-      "description": "The keyboard companion to tap-emit (E3): a per-entity behavior that emits a game event on the down-edge of any of `keys`, so title/over screens are keyboard-accessible as pure data with no host keydown bridge. Put it on the same flow-button entity as tap-emit, emitting the same event, and wire it to a scene.flow.on transition. Adopts a key held across the spawning scene change so it only fires on a fresh press.",
+      "description": "The keyboard companion to tap-emit: a per-entity behavior that emits a game event on the down-edge of any of `keys`, so title/over screens are keyboard-accessible as pure data with no host keydown bridge. Put it on the same flow-button entity as tap-emit, emitting the same event, and wire it to a scene.flow.on transition. Adopts a key held across the spawning scene change so it only fires on a fresh press.",
       "license": "MIT",
       "dependencies": [],
       "definition": {

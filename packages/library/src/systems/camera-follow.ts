@@ -6,7 +6,7 @@ import { num, str } from "@gitcade/sdk";
  * optional easing and a centered deadzone, clamped so the viewport never shows
  * outside `world.bounds`. The runtime camera for scrolling levels — pair it with a
  * `scene.world` larger than `scene.size` (the SDK decouples sim bounds from the
- * viewport in 0.7.0). With no `scene.world`, `world.bounds` equals the viewport so
+ * viewport). With no `scene.world`, `world.bounds` equals the viewport so
  * the clamp pins the camera at the origin and this is a no-op.
  *
  * It runs as a SYSTEM (before entity behaviors), so it reads the target's position

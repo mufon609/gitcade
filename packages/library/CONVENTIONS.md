@@ -63,7 +63,7 @@ sits in a corner button zone.
 ## 3. Background depth — prefer declarative `background.layers`
 
 For background depth/parallax, use the **declarative `background.layers`** descriptor
-(honored by the renderer since 0.3.1) rather than a hand-rolled full-field image entity
+(honored by the renderer) rather than a hand-rolled full-field image entity
 + `auto-scroll` + `velocity` + a `$cfg` scroll key:
 
 ```json
@@ -96,7 +96,7 @@ near-full-field entity is anchored at center coords.
 
 `manifest.persist` + the `persistence` system round-trip `world.state` keys through the
 storage bridge. The restore is **async**; host code that reads a persisted value on boot
-must wait for it. Use the deterministic signal (0.3.1) rather than polling
+must wait for it. Use the deterministic signal rather than polling
 `isPersistPending` and racing it:
 
 ```ts
@@ -124,7 +124,7 @@ renders. Bind the burst on the **destination** scene instead (or on an event tha
 This bit helicopter's crash explosion. The rule: *a burst bound to a death/clear event
 that also changes scene belongs on the scene you're routing TO.*
 
-## 8. Entity facing — `entity.rotation` + the `face-angle` behavior (0.3.2)
+## 8. Entity facing — `entity.rotation` + the `face-angle` behavior
 
 The renderer now rotates/scales a sprite around its center by `entity.rotation` (RADIANS,
 clockwise) and `scale` (a slot that was in the frozen entity schema but ignored until

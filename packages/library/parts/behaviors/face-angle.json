@@ -5,7 +5,7 @@
   "category": "movement",
   "tags": ["facing", "rotation", "aim", "tilt", "juice", "presentation"],
   "license": "MIT",
-  "description": "Orient an entity by writing entity.rotation (radians) each tick — the data path to a directional sprite now that the renderer honors rotation (0.3.2). Modes: velocity (point along travel), target (track the nearest tagged entity), pointer (twin-stick aim at the cursor), tilt (bank by a velocity axis, e.g. a flyer pitching with vertical speed). Visual only; collision stays axis-aligned.",
+  "description": "Orient an entity by writing entity.rotation (radians) each tick — the data path to a directional sprite, since the renderer honors rotation. Modes: velocity (point along travel), target (track the nearest tagged entity), pointer (twin-stick aim at the cursor), tilt (bank by a velocity axis, e.g. a flyer pitching with vertical speed). Visual only; collision stays axis-aligned.",
   "dependencies": [],
   "params": {
     "mode": { "type": "string", "balance": false, "description": "'velocity' | 'target' | 'pointer' | 'tilt' (default 'velocity')." },

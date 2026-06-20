@@ -73,13 +73,47 @@ export const TextSpriteSchema = z.object({
 /** An explicitly invisible entity (logic-only, triggers, spawners). */
 export const NoneSpriteSchema = z.object({ kind: z.literal("none") });
 
-export const SpriteSchema = z.discriminatedUnion("kind", [
-  ShapeSpriteSchema,
-  ImageSpriteSchema,
-  SheetSpriteSchema,
-  TextSpriteSchema,
-  NoneSpriteSchema,
-]);
+export const SpriteSchema = z
+  .discriminatedUnion("kind", [
+    ShapeSpriteSchema,
+    ImageSpriteSchema,
+    SheetSpriteSchema,
+    TextSpriteSchema,
+    NoneSpriteSchema,
+  ])
+  // Cross-field range check for sheet animations: the per-clip `from`/`to` are each bounded
+  // (nonnegative ints) in isolation, but their RELATIONSHIP to each other and to `frameCount` is
+  // not — and `advanceAnim`'s loop math depends on it. A clip is an INCLUSIVE range, so its span is
+  // `to - from + 1`; the playhead wraps via `frame % span`. `to < from` makes span ≤ 0 (span 0 →
+  // `% 0` → a NaN frame; span < 0 → frames oscillate out of the clip), and `to >= frameCount` runs
+  // the playhead off the sheet (the renderer reads a source rect that isn't there). Both pass the
+  // per-field schema yet produce a broken animation, so they are caught here, at parse — failing
+  // `gitcade validate` and the runtime load rather than corrupting a frame at tick time.
+  //
+  // This lives on the UNION, not on SheetSpriteSchema, because Zod's discriminatedUnion requires
+  // raw ZodObject members (it reads the `kind` discriminator) and rejects a refined (ZodEffects)
+  // one; the refine narrows on `kind === "sheet"`, so the other variants are untouched. `from >= 0`
+  // is already enforced, and `0 <= from <= to < frameCount` follows from the two checks below, so a
+  // separate `from` bound would be redundant (it can never fire alone).
+  .superRefine((sprite, ctx) => {
+    if (sprite.kind !== "sheet" || !sprite.animations) return;
+    for (const [name, clip] of Object.entries(sprite.animations)) {
+      if (clip.to < clip.from) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["animations", name, "to"],
+          message: `sheet animation "${name}" has to=${clip.to} < from=${clip.from} — a clip is an inclusive frame range, so to must be >= from (use to===from for a single-frame clip)`,
+        });
+      }
+      if (clip.to >= sprite.frameCount) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["animations", name, "to"],
+          message: `sheet animation "${name}" to=${clip.to} is out of range for a ${sprite.frameCount}-frame sheet (valid frames 0..${sprite.frameCount - 1})`,
+        });
+      }
+    }
+  });
 
 export type Sprite = z.infer<typeof SpriteSchema>;
 export type ShapeSprite = z.infer<typeof ShapeSpriteSchema>;

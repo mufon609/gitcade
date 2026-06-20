@@ -20,7 +20,6 @@ and "clean to build a hundred games on."
 
 ## Open bugs
 
-- **Sheet-clip range unvalidated** — `to < from` or `to ≥ frameCount` produces a NaN animation playhead.
 - **Audio** — `volume: 0` throws inside a swallowed ramp; the first sound on a suspended audio context is dropped.
 - **Anim runtime guards** — no internal `fps > 0` / `to ≥ from` guard (schema-defended today; defense-in-depth only).
 

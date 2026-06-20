@@ -97,6 +97,18 @@ silent contract change. Reproducible play needs no new knob: pass the canonical
 seedable RNG as the existing option — `createGame(sources, { rng: seededRng(seed) })`
 — and that run replays byte-for-byte.
 
+**Cross-engine, not just same-engine.** The conformance harness runs both passes in *one*
+engine, so by construction it cannot see a *cross-engine* divergence — the same blind-spot shape
+as the render path. The hazard is the transcendental `Math.*` functions (`sin`/`cos`/`atan2`/`pow`/
+`hypot`/…): ECMAScript mandates correctly-rounded `+ - * /` and `Math.sqrt` (bit-identical
+everywhere) but leaves the transcendentals *implementation-approximated*, so their last ULP differs
+across V8 / SpiderMonkey / JavaScriptCore. The simulation therefore routes every transcendental
+through a *second* sanctioned seam — **`world.math`**, the entropy seam's analogue — a pure-JS,
+fdlibm-derived implementation built only on the correctly-rounded primitives, so it is bit-identical
+on every conformant engine. A committed **golden fingerprint** (the full snapshot stream hashed,
+generated under `world.math`) anchors this: any engine that reproduces it is byte-identical to the
+one that produced it. With that, "replay anywhere, in any JS engine" is *proven*, not just intended.
+
 The check is sound only because of one invariant it cannot itself see: **rendering is
 pure.** `render()` may read world state but must never advance `world.rng` or mutate
 the world — all entropy and all state change live in the `update` phase. An
@@ -162,11 +174,14 @@ system worse — it makes it a different, ordinary system.
 3. **Balance is always data.** No magic numbers, ever. This is what keeps forks
    diffable and votes mappable to diffs.
 4. **Determinism is preserved.** New runtime is additive and no-ops over scenes
-   that don't use it, so headless play stays byte-identical. All simulation entropy
-   flows through `world.rng`; no behavior or system reads a wall clock; rendering is
-   pure (it never advances RNG or mutates the world). This is enforced, not trusted:
-   the conformance harness re-runs every game and proof on a fixed seed and proves
-   the two runs match. Reproducibility is never traded away for a feature.
+   that don't use it, so headless play stays byte-identical. Both kinds of
+   simulation non-determinism flow through sanctioned seams: all entropy through
+   `world.rng`, and all transcendental math through `world.math` (engine-independent,
+   so play is byte-identical across JS engines, not just within one). No behavior or
+   system reads a wall clock; rendering is pure (it never advances RNG or mutates the
+   world). This is enforced, not trusted: the conformance harness re-runs every game
+   and proof on a fixed seed (proving same-engine identity) AND checks each against a
+   committed cross-engine golden. Reproducibility is never traded away for a feature.
 5. **Untrusted game code never escapes the sandbox.** Isolation is not negotiable
    for a platform of AI-built, user-published artifacts.
 

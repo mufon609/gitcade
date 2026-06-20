@@ -11,7 +11,7 @@ import { z } from "zod";
  */
 
 /** A flat geometric shape — the v1 placeholder art style (Locked Decision: art). */
-export const ShapeSpriteSchema = z.object({
+export const ShapeSpriteSchema = z.strictObject({
   kind: z.literal("shape"),
   shape: z.enum(["rect", "circle", "ellipse", "triangle", "line"]),
   /** CSS fill color, e.g. `"#e5e5e5"`. */
@@ -23,13 +23,13 @@ export const ShapeSpriteSchema = z.object({
 });
 
 /** A static image referenced by path, resolved relative to the game root/assets. */
-export const ImageSpriteSchema = z.object({
+export const ImageSpriteSchema = z.strictObject({
   kind: z.literal("image"),
   src: z.string(),
 });
 
 /** A sprite sheet with named animations (generated procedurally by the asset pipeline). */
-export const SheetSpriteSchema = z.object({
+export const SheetSpriteSchema = z.strictObject({
   kind: z.literal("sheet"),
   src: z.string(),
   frameWidth: z.number().positive(),
@@ -42,7 +42,7 @@ export const SheetSpriteSchema = z.object({
   animations: z
     .record(
       z.string(),
-      z.object({
+      z.strictObject({
         from: z.number().int().nonnegative(),
         to: z.number().int().nonnegative(),
         fps: z.number().positive().optional(),
@@ -58,7 +58,7 @@ export const SheetSpriteSchema = z.object({
  * drawn without a special rendering-system signature — a score is just a text
  * entity bound to game state. The library's HUD widgets build on this.
  */
-export const TextSpriteSchema = z.object({
+export const TextSpriteSchema = z.strictObject({
   kind: z.literal("text"),
   /** Static text; ignored if `bind` resolves to a value. */
   text: z.string().optional(),
@@ -71,7 +71,7 @@ export const TextSpriteSchema = z.object({
 });
 
 /** An explicitly invisible entity (logic-only, triggers, spawners). */
-export const NoneSpriteSchema = z.object({ kind: z.literal("none") });
+export const NoneSpriteSchema = z.strictObject({ kind: z.literal("none") });
 
 export const SpriteSchema = z
   .discriminatedUnion("kind", [

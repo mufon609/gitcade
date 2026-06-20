@@ -7,6 +7,14 @@
  *
  * This module's shapes are FROZEN. Library and game custom parts register new
  * behavior/system *types* at runtime but may not change these shapes.
+ *
+ * STRICTNESS: every fixed-shape object is a `z.strictObject` — an UNKNOWN key is a
+ * parse ERROR, not silently stripped (Zod's default), so a typo'd structural field
+ * (`layr`, `colour`, `carryable`) fails `gitcade validate` and runtime `createGame`
+ * instead of vanishing. Deliberately EXEMPT, because their keys are author- or
+ * part-defined (open by design): behavior/system `params`, entity `state`,
+ * `config.json`, and tile `properties` (a `.catchall`). Strictness only rejects what
+ * stripping would have dropped, so valid artifacts parse byte-identically.
  */
 export * from "./common.js";
 export * from "./whitelist.js";

@@ -23,9 +23,9 @@ export const SlugSchema = z
   );
 
 /** A 2D position in world (canvas) pixels. */
-export const Vec2Schema = z.object({ x: z.number(), y: z.number() });
+export const Vec2Schema = z.strictObject({ x: z.number(), y: z.number() });
 export type Vec2 = z.infer<typeof Vec2Schema>;
 
 /** A 2D size in pixels. */
-export const SizeSchema = z.object({ w: z.number(), h: z.number() });
+export const SizeSchema = z.strictObject({ w: z.number(), h: z.number() });
 export type Size = z.infer<typeof SizeSchema>;

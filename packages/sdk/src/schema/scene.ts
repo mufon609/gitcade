@@ -37,7 +37,7 @@ export const TilePropsSchema = z
   .catchall(z.union([z.boolean(), z.number(), z.string()]));
 
 /** Optional tilemap for grid-based scenes. */
-export const TilemapSchema = z.object({
+export const TilemapSchema = z.strictObject({
   tileSize: z.number().positive(),
   cols: z.number().int().positive(),
   rows: z.number().int().positive(),
@@ -60,7 +60,7 @@ export const TilemapSchema = z.object({
  * carried across that transition (the in-session hand-off set). Absent ⇒ the
  * full-wipe `loadScene` behavior, so a flow-less scene is byte-identical.
  */
-export const SceneFlowSchema = z.object({
+export const SceneFlowSchema = z.strictObject({
   /** Event → target scene id. When this scene emits the event, the host transitions. */
   on: z.record(z.string(), z.string()).default({}),
   /** `world.state` keys preserved when LEAVING this scene. */
@@ -88,10 +88,10 @@ export function isReservedFlowTarget(target: string): target is ReservedFlowTarg
 /** Scene background: a solid CSS color or a layered (parallax) descriptor. */
 export const BackgroundSchema = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     color: z.string().optional(),
     layers: z
-      .array(z.object({ src: z.string(), scrollX: z.number().default(0), scrollY: z.number().default(0) }))
+      .array(z.strictObject({ src: z.string(), scrollX: z.number().default(0), scrollY: z.number().default(0) }))
       .optional(),
   }),
 ]);
@@ -110,7 +110,7 @@ export const BackgroundSchema = z.union([
  * additive — base entities/systems come first, then the child's, overriding by `id`.
  * Absent ⇒ a standalone scene, so the field is purely additive.
  */
-export const SceneSchema = z.object({
+export const SceneSchema = z.strictObject({
   id: z.string().min(1),
   /** Base scene id to inherit the shared stage from (additive optional). */
   extends: z.string().min(1).optional(),
@@ -121,7 +121,7 @@ export const SceneSchema = z.object({
   /** Background music track key/path (resolved by the audio player). */
   music: z.string().optional(),
   /** VIEWPORT (canvas) bounds in px — what the camera shows. Defaults to 800x600. */
-  size: z.object({ width: z.number().positive(), height: z.number().positive() }).default({
+  size: z.strictObject({ width: z.number().positive(), height: z.number().positive() }).default({
     width: 800,
     height: 600,
   }),
@@ -135,7 +135,7 @@ export const SceneSchema = z.object({
    * system to move the viewport across it. The viewport (`size`) should stay constant
    * across a game's scenes (the canvas is sized once from the entry scene).
    */
-  world: z.object({ width: z.number().positive(), height: z.number().positive() }).optional(),
+  world: z.strictObject({ width: z.number().positive(), height: z.number().positive() }).optional(),
   /** Data-driven scene transitions + in-session state hand-off (additive optional). */
   flow: SceneFlowSchema.optional(),
 });

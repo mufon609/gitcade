@@ -9,7 +9,7 @@ import { ParamsSchema } from "./params.js";
  * Same `{ id, type, params }` shape as a behavior; `type` names a registered
  * system implementation ({@link SystemFn}). FROZEN.
  */
-export const SystemDefSchema = z.object({
+export const SystemDefSchema = z.strictObject({
   id: z.string().optional(),
   type: z.string().min(1),
   params: ParamsSchema.default({}),

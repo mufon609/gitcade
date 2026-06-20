@@ -17,7 +17,7 @@ import { ParamsSchema } from "./params.js";
  *
  * This `{ id, type, params }` shape is FROZEN.
  */
-export const BehaviorDefSchema = z.object({
+export const BehaviorDefSchema = z.strictObject({
   id: z.string().optional(),
   type: z.string().min(1),
   params: ParamsSchema.default({}),

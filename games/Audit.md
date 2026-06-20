@@ -26,13 +26,15 @@ _None currently — new finds get filed here._
 
 ## Design weaknesses
 
-- **"Data not code" leaks** — typo'd fields are silently dropped (no unknown-key detection).
+Ordered by implementation priority (top first): schema/runtime honesty before
+features, hygiene, and tooling; the invasive channels refactor last.
+
 - **Spawn defaults** — `world.spawn` bypasses the schema-default path, so spawners hand-roll default backfill.
-- **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
-- **Dead schema fields** — `scene.music` and tile `ladder`/`lane`/`walkable` advertise capability the runtime never consumes.
 - **Scene `extends` granularity** — merges whole entities by id; no per-field / `$cfg`-slice override of an inherited entity.
-- **Untyped channels** — event bus is `string + unknown` with magic-string names; cross-part state spreads across four overlapping untyped bags.
+- **Dead schema fields** — `scene.music` and tile `ladder`/`lane`/`walkable` advertise capability the runtime never consumes.
+- **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
 - **No canvas DPR/resize handling** — device pixel ratio is read once at construction.
+- **Untyped channels** — event bus is `string + unknown` with magic-string names; cross-part state spreads across four overlapping untyped bags.
 
 ---
 
@@ -40,7 +42,6 @@ _None currently — new finds get filed here._
 
 **Tier 1 — platform cleanliness**
 - Schema versioning + migration (no `schemaVersion` stamp on any artifact).
-- Finish the validator hardening: unknown-key strictness.
 
 **Tier 2 — professional polish**
 - `world.spawn(partialDef)` that applies the same defaults as scene load.

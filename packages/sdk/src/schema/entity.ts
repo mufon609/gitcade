@@ -33,13 +33,13 @@ import { BehaviorDefSchema } from "./behavior.js";
  *    Default `{0,0}` (collider == sprite box). Structural geometry like `size`/`position`, so it is
  *    NOT subject to the no-magic-numbers rule (that rule scans only behavior/system `params`).
  */
-export const ColliderSchema = z.object({
+export const ColliderSchema = z.strictObject({
   role: z.enum(["dynamic", "solid"]),
   oneWay: z.boolean().default(false),
   carriable: z.boolean().default(false),
   pushable: z.boolean().default(false),
   mass: z.number().positive().default(1),
-  inset: z.object({ x: z.number().default(0), y: z.number().default(0) }).default({ x: 0, y: 0 }),
+  inset: z.strictObject({ x: z.number().default(0), y: z.number().default(0) }).default({ x: 0, y: 0 }),
 });
 
 export type ColliderDef = z.infer<typeof ColliderSchema>;
@@ -60,7 +60,7 @@ export type ColliderDef = z.infer<typeof ColliderSchema>;
  *   read/write it. Initial state values are data, not balance, but authors are
  *   encouraged to seed numeric state via `$cfg` in a behavior instead.
  */
-export const EntityDefSchema = z.object({
+export const EntityDefSchema = z.strictObject({
   id: z.string().min(1),
   sprite: SpriteSchema.default({ kind: "none" }),
   size: SizeSchema.default({ w: 16, h: 16 }),
@@ -105,7 +105,7 @@ export const EntityDefSchema = z.object({
    * child sits exactly at the parent's origin, unrotated, unscaled.
    */
   local: z
-    .object({
+    .strictObject({
       x: z.number().default(0),
       y: z.number().default(0),
       rotation: z.number().optional(),

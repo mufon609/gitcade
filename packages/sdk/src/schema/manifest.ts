@@ -12,7 +12,7 @@ export type Tier = z.infer<typeof TierSchema>;
  */
 export const LicenseSchema = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     code: z.string().default("MIT"),
     assets: z.string().default("CC-BY-4.0"),
   }),
@@ -22,7 +22,7 @@ export type License = z.infer<typeof LicenseSchema>;
 /** An author entry: a bare name or a structured record. */
 export const AuthorSchema = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     name: z.string().min(1),
     email: z.string().optional(),
     url: z.string().optional(),
@@ -38,7 +38,7 @@ export type Author = z.infer<typeof AuthorSchema>;
  * Consumed by the library `persistence` system; absent ⇒ no persistence. The
  * cross-SCENE/in-session hand-off set lives separately on `scene.flow.persist`.
  */
-export const PersistSchema = z.object({
+export const PersistSchema = z.strictObject({
   /** `world.state` keys persisted across runs (saved on change/interval, loaded on boot). */
   keys: z.array(z.string()).default([]),
   /** Storage key/namespace suffix for the save blob. */
@@ -53,7 +53,7 @@ export type PersistConfig = z.infer<typeof PersistSchema>;
  * action it performs, so the platform can render "Space · Rise" on game cards and the
  * detail page instead of scraping a title scene's prose.
  */
-export const ControlHintSchema = z.object({
+export const ControlHintSchema = z.strictObject({
   /** The input as shown to players, e.g. `"Space"`, `"Arrows / WASD"`, `"Tap"`. */
   input: z.string().min(1),
   /** What that input does, e.g. `"Rise"`, `"Move"`, `"Place tower"`. */
@@ -75,7 +75,7 @@ export type ControlHint = z.infer<typeof ControlHintSchema>;
  * This shape is FROZEN.
  */
 export const GameManifestSchema = z
-  .object({
+  .strictObject({
     name: z.string().min(1),
     slug: SlugSchema,
     description: z.string().default(""),

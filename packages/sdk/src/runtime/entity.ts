@@ -145,7 +145,15 @@ export class Entity {
   /** Draw layer; higher draws on top. */
   layer: number;
   zIndex: number;
-  tags: Set<string>;
+  /**
+   * Membership tags, set ONCE at construction and immutable thereafter — `readonly` + `ReadonlySet`
+   * forbid both reassignment and `.add`/`.delete`/`.clear` at the type level. This is the enforced
+   * invariant `World`'s tag index ({@link World.query}/{@link World.nearest}/{@link World.entityAt})
+   * relies on: that index is maintained only on spawn (`add`) and rebuilt on `prune`/`resetEntities`,
+   * so a live retag would silently desync it. To (re)tag, build the entity with the right tags (mutate
+   * the DEF before `world.spawn`, as the snake segments do) rather than mutating a live set.
+   */
+  readonly tags: ReadonlySet<string>;
   sprite: Sprite;
   anim: AnimationState = { current: null, frame: 0, elapsed: 0 };
   behaviors: BehaviorInstance[] = [];

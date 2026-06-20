@@ -93,6 +93,23 @@ function spawn(w: World, r: () => number): Entity {
 }
 
 describe("World tag index — query/nearest/entityAt", () => {
+  it("forbids live retag at the type level — the tag index's correctness invariant", () => {
+    // The index is maintained ONLY on add()/prune()/resetEntities(); a live `.add`/`.delete`/`.clear`
+    // would silently desync it. Entity.tags is `readonly ReadonlySet`, so those mutators don't exist on
+    // its type. This pin is enforced by `npm run typecheck` (tsconfig includes `test`): reverting the
+    // field to a mutable Set makes each @ts-expect-error unused, which fails the typecheck — the
+    // standing guard against re-opening the footgun. (At runtime the backing object is a real Set, so
+    // referencing the methods is harmless; the value is purely the compile-time assertion.)
+    const e = new Entity({ id: "x", x: 0, y: 0, w: 1, h: 1, layer: 0, sprite: NONE, tags: ["a"] });
+    // @ts-expect-error — Entity.tags is ReadonlySet: no `add` on the live tag set.
+    void e.tags.add;
+    // @ts-expect-error — nor `delete`.
+    void e.tags.delete;
+    // @ts-expect-error — nor `clear`.
+    void e.tags.clear;
+    expect(e.hasTag("a")).toBe(true); // reads still work
+  });
+
   it("matches the naive scan across spawn / mid-tick destroy / prune churn", () => {
     const w = makeWorld();
     const r = mulberry32(0xa11ce);

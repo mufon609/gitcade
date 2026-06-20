@@ -226,6 +226,9 @@ export class Game {
     // it on every transition. Using the dedicated reset (not resolvePersistKeys) means
     // a scene change does NOT emit a spurious "persist-restored" for leftover claims.
     this.world.resetPersistTracking();
+    // Pending one-shot timers (`world.after`) are scene-scoped: drop them so a timer armed in
+    // the leaving scene can never fire into the entered one (the cross-scene-leak class).
+    this.world.clearScheduled();
     // Logical-action bindings/overrides are scene-scoped too: the active scene
     // owns its `input-actions` system, which re-installs them on its first tick.
     this.world.input.resetActions();
@@ -344,6 +347,11 @@ export class Game {
       if (!e.alive) continue;
       for (const b of e.behaviors) b.fn(e, this.world, b.params, dt, b.scratch);
     }
+
+    // Fire any one-shot timers due this tick (the `world.after` scheduler), after the whole
+    // behavior pass and BEFORE prune — so a timer that spawns/destroys is pruned and resolved in
+    // the same tick. No-op fast path when nothing is scheduled, so a timer-free game is byte-identical.
+    this.world.runScheduled();
 
     this.world.prune();
     // Resolve every dynamic body against the solid world (the unified collision phase): push

@@ -15,6 +15,7 @@ import {
 import {
   type Issue,
   checkParams,
+  checkUniqueIds,
   checkSceneRefs,
   collectPartRefs,
   checkPartRefs,
@@ -131,6 +132,13 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     issues.push(...scanRawStorage(absDir));
   }
 
+  // 4b. Determinism source scan (warning-only, all tiers): wall-clock / Math.random in a
+  //     game's simulation source desyncs replays/ghosts. The twice-run advisory below catches
+  //     this for default-registry games, but a CUSTOM-part game skips that advisory — so scan
+  //     the source directly, the root-cause companion to the runtime check. `main.ts` host glue
+  //     is exempt (it legitimately reads the wall clock for non-sim concerns like offline credit).
+  issues.push(...scanNonDeterministicSource(absDir));
+
   // 5. No-magic-numbers + $cfg resolution
   if (scenes.length > 0) {
     issues.push(...checkParams(scenes, config));
@@ -141,6 +149,13 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
   //     real scene id — a broken link would otherwise slip through to runtime.
   if (scenes.length > 0) {
     issues.push(...checkSceneRefs(scenes, manifest));
+  }
+
+  // 5c. Identifier uniqueness: duplicate scene ids (a whole scene silently dropped)
+  //     and duplicate entity ids within a scene (byId/parent/tag resolution collapses)
+  //     — runtime-corrupting states the per-file schema structurally cannot see.
+  if (scenes.length > 0) {
+    issues.push(...checkUniqueIds(scenes));
   }
 
   // 6. Part catalog resolution
@@ -364,6 +379,57 @@ function scanRawStorage(dir: string): Issue[] {
     }
   };
   walk(dir);
+  return issues;
+}
+
+/**
+ * Scan a game's `src/` simulation source for entropy that desyncs a replay: `Math.random`
+ * (route randomness through `world.rng`), and wall-clock reads `Date.now`/`performance.now`/
+ * `new Date` (a fixed-timestep sim must derive time from `world.time`/`world.frame`). WARNING
+ * only — never fails a publish — and exempts `main.ts` (host glue, allowed non-sim timing).
+ * Mirrors {@link scanRawStorage}: the determinism advisory is a runtime check, this is its
+ * static root-cause companion (and the only determinism signal for custom-part games, which
+ * the twice-run advisory skips).
+ */
+function scanNonDeterministicSource(dir: string): Issue[] {
+  const issues: Issue[] = [];
+  const banned = /\b(Math\.random|Date\.now|performance\.now|new Date)\b/;
+  const srcDir = path.join(dir, "src");
+  if (!fs.existsSync(srcDir)) return issues;
+  const skip = new Set(["node_modules", "dist", ".git", ".next"]);
+
+  const walk = (current: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      if (ent.name.startsWith(".") && ent.isDirectory()) continue;
+      const full = path.join(current, ent.name);
+      if (ent.isDirectory()) {
+        if (!skip.has(ent.name)) walk(full);
+      } else if (SOURCE_EXTS.has(path.extname(ent.name)) && ent.name !== "main.ts") {
+        let text: string;
+        try {
+          text = fs.readFileSync(full, "utf8");
+        } catch {
+          continue;
+        }
+        if (banned.test(text)) {
+          issues.push({
+            level: "warning",
+            code: "nondeterministic-source",
+            message:
+              "simulation source reads the wall clock or Math.random — these desync replays, ghosts, and seeded challenges. Route randomness through world.rng and derive time from world.time/world.frame (main.ts host glue is exempt)",
+            where: path.relative(dir, full),
+          });
+        }
+      }
+    }
+  };
+  walk(srcDir);
   return issues;
 }
 

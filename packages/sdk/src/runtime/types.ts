@@ -13,9 +13,10 @@ export type ResolvedParams = Record<string, unknown>;
  *
  * A behavior is a "pure-ish" function invoked once per entity per fixed update:
  * it reads `entity`/`world` and mutates them (and only them) in place. It must
- * not retain MODULE-level mutable state, perform I/O, or schedule timers — all
- * side effects go through the `world` API (spawn/destroy/events/audio/storage),
- * which keeps behaviors deterministic and unit-testable.
+ * not retain MODULE-level mutable state or perform I/O — all side effects go
+ * through the `world` API (spawn/destroy/events/audio/storage, plus deterministic
+ * one-shot scheduling via `world.after`), which keeps behaviors deterministic and
+ * unit-testable. Per-instance cooldowns use the {@link cooldown} helper over `scratch`.
  *
  * PER-INSTANCE private working state (coyote/jump-buffer timers, an animation
  * state-machine's current clip, an AI's patrol index) lives in `scratch` — the

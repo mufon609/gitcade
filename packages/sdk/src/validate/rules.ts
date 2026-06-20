@@ -16,33 +16,37 @@ export interface Issue {
 
 /**
  * Walk a params object, invoking callbacks for each numeric leaf and each `$cfg`
- * reference, tracking both the immediate KEY (for the whitelist check) and a
- * human-readable PATH (for error messages). Arrays inherit their parent key, so
- * `points: [1,2]` is checked under key `points`.
+ * reference, tracking the immediate KEY (for the whitelist check), a human-readable
+ * PATH (for error messages), and whether the number is a DIRECT array element. The
+ * `inArray` flag exists because the structural-key whitelist is meant for single
+ * SCALARS: a bare numeric array (`offset: [50, 120, 9999]`) would otherwise inherit
+ * its parent key and smuggle every element past the no-magic-numbers rule. A number
+ * nested inside an OBJECT that happens to sit in an array (`path: [{x,y}]`) is judged
+ * by its own key, so legitimate object-arrays (waypoints) are unaffected.
  */
 export function walkParams(
   params: unknown,
   base: string,
-  onNumber: (key: string, value: number, where: string) => void,
+  onNumber: (key: string, value: number, where: string, inArray: boolean) => void,
   onCfgRef: (ref: string, where: string) => void,
 ): void {
-  const visit = (value: unknown, key: string, where: string): void => {
+  const visit = (value: unknown, key: string, where: string, inArray: boolean): void => {
     if (typeof value === "number") {
-      onNumber(key, value, where);
+      onNumber(key, value, where, inArray);
     } else if (typeof value === "string") {
       if (isCfgRef(value)) onCfgRef(value, where);
     } else if (Array.isArray(value)) {
-      value.forEach((v, i) => visit(v, key, `${where}[${i}]`));
+      value.forEach((v, i) => visit(v, key, `${where}[${i}]`, true));
     } else if (value && typeof value === "object") {
       for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-        visit(v, k, `${where}.${k}`);
+        visit(v, k, `${where}.${k}`, false);
       }
     }
   };
 
   if (params && typeof params === "object" && !Array.isArray(params)) {
     for (const [k, v] of Object.entries(params as Record<string, unknown>)) {
-      visit(v, k, `${base}.${k}`);
+      visit(v, k, `${base}.${k}`, false);
     }
   }
 }
@@ -56,7 +60,19 @@ export function walkParams(
 export function checkParams(scenes: Scene[], config: Config): Issue[] {
   const issues: Issue[] = [];
 
-  const onNumber = (key: string, value: number, where: string): void => {
+  const onNumber = (key: string, value: number, where: string, inArray: boolean): void => {
+    // A bare numeric array element is never structural-whitelisted: a list of raw numbers
+    // is the one shape that can smuggle balance past the key whitelist (every element would
+    // otherwise inherit a whitelisted parent key). It must live in config.json.
+    if (inArray) {
+      issues.push({
+        level: "error",
+        code: "magic-number-array",
+        message: `numeric literal ${value} inside an array under key "${key}" — an array of raw numbers smuggles balance past the structural-key whitelist; move the list to config.json and reference its values as "$cfg.<key>"`,
+        where,
+      });
+      return;
+    }
     if (!isWhitelistedNumericKey(key)) {
       issues.push({
         level: "error",
@@ -86,6 +102,52 @@ export function checkParams(scenes: Scene[], config: Config): Issue[] {
     scene.systems.forEach((s, si) => {
       walkParams(s.params, `${scene.id}.systems[${si}:${s.type}].params`, onNumber, onCfgRef);
     });
+  }
+
+  return issues;
+}
+
+/**
+ * Identifier UNIQUENESS — the holes the schema (which validates one file / one entity
+ * at a time) structurally cannot see, and which corrupt the runtime SILENTLY:
+ *  - two scene files declaring the same `id` collapse to one in the runtime's scene
+ *    `Map` (last-write-wins), so a whole playable scene vanishes while every cross-ref
+ *    to it still "resolves";
+ *  - two entities sharing an `id` within a scene collapse in `World.byId` (last-write-
+ *    wins), so parent links, tag targeting, and `byId` lookups silently resolve to one.
+ * Both pass the schema and the 60-frame smoke boot, so they must be caught here. Entity
+ * ids are checked on the AUTHORED scenes (a child scene legitimately RE-declares a base
+ * entity's id via `extends` to override it — that is not a duplicate).
+ */
+export function checkUniqueIds(scenes: Scene[]): Issue[] {
+  const issues: Issue[] = [];
+
+  const sceneCounts = new Map<string, number>();
+  for (const s of scenes) sceneCounts.set(s.id, (sceneCounts.get(s.id) ?? 0) + 1);
+  for (const [id, n] of sceneCounts) {
+    if (n > 1) {
+      issues.push({
+        level: "error",
+        code: "duplicate-scene-id",
+        message: `scene id "${id}" is declared by ${n} files in src/scenes/ — the runtime keeps only the last, silently dropping the others; scene ids must be unique`,
+        where: `src/scenes (${id})`,
+      });
+    }
+  }
+
+  for (const scene of scenes) {
+    const counts = new Map<string, number>();
+    for (const e of scene.entities) counts.set(e.id, (counts.get(e.id) ?? 0) + 1);
+    for (const [id, n] of counts) {
+      if (n > 1) {
+        issues.push({
+          level: "error",
+          code: "duplicate-entity-id",
+          message: `entity id "${id}" appears ${n} times in scene "${scene.id}" — World.byId/parent/tag-target resolution collapses to a single one; entity ids must be unique within a scene`,
+          where: `${scene.id}.entities (${id})`,
+        });
+      }
+    }
   }
 
   return issues;

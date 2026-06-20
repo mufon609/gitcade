@@ -58,3 +58,25 @@ export function strArray(params: ResolvedParams, key: string): string[] {
   if (typeof v === "string") return [v];
   return [];
 }
+
+/**
+ * The per-instance COOLDOWN gate: "ready at most once per `seconds`". This is the single
+ * most hand-rolled pattern across the library (the fire/swing/spawn/contact-damage/portal
+ * `if (now < last + rate) return; last = now` dance), so it lives once here, correctly.
+ *
+ * Pass a behavior's `scratch` (its per-instance store — see {@link BehaviorFn}), a `key`
+ * namespacing this cooldown within that scratch, the current `world.time`, and the interval.
+ * Returns `true` and ARMS the cooldown when ready; `false` while still cooling. A pure function
+ * of the stored stamp + `now`, so it is replay-deterministic; the first call (no stamp yet) is
+ * always ready. Reads the time you pass — keep it on `world.time` (never the wall clock).
+ *
+ *   if (cooldown(scratch, "fire", world.time, fireRate)) spawnBullet();
+ */
+export function cooldown(scratch: Record<string, unknown>, key: string, now: number, seconds: number): boolean {
+  const stamp = `__cd_${key}`;
+  const last = scratch[stamp];
+  const lastT = typeof last === "number" ? last : -Infinity;
+  if (now < lastT + seconds) return false;
+  scratch[stamp] = now;
+  return true;
+}

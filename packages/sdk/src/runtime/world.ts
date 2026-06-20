@@ -151,6 +151,16 @@ export class World {
   private byIdIndex = new Map<string, Entity>();
   private spawnedThisTick = false;
 
+  /**
+   * One-shot timers scheduled via {@link after}, fired by the host loop ({@link runScheduled})
+   * when simulated `time` reaches each `at`. `seq` is the monotonic insertion order — the
+   * deterministic tie-break when several timers come due on the same tick. Scene-scoped: cleared
+   * by {@link clearScheduled} on every transition, so a pending timer can never fire into the
+   * next scene (the same cross-scene-leak class the persistence claim/restore tracking fixed).
+   */
+  private _scheduled: Array<{ at: number; fn: () => void; seq: number }> = [];
+  private _scheduleSeq = 0;
+
   constructor(opts: WorldOptions) {
     this.bounds = opts.bounds;
     // Default the viewport to the whole world at the origin — the host overrides
@@ -280,6 +290,42 @@ export class World {
     const r = this._pendingScene;
     this._pendingScene = null;
     return r;
+  }
+
+  /**
+   * Run `fn` ONCE after `seconds` of SIMULATED time — the deterministic, tick-based scheduling
+   * primitive a behavior/system composes against instead of hand-rolling a `world.time`-vs-stored-
+   * timestamp countdown. The callback fires from the host loop ({@link runScheduled}) on the first
+   * tick whose `time` has reached the due instant, in (due-time, schedule-order) order, so two runs
+   * on the same seed + input fire identically — replay-safe. A non-positive `seconds` is clamped to
+   * 0 (fires next drain). Scene-scoped: a pending timer is dropped on a scene change, never firing
+   * into the next scene. Re-scheduling from inside a callback is fine (the new timer is due later).
+   */
+  after(seconds: number, fn: () => void): void {
+    this._scheduled.push({ at: this.time + Math.max(0, seconds), fn, seq: this._scheduleSeq++ });
+  }
+
+  /**
+   * Host-only: fire every timer whose due time has been reached this tick, in deterministic
+   * (due-time, then schedule-order) order. Timers scheduled BY a firing callback (due strictly
+   * later, since `after` adds `this.time + seconds ≥ this.time`) are retained for a later tick.
+   * No-op fast path when nothing is scheduled, so a timer-free game is byte-identical. The host
+   * drains this in the fixed-update tick (after behaviors, before prune) so a timer that spawns or
+   * destroys is pruned and resolved in the SAME tick as an entity moved by a behavior.
+   */
+  runScheduled(): void {
+    if (this._scheduled.length === 0) return;
+    const now = this.time;
+    const due = this._scheduled.filter((t) => t.at <= now);
+    if (due.length === 0) return;
+    this._scheduled = this._scheduled.filter((t) => t.at > now);
+    due.sort((a, b) => a.at - b.at || a.seq - b.seq);
+    for (const t of due) t.fn();
+  }
+
+  /** Host-only: drop all pending timers (scene-scoped reset, called by `Game.loadScene`). */
+  clearScheduled(): void {
+    this._scheduled = [];
   }
 
   /** True if `world.state[key]` (a numeric balance) is at least `cost`. */

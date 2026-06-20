@@ -1,6 +1,6 @@
 {
   "name": "@gitcade/library",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "GitCade Component Library — game-agnostic, param-driven parts for the GitCade SDK: behaviors, systems, entities, UI, FX, and generated assets (art, audio, tilesets).",
   "license": "MIT",
   "type": "module",

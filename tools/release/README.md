@@ -18,38 +18,38 @@ release whose versions/pins are already committed.
 
 | Script | Does |
 |---|---|
-| `release.mjs <phase\|all>` | Orchestrator — runs the phases below in the safe order. |
+| `policy.mjs` | **The one source of truth** — role→pin policy: closed path classifier, expected pins per role, audit invariants, publish planning. Pure + tested (`npm run release:test`). |
+| `release.mjs <doctor\|sync\|gate\|publish>` | The four release commands (below), driven by `policy.mjs`. |
 | `sync-game-repos.mjs` | Mirrors each monorepo game (committed source, via `git archive`) into `gitcade-games/<slug>`, re-verifies from the clean clone against **public npm** (`npm install` → `build` → `gitcade validate`), commits + pushes only on change. |
 | `publish-artifacts.mjs` | Builds each game's `/dist` and uploads it to the bucket under the frozen `{slug}/{branch}/{path}` key with worker-identical content-types. |
 | `lib.mjs` | Shared helpers (env parsing, the game list, S3 client, content-types). |
 
-### Phases (`release.mjs`)
+### Commands (`release.mjs`)
 
 ```
-verify    npm run build + npm test + gitcade validate (all six games)
-npm       publish @gitcade/sdk@<v> then @gitcade/library@<v>  (skips a version already on npm)
-monorepo  git push origin main
-repos     sync-game-repos.mjs   (needs the npm phase done first — clones build against public npm)
-artifacts publish-artifacts.mjs (needs Postgres-free; just MinIO + a local build)
+doctor   role-classified pin audit + invariants + read-only creds check; non-zero on problems
+sync     apply the role pin policy (internal→"*", games→exact current, library peer→^range)
+         + regenerate CATALOG.json + refresh the lockfile. Idempotent (no-op when already clean).
+gate     `npm ci` (clean no-flags install) + build + test + validate:pong + validate:proofs
+         + `npm pack --dry-run` per publishable package AT ITS OWN VERSION.
+publish  per-package npm publish (reads EACH package's own version; skips one already on npm)
+         → push monorepo → sync game repos → (re)publish MinIO artifacts. First-class --dry-run.
 ```
 
-`<v>` is read from `packages/sdk/package.json` (sdk + library release in lockstep).
+sdk and library are **not assumed to be in lockstep** — `publish` reads each package's own
+version independently and skips any already live (so a re-run after a partial failure is safe).
 
 ## Usage
 
 ```bash
-# Full release, in order (verify → npm → monorepo → repos → artifacts):
-node tools/release/release.mjs all
+# Cut a release (see ../../RELEASE.md):
+npm run release:doctor                  # audit; fix any issue before continuing
+npm run release:sync                    # bring pins/catalog/lockfile to policy
+npm run release:gate                    # full clean-install gate + pack dry-run
+npm run release:publish -- --dry-run    # rehearse the whole publish, mutating nothing
+npm run release:publish                 # the real thing
 
-# A single phase:
-node tools/release/release.mjs artifacts
-node tools/release/release.mjs repos --only=snake,helicopter
-
-# Always dry-run first for the outward-facing phases:
-node tools/release/release.mjs repos --dry-run
-node tools/release/release.mjs artifacts --dry-run
-
-# Lower-level, direct:
+# Lower-level, direct (both honor --dry-run):
 node tools/release/sync-game-repos.mjs --only=tower-defense --no-push
 node tools/release/publish-artifacts.mjs --only=idle-clicker --dry-run
 ```
@@ -67,14 +67,15 @@ node tools/release/publish-artifacts.mjs --only=idle-clicker --dry-run
 ## Prerequisites
 
 - **npm**: logged in to the `@gitcade` scope (`npm whoami`). `npm publish` of a
-  version is **irreversible** — the `npm` phase self-skips a version already live.
-- **git/ssh**: push access to the `gitcade-games` org (the `repos` phase pushes to
-  `git@github.com:gitcade-games/<slug>.git`). `rsync` must be on PATH.
+  version is **irreversible** — `publish` self-skips a version already live.
+- **git/ssh**: push access to the `gitcade-games` org (publish's game-repo step pushes
+  to `git@github.com:gitcade-games/<slug>.git`). `rsync` must be on PATH.
 - **MinIO/S3**: the `S3_*` keys in the repo-root `.env` (MinIO on `:9000` locally;
   `S3_FORCE_PATH_STYLE=true`). The client honors path-style so the same code works
   against real S3/R2.
-- The `repos` phase **requires the `npm` phase to have run** (the clean-clone
-  `npm install` resolves `@gitcade/*` from public npm).
+- `doctor` checks all three read-only and `publish` refuses on a real run if any is
+  missing. The game-repo step **requires the npm publish to have run first** (the
+  clean-clone `npm install` resolves `@gitcade/*` from public npm).
 
 ## What is NOT automated (on purpose)
 

@@ -1,85 +1,180 @@
 #!/usr/bin/env node
-// One-command release runbook for a GitCade PATCH/MINOR. Runs the phases in the
-// safe order the 0.3.x releases used:
+// GitCade release runbook — four idempotent, dry-runnable commands driven by the
+// role→pin POLICY in policy.mjs (the one source of truth). See RELEASE.md.
 //
-//   verify    npm run build + npm test (root) + `gitcade validate` all six games
-//   npm       publish @gitcade/sdk@<v> then @gitcade/library@<v> (skips if already live)
-//   monorepo  git push origin main
-//   repos     sync each game into its gitcade-games/<slug> repo + re-verify + push
-//   artifacts build each /dist and (re)publish to MinIO under {slug}/main/
+//   doctor   audit role→pin invariants + creds (read-only; non-zero on problems)
+//   sync     apply the pin policy + regen catalog + refresh lockfile (idempotent)
+//   gate     clean `npm ci` install + build + test + validate + npm pack --dry-run
+//   publish  divergence-aware npm (per-package version, skip-if-live) + monorepo
+//            push + game-repos + MinIO artifacts; first-class --dry-run
 //
-// Usage:
-//   node tools/release/release.mjs <phase|all> [--only=slug,...] [--dry-run] [--no-verify]
-//
-//   node tools/release/release.mjs all                 # full release, in order
-//   node tools/release/release.mjs artifacts           # just MinIO
-//   node tools/release/release.mjs repos --only=snake  # one game's repo
-//
-// `npm` is irreversible (a published version can't be replaced) — it self-skips a
-// version already on npm, and respects --dry-run. The version is read from
-// packages/sdk/package.json (sdk + library are released in lockstep).
+// Usage: node tools/release/release.mjs <cmd> [--dry-run] [--only=slug,...]
 
 import fs from "node:fs";
 import path from "node:path";
-import { REPO_ROOT, log, parseArgs, run } from "./lib.mjs";
+import { REPO_ROOT, log, parseArgs, run, loadEnv } from "./lib.mjs";
+import {
+  SDK_PEER,
+  coreVersions,
+  catalogVersion,
+  auditPackages,
+  computeRepins,
+  planNpmPublish,
+  runNpmPublish,
+} from "./policy.mjs";
 
 const args = parseArgs();
-const phase = args.phase ?? args._[0];
-const PHASES = ["verify", "npm", "monorepo", "repos", "artifacts"];
-const ALL = ["all", ...PHASES];
-if (!phase || !ALL.includes(phase)) {
-  console.log(`usage: node tools/release/release.mjs <${ALL.join("|")}> [--only=...] [--dry-run] [--no-verify]`);
-  process.exit(phase ? 1 : 0);
+const cmd = args._[0];
+
+// ── creds (read-only, best-effort) ───────────────────────────────────────────
+function credChecks() {
+  const out = [];
+  const npm = run("npm", ["whoami"], { capture: true, allowFail: true });
+  out.push({ name: "npm login", ok: npm.status === 0, detail: npm.status === 0 ? npm.stdout.trim() : "run `npm login`" });
+  const ssh = run("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-T", "git@github.com"], { capture: true, allowFail: true });
+  const sshOk = /successfully authenticated/i.test(`${ssh.stdout}${ssh.stderr}`);
+  out.push({ name: "github ssh (gitcade-games push)", ok: sshOk, detail: sshOk ? "authenticated" : "no ssh access to github" });
+  let envOk = false, envDetail;
+  try {
+    const e = loadEnv();
+    const miss = ["S3_ENDPOINT", "S3_BUCKET", "S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY"].filter((k) => !e[k]);
+    envOk = miss.length === 0;
+    envDetail = envOk ? "S3_* present" : `missing ${miss.join(", ")}`;
+  } catch (err) {
+    envDetail = err.message.split("\n")[0];
+  }
+  out.push({ name: ".env S3 keys", ok: envOk, detail: envDetail });
+  return out;
 }
 
-const version = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "packages/sdk/package.json"), "utf8")).version;
-const pass = [args.only ? `--only=${args.only.join(",")}` : null, args.dryRun ? "--dry-run" : null].filter(Boolean);
-const sub = (script, extra = []) => run("node", [path.join("tools/release", script), ...pass, ...extra]);
+// ── doctor ───────────────────────────────────────────────────────────────────
+function doctor() {
+  log.banner("DOCTOR — role-classified pin audit");
+  const { versions, catalog, rows, issues } = auditPackages();
+  log.note(`core: sdk ${versions.sdk} · library ${versions.library} · catalog ${catalog} · SDK_PEER ${SDK_PEER}`);
+  for (const role of ["core", "game", "internal"]) {
+    const list = rows.filter((r) => r.role === role);
+    console.log(`\n  ${role} (${list.length}):`);
+    for (const r of list) {
+      const pins = Object.entries(r.pins).map(([k, v]) => `${k.split(".").pop()}=${v}`).join(" ");
+      console.log(`    ${r.dir.padEnd(42)} ${pins || "(no @gitcade deps)"}`);
+    }
+  }
+  log.banner("Invariants");
+  if (issues.length === 0) log.ok("all pin/version invariants hold");
+  else for (const i of issues) log.err(`${i.pkg}: ${i.msg}  → ${i.fix}`);
 
-function npmLive(pkg) {
-  const r = run("npm", ["view", `${pkg}@${version}`, "version"], { capture: true, allowFail: true });
-  return r.status === 0 && r.stdout.trim() === version;
+  log.banner("Credentials (read-only; needed only for publish)");
+  for (const c of credChecks()) (c.ok ? log.ok : log.warn)(`${c.name}: ${c.detail}`);
+
+  if (issues.length) {
+    log.err(`${issues.length} invariant issue(s) — run \`npm run release:sync\``);
+    process.exit(1);
+  }
+  log.ok("doctor PASS — repo is policy-clean");
 }
 
-const run_ = {
-  verify() {
-    log.banner("VERIFY — build + test + validate");
-    run("npm", ["run", "build"]);
-    run("npm", ["test"]);
-    for (const g of ["snake", "helicopter", "breakout", "tower-defense", "idle-clicker", "survival-arena"]) {
-      run("npx", ["gitcade", "validate", `games/${g}`]);
-    }
-  },
-  npm() {
-    log.banner(`NPM — publish @gitcade/{sdk,library}@${version}`);
-    for (const pkg of ["@gitcade/sdk", "@gitcade/library"]) {
-      if (npmLive(pkg)) {
-        log.ok(`${pkg}@${version} already published — skipping`);
-        continue;
-      }
-      if (args.dryRun) {
-        log.warn(`dry-run: would npm publish ${pkg}@${version}`);
-        continue;
-      }
-      run("npm", ["publish", "-w", pkg]);
-      log.ok(`published ${pkg}@${version}`);
-    }
-  },
-  monorepo() {
-    log.banner("MONOREPO — push main");
-    if (args.dryRun) return log.warn("dry-run: would git push origin main");
-    run("git", ["push", "origin", "main"]);
-  },
-  repos() {
-    log.banner("REPOS — sync gitcade-games/<slug>");
-    sub("sync-game-repos.mjs", args.message ? [`--message=${args.message}`] : []);
-  },
-  artifacts() {
-    log.banner("ARTIFACTS — (re)publish MinIO");
-    sub("publish-artifacts.mjs");
-  },
-};
+// ── sync ───────────────────────────────────────────────────────────────────
+function sync() {
+  log.banner(`SYNC — apply role pin policy${args.dryRun ? " (dry-run)" : ""}`);
+  const repins = computeRepins();
+  if (repins.length === 0) log.note("pins already clean");
+  for (const { path: rel, after } of repins) {
+    if (args.dryRun) log.warn(`dry-run: would repin ${rel}`);
+    else { fs.writeFileSync(path.join(REPO_ROOT, rel), after); log.ok(`repinned ${rel}`); }
+  }
+  if (catalogVersion() !== coreVersions().library) {
+    if (args.dryRun) log.warn("dry-run: would regenerate CATALOG.json");
+    else { run("node", ["packages/library/scripts/build-catalog.mjs"]); log.ok("regenerated CATALOG.json"); }
+  } else log.note("catalog already in sync");
+  if (args.dryRun) return log.warn("dry-run: skipping npm install");
+  if (repins.length) { log.note("npm install (refresh lockfile)…"); run("npm", ["install", "--no-audit", "--no-fund"]); }
+  log.ok("sync complete — repo installable + publish-ready");
+}
 
-const toRun = phase === "all" ? PHASES : [phase];
-for (const p of toRun) run_[p]();
-log.banner(`Release ${version}: ${toRun.join(" → ")} complete`);
+// ── gate ───────────────────────────────────────────────────────────────────
+function gate() {
+  log.banner("GATE — clean install + build + test + validate + pack");
+  run("npm", ["ci"]); // canonical fresh-clone clean install (no flags; runs the prisma postinstall)
+  run("npm", ["run", "build"]);
+  run("npm", ["test"]);
+  run("npm", ["run", "validate:pong"]);
+  run("npm", ["run", "validate:proofs"]);
+  log.banner("npm pack --dry-run (per publishable, at its OWN version)");
+  const { sdk, library } = coreVersions();
+  for (const [name, ws, v] of [["@gitcade/sdk", "packages/sdk", sdk], ["@gitcade/library", "packages/library", library]]) {
+    run("npm", ["pack", "--dry-run"], { cwd: path.join(REPO_ROOT, ws) });
+    log.ok(`${name}@${v} packs`);
+  }
+  log.ok("gate PASS");
+}
+
+// ── publish (divergence-aware, idempotent, dry-runnable) ─────────────────────
+function publish() {
+  log.banner(`PUBLISH${args.dryRun ? " — DRY-RUN (mutates nothing)" : ""}`);
+
+  // Preflight: doctor must be clean, and creds present (creds only enforced on a real run).
+  const { issues } = auditPackages();
+  if (issues.length) {
+    log.err(`refusing: ${issues.length} doctor issue(s) — run \`npm run release:sync\` first`);
+    process.exit(1);
+  }
+  const creds = credChecks();
+  for (const c of creds) (c.ok ? log.ok : log.warn)(`${c.name}: ${c.detail}`);
+  const missing = creds.filter((c) => !c.ok);
+  if (missing.length && !args.dryRun) {
+    log.err(`refusing: missing credentials — ${missing.map((c) => c.name).join(", ")}. Resolve, then re-run.`);
+    process.exit(1);
+  }
+
+  const { sdk, library } = coreVersions();
+
+  // 1. npm — read EACH package's OWN version; skip a version already live (idempotent/resumable).
+  log.banner("npm — publish core packages (skip if already live)");
+  const isLive = (name, version) => {
+    const r = run("npm", ["view", `${name}@${version}`, "version"], { capture: true, allowFail: true });
+    return r.status === 0 && r.stdout.trim() === version;
+  };
+  const steps = planNpmPublish([{ name: "@gitcade/sdk", version: sdk }, { name: "@gitcade/library", version: library }], isLive);
+  runNpmPublish(steps, { dryRun: args.dryRun, exec: (c, a) => run(c, a), log: (m) => log.ok(m) });
+
+  // 2. monorepo push.
+  log.banner("monorepo — push main");
+  if (args.dryRun) log.warn("dry-run: would git push origin main");
+  else run("git", ["push", "origin", "main"]);
+
+  // 3. game repos (idempotent; needs npm live first → skip the clean-clone verify in dry-run).
+  log.banner("repos — sync gitcade-games/<slug>");
+  const repoArgs = [
+    args.dryRun ? "--dry-run" : null,
+    args.dryRun ? "--no-verify" : null, // public npm can't have the new versions until step 1 actually runs
+    args.only ? `--only=${args.only.join(",")}` : null,
+    `--message=chore: sync sdk ${sdk} + library ${library} from monorepo`,
+  ].filter(Boolean);
+  run("node", ["tools/release/sync-game-repos.mjs", ...repoArgs]);
+
+  // 4. MinIO artifacts.
+  log.banner("artifacts — (re)publish MinIO");
+  const artArgs = [args.dryRun ? "--dry-run" : null, args.only ? `--only=${args.only.join(",")}` : null].filter(Boolean);
+  run("node", ["tools/release/publish-artifacts.mjs", ...artArgs]);
+
+  log.ok(`publish ${args.dryRun ? "dry-run " : ""}complete`);
+}
+
+const COMMANDS = { doctor, sync, gate, publish };
+if (!cmd || !COMMANDS[cmd]) {
+  console.log(
+    `usage: node tools/release/release.mjs <doctor|sync|gate|publish> [--dry-run] [--only=slug,...]\n\n` +
+      `  doctor   audit role→pin invariants + creds (read-only)\n` +
+      `  sync     apply the pin policy + regen catalog + refresh lockfile (idempotent)\n` +
+      `  gate     clean install + build + test + validate + pack dry-run\n` +
+      `  publish  divergence-aware npm + repos + MinIO (run with --dry-run first)`,
+  );
+  process.exit(cmd ? 1 : 0);
+}
+try {
+  COMMANDS[cmd]();
+} catch (e) {
+  log.err(e.message.split("\n")[0]);
+  process.exit(1);
+}

@@ -21,6 +21,11 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "validate:pong": "gitcade validate examples/pong",
-    "validate:proofs": "for d in packages/library/proofs/*/; do gitcade validate \"$d\" || exit 1; done"
+    "validate:proofs": "for d in packages/library/proofs/*/; do gitcade validate \"$d\" || exit 1; done",
+    "release:doctor": "node tools/release/release.mjs doctor",
+    "release:sync": "node tools/release/release.mjs sync",
+    "release:gate": "node tools/release/release.mjs gate",
+    "release:publish": "node tools/release/release.mjs publish",
+    "release:test": "node --test tools/release/*.test.mjs"
   }
 }

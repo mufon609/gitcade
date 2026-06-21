@@ -105,6 +105,8 @@ export class Game {
   private readonly fixedDt: number;
   private readonly attachInput: boolean;
   private readonly canvas: HTMLCanvasElement | null;
+  /** The canvas 2D context (null headless / no-canvas) — held so {@link resize} can re-scale it. */
+  private readonly ctx: CanvasRenderingContext2D | null;
 
   private systems: SystemInstance[] = [];
   private accumulator = 0;
@@ -165,21 +167,10 @@ export class Game {
     });
 
     const ctx = this.canvas ? this.canvas.getContext("2d") : null;
-    if (this.canvas) {
-      // Render at DEVICE resolution. The canvas is CSS-scaled to fill its stage, so a
-      // backing store fixed at the logical scene size is an upsampled low-res bitmap —
-      // blurry shapes and text on any HiDPI (retina) display. Size the backing store by
-      // devicePixelRatio and scale the context once, so all drawing (which stays in
-      // LOGICAL world coordinates, including the renderer's per-frame background fill)
-      // maps logical→device px. CSS display size is left to the page (`#game{width:100%}`),
-      // so this changes sharpness only — not layout — and the rect-based pointer→world
-      // mapping in Input is unaffected. NOTE: assigning canvas.width resets the context
-      // transform, so the scale() MUST come after.
-      const dpr = typeof window !== "undefined" && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
-      this.canvas.width = Math.round(this.scene.size.width * dpr);
-      this.canvas.height = Math.round(this.scene.size.height * dpr);
-      if (ctx && typeof ctx.scale === "function") ctx.scale(dpr, dpr);
-    }
+    this.ctx = ctx;
+    // Size the canvas backing store for the first frame (see {@link resize}); start() then re-runs it on
+    // layout resize + DPR change so it never goes stale.
+    this.resize();
     this.renderer = new Renderer(ctx);
 
     this.loadScene(this.scene.id);
@@ -420,6 +411,35 @@ export class Game {
     this.renderer.render(this.world, this.scene.background, alpha);
   }
 
+  /**
+   * Match the canvas backing store to its CURRENT CSS display size × `devicePixelRatio`, and scale the
+   * 2D context so the renderer keeps drawing in LOGICAL scene coordinates (the scene fills the canvas).
+   * Unlike reading `devicePixelRatio` once at construction, this can be re-run — start() calls it on a
+   * layout RESIZE (`ResizeObserver`) and a DPR change (browser zoom / a drag to a different-density
+   * monitor, via `matchMedia`), and a host may call it directly after relaying out the canvas — so it
+   * stays crisp and never over-renders. Render-only (no canvas ⇒ no-op), so determinism is untouched.
+   * Before the element is laid out (`getBoundingClientRect` 0, or no DOM) it falls back to the logical
+   * scene size — identical to the old fixed sizing — and the first observer callback corrects it.
+   */
+  resize(): void {
+    const canvas = this.canvas;
+    const ctx = this.ctx;
+    if (!canvas || !ctx) return;
+    const dpr = typeof window !== "undefined" && window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+    const rect = typeof canvas.getBoundingClientRect === "function" ? canvas.getBoundingClientRect() : null;
+    const cssW = rect && rect.width > 0 ? rect.width : this.scene.size.width;
+    const cssH = rect && rect.height > 0 ? rect.height : this.scene.size.height;
+    const bw = Math.max(1, Math.round(cssW * dpr));
+    const bh = Math.max(1, Math.round(cssH * dpr));
+    // Assigning width/height RESETS the transform and CLEARS the canvas — only do it on a real change so
+    // a no-op resize callback never flickers; then (re)apply the logical→device transform either way.
+    if (canvas.width !== bw) canvas.width = bw;
+    if (canvas.height !== bh) canvas.height = bh;
+    if (typeof ctx.setTransform === "function") {
+      ctx.setTransform(bw / this.scene.size.width, 0, 0, bh / this.scene.size.height, 0, 0);
+    }
+  }
+
   /** Start the real-time loop (browser). Throws if no animation clock is available. */
   start(): void {
     if (this.running) return;
@@ -469,6 +489,40 @@ export class Game {
         prevDetach?.();
         window.removeEventListener("pointerdown", onGesture);
         window.removeEventListener("keydown", onGesture);
+      };
+    }
+
+    // Keep the canvas backing store matched to its CSS box × devicePixelRatio as the LAYOUT changes
+    // (ResizeObserver) and as the DPR changes (browser zoom / a drag to a different-density monitor —
+    // matched via matchMedia, re-armed per DPR since the query is DPR-specific). So devicePixelRatio is
+    // no longer read only at construction: the canvas stays crisp and never over-renders. Render-only;
+    // torn down with the rest of the lifecycle in stop().
+    if (this.canvas) {
+      this.resize();
+      const teardowns: Array<() => void> = [];
+      if (typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(() => this.resize());
+        ro.observe(this.canvas);
+        teardowns.push(() => ro.disconnect());
+      }
+      if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
+        let mq: MediaQueryList | null = null;
+        const onDpr = (): void => {
+          this.resize();
+          armDpr(); // re-arm: the just-fired query was for the OLD dpr
+        };
+        const armDpr = (): void => {
+          const dpr = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+          mq = window.matchMedia(`(resolution: ${dpr}dppx)`);
+          mq.addEventListener("change", onDpr, { once: true });
+        };
+        armDpr();
+        teardowns.push(() => mq?.removeEventListener("change", onDpr));
+      }
+      const prevDetach = this.detachLifecycle;
+      this.detachLifecycle = () => {
+        prevDetach?.();
+        for (const t of teardowns) t();
       };
     }
 

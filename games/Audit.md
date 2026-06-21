@@ -30,7 +30,6 @@ Ordered by implementation priority (top first): schema/runtime honesty before
 features, hygiene, and tooling; the invasive channels refactor last.
 
 - **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
-- **No canvas DPR/resize handling** — device pixel ratio is read once at construction.
 - **Untyped channels** — event bus is `string + unknown` with magic-string names; cross-part state spreads across four overlapping untyped bags.
 
 ---

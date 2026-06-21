@@ -125,7 +125,7 @@ render-applied offset — never the reverse).
 it performs, in order: manifest + config + scene schema validation; the storage
 rule (no raw `localStorage` for ecosystem games); the no-magic-numbers rule with
 `$cfg` resolution; cross-scene reference integrity (`flow.on` targets, `extends`,
-`levels`, `entryPoint`); `partId@version` catalog resolution against the pinned
+`levels`, `entryPoint`, and `overrides` patch targets); `partId@version` catalog resolution against the pinned
 `libraryVersion`; and a headless smoke boot.
 
 Its job is not to nag — it is to make the pillars *true*:

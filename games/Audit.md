@@ -29,7 +29,6 @@ _None currently — new finds get filed here._
 Ordered by implementation priority (top first): schema/runtime honesty before
 features, hygiene, and tooling; the invasive channels refactor last.
 
-- **Scene `extends` granularity** — merges whole entities by id; no per-field / `$cfg`-slice override of an inherited entity.
 - **Dead schema fields** — `scene.music` and tile `ladder`/`lane`/`walkable` advertise capability the runtime never consumes.
 - **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
 - **No canvas DPR/resize handling** — device pixel ratio is read once at construction.

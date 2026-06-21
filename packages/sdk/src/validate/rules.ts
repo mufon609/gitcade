@@ -102,9 +102,34 @@ export function checkParams(scenes: Scene[], config: Config): Issue[] {
     scene.systems.forEach((s, si) => {
       walkParams(s.params, `${scene.id}.systems[${si}:${s.type}].params`, onNumber, onCfgRef);
     });
+    // Entity overrides carry behavior params too (a level patching an inherited entity's behavior, or
+    // pointing it at a different `$cfg` slice). They are merged into entities only at resolve time, so
+    // scan them here at their authored `overrides[…]` location — otherwise a magic number or a dangling
+    // `$cfg` smuggled through a patch would slip the gate.
+    overridesOf(scene).forEach((ov, oi) => {
+      overrideBehaviors(ov).forEach((b, bi) => {
+        const type = typeof b.type === "string" ? b.type : "?";
+        walkParams(b.params, `${scene.id}.overrides[${oi}:${ov.id}].behaviors[${bi}:${type}].params`, onNumber, onCfgRef);
+      });
+    });
   }
 
   return issues;
+}
+
+/** A scene's `overrides` as a safe array (the field is optional). */
+function overridesOf(scene: Scene): Array<Record<string, unknown> & { id: string }> {
+  return (scene.overrides ?? []) as Array<Record<string, unknown> & { id: string }>;
+}
+
+/**
+ * The raw `behaviors` of an override patch. A patch is a passthrough partial (see
+ * {@link EntityOverrideSchema}), so its `behaviors` arrive un-parsed: defend against a non-array and
+ * surface each element loosely as `{ type?, params?, part? }` for the param/part scanners.
+ */
+function overrideBehaviors(ov: Record<string, unknown>): Array<{ type?: unknown; params?: unknown; part?: unknown }> {
+  const b = ov.behaviors;
+  return Array.isArray(b) ? (b as Array<{ type?: unknown; params?: unknown; part?: unknown }>) : [];
 }
 
 /**
@@ -253,6 +278,11 @@ export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): 
     const msg = err instanceof Error ? err.message : String(err);
     if (/cycle/.test(msg)) {
       issues.push({ level: "error", code: "scene-inheritance-cycle", message: msg });
+    } else if (/override for entity/.test(msg)) {
+      // A patch deep-merged into a structurally-invalid entity (a typo'd key, a cross-kind sprite
+      // merge, an out-of-range value). The resolver throws on re-parse; surface it cleanly here
+      // instead of as a smoke crash, the same treatment as a cycle.
+      issues.push({ level: "error", code: "scene-override-invalid", message: msg });
     }
   }
 
@@ -307,6 +337,30 @@ export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): 
     }
   }
 
+  // Override TARGETS: every `overrides[…]` patch must address an entity that exists in the resolved
+  // scene (an inherited one, or one this scene declares). The resolver IGNORES a patch whose id matches
+  // nothing — a runtime-robust no-op — so a typo'd target would otherwise silently do nothing and pass
+  // the smoke boot. Match the authored patch ids against the RESOLVED entity set (overrides applied),
+  // the same authored-vs-resolved split the parent checks use.
+  if (resolved) {
+    const resolvedById = new Map(resolved.map((s) => [s.id, s]));
+    for (const scene of scenes) {
+      const patches = scene.overrides;
+      if (!patches || patches.length === 0) continue;
+      const entityIds = new Set((resolvedById.get(scene.id)?.entities ?? []).map((e) => e.id));
+      patches.forEach((ov, oi) => {
+        if (!entityIds.has(ov.id)) {
+          issues.push({
+            level: "error",
+            code: "override-target-missing",
+            message: `override targets entity "${ov.id}", which is not an entity in scene "${scene.id}" (it inherits none with that id and declares none) — the patch would silently do nothing`,
+            where: `${scene.id}.overrides[${oi}:${ov.id}]`,
+          });
+        }
+      });
+    }
+  }
+
   return issues;
 }
 
@@ -334,6 +388,14 @@ export function collectPartRefs(scenes: Scene[]): PartRef[] {
       e.behaviors.forEach((b, bi) => add(b.part, `${scene.id}.entities[${ei}:${e.id}].behaviors[${bi}].part`));
     });
     scene.systems.forEach((s, si) => add(s.part, `${scene.id}.systems[${si}].part`));
+    // An override patch can introduce a part-pinned entity/behavior (`{ id, part, behaviors:[{part}] }`);
+    // pin it to the catalog like any other, at its authored override location.
+    overridesOf(scene).forEach((ov, oi) => {
+      add(typeof ov.part === "string" ? ov.part : undefined, `${scene.id}.overrides[${oi}:${ov.id}].part`);
+      overrideBehaviors(ov).forEach((b, bi) =>
+        add(typeof b.part === "string" ? b.part : undefined, `${scene.id}.overrides[${oi}:${ov.id}].behaviors[${bi}].part`),
+      );
+    });
   }
   return refs;
 }

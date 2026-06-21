@@ -114,6 +114,67 @@ describe("validateGame", () => {
     expect(r.issues.some((i) => i.code === "unresolved-cfg")).toBe(true);
   });
 
+  it("passes a game whose level patches an inherited entity via overrides (end to end)", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": { ...GOOD_MANIFEST, entryPoint: "src/scenes/level-1.json" },
+        "config.json": { speed: 100 },
+        "src/scenes/play-base.json": {
+          id: "play-base",
+          entities: [
+            {
+              id: "ball",
+              sprite: { kind: "shape", shape: "circle", color: "#fff" },
+              size: { w: 10, h: 10 },
+              position: { x: 10, y: 10 },
+              behaviors: [{ type: "velocity", params: { vx: "$cfg.speed" } }],
+            },
+          ],
+          systems: [],
+        },
+        "src/scenes/level-1.json": {
+          id: "level-1",
+          extends: "play-base",
+          // per-leaf position + an additive collider, no whole-entity re-declaration
+          overrides: [{ id: "ball", position: { x: 50 }, collider: { role: "dynamic" } }],
+        },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(true);
+    expect(r.framesRun).toBe(60);
+  });
+
+  it("fails an override that targets a missing entity", async () => {
+    const dir = track(
+      writeGame({
+        "game.json": { ...GOOD_MANIFEST, entryPoint: "src/scenes/level-1.json" },
+        "config.json": { speed: 100 },
+        "src/scenes/play-base.json": {
+          id: "play-base",
+          entities: [
+            {
+              id: "ball",
+              sprite: { kind: "none" },
+              size: { w: 10, h: 10 },
+              position: { x: 10, y: 10 },
+              behaviors: [{ type: "velocity", params: { vx: "$cfg.speed" } }],
+            },
+          ],
+          systems: [],
+        },
+        "src/scenes/level-1.json": {
+          id: "level-1",
+          extends: "play-base",
+          overrides: [{ id: "ghost", position: { x: 1, y: 1 } }],
+        },
+      }),
+    );
+    const r = await validateGame(dir);
+    expect(r.ok).toBe(false);
+    expect(r.issues.some((i) => i.code === "override-target-missing")).toBe(true);
+  });
+
   it("fails an ecosystem game touching raw localStorage", async () => {
     const dir = track(
       writeGame({

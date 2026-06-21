@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { EntityDefSchema } from "./entity.js";
+import { EntityDefSchema, EntityOverrideSchema } from "./entity.js";
 import { SystemDefSchema } from "./system.js";
 
 /**
@@ -109,6 +109,15 @@ export const BackgroundSchema = z.union([
  * runtime resolves the chain at boot (see `resolveSceneInheritance`); the merge is
  * additive — base entities/systems come first, then the child's, overriding by `id`.
  * Absent ⇒ a standalone scene, so the field is purely additive.
+ *
+ * `overrides` (entity field-level patches): the `entities` id-merge replaces an inherited
+ * entity WHOLESALE, so to change one field of an inherited entity you would otherwise re-declare
+ * the whole entity. An `overrides` entry is instead a `{ id, …partial }` PATCH that the resolver
+ * DEEP-MERGES onto the resolved entity of that id (nested objects recurse → per-leaf override;
+ * `behaviors`/`tags` arrays replace when present; absent keys inherit). It is the granular companion
+ * to the wholesale `entities` merge — a level can nudge the inherited paddle's width or point a
+ * behavior at a different `$cfg` slice without copying the entity. Additive optional; absent ⇒ the
+ * scene resolves byte-identically. See {@link EntityOverrideSchema}.
  */
 export const SceneSchema = z.strictObject({
   id: z.string().min(1),
@@ -138,6 +147,12 @@ export const SceneSchema = z.strictObject({
   world: z.strictObject({ width: z.number().positive(), height: z.number().positive() }).optional(),
   /** Data-driven scene transitions + in-session state hand-off (additive optional). */
   flow: SceneFlowSchema.optional(),
+  /**
+   * Field-level patches onto entities inherited via `extends`, addressed by `id` (additive optional).
+   * Each entry deep-merges onto the resolved entity of that id; absent ⇒ no patching. Resolved away
+   * at boot — the runtime/renderer never see it. See {@link EntityOverrideSchema}.
+   */
+  overrides: z.array(EntityOverrideSchema).optional(),
 });
 
 /** The schema default for `scene.size` — used by inheritance to detect an unset size. */

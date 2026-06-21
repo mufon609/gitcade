@@ -74,6 +74,15 @@ schema field or additive runtime/validator behavior; a game that sets neither
   the child, overriding by `id`); chains resolve bottom-up, cycle-guarded. Resolved
   in the `Game` constructor (`resolveSceneInheritance`), so the renderer/runtime
   never see `extends`.
+- **Entity overrides (field-level).** Where the `entities` id-merge replaces an
+  inherited entity WHOLE, `scene.overrides: [{ id, …partial }, …]` patches a single
+  field of one. Each entry deep-merges onto the resolved entity of that id — nested
+  objects recurse (`{ id:"paddle", position:{ x:200 } }` keeps the base `y`), arrays
+  (`behaviors`/`tags`) replace when present, absent keys inherit — and the merged
+  entity is re-parsed through the strict entity schema (a typo'd key or bad value
+  fails loudly). So a level nudges the inherited paddle's width, repaints a HUD label,
+  or points a behavior at a different `$cfg` slice without copying the entity.
+  Resolved away with `extends`.
 - **Level sequence.** `manifest.levels: [<sceneId>, …]` (+ optional
   `levelsComplete`) makes "a campaign of N levels" first-class. The reserved
   `flow.on` targets **`@next`** / **`@first`** resolve against it at emit time (a
@@ -81,10 +90,11 @@ schema field or additive runtime/validator behavior; a game that sets neither
   the active level's 1-based index — so `scale-by-state` / `wave-spawner` difficulty
   ramps track the stage with no per-scene config. `game.requestNextLevel()` is the
   programmatic companion to `@next`.
-- **Validator cross-checks.** `gitcade validate` now resolves every scene reference
+- **Validator cross-checks.** `gitcade validate` resolves every scene reference
   — `flow.on` targets, `extends`, `manifest.levels`/`levelsComplete`, and
   `entryPoint` — against the actual scene-id set, so a broken link fails the publish
-  gate instead of surfacing at runtime.
+  gate instead of surfacing at runtime. An `overrides` patch is held to the same bar:
+  one whose `id` hits no entity (a dead patch) fails as `override-target-missing`.
 
 ## Quick start (composing a game from JSON)
 

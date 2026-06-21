@@ -112,9 +112,13 @@ authored ONCE; each level is a thin override of its own layout + a `$cfg`
 difficulty slice). Do NOT express levels as duplicated full scenes (the old
 Breakout L1/L2/L3), and do NOT push per-level *layout* into `config.json` —
 `config.json` stays **balance-only** (the numbers the validator forces off
-`$cfg`). Difficulty that scales with the stage rides `world.state.level`, which
-the runtime sets to the 1-based index of the active `manifest.levels` entry, so
-`scale-by-state` / `wave-spawner` density ramps track the stage for free.
+`$cfg`). To tweak a SINGLE field of an inherited entity (a level's paddle width, a
+repainted HUD label, a behavior pointed at a different `$cfg` slice), use a
+`scene.overrides` patch — a `{ id, …partial }` that deep-merges onto the inherited
+entity — NOT a re-declared full entity. Difficulty that scales with the stage rides
+`world.state.level`, which the runtime sets to the 1-based index of the active
+`manifest.levels` entry, so `scale-by-state` / `wave-spawner` density ramps track the
+stage for free (prefer this over a per-level behavior override).
 
 When in doubt about whether something is a contract: treat it as one.
 

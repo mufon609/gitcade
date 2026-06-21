@@ -134,3 +134,33 @@ export type EntityDef = z.infer<typeof EntityDefSchema>;
  * backfill. (`EntityDef` is the post-parse OUTPUT — every field present.)
  */
 export type EntityDefInput = z.input<typeof EntityDefSchema>;
+
+/**
+ * A FIELD-LEVEL PATCH onto an entity inherited via scene `extends`, addressed by `id` (additive
+ * optional — see `scene.overrides` and `resolveSceneInheritance`). It exists because the plain
+ * `entities` id-merge REPLACES an inherited entity wholesale, and because inheritance resolves on
+ * already-parsed scenes (every field defaulted-present) — so a child cannot "inherit this entity but
+ * change one field." A patch closes that gap: the resolver DEEP-MERGES it onto the resolved entity
+ * with that id (nested objects recurse, so `{ position: { x: 100 } }` keeps the base `y`; arrays and
+ * primitives replace when present; absent keys inherit), then re-parses the result through the strict
+ * {@link EntityDefSchema}.
+ *
+ * Deliberately a PASSTHROUGH partial — only `id` is validated here and every other key passes through
+ * RAW (un-defaulted), which is exactly what makes "omitted ⇒ inherit" expressible (a `.partial()`
+ * would re-inject nested defaults like `position.y = 0`, defeating per-leaf override). Strictness is
+ * NOT lost: the post-merge re-parse through the strict `EntityDefSchema` rejects unknown keys (a typo
+ * like `postion`), an invalid sprite-union merge, and out-of-range values — so a broken patch fails
+ * loudly at resolve/validate time rather than corrupting a frame. The one structural rule: `behaviors`
+ * is replace-not-merge (a patch that touches it re-lists the whole array), keeping tick order — a
+ * determinism contract — explicit. (Difficulty that ramps with the stage should ride
+ * `world.state.level` via `scale-by-state`, not a per-level behavior patch.)
+ */
+export const EntityOverrideSchema = z
+  .object({
+    /** The id of the inherited (or own) entity, within the resolved scene, that this patch merges onto. */
+    id: z.string().min(1),
+  })
+  .passthrough();
+
+/** A field-level patch onto an inherited entity (see {@link EntityOverrideSchema}). */
+export type EntityOverride = z.infer<typeof EntityOverrideSchema>;

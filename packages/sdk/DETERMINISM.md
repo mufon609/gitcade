@@ -35,7 +35,7 @@ non-correctly-rounded library calls must be replaced. That is the whole job `wor
 ## `world.math` — the transcendental seam
 
 `world.math` (type `MathOps`, the frozen `CanonicalMath` singleton in `runtime/fdmath.ts`) is the
-transcendental analogue of `world.rng`, additive since **sdk 1.11.0**. The ported surface is kept
+transcendental analogue of `world.rng`, additive since **sdk 1.12.0**. The ported surface is kept
 minimal:
 
 - **`hypot(x, y)` = `sqrt(x*x + y*y)`** — built only from correctly-rounded primitives, so it needs
@@ -50,7 +50,7 @@ minimal:
   edge cases handled. Deterministic; a few ULP of accuracy, ample for difficulty curves and
   camera-shake falloff.
 - **`sin` `cos` `tan` `atan` `atan2` `asin` `acos` `exp` `log`** — faithful fdlibm ports, within ~1 ULP
-  of native `Math.*`, tested in `test/fdmath-1.11.0.test.ts` (accuracy vs `Math.*` + a committed
+  of native `Math.*`, tested in `test/fdmath-1.12.0.test.ts` (accuracy vs `Math.*` + a committed
   golden bit-pattern vector).
 
 The exotics (`cbrt`, `expm1`, `log1p`, `log2`, `log10`, hyperbolics) are intentionally absent until a
@@ -108,7 +108,7 @@ functions where a pure helper has no `world`). Gate sites use **squared-distance
 1. **Same-engine** — `runDeterminismCheck`/`assertDeterministic` boot each game/proof twice on a fixed
    seed + scripted input and assert byte-identity at every frame (`test/determinism-*` suites). The
    validator runs this as a non-failing publish advisory.
-2. **Cross-engine** — a committed **golden fingerprint** (`packages/library/test/determinism-golden-1.11.0.json`):
+2. **Cross-engine** — a committed **golden fingerprint** (`packages/library/test/determinism-golden-1.12.0.json`):
    the full per-frame snapshot stream of every game/proof, SHA-256'd, generated under `world.math`. Any
    engine reproducing a digest is byte-identical to the one that produced it. Regenerate ONLY as a
    deliberate, surfaced re-base: `UPDATE_GOLDEN=1 npx vitest run` in `packages/library`.
@@ -116,5 +116,5 @@ functions where a pure helper has no `world`). Gate sites use **squared-distance
    raw transcendental `Math.*` and the `**` operator, pointing authors to `world.math`. **Warning
    only** — promoting it to a hard publish gate is a separate, deliberate decision.
 
-The determinism *fingerprint* re-based to `world.math` at **sdk/library 1.11.0**; pre-1.11.0
+The determinism *fingerprint* re-based to `world.math` at **sdk/library 1.12.0**; pre-1.12.0
 fingerprints are not comparable across that boundary.

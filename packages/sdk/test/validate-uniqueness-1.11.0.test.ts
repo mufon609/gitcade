@@ -11,7 +11,7 @@ import { validateGame } from "../src/validate/index.js";
  *  - duplicate SCENE ids (a whole scene silently dropped at runtime),
  *  - duplicate ENTITY ids within a scene (byId/parent/tag resolution collapses),
  *  - bare numeric ARRAYS smuggling balance past the structural-key whitelist,
- * plus two warning-only determinism source scans: wall-clock / Math.random, and (1.11.0) raw
+ * plus two warning-only determinism source scans: wall-clock / Math.random, and (1.12.0) raw
  * cross-engine transcendentals (`Math.sin`/`pow`/`hypot`/… and the `**` operator) in sim source.
  */
 

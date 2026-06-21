@@ -44,7 +44,7 @@
  *
  * Everything here is browser-safe (no Node built-ins) and PURELY ADDITIVE — it introduces a new
  * surface and reshapes nothing. Migrating the runtime's category-(a) sites onto it re-bases the
- * deterministic byte-fingerprint to a cross-engine baseline as of sdk 1.11.0 (see CHANGELOG).
+ * deterministic byte-fingerprint to a cross-engine baseline as of sdk 1.12.0 (see CHANGELOG).
  */
 
 // ---------------------------------------------------------------------------

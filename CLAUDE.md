@@ -100,7 +100,7 @@ a bug-fix.
   engines, so a value feeding the snapshot would desync cross-engine ghosts/speedruns; the
   validator flags them as a non-failing advisory). Prefer squared-distance, or
   `world.math.hypot`, for lengths. The determinism *fingerprint* re-based to `world.math`
-  at sdk/library `1.11.0` (a committed cross-engine golden anchors it); pre-`1.11.0`
+  at sdk/library `1.12.0` (a committed cross-engine golden anchors it); pre-`1.12.0`
   fingerprints are not comparable across that boundary.
 - The worker queue schema (`BuildJob` / `Build` in `platform/worker`) is
   likewise frozen — `platform/web` extends the database **additively** and never

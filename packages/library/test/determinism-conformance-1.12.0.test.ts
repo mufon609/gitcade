@@ -22,7 +22,7 @@ import { registerCustomBehaviors as registerSurvivalArena } from "../../../games
 import { registerCustomBehaviors as registerTowerDefense } from "../../../games/tower-defense/src/custom-behaviors/index.js";
 
 /**
- * 1.11.0 — the DETERMINISM CONFORMANCE suite: the single, authoritative place that proves every
+ * 1.12.0 — the DETERMINISM CONFORMANCE suite: the single, authoritative place that proves every
  * shipped game and proof reproduces byte-for-byte under a fixed seed + scripted input. It is the
  * engine-wide generalization of the per-mechanic push-fuzz determinism spot-check — boot twice on
  * the same seed and the same per-frame input, step N frames, and assert the two runs never diverge
@@ -144,7 +144,7 @@ describe("determinism conformance (seed games + library proofs)", () => {
 });
 
 /**
- * CROSS-ENGINE GOLDEN (anchored to 1.11.0). `assertDeterministic` proves only SAME-engine
+ * CROSS-ENGINE GOLDEN (anchored to 1.12.0). `assertDeterministic` proves only SAME-engine
  * reproducibility (it runs both passes in one engine). This table closes that gap: it pins the exact
  * fingerprint each run produces, generated under the canonical `world.math` transcendentals — which
  * are bit-identical on every conformant JS engine. Any engine reproducing these digests is therefore
@@ -154,11 +154,11 @@ describe("determinism conformance (seed games + library proofs)", () => {
  * This is also a regression fence: a change to fdmath, a migrated part, or the tick/snapshot shape
  * shifts a digest and trips this. Regenerate ONLY as a DELIBERATE, surfaced determinism re-base
  * (a MAJOR-worthy event for stored replays) with: `UPDATE_GOLDEN=1 npx vitest run` in this package,
- * then commit the new `determinism-golden-1.11.0.json` and say so in the changelog.
+ * then commit the new `determinism-golden-1.12.0.json` and say so in the changelog.
  */
-const GOLDEN_PATH = path.resolve(here, "determinism-golden-1.11.0.json");
+const GOLDEN_PATH = path.resolve(here, "determinism-golden-1.12.0.json");
 
-describe("cross-engine determinism golden (committed fingerprints, 1.11.0)", () => {
+describe("cross-engine determinism golden (committed fingerprints, 1.12.0)", () => {
   const fingerprints: Record<string, string> = {};
   for (const c of CASES) fingerprints[c.name] = fingerprint(c.make, c.frames);
 

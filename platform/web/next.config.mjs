@@ -18,6 +18,8 @@ const nextConfig = {
   // client-side for the marketplace live previews (Web Audio SFX synth + behavior
   // micro-scene). Transpile both so Next bundles them.
   transpilePackages: ["@gitcade/sdk", "@gitcade/library"],
+  // This repo's static-analysis gate is `tsc --noEmit` (the `typecheck` script),
+  // not ESLint — keep `next build` from attempting an eslint pass it has no config for.
   eslint: { ignoreDuringBuilds: true },
 };
 

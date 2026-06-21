@@ -86,6 +86,26 @@ export class AudioPlayer {
   }
 }
 
+/**
+ * The OPTIONAL music capability a player may add on top of the frozen `play(key)` SFX surface. The
+ * SDK's primitive {@link AudioPlayer} synthesizes no music; `@gitcade/library`'s richer player
+ * implements this (generative chiptune loops). The runtime drives a scene's declarative
+ * {@link Scene.music} through {@link supportsMusic} so it works with whichever player a game wired in,
+ * without the base class advertising a capability it doesn't have.
+ */
+export interface MusicChannel {
+  /** Start (or seamlessly switch to) a looping track by key; re-requesting the current track is a no-op. */
+  startMusic(track: string): void;
+  /** Stop any playing music loop. */
+  stopMusic(): void;
+}
+
+/** True when `audio` also implements the optional {@link MusicChannel} (so the runtime can drive `scene.music`). */
+export function supportsMusic(audio: AudioPlayer): audio is AudioPlayer & MusicChannel {
+  const a = audio as Partial<MusicChannel>;
+  return typeof a.startMusic === "function" && typeof a.stopMusic === "function";
+}
+
 interface Tone {
   wave: OscillatorType;
   freq: number;

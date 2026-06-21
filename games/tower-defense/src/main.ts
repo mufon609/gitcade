@@ -125,18 +125,6 @@ fx.bindToEvents(world, {
 const fxOverlay = document.getElementById("fx-overlay") as unknown as { style: Record<string, string> } | null;
 attachScreenEffects(fx, canvas, fxOverlay);
 
-// --- audio (needs a user gesture before the browser will play sound) -----------
-let musicStarted = false;
-function resumeAudio(): void {
-  audio.resume();
-  if (!musicStarted) {
-    audio.startMusic("action");
-    musicStarted = true;
-  }
-}
-window.addEventListener("pointerdown", resumeAudio);
-window.addEventListener("keydown", resumeAudio);
-
 // --- mute (centralized audio gate) -------------------------------------------
 // Audio is OFF when the player muted, the sim is paused (manual OR the SDK's tab-hide
 // auto-pause, via game.isPaused()), or the tab is hidden — one source of truth so those
@@ -149,7 +137,9 @@ function renderMute(): void {
 function syncAudio(): void {
   const off = userMuted || game.isPaused() || document.hidden;
   audio.setMuted(off);
-  if (!off && musicStarted) audio.startMusic("action");
+  // setMuted(true) tears the loop down; on un-gate, restart the ACTIVE scene's declared track
+  // (the runtime starts it on scene load — this just re-arms it after a mute/pause/tab-hide).
+  if (!off && game.scene.music) audio.startMusic(game.scene.music);
 }
 function toggleMute(): void {
   userMuted = !userMuted;

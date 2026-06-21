@@ -29,7 +29,7 @@ export { Entity, type BehaviorInstance, type AnimationState, type BodyComponent 
 export { Registry, type BehaviorRegistration, type SystemRegistration } from "./registry.js";
 export { EventBus, type GameEvent } from "./eventbus.js";
 export { Input, type Pointer, type Tap, type ActionBinding } from "./input.js";
-export { AudioPlayer } from "./audio.js";
+export { AudioPlayer, supportsMusic, type MusicChannel } from "./audio.js";
 export { Renderer } from "./renderer.js";
 export { buildEntity } from "./entity-factory.js";
 export { resolveParams, num, str, bool, strArray, cooldown } from "./params.js";

@@ -2,6 +2,7 @@
   "id": "over",
   "size": { "width": 800, "height": 600 },
   "background": "#0b0b16",
+  "music": "action",
   "entities": [
     {
       "id": "retry-target",

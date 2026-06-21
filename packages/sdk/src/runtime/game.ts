@@ -6,7 +6,7 @@ import type { PersistConfig } from "../schema/manifest.js";
 import { World } from "./world.js";
 import { Registry } from "./registry.js";
 import { Input } from "./input.js";
-import { AudioPlayer } from "./audio.js";
+import { AudioPlayer, supportsMusic } from "./audio.js";
 import type { StorageAdapter } from "../storage/adapters.js";
 import { MemoryStorage } from "../storage/adapters.js";
 import { buildEntity } from "./entity-factory.js";
@@ -194,6 +194,21 @@ export class Game {
    * neither — a scene with no `flow` whose host callers pass no `keepExtra` — the
    * keep set is empty and this is a full wipe.
    */
+  /**
+   * Drive the active scene's declarative `scene.music` through the audio player. A music-capable player
+   * (see {@link supportsMusic} — the library's player is one; the SDK's primitive player is not) starts
+   * the named track, or stops music when the scene names none; a same-track re-entry is a no-op in the
+   * player, so transitions between scenes sharing a track don't restart it. Music is a side effect
+   * OUTSIDE the simulation snapshot, so this never affects determinism, and a primitive/headless player
+   * no-ops it — a scene without `music` on a music-capable player goes silent; otherwise nothing changes.
+   */
+  private applySceneMusic(scene: Scene): void {
+    const audio = this.world.audio;
+    if (!supportsMusic(audio)) return;
+    if (scene.music) audio.startMusic(scene.music);
+    else audio.stopMusic();
+  }
+
   loadScene(sceneId: string, opts?: { keepExtra?: string[] }): void {
     const scene = this.scenes.get(sceneId);
     if (!scene) throw new Error(`scene "${sceneId}" not found`);
@@ -206,6 +221,9 @@ export class Game {
     for (const k of keep) if (k in this.world.state) carried[k] = this.world.state[k];
 
     this.scene = scene;
+    // Drive the scene's declarative `scene.music` (a no-op on a player without a music channel, and
+    // outside the sim snapshot — so headless/determinism are unaffected).
+    this.applySceneMusic(scene);
 
     // Tear down the previous scene's flow edges before installing this scene's, so
     // re-entering a scene never accumulates duplicate listeners on the shared bus.
@@ -435,6 +453,23 @@ export class Game {
       };
       document.addEventListener("visibilitychange", onVisibility);
       this.detachLifecycle = () => document.removeEventListener("visibilitychange", onVisibility);
+    }
+
+    // Unlock the AudioContext on the first user gesture. Browsers start it SUSPENDED under the autoplay
+    // policy, so a scene's `scene.music` started at load stays silent until a gesture resumes it (SFX
+    // self-resume on each play(); a loop started at boot has no triggering gesture of its own). resume()
+    // is idempotent — a no-op once running or on a player with no context — so firing it per gesture is
+    // harmless. Torn down with the rest of the lifecycle in stop().
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+      const onGesture = (): void => this.world.audio.resume();
+      window.addEventListener("pointerdown", onGesture);
+      window.addEventListener("keydown", onGesture);
+      const prevDetach = this.detachLifecycle;
+      this.detachLifecycle = () => {
+        prevDetach?.();
+        window.removeEventListener("pointerdown", onGesture);
+        window.removeEventListener("keydown", onGesture);
+      };
     }
 
     this.lastTime = now();

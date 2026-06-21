@@ -3,16 +3,16 @@ import { EntityDefSchema, EntityOverrideSchema } from "./entity.js";
 import { SystemDefSchema } from "./system.js";
 
 /**
- * Per-tile-INDEX property flags. Open-ended: the three named
- * flags are conveniences; `catchall` keeps it usable for game-specific markers
- * (e.g. `{ "1": { lane: true, walkable: true, buildable: false } }`). Presentational/
- * structural data, so exempt from the magic-number rule like the rest of the tilemap.
+ * Per-tile-INDEX property flags. Open-ended: the NAMED flags are conveniences the engine/library
+ * actually consume; `catchall` keeps the map usable for game-specific markers the engine ignores
+ * (e.g. `lane` in `{ "1": { lane: true, walkable: true, buildable: false } }` — a routing hint a
+ * game reads itself). Presentational/structural data, so exempt from the magic-number rule like the
+ * rest of the tilemap.
  */
 export const TilePropsSchema = z
   .object({
     buildable: z.boolean().optional(),
     walkable: z.boolean().optional(),
-    lane: z.boolean().optional(),
     /** Solid terrain: the collision-resolution phase resolves a `collider` against any cell
      *  flagged this (the platformer floor/wall/ceiling). A named convenience over the catchall
      *  — purely additive. */
@@ -127,7 +127,12 @@ export const SceneSchema = z.strictObject({
   systems: z.array(SystemDefSchema).default([]),
   tilemap: TilemapSchema.optional(),
   background: BackgroundSchema.optional(),
-  /** Background music track key/path (resolved by the audio player). */
+  /**
+   * Background music track key for this scene. On scene load the runtime plays it via a music-capable
+   * audio player (the library's; the SDK's primitive player no-ops music) — seamlessly switching when a
+   * scene names a different track, stopping when a scene names none. Absent ⇒ this scene drives no music
+   * change. See `applySceneMusic` / `MusicChannel`.
+   */
   music: z.string().optional(),
   /** VIEWPORT (canvas) bounds in px — what the camera shows. Defaults to 800x600. */
   size: z.strictObject({ width: z.number().positive(), height: z.number().positive() }).default({

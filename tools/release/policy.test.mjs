@@ -33,11 +33,11 @@ function writeRepo(files) {
 }
 const CLEAN = () => ({
   "package.json": { name: "root", workspaces: ["packages/*", "packages/library/proofs/*", "games/*", "platform/*"] },
-  "packages/sdk/package.json": { name: "@gitcade/sdk", version: "1.11.0" },
-  "packages/library/package.json": { name: "@gitcade/library", version: "1.10.1", peerDependencies: { "@gitcade/sdk": "^1.10.0" }, devDependencies: { "@gitcade/sdk": "^1.10.0" } },
+  "packages/sdk/package.json": { name: "@gitcade/sdk", version: "1.12.0" },
+  "packages/library/package.json": { name: "@gitcade/library", version: "1.10.1", peerDependencies: { "@gitcade/sdk": "^1.12.0" }, devDependencies: { "@gitcade/sdk": "^1.12.0" } },
   "packages/library/CATALOG.json": { version: "1.10.1", parts: [] },
-  "games/foo/package.json": { name: "foo", dependencies: { "@gitcade/sdk": "1.11.0", "@gitcade/library": "1.10.1" } },
-  "games/foo/game.json": { sdkVersion: "1.11.0", libraryVersion: "1.10.1" },
+  "games/foo/package.json": { name: "foo", dependencies: { "@gitcade/sdk": "1.12.0", "@gitcade/library": "1.10.1" } },
+  "games/foo/game.json": { sdkVersion: "1.12.0", libraryVersion: "1.10.1" },
   "packages/library/proofs/bar/package.json": { name: "bar", dependencies: { "@gitcade/sdk": "*", "@gitcade/library": "*" } },
   "platform/baz/package.json": { name: "baz", dependencies: { "@gitcade/sdk": "*" } },
 });
@@ -79,11 +79,11 @@ test("repinText is byte-preserving, fixes drift, and is idempotent", () => {
   const fixed = repinText(stale, "internal", v);
   assert.ok(fixed.includes('"@gitcade/sdk": "*"') && fixed.includes('"@gitcade/library": "*"'));
   assert.equal(repinText(fixed, "internal", v), fixed); // idempotent
-  // game role pins exact; library (core) widens BOTH peer + dev occurrences.
+  // game role pins exact; library (core) rewrites BOTH peer + dev occurrences to SDK_PEER.
   assert.ok(repinText(stale, "game", v).includes('"@gitcade/sdk": "1.11.0"'));
   const libText = '{\n  "peerDependencies": { "@gitcade/sdk": "1.10.x" },\n  "devDependencies": { "@gitcade/sdk": "1.10.1" }\n}\n';
   const libFixed = repinText(libText, "core", v);
-  assert.equal((libFixed.match(/"@gitcade\/sdk": "\^1\.10\.0"/g) || []).length, 2);
+  assert.equal((libFixed.match(/"@gitcade\/sdk": "\^1\.12\.0"/g) || []).length, 2);
 });
 
 test("repinGameManifest rewrites sdkVersion + libraryVersion only", () => {

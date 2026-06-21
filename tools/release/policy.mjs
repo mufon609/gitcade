@@ -19,12 +19,14 @@ export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url
 
 /**
  * The ONLY non-derivable policy value: @gitcade/library's declared @gitcade/sdk
- * compatibility floor, as a caret range. library@1.10.x is additively compatible with
- * any sdk in [1.10.0, 2.0.0), so the peer is `^1.10.0` — NOT a narrow `1.10.x` that a
- * later SDK MINOR (1.11.0) would fall outside of. `doctor` verifies the current sdk
- * still satisfies this; if an SDK MAJOR ever lands, it fails loud so a human re-decides.
+ * compatibility floor, as a caret range. library routes its simulation transcendentals
+ * through `world.math`, which exists only from sdk 1.12.0, so the floor is `^1.12.0`
+ * ([1.12.0, 2.0.0)) — a looser range would wrongly admit a pre-seam sdk (1.10.x, or the
+ * seamless 1.11.0) that lacks `world.math` and breaks at runtime. `doctor` verifies the
+ * current sdk still satisfies this; if an SDK MAJOR ever lands, it fails loud so a human
+ * re-decides.
  */
-export const SDK_PEER = "^1.10.0";
+export const SDK_PEER = "^1.12.0";
 
 export const GITCADE_DEPS = ["@gitcade/sdk", "@gitcade/library"];
 const DEP_SECTIONS = ["dependencies", "devDependencies", "peerDependencies"];

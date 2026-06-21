@@ -1,4 +1,5 @@
 import type { Entity, World, ResolvedParams } from "@gitcade/sdk";
+import { hypot } from "@gitcade/sdk";
 
 /**
  * Shared helpers for library behaviors/systems. These are internal — they are not
@@ -35,9 +36,9 @@ export function toward(a: Entity, b: Entity): Vec2 {
   return { x: b.cx - a.cx, y: b.cy - a.cy };
 }
 
-/** Euclidean length of a vector. */
+/** Euclidean length of a vector — canonical (cross-engine-deterministic) hypot. */
 export function length(v: Vec2): number {
-  return Math.hypot(v.x, v.y);
+  return hypot(v.x, v.y);
 }
 
 /** Unit vector (returns `{0,0}` for a zero vector). */

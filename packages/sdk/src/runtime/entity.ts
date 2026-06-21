@@ -2,6 +2,7 @@ import type { Sprite } from "../schema/sprite.js";
 import type { ResolvedParams } from "./types.js";
 import type { BehaviorFn } from "./types.js";
 import type { SolidContacts } from "./collision.js";
+import { sin, cos } from "./fdmath.js";
 
 /** A live behavior attached to an entity. `params` are already `$cfg`-resolved. */
 export interface BehaviorInstance {
@@ -292,10 +293,12 @@ export class Entity {
     // hierarchy phase applies, so `world = parent ∘ local` reproduces today's on-screen pose.
     const sx = parent.scaleX || 1;
     const sy = parent.scaleY || 1;
-    const cosP = Math.cos(parent.rotation);
-    const sinP = Math.sin(parent.rotation);
     const dx = this.x - parent.x;
     const dy = this.y - parent.y;
+    // Cross-engine-deterministic trig (the captured `local` feeds `snapshotWorld`); an unrotated
+    // parent skips the transcendental, byte-identically (cos 0 = 1, sin 0 = 0).
+    const cosP = parent.rotation === 0 ? 1 : cos(parent.rotation);
+    const sinP = parent.rotation === 0 ? 0 : sin(parent.rotation);
     this.local = {
       x: (dx * cosP + dy * sinP) / sx,
       y: (-dx * sinP + dy * cosP) / sy,

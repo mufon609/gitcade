@@ -1,5 +1,5 @@
 import type { BehaviorFn } from "@gitcade/sdk";
-import { num, str, strArray } from "@gitcade/sdk";
+import { num, str, strArray, hypot } from "@gitcade/sdk";
 
 /** A pointer in world coordinates (matches the SDK Input `Pointer`). */
 export interface PointerLike {
@@ -30,7 +30,8 @@ export function dpadVector(pointers: PointerLike[], zone: Zone, deadzone = 0.25)
     if (!p.down) continue;
     const dx = p.x - zone.x;
     const dy = p.y - zone.y;
-    const dist = Math.hypot(dx, dy);
+    // touchDpad turns this into velocity (→ snapshot); canonical hypot keeps it cross-engine-stable.
+    const dist = hypot(dx, dy);
     if (dist > zone.r * 1.6) continue; // pointer is elsewhere on screen
     if (dist < zone.r * deadzone) return { x: 0, y: 0 };
     const n = Math.max(dist, 0.0001);

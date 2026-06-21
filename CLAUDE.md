@@ -93,7 +93,15 @@ a bug-fix.
   invisibly. **Determinism is the hard line:** result ordering and tick order feed
   byte-replay, so changing them breaks replays/ghosts for *everyone*, not just
   version-pinned consumers — they may change, but only as a surfaced, deliberate
-  MAJOR, never slipped in.
+  MAJOR, never slipped in. **All simulation non-determinism flows through sanctioned
+  seams:** entropy through `world.rng`, transcendentals through `world.math` (the
+  engine-independent `sin`/`cos`/`atan2`/`pow`/`hypot`/… seam — raw `Math.sin` etc. and
+  the `**` operator are implementation-approximated and differ in the last ULP across JS
+  engines, so a value feeding the snapshot would desync cross-engine ghosts/speedruns; the
+  validator flags them as a non-failing advisory). Prefer squared-distance, or
+  `world.math.hypot`, for lengths. The determinism *fingerprint* re-based to `world.math`
+  at sdk/library `1.12.0` (a committed cross-engine golden anchors it); pre-`1.12.0`
+  fingerprints are not comparable across that boundary.
 - The worker queue schema (`BuildJob` / `Build` in `platform/worker`) is
   likewise frozen — `platform/web` extends the database **additively** and never
   reshapes those tables.

@@ -1,5 +1,5 @@
 import type { BehaviorFn, Entity } from "@gitcade/sdk";
-import { num, str, bool } from "@gitcade/sdk";
+import { num, str, bool, hypot } from "@gitcade/sdk";
 
 /**
  * Deal damage to overlapping entities carrying `targetTag`. Attached to anything
@@ -62,7 +62,8 @@ export const contactDamage: BehaviorFn = (entity, world, params, _dt, scratch) =
 function applyKnockback(from: Entity, to: Entity, impulse: number): void {
   const dx = to.cx - from.cx;
   const dy = to.cy - from.cy;
-  const len = Math.hypot(dx, dy) || 1;
+  // Knockback writes velocity (→ snapshot); the canonical hypot keeps it cross-engine-identical.
+  const len = hypot(dx, dy) || 1;
   to.vx += (dx / len) * impulse;
   to.vy += (dy / len) * impulse;
 }

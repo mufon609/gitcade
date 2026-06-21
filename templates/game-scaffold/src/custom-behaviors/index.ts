@@ -8,8 +8,14 @@ import type { Registry } from "@gitcade/sdk";
  *
  * Example:
  *   import type { BehaviorFn } from "@gitcade/sdk";
- *   const wobble: BehaviorFn = (entity, _world, params, dt) => {
- *     entity.x += Math.sin(entity.state.t = ((entity.state.t as number) ?? 0) + dt) * (params.amount as number);
+ *   const wobble: BehaviorFn = (entity, world, params, dt) => {
+ *     // Route simulation transcendentals through `world.math` (sin/cos/atan2/pow/hypot/…), NOT
+ *     // raw `Math.sin`: it writes `entity.x`, which is part of the deterministic snapshot, and
+ *     // `world.math` is engine-independent so the run replays byte-identically in any JS engine.
+ *     // (Raw `Math.*` transcendentals differ in the last ULP across engines and desync ghosts /
+ *     // speedrun verification — the validator flags them as an advisory.)
+ *     const t = (entity.state.t = ((entity.state.t as number) ?? 0) + dt);
+ *     entity.x += world.math.sin(t) * (params.amount as number);
  *   };
  *   registry.registerBehavior("wobble", wobble);
  */

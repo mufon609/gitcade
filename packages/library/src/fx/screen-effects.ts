@@ -92,7 +92,9 @@ export class ScreenEffects {
     if (this.shakeT < this.shakeDur) {
       this.shakeT += dt;
       const mag = this.currentShakeMag();
-      // Deterministic oscillation (no RNG) so tests are stable.
+      // Deterministic oscillation (no RNG) so tests are stable. Raw Math.* is fine: ScreenEffects is
+      // a HOST-SIDE render controller (it translates a DOM overlay each rAF) and never writes
+      // `world` state / `snapshotWorld`, so its cross-engine sin/cos variance is purely cosmetic.
       dx = Math.sin(this.shakeT * this.shakeFreq) * mag;
       dy = Math.cos(this.shakeT * this.shakeFreq * 1.3) * mag;
     }

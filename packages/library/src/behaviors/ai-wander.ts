@@ -1,4 +1,4 @@
-import type { BehaviorFn } from "@gitcade/sdk";
+import type { BehaviorFn, World } from "@gitcade/sdk";
 import { num } from "@gitcade/sdk";
 
 /**
@@ -45,7 +45,10 @@ export const aiWander: BehaviorFn = (entity, world, params, dt, scratch) => {
   entity.vy = dir.y * speed;
 };
 
-function pickHeading(s: Record<string, unknown>, world: { rng: () => number }): void {
+function pickHeading(s: Record<string, unknown>, world: World): void {
+  // `wanderDir` becomes velocity → feeds `snapshotWorld`; the angle→vector trig must be
+  // cross-engine-deterministic, so go through `world.math` (not raw Math.cos/sin). `Math.PI` is
+  // a spec-fixed constant (identical on every engine), so it stays.
   const angle = world.rng() * Math.PI * 2;
-  s.wanderDir = { x: Math.cos(angle), y: Math.sin(angle) };
+  s.wanderDir = { x: world.math.cos(angle), y: world.math.sin(angle) };
 }

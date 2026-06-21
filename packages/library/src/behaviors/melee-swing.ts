@@ -35,8 +35,10 @@ export const meleeSwing: BehaviorFn = (entity, world, params, _dt, scratch) => {
   let ox = reach.x;
   let oy = reach.y;
   if (faceVelocity && (entity.vx !== 0 || entity.vy !== 0)) {
-    const mag = Math.hypot(reach.x, reach.y) || Math.hypot(entity.vx, entity.vy);
-    const len = Math.hypot(entity.vx, entity.vy) || 1;
+    // Magnitudes feed the hitbox spawn position (→ snapshot); route through world.math.hypot.
+    const speed = world.math.hypot(entity.vx, entity.vy);
+    const mag = world.math.hypot(reach.x, reach.y) || speed;
+    const len = speed || 1;
     ox = (entity.vx / len) * mag;
     oy = (entity.vy / len) * mag;
   }

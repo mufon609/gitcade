@@ -161,6 +161,8 @@ export interface MusicTrack {
 
 const A4 = 69;
 function midiToFreq(midi: number): number {
+  // Raw Math.pow is fine: this drives the WebAudio oscillator frequency only — audio is never
+  // part of `snapshotWorld`, so its cross-engine variance can't affect simulation determinism.
   return 440 * Math.pow(2, (midi - A4) / 12);
 }
 

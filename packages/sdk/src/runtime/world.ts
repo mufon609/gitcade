@@ -12,6 +12,7 @@ import { Input } from "./input.js";
 import { AudioPlayer } from "./audio.js";
 import { MemoryStorage, type StorageAdapter } from "../storage/adapters.js";
 import { buildEntity } from "./entity-factory.js";
+import { CanonicalMath, type MathOps, sin, cos } from "./fdmath.js";
 
 export interface WorldOptions {
   bounds: { width: number; height: number };
@@ -99,6 +100,16 @@ export class World {
   readonly storage: StorageAdapter;
   readonly events = new EventBus();
   readonly rng: () => number;
+  /**
+   * The sanctioned seam for simulation TRANSCENDENTALS (sin/cos/tan/atan/atan2/exp/log/pow/…),
+   * the engine-independent analogue of {@link rng} for entropy. Reach `world.math.sin(…)` from
+   * behaviors/systems instead of raw `Math.sin` etc.: the native `Math.*` transcendentals are
+   * "implementation-approximated" and differ in the last ULP across JS engines, so a value that
+   * feeds {@link snapshotWorld} (rotation, velocity, camera shake, …) would drift cross-engine
+   * and break replays/ghosts. These are pure JS over correctly-rounded primitives, so they are
+   * bit-identical on every conformant engine. A shared frozen singleton (pure + stateless).
+   */
+  readonly math: MathOps = CanonicalMath;
 
   /**
    * The parsed tilemap of the ACTIVE scene, or undefined when the scene has none.
@@ -578,12 +589,21 @@ export class World {
       // the parent's top-left origin. Per-axis parent scale FIRST (so a flipped parent, scaleX<0,
       // mirrors the child's offset + facing), then rotate by the parent's rotation, then translate.
       const l = e.local;
-      const cosP = Math.cos(parent.rotation);
-      const sinP = Math.sin(parent.rotation);
       const lx = l.x * parent.scaleX;
       const ly = l.y * parent.scaleY;
-      e.x = parent.x + (lx * cosP - ly * sinP);
-      e.y = parent.y + (lx * sinP + ly * cosP);
+      // Cross-engine-deterministic trig (see fdmath / `world.math`): the world transform feeds
+      // `snapshotWorld`, so a last-ULP `Math.cos/sin` engine difference would desync replays.
+      // Unrotated parents (the common case) skip the transcendental entirely — byte-identical,
+      // since `cos(0)=1`, `sin(0)=0` exactly.
+      if (parent.rotation === 0) {
+        e.x = parent.x + lx;
+        e.y = parent.y + ly;
+      } else {
+        const cosP = cos(parent.rotation);
+        const sinP = sin(parent.rotation);
+        e.x = parent.x + (lx * cosP - ly * sinP);
+        e.y = parent.y + (lx * sinP + ly * cosP);
+      }
       e.rotation = parent.rotation + l.rotation;
       e.scaleX = parent.scaleX * l.scale;
       e.scaleY = parent.scaleY * l.scale;

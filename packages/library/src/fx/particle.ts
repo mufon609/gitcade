@@ -85,8 +85,11 @@ export function spawnBurst(world: World, o: BurstOptions): void {
     if (o.direction === "up") angle = -Math.PI / 2 + (world.rng() - 0.5) * 1.4;
     else if (o.direction === "down") angle = Math.PI / 2 + (world.rng() - 0.5) * 1.4;
     const spd = o.speed * (0.5 + world.rng() * 0.5);
-    e.vx = Math.cos(angle) * spd;
-    e.vy = Math.sin(angle) * spd;
+    // Particles ARE world entities, so vx/vy (and the position they integrate) feed `snapshotWorld`
+    // — the angle→velocity trig must be cross-engine-deterministic. (`Math.PI` above is a spec-fixed
+    // constant, so it stays; only the sin/cos approximations differ across engines.)
+    e.vx = world.math.cos(angle) * spd;
+    e.vy = world.math.sin(angle) * spd;
     e.state.__ttl = o.ttl;
     e.state.__bw = o.size;
     e.state.__bh = o.size;

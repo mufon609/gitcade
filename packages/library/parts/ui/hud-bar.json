@@ -1,0 +1,23 @@
+{
+  "id": "hud-bar",
+  "kind": "ui",
+  "version": "1.1.0",
+  "category": "ui",
+  "tags": ["ui", "hud", "bar", "health", "progress"],
+  "license": "MIT",
+  "description": "A per-entity behavior that resizes a flat rect to value/max each tick: a health/energy/boss/progress bar. Reads the value from world.state[valueKey] by default, or — with valueEntity — from a tracked entity's own state (a data-driven health bar). Optional lowColor/lowThreshold recolor.",
+  "dependencies": [],
+  "params": {
+    "valueKey": { "type": "string", "balance": false, "description": "State key holding the current value (default \"hp\")." },
+    "valueEntity": { "type": "string", "balance": false, "description": "Optional entity id OR tag — read the value from that entity's state[valueKey] (e.g. a player's hp) instead of world.state[valueKey]. Unset ⇒ the world.state read." },
+    "max": { "type": "number", "balance": true, "description": "Full-bar value (default 1)." },
+    "maxKey": { "type": "string", "balance": false, "description": "Optional world.state key holding the max (overrides max when set)." },
+    "width": { "type": "number", "balance": false, "description": "Full-bar width in px (structural; the entity's authored width)." },
+    "lowColor": { "type": "string", "balance": false, "description": "Optional color applied when the ratio drops below lowThreshold." },
+    "lowThreshold": { "type": "number", "balance": true, "description": "Ratio below which lowColor applies (default 0.3)." }
+  },
+  "definition": {
+    "type": "hud-bar",
+    "params": { "valueKey": "hp", "maxKey": "maxHp", "width": 120 }
+  }
+}

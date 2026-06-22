@@ -22,6 +22,13 @@ export function vec2(params: ResolvedParams, key: string, fallback: Vec2 = { x: 
   return { ...fallback };
 }
 
+/** Narrow an unknown (e.g. a live `world.state` value) to a `{ x, y }`, or `null`. */
+export function asVec2(v: unknown): Vec2 | null {
+  return v !== null && typeof v === "object" && typeof (v as Vec2).x === "number" && typeof (v as Vec2).y === "number"
+    ? { x: (v as Vec2).x, y: (v as Vec2).y }
+    : null;
+}
+
 /** Read an array-of-points param (`[{x,y}, ...]`), filtering malformed entries. */
 export function points(params: ResolvedParams, key: string): Vec2[] {
   const v = params[key];

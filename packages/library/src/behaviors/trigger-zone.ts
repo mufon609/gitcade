@@ -13,6 +13,8 @@ import { str, bool } from "@gitcade/sdk";
  *  - `tag`: tag of entities that activate the zone
  *  - `enterEvent`/`exitEvent`: event names (defaults `"enter"`/`"exit"`)
  *  - `setStateKey`: optional `world.state` boolean key, true while occupied
+ *  - `setRespawnKey`: optional `world.state` key written THIS zone's `{ x, y }` on entry —
+ *    a checkpoint that moves the respawn point (pair with `lives-respawn.respawnStateKey`)
  *  - `kill`: destroy entrants on entry (default false)
  *  - `once`: fire only the first time, then go inert (default false)
  *  - `sound`: sound key on entry (optional)
@@ -26,6 +28,7 @@ export const triggerZone: BehaviorFn = (entity, world, params, _dt, scratch) => 
   const enterEvent = str(params, "enterEvent", "enter");
   const exitEvent = str(params, "exitEvent", "exit");
   const setStateKey = str(params, "setStateKey", "");
+  const setRespawnKey = str(params, "setRespawnKey", "");
   const sound = str(params, "sound", "");
 
   const inside = (s.inside ??= {}) as Record<string, boolean>;
@@ -38,6 +41,9 @@ export const triggerZone: BehaviorFn = (entity, world, params, _dt, scratch) => 
       inside[other.id] = true;
       world.events.emit(enterEvent, { zone: entity.id, id: other.id });
       if (sound) world.audio.play(sound);
+      // A checkpoint writes its OWN position as the live respawn point; set before
+      // kill/once so a one-shot checkpoint still records it.
+      if (setRespawnKey) world.state[setRespawnKey] = { x: entity.x, y: entity.y };
       if (kill) world.destroy(other);
       if (once) {
         s.triggerSpent = true;

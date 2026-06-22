@@ -1,11 +1,11 @@
 {
   "id": "lives-respawn",
   "kind": "system",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "progression",
   "tags": ["progression", "lives", "respawn", "arcade"],
   "license": "MIT",
-  "description": "Lives + respawn loop: seed lives, watch the player tag for death, spend a life and respawn a prototype after a delay, end the game when lives run out.",
+  "description": "Lives + respawn loop: seed lives, watch the player tag for death, spend a life and respawn a prototype after a delay (at a live checkpoint when one is set, else the static point), end the game when lives run out.",
   "dependencies": ["health-and-death"],
   "params": {
     "startLives": { "type": "number", "balance": true, "description": "Starting life count." },
@@ -13,6 +13,7 @@
     "livesKey": { "type": "string", "balance": false, "description": "world.state key holding remaining lives." },
     "watchTag": { "type": "string", "balance": false, "description": "Tag of the entity whose death costs a life." },
     "respawnPosition": { "type": "object", "balance": false, "description": "{ x, y } respawn point (structural)." },
+    "respawnStateKey": { "type": "string", "balance": false, "description": "Optional world.state key holding a live { x, y } respawn point (a checkpoint, set by trigger-zone.setRespawnKey) — overrides respawnPosition when present." },
     "respawnDelay": { "type": "number", "balance": true, "description": "Seconds before respawning." },
     "stateKey": { "type": "string", "balance": false, "description": "world.state scratch key for this system." }
   },

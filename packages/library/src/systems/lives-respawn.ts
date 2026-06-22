@@ -1,7 +1,7 @@
 import type { SystemFn } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
 import { GAME_OVER, RESPAWN } from "../channels.js";
-import { vec2, spawnFrom, systemState } from "../util.js";
+import { vec2, asVec2, spawnFrom, systemState } from "../util.js";
 
 interface LivesState extends Record<string, unknown> {
   respawnTimer: number;
@@ -23,6 +23,8 @@ interface LivesState extends Record<string, unknown> {
  *  - `livesKey`: `world.state` key holding remaining lives (default `"lives"`)
  *  - `watchTag`: tag of the entity whose death costs a life (default `"player"`)
  *  - `respawnPosition`: `{ x, y }` respawn point (structural; default prototype position)
+ *  - `respawnStateKey`: optional `world.state` key holding a live `{ x, y }` respawn point
+ *    (a checkpoint, set by `trigger-zone.setRespawnKey`) — overrides `respawnPosition` when present
  *  - `respawnDelay`: seconds before respawning (balance → `$cfg`; default 0)
  *  - `stateKey`: `world.state` scratch key for this system (default `"__livesRespawn"`)
  */
@@ -31,6 +33,7 @@ export const livesRespawn: SystemFn = (world, params, dt) => {
   const watchTag = str(params, "watchTag", "player");
   const respawnDelay = num(params, "respawnDelay", 0);
   const stateKey = str(params, "stateKey", "__livesRespawn");
+  const respawnStateKey = str(params, "respawnStateKey", "");
 
   if (typeof world.state[livesKey] !== "number") {
     world.state[livesKey] = num(params, "startLives", 0);
@@ -48,10 +51,13 @@ export const livesRespawn: SystemFn = (world, params, dt) => {
     s.respawnTimer -= dt;
     if (s.respawnTimer <= 0) {
       s.awaitingRespawn = false;
-      const hasPos = !!params.respawnPosition;
+      // A live respawn point (the last checkpoint, written by `trigger-zone.setRespawnKey`)
+      // wins over the static `respawnPosition`; fall back to it when unset/malformed.
+      const dynamic = respawnStateKey ? asVec2(world.state[respawnStateKey]) : null;
+      const position = dynamic ?? (params.respawnPosition ? vec2(params, "respawnPosition") : undefined);
       spawnFrom(world, params.prototype, {
         idPrefix: watchTag,
-        position: hasPos ? vec2(params, "respawnPosition") : undefined,
+        position,
       });
       RESPAWN.emit(world, { livesLeft: world.state[livesKey] as number });
     }

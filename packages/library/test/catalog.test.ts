@@ -45,6 +45,14 @@ describe("CATALOG.json", () => {
     expect(ok).toBe(true);
   });
 
+  it("pins the catalog version header to the library package version (no hand-edit drift)", () => {
+    // build-catalog.mjs stamps `version` from package.json; this guards the COMMITTED
+    // file against drifting from the package — the exact gap that needed a hand-fix when
+    // the library moved to 1.13.0 (the catalog header lagged the package bump).
+    const pkg = readJson("../package.json") as { version: string };
+    expect(catalog.version).toBe(pkg.version);
+  });
+
   it("is in sync with the per-part source files (parts/)", () => {
     const partFiles = PART_DIRS.flatMap((d) =>
       readdirSync(fileURLToPath(new URL(`../parts/${d}`, import.meta.url)))

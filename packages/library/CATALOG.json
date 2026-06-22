@@ -1416,7 +1416,7 @@
     {
       "id": "trigger-zone",
       "kind": "behavior",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "interaction",
       "tags": [
         "interaction",
@@ -1425,7 +1425,7 @@
         "hazard",
         "checkpoint"
       ],
-      "description": "A volume that emits enter/exit events for a tag, can set a world.state flag while occupied, and can destroy entrants (hazard / kill-plane).",
+      "description": "A volume that emits enter/exit events for a tag, can set a world.state flag while occupied, can write its own position as a respawn point (checkpoint), and can destroy entrants (hazard / kill-plane).",
       "license": "MIT",
       "dependencies": [
         "aabb-collision"
@@ -1450,6 +1450,11 @@
           "type": "string",
           "balance": false,
           "description": "Optional world.state boolean key, true while occupied."
+        },
+        "setRespawnKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional world.state key written this zone's { x, y } on entry — a checkpoint that moves the respawn point (pair with lives-respawn.respawnStateKey)."
         },
         "kill": {
           "type": "boolean",
@@ -1855,7 +1860,7 @@
     {
       "id": "lives-respawn",
       "kind": "system",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "progression",
       "tags": [
         "progression",
@@ -1863,7 +1868,7 @@
         "respawn",
         "arcade"
       ],
-      "description": "Lives + respawn loop: seed lives, watch the player tag for death, spend a life and respawn a prototype after a delay, end the game when lives run out.",
+      "description": "Lives + respawn loop: seed lives, watch the player tag for death, spend a life and respawn a prototype after a delay (at a live checkpoint when one is set, else the static point), end the game when lives run out.",
       "license": "MIT",
       "dependencies": [
         "health-and-death"
@@ -1893,6 +1898,11 @@
           "type": "object",
           "balance": false,
           "description": "{ x, y } respawn point (structural)."
+        },
+        "respawnStateKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional world.state key holding a live { x, y } respawn point (a checkpoint, set by trigger-zone.setRespawnKey) — overrides respawnPosition when present."
         },
         "respawnDelay": {
           "type": "number",
@@ -4179,6 +4189,67 @@
             "accent": 3,
             "hazard": 4
           }
+        }
+      }
+    },
+    {
+      "id": "hud-bar",
+      "kind": "ui",
+      "version": "1.1.0",
+      "category": "ui",
+      "tags": [
+        "ui",
+        "hud",
+        "bar",
+        "health",
+        "progress"
+      ],
+      "description": "A per-entity behavior that resizes a flat rect to value/max each tick: a health/energy/boss/progress bar. Reads the value from world.state[valueKey] by default, or — with valueEntity — from a tracked entity's own state (a data-driven health bar). Optional lowColor/lowThreshold recolor.",
+      "license": "MIT",
+      "dependencies": [],
+      "params": {
+        "valueKey": {
+          "type": "string",
+          "balance": false,
+          "description": "State key holding the current value (default \"hp\")."
+        },
+        "valueEntity": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional entity id OR tag — read the value from that entity's state[valueKey] (e.g. a player's hp) instead of world.state[valueKey]. Unset ⇒ the world.state read."
+        },
+        "max": {
+          "type": "number",
+          "balance": true,
+          "description": "Full-bar value (default 1)."
+        },
+        "maxKey": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional world.state key holding the max (overrides max when set)."
+        },
+        "width": {
+          "type": "number",
+          "balance": false,
+          "description": "Full-bar width in px (structural; the entity's authored width)."
+        },
+        "lowColor": {
+          "type": "string",
+          "balance": false,
+          "description": "Optional color applied when the ratio drops below lowThreshold."
+        },
+        "lowThreshold": {
+          "type": "number",
+          "balance": true,
+          "description": "Ratio below which lowColor applies (default 0.3)."
+        }
+      },
+      "definition": {
+        "type": "hud-bar",
+        "params": {
+          "valueKey": "hp",
+          "maxKey": "maxHp",
+          "width": 120
         }
       }
     },

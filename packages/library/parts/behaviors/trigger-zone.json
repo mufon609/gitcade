@@ -1,17 +1,18 @@
 {
   "id": "trigger-zone",
   "kind": "behavior",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "interaction",
   "tags": ["interaction", "trigger", "zone", "hazard", "checkpoint"],
   "license": "MIT",
-  "description": "A volume that emits enter/exit events for a tag, can set a world.state flag while occupied, and can destroy entrants (hazard / kill-plane).",
+  "description": "A volume that emits enter/exit events for a tag, can set a world.state flag while occupied, can write its own position as a respawn point (checkpoint), and can destroy entrants (hazard / kill-plane).",
   "dependencies": ["aabb-collision"],
   "params": {
     "tag": { "type": "string", "balance": false, "description": "Tag of entities that activate the zone." },
     "enterEvent": { "type": "string", "balance": false, "description": "Event name on entry." },
     "exitEvent": { "type": "string", "balance": false, "description": "Event name on exit." },
     "setStateKey": { "type": "string", "balance": false, "description": "Optional world.state boolean key, true while occupied." },
+    "setRespawnKey": { "type": "string", "balance": false, "description": "Optional world.state key written this zone's { x, y } on entry — a checkpoint that moves the respawn point (pair with lives-respawn.respawnStateKey)." },
     "kill": { "type": "boolean", "balance": false, "description": "Destroy entrants on entry." },
     "once": { "type": "boolean", "balance": false, "description": "Fire only the first time, then go inert." },
     "sound": { "type": "string", "balance": false, "description": "Sound key on entry." }

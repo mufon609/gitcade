@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Lumen: Echoes of the Dusklands — GitCade</title>
+    <!-- Inline favicon so a missing /favicon.ico never logs a console 404. -->
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%231b1442'/%3E%3Ccircle cx='8' cy='9' r='4' fill='%23ff9a3c'/%3E%3Ccircle cx='8' cy='9' r='2' fill='%23ffe0a8'/%3E%3C/svg%3E" />
+    <style>
+      :root {
+        --bg: #0b0820; --ink: #ffe0a8; --ember: #ff9a3c; --gold: #ffd24a;
+        --violet: #9a5cff; --aqua: #34c2b3; --fuchsia: #ff4fb0; --dusk: #1b1442;
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+        display: grid; place-items: center; overflow: hidden;
+      }
+      #stage {
+        position: relative; width: 800px; height: 480px;
+        max-width: 100vw; max-height: 100vh; aspect-ratio: 5 / 3;
+        /* Clip the canvas overhang during screen-shake, and match the canvas bg so the
+           thin gap a shake exposes blends in instead of flashing the page behind. */
+        overflow: hidden; background: var(--dusk);
+      }
+      #game {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        image-rendering: pixelated; touch-action: none; background: var(--dusk);
+        will-change: transform;
+      }
+      /* Screen-effects overlay (flash/fade) — driven by attachScreenEffects. */
+      #fx-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+      /* Pause / mute buttons, always available. */
+      #pause-btn, #mute-btn {
+        position: absolute; top: 8px; z-index: 5;
+        width: 40px; height: 40px; border: 0; border-radius: 8px;
+        background: rgba(154, 92, 255, .5); color: var(--ink); font-size: 18px;
+        cursor: pointer; touch-action: manipulation;
+      }
+      #pause-btn { right: 8px; }
+      #mute-btn { left: 8px; }
+      /* HUD — screen-fixed (a scrolling level's world-space canvas can't host a fixed
+         HUD, so it's a DOM overlay the host mirrors from world.state each frame). The
+         56px side padding clears the corner mute/pause buttons. */
+      #hud {
+        position: absolute; top: 0; left: 0; right: 0; z-index: 4;
+        display: flex; justify-content: space-between; align-items: flex-start;
+        padding: 13px 56px; pointer-events: none;
+        font: 16px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 1px;
+        text-shadow: 1px 1px 0 #070512;
+      }
+      #hud .left { display: flex; gap: 18px; }
+      #hud-motes { color: var(--gold); }
+      #hud-hp { color: var(--ember); }
+      #hud-level { color: var(--aqua); }
+      #hud-lives { color: var(--ink); }
+      /* Overlays: pause, start, result. */
+      .overlay {
+        position: absolute; inset: 0; z-index: 10; display: none; place-items: center;
+        background: rgba(11, 8, 32, .74); backdrop-filter: blur(2px); text-align: center;
+      }
+      .card {
+        background: #150f33; border: 2px solid var(--violet); border-radius: 16px;
+        padding: 26px 36px; box-shadow: 0 12px 48px rgba(0, 0, 0, .55); max-width: 86%;
+      }
+      .card h1 { margin: 0 0 6px; font-size: 34px; letter-spacing: 2px; color: var(--ember); text-shadow: 0 2px 0 #070512; }
+      .card h2 { margin: 0 0 16px; font-size: 16px; font-weight: 400; letter-spacing: 3px; color: var(--aqua); }
+      .card p { margin: 8px 0 0; font-size: 13px; opacity: .85; }
+      .card .keys { margin-top: 14px; font-size: 12px; opacity: .7; line-height: 1.7; }
+      .card .keys b { color: var(--gold); font-weight: 600; }
+      .card .prompt { margin-top: 16px; font-size: 14px; color: var(--gold); }
+      #result-title { color: var(--ember); }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="game" width="800" height="480"></canvas>
+      <div id="fx-overlay"></div>
+      <div id="hud">
+        <div class="left"><span id="hud-motes">◆ 0</span><span id="hud-hp">♥ 3</span></div>
+        <span id="hud-level">LEVEL 1</span>
+        <span id="hud-lives">✦ 5</span>
+      </div>
+      <button id="pause-btn" aria-label="Pause">II</button>
+      <button id="mute-btn" aria-label="Mute audio">🔊</button>
+
+      <div id="pause-overlay" class="overlay">
+        <div class="card">
+          <h1>Paused</h1>
+          <p>Press P or Esc to resume</p>
+        </div>
+      </div>
+
+      <div id="start-overlay" class="overlay">
+        <div class="card">
+          <h1>LUMEN</h1>
+          <h2>ECHOES OF THE DUSKLANDS</h2>
+          <p>Carry the light across the drifting ruins to the Beacon.</p>
+          <div class="keys">
+            <b>← →</b> / <b>A·D</b> move &nbsp;·&nbsp; <b>Space</b> / <b>W</b> / <b>↑</b> jump<br />
+            <b>↓</b> / <b>S</b> drop through &amp; climb &nbsp;·&nbsp; <b>P</b> pause
+          </div>
+          <p class="prompt">▶ press any key / tap to begin</p>
+        </div>
+      </div>
+
+      <div id="result-overlay" class="overlay">
+        <div class="card">
+          <h1 id="result-title">THE BEACON IS LIT</h1>
+          <p id="result-sub">◆ 0 motes gathered</p>
+          <p class="prompt">↻ press any key / tap to echo again</p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

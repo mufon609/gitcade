@@ -1,0 +1,20 @@
+{
+  "name": "Lumen: Echoes of the Dusklands",
+  "slug": "lumen",
+  "description": "Guide Lumen, a luminous wisp, left-to-right across the drifting twilight ruins of the Dusklands. Every attempt opens with a skippable Echo — a deterministic replay of your last run.",
+  "version": "0.1.0",
+  "engine": "gitcade-sdk",
+  "sdkVersion": "1.13.0",
+  "libraryVersion": "1.13.0",
+  "entryPoint": "src/scenes/level-1.json",
+  "license": { "code": "MIT", "assets": "CC-BY-4.0" },
+  "authors": [{ "name": "GitCade", "github": "gitcade-games" }],
+  "tier": "ecosystem",
+  "controls": [
+    { "input": "← → / A·D", "action": "Move" },
+    { "input": "Space / W / ↑", "action": "Jump" },
+    { "input": "↓ / S", "action": "Drop through / Climb" },
+    { "input": "Any key", "action": "Skip Echo" }
+  ],
+  "levels": ["level-1"]
+}

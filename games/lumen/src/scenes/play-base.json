@@ -1,0 +1,201 @@
+{
+  "id": "play-base",
+  "size": { "width": 800, "height": 480 },
+  "music": "action",
+  "background": {
+    "color": "#1b1442",
+    "layers": [
+      { "src": "assets/lumen/sky.png", "scrollX": 0 },
+      { "src": "assets/lumen/far.png", "scrollX": 6 },
+      { "src": "assets/lumen/mid.png", "scrollX": 16 },
+      { "src": "assets/lumen/near.png", "scrollX": 30 }
+    ]
+  },
+  "entities": [
+    {
+      "id": "player",
+      "sprite": {
+        "kind": "sheet",
+        "src": "assets/lumen/player.png",
+        "frameWidth": 24,
+        "frameHeight": 24,
+        "frameCount": 10,
+        "fps": 10,
+        "animations": {
+          "idle": { "from": 0, "to": 1, "fps": 4 },
+          "run": { "from": 2, "to": 5, "fps": 12 },
+          "jump": { "from": 6, "to": 6, "loop": false },
+          "fall": { "from": 7, "to": 7, "loop": false },
+          "land": { "from": 8, "to": 9, "fps": 18, "loop": false }
+        }
+      },
+      "size": { "w": 24, "h": 24 },
+      "position": { "x": 64, "y": 360 },
+      "tags": ["player"],
+      "collider": { "role": "dynamic", "inset": { "x": 4, "y": 2 } },
+      "layer": 5,
+      "behaviors": [
+        {
+          "type": "move-platformer",
+          "part": "move-platformer@1.3.0",
+          "params": {
+            "moveSpeed": "$cfg.playerSpeed",
+            "gravity": "$cfg.gravity",
+            "jumpSpeed": "$cfg.jumpSpeed",
+            "coyoteTime": "$cfg.coyoteTime",
+            "maxFall": "$cfg.maxFall",
+            "accel": "$cfg.runAccel",
+            "friction": "$cfg.runFriction",
+            "jumpCutMultiplier": "$cfg.jumpCut",
+            "jumpBuffer": "$cfg.jumpBuffer",
+            "apexGravityMult": "$cfg.apexGravityMult",
+            "apexThreshold": "$cfg.apexThreshold",
+            "down": ["ArrowDown", "KeyS"],
+            "dropThroughTime": "$cfg.dropThroughTime",
+            "climbSpeed": "$cfg.climbSpeed"
+          }
+        },
+        { "type": "velocity", "params": {} },
+        { "type": "sprite-state-machine", "part": "sprite-state-machine@1.0.0", "params": {} },
+        { "type": "face-velocity", "part": "face-velocity@1.0.0", "params": {} },
+        {
+          "type": "health-and-death",
+          "part": "health-and-death@1.0.0",
+          "params": { "hp": "$cfg.playerHp", "deathEvent": "died", "deathSound": "explode" }
+        },
+        {
+          "type": "dust",
+          "part": "dust@1.0.0",
+          "params": { "rate": "$cfg.fxDustRate", "minSpeed": "$cfg.fxDustMinSpeed", "ttl": "$cfg.fxDustTtl", "color": "#34c2b3" }
+        }
+      ]
+    }
+  ],
+  "systems": [
+    {
+      "type": "aabb-collision",
+      "params": {
+        "pairs": [
+          ["player", "mote"],
+          ["player", "ember"],
+          ["player", "wraith"],
+          ["player", "spike"],
+          ["player", "checkpoint"],
+          ["player", "rift"],
+          ["player", "beacon"],
+          ["player", "void"]
+        ]
+      }
+    },
+    {
+      "type": "camera-follow",
+      "part": "camera-follow@2.0.0",
+      "params": { "targetTag": "player", "smoothing": "$cfg.cameraSmoothing", "deadzone": { "w": 160, "h": 220 } }
+    },
+    { "type": "camera-shake", "part": "camera-shake@1.0.0", "params": { "event": "shake" } },
+    { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "motes", "highKey": "bestMotes", "persist": false } },
+    {
+      "type": "lives-respawn",
+      "part": "lives-respawn@1.0.0",
+      "params": {
+        "startLives": "$cfg.startLives",
+        "watchTag": "player",
+        "respawnDelay": "$cfg.respawnDelay",
+        "respawnPosition": { "x": 64, "y": 360 },
+        "prototype": {
+          "id": "player",
+          "sprite": {
+            "kind": "sheet",
+            "src": "assets/lumen/player.png",
+            "frameWidth": 24,
+            "frameHeight": 24,
+            "frameCount": 10,
+            "fps": 10,
+            "animations": {
+              "idle": { "from": 0, "to": 1, "fps": 4 },
+              "run": { "from": 2, "to": 5, "fps": 12 },
+              "jump": { "from": 6, "to": 6, "loop": false },
+              "fall": { "from": 7, "to": 7, "loop": false },
+              "land": { "from": 8, "to": 9, "fps": 18, "loop": false }
+            }
+          },
+          "size": { "w": 24, "h": 24 },
+          "tags": ["player"],
+          "collider": { "role": "dynamic", "inset": { "x": 4, "y": 2 } },
+          "layer": 5,
+          "behaviors": [
+            {
+              "type": "move-platformer",
+              "part": "move-platformer@1.3.0",
+              "params": {
+                "moveSpeed": "$cfg.playerSpeed",
+                "gravity": "$cfg.gravity",
+                "jumpSpeed": "$cfg.jumpSpeed",
+                "coyoteTime": "$cfg.coyoteTime",
+                "maxFall": "$cfg.maxFall",
+                "accel": "$cfg.runAccel",
+                "friction": "$cfg.runFriction",
+                "jumpCutMultiplier": "$cfg.jumpCut",
+                "jumpBuffer": "$cfg.jumpBuffer",
+                "apexGravityMult": "$cfg.apexGravityMult",
+                "apexThreshold": "$cfg.apexThreshold",
+                "down": ["ArrowDown", "KeyS"],
+                "dropThroughTime": "$cfg.dropThroughTime",
+                "climbSpeed": "$cfg.climbSpeed"
+              }
+            },
+            { "type": "velocity", "params": {} },
+            { "type": "sprite-state-machine", "part": "sprite-state-machine@1.0.0", "params": {} },
+            { "type": "face-velocity", "part": "face-velocity@1.0.0", "params": {} },
+            {
+              "type": "health-and-death",
+              "part": "health-and-death@1.0.0",
+              "params": { "hp": "$cfg.playerHp", "deathEvent": "died", "deathSound": "explode" }
+            },
+            {
+              "type": "dust",
+              "part": "dust@1.0.0",
+              "params": { "rate": "$cfg.fxDustRate", "minSpeed": "$cfg.fxDustMinSpeed", "ttl": "$cfg.fxDustTtl", "color": "#34c2b3" }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "format-binding",
+      "part": "format-binding@1.0.0",
+      "params": {
+        "bindings": [
+          { "from": "level", "template": "LEVEL {v}", "to": "levelDisplay" },
+          { "from": "motes", "template": "◆ {v}", "to": "motesDisplay" },
+          { "from": "lives", "template": "✦ {v}", "to": "livesDisplay" },
+          { "from": "hp", "fromEntity": "player", "template": "♥ {v}", "to": "hpDisplay" }
+        ]
+      }
+    },
+    {
+      "type": "sparkle",
+      "part": "sparkle@1.0.0",
+      "params": {
+        "event": "collect",
+        "count": "$cfg.fxSparkleCount",
+        "speed": "$cfg.fxSparkleSpeed",
+        "ttl": "$cfg.fxSparkleTtl",
+        "gravity": "$cfg.fxSparkleGravity",
+        "colors": ["#ffd24a", "#ffe0a8", "#34c2b3"]
+      }
+    },
+    {
+      "type": "explosion",
+      "part": "explosion@1.0.0",
+      "params": {
+        "event": "died",
+        "count": "$cfg.fxExplosionCount",
+        "speed": "$cfg.fxExplosionSpeed",
+        "ttl": "$cfg.fxExplosionTtl",
+        "gravity": "$cfg.fxExplosionGravity",
+        "colors": ["#ff9a3c", "#ffd24a", "#ff4fb0", "#ffe0a8"]
+      }
+    }
+  ]
+}

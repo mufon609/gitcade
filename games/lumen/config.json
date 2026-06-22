@@ -1,0 +1,55 @@
+{
+  "volume": 0.5,
+
+  "playerSpeed": 190,
+  "gravity": 1350,
+  "jumpSpeed": 540,
+  "coyoteTime": 0.1,
+  "jumpBuffer": 0.12,
+  "maxFall": 880,
+  "runAccel": 1900,
+  "runFriction": 2500,
+  "jumpCut": 0.5,
+  "apexGravityMult": 0.55,
+  "apexThreshold": 90,
+  "dropThroughTime": 0.4,
+  "climbSpeed": 150,
+
+  "cameraSmoothing": 0.12,
+
+  "startLives": 5,
+  "respawnDelay": 0.8,
+  "playerHp": 3,
+
+  "moteValue": 1,
+  "emberValue": 10,
+
+  "wraithSpeed": 55,
+  "wraithWaitTime": 0.4,
+  "wraithDamage": 1,
+  "wraithKnockback": 240,
+  "damageCooldown": 1.0,
+
+  "driftstoneSpeed": 70,
+  "liftSpeed": 55,
+
+  "portalCooldown": 0.8,
+
+  "moteBobDuration": 1.1,
+  "emberPulseDuration": 1.6,
+  "beaconPulseDuration": 1.0,
+  "riftPulseDuration": 1.4,
+  "checkpointPulseDuration": 1.3,
+
+  "fxDustRate": 0.1,
+  "fxDustMinSpeed": 40,
+  "fxDustTtl": 0.4,
+  "fxSparkleCount": 10,
+  "fxSparkleSpeed": 70,
+  "fxSparkleTtl": 0.6,
+  "fxSparkleGravity": -30,
+  "fxExplosionCount": 16,
+  "fxExplosionSpeed": 150,
+  "fxExplosionTtl": 0.5,
+  "fxExplosionGravity": 200
+}

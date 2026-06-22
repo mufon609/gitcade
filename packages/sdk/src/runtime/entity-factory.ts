@@ -26,6 +26,7 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
     scale: def.scale,
     opacity: def.opacity,
     visible: def.visible,
+    screen: def.screen,
     tags: def.tags,
     sprite: def.sprite,
     state: def.state ? { ...def.state } : {},

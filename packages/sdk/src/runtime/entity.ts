@@ -143,6 +143,11 @@ export class Entity {
   /** When false, the renderer skips this entity. Visual only — it still
    *  simulates (behaviors/collision run). Default true. */
   visible = true;
+  /** When true, the renderer draws this entity in SCREEN space (fixed on the canvas, not panned
+   *  by the camera) and reads `x`/`y` as canvas coords — a HUD that stays put while the world
+   *  scrolls. Visual only: it still simulates and is NOT a snapshot field (render-only), so
+   *  determinism is unaffected. Default false (world-space). */
+  screen = false;
   /** Draw layer; higher draws on top. */
   layer: number;
   zIndex: number;
@@ -215,6 +220,7 @@ export class Entity {
     scale?: number;
     opacity?: number;
     visible?: boolean;
+    screen?: boolean;
     tags?: string[];
     sprite: Sprite;
     state?: Record<string, unknown>;
@@ -239,6 +245,7 @@ export class Entity {
     this.body.prevScaleY = this.scaleY;
     this.opacity = init.opacity ?? 1;
     this.visible = init.visible ?? true;
+    this.screen = init.screen ?? false;
     this.tags = new Set(init.tags ?? []);
     this.sprite = init.sprite;
     this.state = init.state ?? {};

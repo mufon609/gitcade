@@ -49,7 +49,7 @@ export type ColliderDef = z.infer<typeof ColliderSchema>;
  *
  * `{ id, sprite, size, position, behaviors[], tags[], layer }` is the FROZEN
  * core shape. Optional presentational/transform fields (`rotation`, `scale`,
- * `zIndex`, `opacity`, `visible`), an optional initial `state` bag, and the optional
+ * `zIndex`, `opacity`, `visible`, `screen`), an optional initial `state` bag, and the optional
  * scene-graph link (`parent` + `local`) are additive and do not change the frozen core.
  *
  * - `id` is unique within a scene; tag queries and `world.byId` use it.
@@ -86,6 +86,14 @@ export const EntityDefSchema = z.strictObject({
    *  A behavior flips it at runtime to hide/show an entity (e.g. a hover preview) without
    *  parking it off-screen. Visual only — a hidden entity still simulates. */
   visible: z.boolean().optional(),
+  /** When true, the renderer draws this entity in SCREEN space — fixed on the canvas, NOT panned
+   *  by the follow-camera — so a HUD label/bar/score stays put while the world scrolls. Its
+   *  `position` is then read as canvas/screen coordinates (not world coords), and it is drawn AFTER
+   *  the world (camera-restored), un-culled and un-interpolated. Default false (world-space).
+   *  Render-only: a screen entity still simulates and is NOT a snapshot field, so determinism is
+   *  unaffected (no game that omits it changes a byte). This is what makes a data-authored HUD usable
+   *  in a scrolling game — otherwise a fixed-world-position HUD scrolls off. */
+  screen: z.boolean().optional(),
   state: z.record(z.string(), z.unknown()).optional(),
 
   // Scene-graph link (additive optional). Absent ⇒ a root entity:

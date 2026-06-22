@@ -144,9 +144,20 @@ export class Renderer {
 
     this.drawTilemap(ctx, world, cull);
 
-    const drawList = world.entities
-      .filter((e) => e.alive && e.visible !== false && e.sprite.kind !== "none" && this.inView(e, alpha, snap, cull))
-      .sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
+    // Partition the drawn entities in ONE pass: WORLD entities (camera-panned + viewport-culled +
+    // render-interpolated — the existing path, unchanged) and SCREEN-space HUD entities (`screen:true`,
+    // drawn after the camera restore so they stay FIXED on the canvas while the world scrolls).
+    // `screenList` is left null unless a screen entity actually exists, so a game with none never
+    // allocates it or runs the second pass: the no-HUD FAST PATH emits exactly the draw calls it did
+    // before this layer (same filter predicate, same source order ⇒ same stable-sorted draw order).
+    const drawList: Entity[] = [];
+    let screenList: Entity[] | null = null;
+    for (const e of world.entities) {
+      if (!e.alive || e.visible === false || e.sprite.kind === "none") continue;
+      if (e.screen) (screenList ??= []).push(e);
+      else if (this.inView(e, alpha, snap, cull)) drawList.push(e);
+    }
+    drawList.sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
 
     for (const e of drawList) {
       // Interpolate each body between its last two tick positions (render-only translate around the
@@ -165,6 +176,17 @@ export class Renderer {
     }
 
     if (scrolled) ctx.restore();
+
+    // SCREEN-space HUD pass — taken ONLY when a `screen:true` entity exists. Drawn AFTER the camera
+    // restore (no camera translate ⇒ fixed on the canvas), in canvas coordinates (no world-rect cull:
+    // `position` is screen space, so the cull rect is meaningless — these are a few HUD entities, all
+    // drawn), and at the CURRENT transform (alpha 1 — static HUD has no movers, so render interpolation
+    // is moot). Sorted by `layer` then `zIndex` like the world list; a screen entity is never in
+    // `drawList`, so it draws exactly once.
+    if (screenList) {
+      screenList.sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
+      for (const e of screenList) this.drawEntity(ctx, e, world, 1);
+    }
   }
 
   /**

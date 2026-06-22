@@ -46,6 +46,13 @@ runtime unchanged.
 - **Runtime tilemap.** `TilemapSchema.properties` adds per-index flags;
   `world.tileAt(x, y)` / `isBuildable(x, y)` / `cellRect(col, row)` query the active
   scene's tilemap (stored on `world.tilemap`), and the renderer draws it.
+- **Screen-space HUD.** An entity with `screen: true` renders in screen space —
+  fixed on the canvas, *not* panned by the follow-camera — with its `position` read
+  as canvas coordinates. So a data-authored HUD (a bound `text` score, a `hud-bar`)
+  stays put while the world scrolls instead of scrolling off the level. It is drawn
+  after the world, un-culled, and `layer`/`zIndex` sorted; render-only (not a
+  snapshot field, so determinism is unaffected), and a game that omits it renders
+  byte-identically.
 - **Economy assist.** `world.canAfford(key, cost)` / `world.spend(key, cost)`
   — thin, non-contractual helpers over a `world.state` balance.
 

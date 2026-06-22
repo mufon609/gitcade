@@ -118,17 +118,24 @@ export class Renderer {
     // dash, tens of px/tick) is far below this, so the two never collide.
     const snap = Math.min(vw, vh);
 
-    // Background is drawn in SCREEN space (no camera offset), so a solid/parallax
-    // backdrop stays fixed behind the scrolling world.
-    this.drawBackground(ctx, world, background, vw, vh);
-
-    // Camera transform: pan the world under the viewport, including any transient shake OFFSET
-    // (`shakeX`/`shakeY`, kept separate from the follow base). The follow BASE is interpolated between
-    // ticks so scrolling is smooth; shake (already a per-frame jitter) rides on top
-    // un-interpolated. Skipped at the origin so a non-scrolling, non-shaking scene takes the
-    // no-save/translate path, and rounded to whole px so tiles/sprites stay crisp.
+    // The interpolated CAMERA BASIS (the world translate origin): the follow base lerped between the last
+    // two ticks (smooth scrolling when rAF ≠ the sim rate) PLUS any transient shake OFFSET (`shakeX`/`shakeY`,
+    // kept separate from the follow base; the follow base interpolates, shake — already a per-frame jitter —
+    // rides on top un-interpolated). Computed up here, BEFORE the background, because a parallax layer may
+    // COUPLE to it (track the camera by its depth factor); the SAME camX/camY is reused as the world
+    // translate + cull basis below, so the background and the world scroll against one camera. Render-only:
+    // it is read from deterministic sim state, never written back, so headless play stays byte-identical.
     const camX = cam ? cam.x + interpOffset(cam.prevX ?? cam.x, cam.x, alpha, snap) + (cam.shakeX ?? 0) : 0;
     const camY = cam ? cam.y + interpOffset(cam.prevY ?? cam.y, cam.y, alpha, snap) + (cam.shakeY ?? 0) : 0;
+
+    // Background is drawn in SCREEN space (no camera translate), so a solid/static backdrop stays fixed,
+    // but each parallax layer MAY couple to the camera by its `parallaxX`/`parallaxY` factor (camX/camY
+    // passed through) so it tracks the view. A layer with factor 0 (the default) ignores the camera and
+    // stays a pure time-drift backdrop — byte-identical to before this change.
+    this.drawBackground(ctx, world, background, vw, vh, camX, camY);
+
+    // Camera transform: pan the world under the viewport. Skipped at the origin so a non-scrolling,
+    // non-shaking scene takes the no-save/translate path, and rounded to whole px so tiles/sprites stay crisp.
     const scrolled = cam != null && (camX !== 0 || camY !== 0);
     if (scrolled) {
       ctx.save();
@@ -279,17 +286,19 @@ export class Renderer {
 
   /**
    * Draw the scene background: the solid `color` fill, then any declarative
-   * `background.layers` as scrolling/parallax image planes. Each layer
-   * is an image tiled to cover the viewport and drifted by `scrollX`/`scrollY`
-   * px-per-second against `world.time` — so the same data renders identically at
-   * any frame rate, and a fixed-camera scene just uses `scrollX:0`. The `layers`
-   * descriptor is part of the FROZEN scene schema (the parallax slot), honored here
-   * with NO schema change. For background depth, prefer this over a full-field
-   * image entity: it stays declarative and needs no host scroll glue.
+   * `background.layers` as image planes — each tiled to cover the viewport and offset
+   * by two opt-in sources that COMPOSE: autonomous time-DRIFT (`scrollX`/`scrollY`
+   * px-per-second against `world.time`, so the same data renders identically at any
+   * frame rate) and camera COUPLING (`parallaxX`/`parallaxY` × the interpolated camera
+   * position `camX`/`camY`, so the layer tracks the view at its depth — the
+   * genre-standard parallax). Both default 0 ⇒ a fixed backdrop. The background is
+   * drawn in SCREEN space (the world translate is applied after this), so coupling is
+   * what makes a layer move WITH the scrolling world. For background depth, prefer this
+   * over a full-field image entity: it stays declarative and needs no host scroll glue.
    */
-  private drawBackground(ctx: Ctx, world: World, bg: Background | undefined, w: number, h: number): void {
+  private drawBackground(ctx: Ctx, world: World, bg: Background | undefined, w: number, h: number, camX: number, camY: number): void {
     let color = "#0b0b12";
-    let layers: ReadonlyArray<{ src: string; scrollX: number; scrollY: number }> | undefined;
+    let layers: ReadonlyArray<{ src: string; scrollX: number; scrollY: number; parallaxX?: number; parallaxY?: number }> | undefined;
     if (typeof bg === "string") color = bg;
     else if (bg && typeof bg === "object") {
       if (bg.color) color = bg.color;
@@ -298,14 +307,16 @@ export class Renderer {
     ctx.fillStyle = color;
     ctx.fillRect(0, 0, w, h);
     if (!layers) return;
-    for (const layer of layers) this.drawParallaxLayer(ctx, layer, world.time, w, h);
+    for (const layer of layers) this.drawParallaxLayer(ctx, layer, world.time, camX, camY, w, h);
   }
 
-  /** Tile one parallax layer image across the viewport, drifted by scroll*time. */
+  /** Tile one parallax layer across the viewport, offset by its time-drift composed with camera coupling. */
   private drawParallaxLayer(
     ctx: Ctx,
-    layer: { src: string; scrollX: number; scrollY: number },
+    layer: { src: string; scrollX: number; scrollY: number; parallaxX?: number; parallaxY?: number },
     time: number,
+    camX: number,
+    camY: number,
     w: number,
     h: number,
   ): void {
@@ -313,11 +324,16 @@ export class Renderer {
     if (!img || !img.complete || img.naturalWidth === 0) return;
     const iw = img.naturalWidth;
     const ih = img.naturalHeight;
-    // Wrap the time-scaled offset into (-iw, 0] / (-ih, 0] so the first tile starts
-    // just left/above the viewport and the loop fills to the right/bottom edge.
-    let startX = (layer.scrollX * time) % iw;
+    // Each axis offset COMPOSES two independent, opt-in sources: autonomous time-DRIFT (`scroll·time`,
+    // px/sec — moves on its own) and camera COUPLING (`-cam·parallax` — tracks the view, so it stops when
+    // the player stops and reverses when they walk back; factor 0 = locked to the viewport, ~0..1 = depth,
+    // ~1 = pinned to the world). Both default 0 (the `?? 0` also covers a layer authored before this field /
+    // passed un-parsed), so a layer that sets neither is static and one that sets only `scroll` is the pure
+    // time-drift of before. Wrap the combined offset into (-iw, 0] / (-ih, 0] so the first tile starts just
+    // left/above the viewport and the loop fills to the right/bottom edge.
+    let startX = (layer.scrollX * time - camX * (layer.parallaxX ?? 0)) % iw;
     if (startX > 0) startX -= iw;
-    let startY = (layer.scrollY * time) % ih;
+    let startY = (layer.scrollY * time - camY * (layer.parallaxY ?? 0)) % ih;
     if (startY > 0) startY -= ih;
     for (let x = startX; x < w; x += iw) {
       for (let y = startY; y < h; y += ih) {

@@ -5,10 +5,10 @@
   "background": {
     "color": "#1b1442",
     "layers": [
-      { "src": "assets/lumen/sky.png", "scrollX": 0 },
-      { "src": "assets/lumen/far.png", "scrollX": 6 },
-      { "src": "assets/lumen/mid.png", "scrollX": 16 },
-      { "src": "assets/lumen/near.png", "scrollX": 30 }
+      { "src": "assets/lumen/sky.png", "scrollX": 0, "parallaxX": 0 },
+      { "src": "assets/lumen/far.png", "scrollX": 0, "parallaxX": 0.2 },
+      { "src": "assets/lumen/mid.png", "scrollX": 0, "parallaxX": 0.5 },
+      { "src": "assets/lumen/near.png", "scrollX": 0, "parallaxX": 0.8 }
     ]
   },
   "entities": [

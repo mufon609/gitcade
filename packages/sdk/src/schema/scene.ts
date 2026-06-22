@@ -91,7 +91,24 @@ export const BackgroundSchema = z.union([
   z.strictObject({
     color: z.string().optional(),
     layers: z
-      .array(z.strictObject({ src: z.string(), scrollX: z.number().default(0), scrollY: z.number().default(0) }))
+      .array(
+        z.strictObject({
+          src: z.string(),
+          /** Autonomous time-DRIFT in px/sec (camera-independent): the layer slides on its own against
+           *  `world.time`, so it renders identically at any frame rate. 0 = no drift. */
+          scrollX: z.number().default(0),
+          scrollY: z.number().default(0),
+          /**
+           * Camera-COUPLING factor (additive optional, render-only): the layer ALSO offsets by
+           * `-camera.x * parallaxX` / `-camera.y * parallaxY`, so it tracks the camera — stopping when the
+           * view stops and reversing when it pans back (the genre-standard depth scroll). 0 = locked to the
+           * viewport (no follow, e.g. a static sky); ~0..1 = depth (smaller ⇒ farther/slower); ~1 ⇒ pinned to
+           * the world. Composes WITH `scrollX`/`scrollY` drift (both add). Defaults 0 ⇒ a layer that sets
+           * neither is camera-independent, byte-identical to before this field. */
+          parallaxX: z.number().default(0),
+          parallaxY: z.number().default(0),
+        }),
+      )
       .optional(),
   }),
 ]);

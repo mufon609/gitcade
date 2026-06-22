@@ -111,7 +111,7 @@ describe("renderer background.layers parallax", () => {
     const r = new Renderer(ctx as unknown as CanvasRenderingContext2D);
     const w = makeWorld();
     w.time = 0;
-    r.render(w, { color: "#000", layers: [{ src: "stars.png", scrollX: -70, scrollY: 0 }] });
+    r.render(w, { color: "#000", layers: [{ src: "stars.png", scrollX: -70, scrollY: 0, parallaxX: 0, parallaxY: 0 }] });
     // `+ 0` normalizes JS negative-zero (`-70 * 0 === -0`) — identical pixel, toEqual is strict.
     const draws = calls.filter((c) => c.op === "drawImage").map((c) => ({ op: c.op, x: (c.x as number) + 0, y: (c.y as number) + 0 }));
     expect(draws).toEqual([{ op: "drawImage", x: 0, y: 0 }]);
@@ -121,8 +121,8 @@ describe("renderer background.layers parallax", () => {
     const { ctx, calls } = makeCtx();
     const r = new Renderer(ctx as unknown as CanvasRenderingContext2D);
     const w = makeWorld();
-    w.time = 1; // scrollX -70 → offset -70
-    r.render(w, { color: "#000", layers: [{ src: "stars.png", scrollX: -70, scrollY: 0 }] });
+    w.time = 1; // scrollX -70 → offset -70 (camera at origin, so coupling adds 0 — pure drift)
+    r.render(w, { color: "#000", layers: [{ src: "stars.png", scrollX: -70, scrollY: 0, parallaxX: 0, parallaxY: 0 }] });
     const xs = calls.filter((c) => c.op === "drawImage").map((c) => c.x);
     expect(xs).toEqual([-70, 730]); // first tile drifted left, second wraps in to cover the gap
   });

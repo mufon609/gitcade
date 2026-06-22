@@ -34,21 +34,39 @@ const ROOT = resolve(__dirname, ".."); // games/lumen
 const ASSETS = join(ROOT, "public", "assets", "lumen"); // → URLs assets/lumen/<name>.png
 
 // ─────────────────────────────────────────────────────────────────────────────
-// THE LUMEN PALETTE — an original twilight/glow set (9 named colors). Deliberately
-// NOT the library's Sweetie16 subset: a cool deep-indigo ground ramp, teal-lit
-// stone, a warm amber hero, gold collectibles, magenta danger, violet rifts.
+// THE LUMEN PALETTE — "LUMINOUS DUSK". An original twilight set, deliberately NOT
+// the library's Sweetie16 subset. It re-keys the WORLD bright and high-contrast the
+// way modern 2D platformers (Celeste / Ori / Rayman) read: the PLAY layer (tiles,
+// props) is saturated, lifted off near-black, and POPS; the BACKGROUND layers fade
+// back — desaturated, cooler, lower-contrast (atmospheric perspective). The color
+// CODING is the gameplay tell and is unchanged: warm = you/treasure, teal = safe
+// footing/light, magenta·fuchsia = danger, violet = arcane.
+//
+// HERO-LOCKED ANCHORS: `void` `aqua` `ember` `glow` `gold` feed drawLumen(); the hero
+// (player.png) is FROZEN this pass, so those five hexes are byte-load-bearing — DO NOT
+// change them or the hero output drifts. Everything below them is the world re-key.
 // This object is the single source of truth for ART.md too.
 // ─────────────────────────────────────────────────────────────────────────────
 const HEX = {
-  void: "#070512", //  the void / kill-plane, outlines, deepest shadow, rift core
-  dusk: "#15103a", //  primary background indigo/navy
-  twilight: "#2c2660", //  drifting stone body (ground / platforms / ledges / decor)
-  aqua: "#34c2b3", //  teal/cyan lit stone surfaces, ladders, rim light, driftstones
-  ember: "#ff9a3c", //  Lumen's warm amber core; emberstone core
-  glow: "#ffe0a8", //  pale warm light — Lumen's halo, eyes' glint, beacon, highlights
-  gold: "#ffc12e", //  motes (coins), emberstone facets, HUD accents
-  fuchsia: "#ff3fa4", //  gloomspikes, driftwraiths — danger
-  violet: "#9a5cff", //  riftgates (portals), arcane echoes
+  // ── Hero-locked anchors (FROZEN — drawLumen reads these; do not touch) ──
+  void: "#070512", //  outlines, deepest shadow, kill-plane, riftgate core
+  aqua: "#34c2b3", //  hero's cool rim pixel + landing dust (world lit caps use `litcap`)
+  ember: "#ff9a3c", //  warm amber — hero core; emberstone / beacon warmth
+  glow: "#ffe0a8", //  pale warm light — halos, glints, beacon, highlights
+  gold: "#ffc12e", //  hero's gold inner + crown flame (world collectibles use `coin`)
+  // ── World re-key · PLAY layer (saturated, bright, high-contrast → POPS) ──
+  twilight: "#3a2f6b", //  drifting play-stone body — lifted off near-black
+  litcap: "#4fe0cf", //  bright aqua LIT cap / walk-edge / rails — the "this is solid" tell
+  rim: "#9af0e4", //  pale teal rim sheen (1px lip above the lit cap)
+  coin: "#ffd24a", //  bright coding gold — motes, emberstone facets, HUD accents
+  fuchsia: "#ff4fb0", //  danger — gloomspikes, driftwraiths
+  violet: "#9a5cff", //  arcane — riftgates (portals), echoes
+  // ── World re-key · SKY + atmosphere (background layers; fade back) ──
+  dusk: "#1b1442", //  scene base + sky TOP (deep indigo)
+  skyPurple: "#5b2a8a", //  sky mid band
+  skyMagenta: "#b5417a", //  sky dusk band
+  horizon: "#ff9a4d", //  warm amber horizon glow
+  haze: "#6a5a9c", //  cool atmospheric haze the distant layers fade toward
 };
 
 function hexToRgba(hex) {
@@ -332,100 +350,111 @@ function lumenSheet() {
 // DUSKLANDS TILESET — 32px tiles, single row (192×32). Index→meaning is a FROZEN
 // contract for the scene that consumes it:
 //   0 solid stone · 1 one-way ledge · 2 slope-left · 3 slope-right · 4 ladder · 5 decor stone
-// All carved from one drifting twilight stone: indigo body, teal-lit surfaces,
-// void shadow, seeded aqua/glow glimmers.
+// Luminous-dusk re-key: chunky play-stone (brighter `twilight` body) with a STRONG
+// triple-row lit cap (rim lip → litcap → falloff) and a hard `void` underside — high
+// contrast so a block reads as unmistakably SOLID and POPS off the background. Only the
+// decor stone (5) stays dim + cool, so it reads as *behind*.
 // ═════════════════════════════════════════════════════════════════════════════
-const STONE_SEAM = lerp(C.twilight, C.void, 0.55);
+const STONE_SEAM = lerp(C.twilight, C.void, 0.5); // chunky brick grain, kept under the cap
+const STONE_DEEP = lerp(C.twilight, C.void, 0.62); // the body's shaded lower gradient stop
 
-/** 0 — solid stone block: opaque, teal-lit cap + left edge, void bottom/right. */
+/** 0 — solid stone block: chunky, opaque; bright rim+litcap cap, hard void shadow → POPS. */
 function tileStone() {
   const g = new Grid(32, 32);
-  for (let y = 0; y < 32; y++) g.rect(0, y, 32, 1, lerp(C.twilight, C.dusk, (y / 31) * 0.6));
-  // brick seams (running bond), kept under the lit cap
-  g.hline(0, 31, 15, STONE_SEAM);
-  g.vline(10, 3, 14, STONE_SEAM);
-  g.vline(22, 16, 28, STONE_SEAM);
-  // beveled lit cap + left edge; void shadow on bottom + right
-  g.rect(0, 0, 32, 2, C.aqua);
-  g.rect(0, 2, 32, 1, lerp(C.aqua, C.twilight, 0.5));
-  g.vline(0, 0, 31, lerp(C.aqua, C.twilight, 0.45));
+  // body: top-lit vertical gradient (brighter stone → deeper stone) for volume
+  for (let y = 0; y < 32; y++) g.rect(0, y, 32, 1, lerp(C.twilight, STONE_DEEP, y / 31));
+  // chunky brick seams (running bond), kept under the lit cap so the cap stays clean
+  g.hline(0, 31, 16, STONE_SEAM);
+  g.vline(11, 4, 15, STONE_SEAM);
+  g.vline(21, 17, 30, STONE_SEAM);
+  // STRONG lit cap: a bright rim lip, a thick litcap band, then a 1px falloff to the body
+  g.rect(0, 0, 32, 1, C.rim);
+  g.rect(0, 1, 32, 2, C.litcap);
+  g.rect(0, 3, 32, 1, lerp(C.litcap, C.twilight, 0.5));
+  g.vline(0, 0, 31, lerp(C.litcap, C.twilight, 0.4)); // lit left edge
+  g.px(0, 0, C.rim);
+  // hard void shadow on bottom + right → the high-contrast "solid" read
   g.rect(0, 30, 32, 2, C.void);
-  g.vline(31, 0, 31, lerp(C.twilight, C.void, 0.6));
-  // glimmers
+  g.vline(31, 1, 31, lerp(C.twilight, C.void, 0.72));
+  g.vline(30, 4, 29, lerp(C.twilight, C.void, 0.38));
+  // glimmers (seeded → byte-stable)
   const rnd = mulberry32(0x1000);
-  for (let i = 0; i < 6; i++) g.px(2 + Math.floor(rnd() * 28), 5 + Math.floor(rnd() * 22), withA(rnd() > 0.5 ? C.aqua : C.glow, 150));
+  for (let i = 0; i < 7; i++) g.px(2 + Math.floor(rnd() * 28), 6 + Math.floor(rnd() * 21), withA(rnd() > 0.5 ? C.litcap : C.glow, 150));
   return g;
 }
 
-/** 1 — one-way ledge: a thin top-lit plank; the cell is transparent below it. */
+/** 1 — one-way ledge: a bright top-lit plank; the cell is transparent below it. */
 function tileLedge() {
   const g = new Grid(32, 32);
-  const top = 4;
+  const top = 3;
   const ph = 9; // plank rows top..top+ph-1
-  for (let i = 0; i < ph; i++) g.rect(0, top + i, 32, 1, lerp(C.twilight, C.dusk, (i / (ph - 1)) * 0.7));
-  g.rect(0, top, 32, 2, C.aqua); // strong lit top edge — "top-lit plank"
-  g.rect(0, top + 2, 32, 1, lerp(C.aqua, C.twilight, 0.5));
-  g.hline(0, 31, top + 5, STONE_SEAM); // grain
+  for (let i = 0; i < ph; i++) g.rect(0, top + i, 32, 1, lerp(C.twilight, STONE_DEEP, i / (ph - 1)));
+  g.rect(0, top, 32, 1, C.rim); // bright lip
+  g.rect(0, top + 1, 32, 2, C.litcap); // strong lit top edge — "top-lit plank"
+  g.rect(0, top + 3, 32, 1, lerp(C.litcap, C.twilight, 0.5));
+  g.hline(0, 31, top + 6, STONE_SEAM); // grain
   g.rect(0, top + ph - 1, 32, 1, C.void); // underside shadow
   g.px(3, top + 1, C.glow); // end bolts
   g.px(28, top + 1, C.glow);
-  g.px(8, top + 6, withA(C.gold, 160)); // glimmers
-  g.px(23, top + 6, withA(C.aqua, 150));
+  g.px(8, top + 7, withA(C.coin, 160)); // glimmers
+  g.px(23, top + 7, withA(C.litcap, 150));
   return g;
 }
 
 /** 2/3 — slopes. 'left' is high on the LEFT (surface descends to the right);
- *  'right' mirrors. Solid below the lit diagonal; transparent above it. */
+ *  'right' mirrors. Solid below the BRIGHT lit diagonal; transparent above it. */
 function tileSlope(dir) {
   const g = new Grid(32, 32);
   const top = 2;
   for (let x = 0; x < 32; x++) {
     const xx = dir === "left" ? x : 31 - x; // high side
     const surf = Math.round(top + (xx / 31) * (31 - top));
-    for (let y = surf; y < 32; y++) g.px(x, y, lerp(C.twilight, C.dusk, Math.min(1, ((y - surf) / (32 - surf || 1)) * 0.8)));
-    g.px(x, surf, C.aqua); // lit walk surface
-    if (surf + 1 < 32) g.px(x, surf + 1, lerp(C.aqua, C.twilight, 0.5));
+    for (let y = surf; y < 32; y++) g.px(x, y, lerp(C.twilight, STONE_DEEP, Math.min(1, (y - surf) / (32 - surf || 1))));
+    if (surf - 1 >= 0) g.px(x, surf - 1, withA(C.rim, 150)); // soft rim glow above the surface
+    g.px(x, surf, C.rim); // bright walk lip
+    if (surf + 1 < 32) g.px(x, surf + 1, C.litcap); // lit surface
+    if (surf + 2 < 32) g.px(x, surf + 2, lerp(C.litcap, C.twilight, 0.5));
   }
   g.rect(0, 30, 32, 2, C.void); // base shadow
   const rnd = mulberry32(dir === "left" ? 0x1002 : 0x1003);
   for (let i = 0; i < 4; i++) {
     const x = Math.floor(rnd() * 32);
     const surf = Math.round(top + ((dir === "left" ? x : 31 - x) / 31) * (31 - top));
-    const room = 29 - (surf + 2);
-    if (room > 0) g.px(x, surf + 2 + Math.floor(rnd() * room), withA(C.aqua, 130));
+    const room = 29 - (surf + 3);
+    if (room > 0) g.px(x, surf + 3 + Math.floor(rnd() * room), withA(C.litcap, 130));
   }
   return g;
 }
 
-/** 4 — ladder: two teal rails + pale rungs on a faint backing; mostly transparent. */
+/** 4 — ladder: two bright teal rails + pale rungs on a faint backing; mostly transparent. */
 function tileLadder() {
   const g = new Grid(32, 32);
-  for (let y = 0; y < 32; y++) g.rect(11, y, 10, 1, withA(lerp(C.twilight, C.dusk, 0.5), 90)); // backing
-  g.rect(8, 0, 3, 32, C.aqua); // rails
-  g.rect(21, 0, 3, 32, C.aqua);
-  g.vline(10, 0, 31, lerp(C.aqua, C.void, 0.4)); // rail shade (right)
-  g.vline(23, 0, 31, lerp(C.aqua, C.void, 0.4));
-  g.vline(8, 0, 31, C.glow); // rail highlight (left)
-  g.vline(21, 0, 31, C.glow);
+  for (let y = 0; y < 32; y++) g.rect(11, y, 10, 1, withA(C.twilight, 95)); // faint backing
+  g.rect(8, 0, 3, 32, C.litcap); // rails
+  g.rect(21, 0, 3, 32, C.litcap);
+  g.vline(10, 0, 31, lerp(C.litcap, C.void, 0.45)); // rail shade (right)
+  g.vline(23, 0, 31, lerp(C.litcap, C.void, 0.45));
+  g.vline(8, 0, 31, C.rim); // rail highlight (left)
+  g.vline(21, 0, 31, C.rim);
   for (let y = 3; y < 32; y += 7) {
     g.rect(8, y, 16, 2, C.glow); // rungs
-    g.rect(8, y + 2, 16, 1, lerp(C.glow, C.gold, 0.6));
+    g.rect(8, y + 2, 16, 1, lerp(C.glow, C.coin, 0.6));
   }
   return g;
 }
 
-/** 5 — decorative/background stone: darker, mottled, no lit cap (reads as behind). */
+/** 5 — decorative/background stone: dim, cool, desaturated, NO lit cap (reads as behind). */
 function tileDecor() {
   const g = new Grid(32, 32);
-  for (let y = 0; y < 32; y++) g.rect(0, y, 32, 1, lerp(C.dusk, C.void, (y / 31) * 0.5));
+  for (let y = 0; y < 32; y++) g.rect(0, y, 32, 1, lerp(C.dusk, C.void, (y / 31) * 0.55)); // dim → recedes
   const rnd = mulberry32(0x1005);
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 11; i++) {
     const s = 2 + Math.floor(rnd() * 3);
-    g.rect(Math.floor(rnd() * 28), Math.floor(rnd() * 28), s, s, withA(lerp(C.twilight, C.dusk, rnd()), 120)); // mottle
+    g.rect(Math.floor(rnd() * 28), Math.floor(rnd() * 28), s, s, withA(lerp(C.twilight, C.haze, rnd()), 110)); // cool mottle
   }
   g.hline(0, 31, 16, withA(C.void, 180)); // crack
-  for (let i = 0; i < 6; i++) g.px(Math.floor(rnd() * 32), Math.floor(rnd() * 32), withA(rnd() > 0.5 ? C.violet : C.aqua, 110)); // arcane echoes
-  g.outline(0, 0, 32, 32, withA(C.void, 120)); // subtle cell border
+  for (let i = 0; i < 6; i++) g.px(Math.floor(rnd() * 32), Math.floor(rnd() * 32), withA(rnd() > 0.5 ? C.violet : C.litcap, 120)); // arcane echoes
+  g.outline(0, 0, 32, 32, withA(C.void, 110)); // subtle cell border
   return g;
 }
 
@@ -433,6 +462,133 @@ function tilesSheet() {
   const sheet = new Grid(192, 32);
   [tileStone(), tileLedge(), tileSlope("left"), tileSlope("right"), tileLadder(), tileDecor()].forEach((t, i) => sheet.blit(t, i * 32, 0));
   return sheet;
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// PARALLAX BACKGROUND LAYERS — the luminous-dusk depth set. Four 256×480 planes,
+// authored to TILE SEAMLESSLY left↔right (silhouette profiles come from summed
+// integer-harmonic sines that wrap at x=256, and every interior detail is kept off
+// the x=0/255 seam) and to fill a 480-tall viewport with ONE vertical copy (content
+// BOTTOM-ANCHORED, transparent above; the sky is the only opaque plane). Atmospheric
+// perspective drives the depth: the farther the layer, the more it fades toward the
+// sky/haze (desaturated, cooler, LOWER-contrast) and the more sky bleeds through, so
+// the bright high-contrast PLAY layer pops in front.
+//
+// The engine's built-in `background.layers` drift each plane by `world.time` (NOT by
+// camera) — these layers are usable either way; the scroll WIRING is the game session's
+// call. Intended parallax factors it may pick: sky 0 · far ~0.2 · mid ~0.5 · near ~0.8.
+// ═════════════════════════════════════════════════════════════════════════════
+const SKY_W = 256;
+const SKY_H = 480;
+
+/** Opaque sky colour at vertical fraction t∈[0,1]: indigo → purple → magenta → amber horizon. */
+function skyColAt(t) {
+  if (t < 0.42) return lerp(C.dusk, C.skyPurple, t / 0.42);
+  if (t < 0.72) return lerp(C.skyPurple, C.skyMagenta, (t - 0.42) / 0.3);
+  if (t < 0.88) return lerp(C.skyMagenta, C.horizon, (t - 0.72) / 0.16);
+  return lerp(C.horizon, lerp(C.horizon, C.glow, 0.45), (t - 0.88) / 0.12); // bright horizon glow band
+}
+
+/** Seamless 0..1 ridge height from summed integer-harmonic sines (wraps at x=SKY_W → x=0). */
+function ridge(x, harmonics) {
+  let v = 0;
+  let norm = 0;
+  for (const [k, amp, ph] of harmonics) {
+    v += amp * Math.sin(2 * Math.PI * ((k * x) / SKY_W + ph));
+    norm += amp;
+  }
+  return 0.5 + 0.5 * (v / norm);
+}
+
+/** sky.png — full OPAQUE gradient sky + faint seamless star scatter. 256×480. */
+function skyLayer() {
+  const g = new Grid(SKY_W, SKY_H);
+  for (let y = 0; y < SKY_H; y++) g.hline(0, SKY_W - 1, y, skyColAt(y / (SKY_H - 1)));
+  // faint stars in the upper indigo region — drawn OPAQUE (lerp over the sky colour so a
+  // star never punches an alpha hole), kept off the x=0/255 seam so the plane tiles cleanly.
+  const rnd = mulberry32(0x5001);
+  for (let i = 0; i < 70; i++) {
+    const x = 3 + Math.floor(rnd() * (SKY_W - 6));
+    const y = Math.floor(rnd() * 210);
+    g.px(x, y, lerp(skyColAt(y / (SKY_H - 1)), rnd() > 0.7 ? C.litcap : C.glow, 0.25 + rnd() * 0.5));
+  }
+  return g;
+}
+
+/** far.png — distant peaks + drifting spires, MOST faded (atmospheric). Bottom-anchored. 256×480. */
+function farLayer() {
+  const g = new Grid(SKY_W, SKY_H);
+  const farCol = lerp(C.skyMagenta, C.haze, 0.55); // dusty mauve, low contrast vs the lower sky
+  const base = Math.round(SKY_H * 0.58); // ridge sits low on the horizon
+  const H = [[1, 1.0, 0.12], [2, 0.5, 0.6], [3, 0.3, 0.27], [6, 0.16, 0.8]];
+  for (let x = 0; x < SKY_W; x++) {
+    const topY = Math.round(base - ridge(x, H) * (SKY_H * 0.22));
+    for (let y = topY; y < SKY_H; y++) {
+      const d = (y - topY) / (SKY_H - topY || 1);
+      g.px(x, y, withA(lerp(farCol, lerp(farCol, C.skyPurple, 0.5), d), 205)); // faded; slight depth shift, sky bleeds
+    }
+    g.px(x, topY, withA(lerp(farCol, C.rim, 0.18), 215)); // catch-light along the ridge
+  }
+  // a few faint distant spires (off-seam) reaching above the ridge
+  const rnd = mulberry32(0x5002);
+  for (let i = 0; i < 5; i++) {
+    const sx = 18 + Math.floor(rnd() * (SKY_W - 36));
+    const tip = base - Math.round(SKY_H * 0.26) - Math.floor(rnd() * 40);
+    for (let y = tip; y < base; y++) g.px(sx, y, withA(lerp(farCol, C.skyPurple, 0.3), 205));
+    g.px(sx, tip, withA(lerp(farCol, C.rim, 0.2), 200));
+  }
+  return g;
+}
+
+/** mid.png — drifting-ruin towers, medium fade + a few lit windows. Bottom-anchored. 256×480. */
+function midLayer() {
+  const g = new Grid(SKY_W, SKY_H);
+  const midCol = lerp(C.twilight, C.haze, 0.45); // desaturated indigo — lighter/cooler than play stone
+  const baseY = SKY_H - 1;
+  // continuous thin haze base band (uniform across x → seamless) grounds the towers
+  for (let i = 0; i < 12; i++) g.hline(0, SKY_W - 1, baseY - i, withA(lerp(midCol, C.dusk, i / 12), 190 - i * 6));
+  // broken ruin towers at seeded INTERIOR x (never straddling the x=0/255 seam)
+  const rnd = mulberry32(0x5003);
+  const towers = [];
+  for (let i = 0; i < 7; i++) {
+    const w = 10 + Math.floor(rnd() * 14);
+    const x = 12 + Math.floor(rnd() * (SKY_W - 24 - w));
+    const h = Math.round(SKY_H * (0.22 + rnd() * 0.3));
+    towers.push([x, w, h, rnd()]);
+  }
+  towers.sort((a, b) => a[2] - b[2]); // shorter (further) first
+  for (const [x, w, h, r] of towers) {
+    const topY = baseY - 8 - h;
+    for (let yy = topY; yy <= baseY - 4; yy++) {
+      const dd = (yy - topY) / (baseY - topY || 1);
+      g.rect(x, yy, w, 1, withA(lerp(midCol, lerp(midCol, C.void, 0.4), dd), 230)); // darkens toward the base
+    }
+    g.rect(x, topY, w, 1, withA(lerp(midCol, C.haze, 0.4), 230)); // lit ridge of the broken top
+    if (w >= 12) g.rect(x + Math.floor(w / 2), topY - 2, 2, 3, withA(midCol, 230)); // a snapped merlon
+    // a couple of faint lit windows (opaque-bright dots; warm or cool)
+    const wins = 1 + Math.floor(r * 3);
+    for (let k = 0; k < wins; k++) {
+      const wx = x + 2 + Math.floor(rnd() * Math.max(1, w - 4));
+      const wy = topY + 6 + Math.floor(rnd() * Math.max(1, h - 10));
+      g.px(wx, wy, lerp(midCol, r > 0.5 ? C.coin : C.litcap, 0.7));
+    }
+  }
+  return g;
+}
+
+/** near.png — near mist + drifting light-wisps, MOSTLY TRANSPARENT (closest layer). 256×480. */
+function nearLayer() {
+  const g = new Grid(SKY_W, SKY_H);
+  // light-wisps (soft glow blobs) drifting mid-height — off-seam, spaced apart so they don't clobber
+  const wisps = [[40, 250, C.litcap, 60], [150, 300, C.horizon, 55], [210, 230, C.glow, 45], [95, 350, C.litcap, 40]];
+  for (const [wx, wy, col, a] of wisps) g.radialGlow(wx, wy, 26, 12, col, withA(col, 0), a);
+  // ground mist — soft horizontal bands rising in alpha toward the bottom (uniform → seamless)
+  const mistTop = SKY_H - 70;
+  for (let y = mistTop; y < SKY_H; y++) {
+    const t = (y - mistTop) / 70;
+    g.hline(0, SKY_W - 1, y, withA(lerp(C.haze, C.litcap, 0.25), Math.round(18 + t * 70)));
+  }
+  return g;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -445,9 +601,9 @@ function moteSheet() {
   const sheet = new Grid(64, 16);
   [5, 3, 1, 3].forEach((rx, i) => {
     const g = new Grid(16, 16);
-    g.radialGlow(8, 8, 7, 7, C.gold, withA(C.gold, 0), 110);
+    g.radialGlow(8, 8, 7, 7, C.coin, withA(C.coin, 0), 120);
     g.ellipse(8, 8, rx, 6, C.ember); // warm rim
-    g.ellipse(8, 8, Math.max(1, rx - 1), 5, C.gold); // gold body
+    g.ellipse(8, 8, Math.max(1, rx - 1), 5, C.coin); // bright gold body
     g.ellipse(8, 7, Math.max(1, rx - 1), 3, C.glow); // top highlight
     g.px(8, 6, HOT_CORE); // glint
     sheet.blit(g, i * 16, 0);
@@ -464,8 +620,8 @@ function emberstone() {
     const span = Math.round(5 * (1 - Math.abs(yy) / 7));
     for (let xx = -span; xx <= span; xx++) {
       let col;
-      if (yy <= -1) col = xx < 0 ? C.glow : C.gold; // upper facets
-      else if (yy <= 2) col = xx < 0 ? C.gold : C.ember; // mid
+      if (yy <= -1) col = xx < 0 ? C.glow : C.coin; // upper facets
+      else if (yy <= 2) col = xx < 0 ? C.coin : C.ember; // mid
       else col = xx < 0 ? C.ember : lerp(C.ember, C.void, 0.35); // lower
       g.px(8 + xx, 8 + yy, col);
     }
@@ -531,9 +687,9 @@ function riftgate() {
     const rr = 0.25 + rnd() * 0.75;
     g.px(cx + Math.round(Math.cos(a) * rr * 9), cy + Math.round(Math.sin(a) * rr * 19), withA(rnd() > 0.5 ? C.glow : C.violet, 150 + Math.floor(rnd() * 90)));
   }
-  // anchoring stone base
+  // anchoring stone base — matches the re-keyed play stone (brighter body + bright lit cap)
   g.rect(6, 44, 20, 4, C.twilight);
-  g.rect(6, 44, 20, 1, C.aqua);
+  g.rect(6, 44, 20, 1, C.litcap);
   return g;
 }
 
@@ -556,11 +712,11 @@ function beacon() {
   g.disc(cx, 7, 1, WHITE);
   const rnd = mulberry32(0x3001);
   for (let i = 0; i < 18; i++) g.px(cx + Math.round((rnd() - 0.5) * 14), 8 + Math.floor(rnd() * 46), withA(rnd() > 0.5 ? C.gold : C.glow, 120 + Math.floor(rnd() * 100)));
-  // stone pedestal
-  for (let i = 0; i < 10; i++) g.rect(4, 54 + i, 24, 1, lerp(C.twilight, C.dusk, (i / 10) * 0.8));
-  g.rect(4, 54, 24, 2, C.aqua); // lit top
+  // stone pedestal — matches the re-keyed play stone (brighter body + bright lit cap)
+  for (let i = 0; i < 10; i++) g.rect(4, 54 + i, 24, 1, lerp(C.twilight, STONE_DEEP, i / 10));
+  g.rect(4, 54, 24, 2, C.litcap); // lit top
   g.outline(4, 54, 24, 10, C.void);
-  g.rect(14, 57, 4, 5, C.gold); // base glyph
+  g.rect(14, 57, 4, 5, C.coin); // base glyph
   g.px(16, 56, C.glow);
   return g;
 }
@@ -572,8 +728,12 @@ function beacon() {
 rmSync(ASSETS, { recursive: true, force: true });
 mkdirSync(ASSETS, { recursive: true });
 
-write("player.png", lumenSheet()); // REQUIRED — hero sheet
+write("player.png", lumenSheet()); // REQUIRED — hero sheet (FROZEN this pass — byte-identical)
 write("tiles.png", tilesSheet()); // REQUIRED — Dusklands tileset
+write("sky.png", skyLayer()); // parallax — opaque gradient sky (factor 0)
+write("far.png", farLayer()); // parallax — distant peaks/spires (factor ~0.2)
+write("mid.png", midLayer()); // parallax — drifting-ruin towers (factor ~0.5)
+write("near.png", nearLayer()); // parallax — near mist + light-wisps (factor ~0.8)
 write("mote.png", moteSheet());
 write("emberstone.png", emberstone());
 write("driftwraith.png", wraithSheet());

@@ -26,11 +26,13 @@ _None currently — new finds get filed here._
 
 ## Design weaknesses
 
-Ordered by implementation priority (top first): schema/runtime honesty before
-features, hygiene, and tooling; the invasive channels refactor last.
+_None currently — resolved items live in git. New finds get filed here._
 
-- **Determinism coverage** — the runtime twice-run advisory still skips custom-part games (now partly covered by the static source scan).
-- **Untyped channels** — event bus is `string + unknown` with magic-string names; cross-part state spreads across four overlapping untyped bags.
+### Freeze inventory (known no-op, defer to a future MAJOR)
+
+- `World.pick(x, y, tag?)` — a one-line public alias of `entityAt` with no production reader (only
+  its own SDK self-test). Harmless to keep; deleting it is a public-surface MAJOR, so fold it away
+  (the method + its lone test, together) the next time a World-touching MAJOR ships.
 
 ---
 

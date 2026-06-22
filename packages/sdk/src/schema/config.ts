@@ -15,8 +15,7 @@ export type ConfigLeaf = z.infer<typeof ConfigLeafSchema>;
  * Both flat and grouped styles are supported and resolve identically:
  *   `{ "towerCost.arrow": 50 }`            → `$cfg.towerCost.arrow`
  *   `{ "towerCost": { "arrow": 50 } }`     → `$cfg.towerCost.arrow`
- * Grouping is encouraged for the slider UIs in Phases 6/7 (Remix + Governance),
- * which want to render related tunables together.
+ * Grouping renders related tunables together for the remix slider UIs.
  */
 export type ConfigNode = ConfigLeaf | { [key: string]: ConfigNode };
 export const ConfigNodeSchema: z.ZodType<ConfigNode> = z.lazy(() =>

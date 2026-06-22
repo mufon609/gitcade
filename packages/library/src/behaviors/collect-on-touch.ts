@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
+import { COLLECT } from "../channels.js";
 
 /**
  * A pickup: when an entity tagged `collectorTag` touches this one, award value
@@ -30,7 +31,7 @@ export const collectOnTouch: BehaviorFn = (entity, world, params) => {
   if (scoreKey) world.state[scoreKey] = ((world.state[scoreKey] as number) ?? 0) + value;
   if (grantKey) world.state[grantKey] = ((world.state[grantKey] as number) ?? 0) + value;
 
-  world.events.emit("collect", { id: entity.id, kind, value, by: collector.id });
+  COLLECT.emit(world, { id: entity.id, kind, value, by: collector.id });
   world.audio.play(str(params, "sound", "collect"));
 
   if (params.consume !== false) world.destroy(entity);

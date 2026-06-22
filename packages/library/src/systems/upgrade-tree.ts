@@ -1,5 +1,6 @@
 import type { SystemFn, World } from "@gitcade/sdk";
 import { str, powInt } from "@gitcade/sdk";
+import { UPGRADE_DENIED, UPGRADE_PURCHASED } from "../channels.js";
 
 interface Upgrade {
   /** Stable id used in the purchase request and the levels record. */
@@ -29,7 +30,7 @@ interface Upgrade {
  * `"upgrade-denied"`. Idle multipliers, tower upgrades, skill trees.
  *
  * Costs and effects are all `$cfg`-driven, so an upgrade tree is a pure data
- * description — exactly the shape a governance proposal rebalances.
+ * description — exactly the shape a rebalance or a remix edits as a one-line `$cfg` diff.
  *
  * Params:
  *  - `upgrades`: array of upgrade descriptors (see {@link Upgrade})
@@ -52,24 +53,24 @@ export const upgradeTree: SystemFn = (world, params) => {
 
   const up = upgrades.find((u) => u && u.id === requested);
   if (!up) {
-    world.events.emit("upgrade-denied", { id: requested, reason: "unknown" });
+    UPGRADE_DENIED.emit(world, { id: requested, reason: "unknown" });
     return;
   }
 
   const owned = levels[up.id] ?? 0;
   if (up.maxLevel && up.maxLevel > 0 && owned >= up.maxLevel) {
-    world.events.emit("upgrade-denied", { id: up.id, reason: "max-level" });
+    UPGRADE_DENIED.emit(world, { id: up.id, reason: "max-level" });
     return;
   }
   if (up.requires && (levels[up.requires] ?? 0) < 1) {
-    world.events.emit("upgrade-denied", { id: up.id, reason: "requires", requires: up.requires });
+    UPGRADE_DENIED.emit(world, { id: up.id, reason: "requires", requires: up.requires });
     return;
   }
 
   const cost = costFor(up, owned);
   const balance = (world.state[currencyKey] as number) ?? 0;
   if (balance < cost) {
-    world.events.emit("upgrade-denied", { id: up.id, reason: "insufficient-funds", cost });
+    UPGRADE_DENIED.emit(world, { id: up.id, reason: "insufficient-funds", cost });
     return;
   }
 
@@ -91,5 +92,5 @@ function costFor(up: Upgrade, owned: number): number {
 }
 
 function emitPurchase(world: World, up: Upgrade, level: number, cost: number): void {
-  world.events.emit("upgrade-purchased", { id: up.id, level, cost, effectKey: up.effectKey });
+  UPGRADE_PURCHASED.emit(world, { id: up.id, level, cost, effectKey: up.effectKey });
 }

@@ -17,6 +17,7 @@ import {
   checkParams,
   checkUniqueIds,
   checkSceneRefs,
+  checkFlowEvents,
   collectPartRefs,
   checkPartRefs,
   checkAdvisories,
@@ -37,9 +38,13 @@ export interface ValidationResult {
   framesRun: number;
   /**
    * Determinism-conformance ADVISORY outcome (additive). Present only when the check ran — i.e. the
-   * game booted on the default registry (a custom-part game is covered by its own suite). `checked`
-   * is then true; `deterministic` is the verdict and `divergedAtFrame` the first mismatching frame.
-   * A non-deterministic verdict is a WARNING only — it never affects {@link ValidationResult.ok}.
+   * game booted on the SDK DEFAULT registry (built-ins only). A game using ANY `@gitcade/library`
+   * OR custom part skips this IN-VALIDATOR check, because this Node validator can't construct its
+   * registry; byte-replay for those games is owned instead by `@gitcade/library`'s cross-game
+   * determinism-conformance suite (twice-run + committed cross-engine golden over every seed game +
+   * proof). When present, `checked` is true; `deterministic` is the verdict and `divergedAtFrame`
+   * the first mismatching frame. A non-deterministic verdict is a WARNING only — it never affects
+   * {@link ValidationResult.ok}.
    */
   determinism?: { checked: boolean; deterministic?: boolean; divergedAtFrame?: number };
 }
@@ -158,6 +163,14 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     issues.push(...checkSceneRefs(scenes, manifest));
   }
 
+  // 5d. Flow-edge event reconciliation (advisory, warning-only): a flow.on KEY naming an event that
+  //     no part emits is a silently-dead transition (checkSceneRefs validates only the target). Collect
+  //     the game's emitted-event vocabulary (engine channels + authored emit-param values + literal
+  //     emits in the game's own source) and warn on any orphan key.
+  if (scenes.length > 0) {
+    issues.push(...checkFlowEvents(scenes, scanEmittedEventNames(absDir)));
+  }
+
   // 5c. Identifier uniqueness: duplicate scene ids (a whole scene silently dropped)
   //     and duplicate entity ids within a scene (byId/parent/tag resolution collapses)
   //     — runtime-corrupting states the per-file schema structurally cannot see.
@@ -188,8 +201,10 @@ export async function validateGame(dir: string): Promise<ValidationResult> {
     issues.push(...smoke.issues);
 
     // 7b. Determinism-conformance ADVISORY (warning-only; never affects `ok`). Only on the
-    //     default-registry fast path — a custom-part game is covered by its own determinism
-    //     suite, and this Node validator can't construct its custom registry.
+    //     default-registry fast path (built-ins only). A game using library OR custom parts can't be
+    //     booted by this Node validator (no registry to construct), so its byte-replay is owned by
+    //     `@gitcade/library`'s cross-game determinism-conformance suite (twice-run + cross-engine
+    //     golden); here it falls back to the static source scan (4b) as the in-validator signal.
     if (smoke.usedDefaultRegistry && !smoke.issues.some((i) => i.level === "error")) {
       const adv = runDeterminismAdvisory(manifest, config, scenes);
       issues.push(...adv.issues);
@@ -221,8 +236,10 @@ interface SmokeOutcome {
   issues: Issue[];
   /**
    * True iff the game booted on the DEFAULT registry (the fast path) — i.e. it uses only
-   * built-in/SDK parts. The determinism advisory runs only in this case; a custom-part game
-   * (the `npm test` fallback) is covered by its own determinism suite, not from here.
+   * built-in/SDK parts. The in-validator determinism advisory runs only in this case; a game using
+   * library OR custom parts (the `npm test` fallback) has its byte-replay owned by
+   * `@gitcade/library`'s cross-game determinism-conformance suite (twice-run + cross-engine golden),
+   * not from here — the Node validator can't construct its registry.
    */
   usedDefaultRegistry: boolean;
 }
@@ -395,8 +412,9 @@ function scanRawStorage(dir: string): Issue[] {
  * `new Date` (a fixed-timestep sim must derive time from `world.time`/`world.frame`). WARNING
  * only — never fails a publish — and exempts `main.ts` (host glue, allowed non-sim timing).
  * Mirrors {@link scanRawStorage}: the determinism advisory is a runtime check, this is its
- * static root-cause companion (and the only determinism signal for custom-part games, which
- * the twice-run advisory skips).
+ * static root-cause companion (and the in-validator determinism signal for any non-default-registry
+ * game — library OR custom parts — whose byte-replay the twice-run advisory skips here and whose
+ * authoritative check lives in `@gitcade/library`'s cross-game determinism-conformance suite).
  */
 function scanNonDeterministicSource(dir: string): Issue[] {
   const issues: Issue[] = [];
@@ -503,6 +521,48 @@ function scanRawTranscendentals(dir: string): Issue[] {
   };
   walk(srcDir);
   return issues;
+}
+
+/**
+ * Scan a game's `src/` for LITERAL event names it emits or declares (`emit("x")`, `defineChannel("x")`)
+ * — the game-source half of {@link checkFlowEvents}'s emitted-event vocabulary (the engine channel
+ * names and the authored emit-param VALUES are the other two halves). Best-effort + lenient: a
+ * param-driven emit (`emit(name)`) carries no literal and isn't collected here (its name surfaces as a
+ * scene-JSON param value instead), and the advisory it feeds is warning-only — so a miss never fails a
+ * publish. Mirrors {@link scanNonDeterministicSource}'s walk.
+ */
+function scanEmittedEventNames(dir: string): Set<string> {
+  const names = new Set<string>();
+  const re = /\b(?:emit|defineChannel)\s*\(\s*["'`]([^"'`]+)["'`]/g;
+  const srcDir = path.join(dir, "src");
+  if (!fs.existsSync(srcDir)) return names;
+  const skip = new Set(["node_modules", "dist", ".git", ".next"]);
+
+  const walk = (current: string): void => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const ent of entries) {
+      if (ent.name.startsWith(".") && ent.isDirectory()) continue;
+      const full = path.join(current, ent.name);
+      if (ent.isDirectory()) {
+        if (!skip.has(ent.name)) walk(full);
+      } else if (SOURCE_EXTS.has(path.extname(ent.name))) {
+        let text: string;
+        try {
+          text = fs.readFileSync(full, "utf8");
+        } catch {
+          continue;
+        }
+        for (const m of text.matchAll(re)) names.add(m[1]);
+      }
+    }
+  };
+  walk(srcDir);
+  return names;
 }
 
 function loadLibraryCatalog(gameDir: string): LibraryCatalog | null {

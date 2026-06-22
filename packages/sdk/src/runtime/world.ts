@@ -13,6 +13,7 @@ import { AudioPlayer } from "./audio.js";
 import { MemoryStorage, type StorageAdapter } from "../storage/adapters.js";
 import { buildEntity } from "./entity-factory.js";
 import { CanonicalMath, type MathOps, sin, cos } from "./fdmath.js";
+import { PERSIST_RESTORED } from "./channels.js";
 
 export interface WorldOptions {
   bounds: { width: number; height: number };
@@ -121,7 +122,12 @@ export class World {
   /** Cross-run persistence binding from `manifest.persist`, read by the `persistence` system. */
   readonly persist?: PersistConfig;
 
-  /** Game-wide mutable state (scores, flags, level index). Distinct from per-entity state. */
+  /**
+   * Game-wide mutable state (scores, flags, level index). Distinct from per-entity {@link Entity.state}.
+   * SNAPSHOTTED by `snapshotWorld` (byte-replay identity), so renaming or relocating a key here is a
+   * determinism MAJOR, not a free cleanup — the same rule (and the same `__`-prefix = library-reserved,
+   * not private) as {@link Entity.state}.
+   */
   readonly state: Record<string, unknown> = {};
 
   /** Live entities. */
@@ -463,7 +469,7 @@ export class World {
       released.push(k);
     }
     if (released.length === 0) return;
-    this.events.emit("persist-restored", { keys: released });
+    PERSIST_RESTORED.emit(this, { keys: released });
     this._restoreWaiters = this._restoreWaiters.filter((w) => {
       if (w.keys.every((k) => this._persistRestored.has(k))) {
         w.resolve();

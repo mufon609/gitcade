@@ -1,5 +1,6 @@
 import type { SystemFn } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
+import { GAME_OVER, RESPAWN } from "../channels.js";
 import { vec2, spawnFrom, systemState } from "../util.js";
 
 interface LivesState extends Record<string, unknown> {
@@ -52,7 +53,7 @@ export const livesRespawn: SystemFn = (world, params, dt) => {
         idPrefix: watchTag,
         position: hasPos ? vec2(params, "respawnPosition") : undefined,
       });
-      world.events.emit("respawn", { livesLeft: world.state[livesKey] });
+      RESPAWN.emit(world, { livesLeft: world.state[livesKey] as number });
     }
     return;
   }
@@ -73,7 +74,7 @@ export const livesRespawn: SystemFn = (world, params, dt) => {
       world.state.outcome = "lose";
       world.state.winner = "none";
       world.audio.play("lose");
-      world.events.emit("gameover", { outcome: "lose" });
+      GAME_OVER.emit(world, { outcome: "lose" });
     }
   }
 };

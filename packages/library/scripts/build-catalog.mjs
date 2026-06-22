@@ -4,7 +4,7 @@
  *
  * parts/{behaviors,systems}/<id>.json are the single source of truth — each part
  * ships its own metadata + JSON definition. This script aggregates them into the
- * machine-readable catalog index Phase 6 ingests, with a STABLE key order and
+ * machine-readable catalog index the platform marketplace ingests, with a STABLE key order and
  * ordering (kind, then id) so re-running it is a no-op diff. The catalog test
  * asserts CATALOG.json is exactly what this script would (re)produce, so the file
  * and the parts can never drift.

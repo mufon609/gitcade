@@ -1,17 +1,17 @@
 /**
  * The structural numeric-key whitelist for the mechanical no-magic-numbers rule.
  *
- * GitCade's governance thesis is "most community votes are one-line `config.json`
- * diffs" — which only holds if *balance* numbers (speeds, costs, damage, spawn
- * rates, health, cooldowns) never get hardcoded inside behavior/system params.
+ * GitCade's bet is that a game is DATA: a rebalance — or a remix of a fork — is a
+ * one-line `config.json` diff, which only holds if *balance* numbers (speeds, costs,
+ * damage, spawn rates, health, cooldowns) never get hardcoded inside behavior/system params.
  * The validator therefore FAILS any numeric literal appearing in a behavior or
  * system `params` block UNLESS its key is on this whitelist. Everything else
  * must be a `$cfg.<key>` reference resolved from `config.json`.
  *
  * The whitelist is intentionally limited to *structural / presentational* keys —
  * geometry, layout, layering, animation framing, anchors. These describe where a
- * thing is and how it draws, not how it is balanced, so a community would never
- * meaningfully "vote" on them and they belong inline.
+ * thing is and how it draws, not how it is balanced, so they aren't what a
+ * rebalance/remix tunes and they belong inline.
  *
  * This list is the single source of truth: the validator imports it directly, so
  * the documented rule and the enforced rule can never drift. It is part of the

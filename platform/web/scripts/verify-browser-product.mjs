@@ -1,4 +1,4 @@
-// Phase 6 browser proof — "rows in the DB is NOT the feature works". Drives a real
+// Browser product proof — "rows in the DB is NOT the feature works". Drives a real
 // Chrome-for-Testing through the SHIPPED product path:
 //   1. /parts marketplace renders parts grouped into buckets.
 //   2. a part page shows a "used in N games" count (the back-link from "made from").

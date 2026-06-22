@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "@gitcade/sdk";
 import { num, strArray, str, bool } from "@gitcade/sdk";
+import { MELEE } from "../channels.js";
 import { vec2, spawnFrom } from "../util.js";
 
 /**
@@ -54,7 +55,7 @@ export const meleeSwing: BehaviorFn = (entity, world, params, _dt, scratch) => {
     hit.x -= hit.w / 2;
     hit.y -= hit.h / 2;
     world.audio.play(sound);
-    world.events.emit("melee", { source: entity.id, hitbox: hit.id });
+    MELEE.emit(world, { source: entity.id, hitbox: hit.id });
   }
 };
 

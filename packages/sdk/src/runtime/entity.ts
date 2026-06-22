@@ -158,7 +158,15 @@ export class Entity {
   sprite: Sprite;
   anim: AnimationState = { current: null, frame: 0, elapsed: 0 };
   behaviors: BehaviorInstance[] = [];
-  /** Arbitrary scratch state for behaviors (hp, cooldowns, flags). */
+  /**
+   * Cross-behavior shared state (hp, cooldowns, flags) — the channel a value crosses the behavior
+   * boundary through: read by another part via an authored `stateKey`/`priorityKey`, or by a game's
+   * own code. SNAPSHOTTED by `snapshotWorld` (it IS byte-replay identity), so renaming or relocating a
+   * key here — e.g. moving behavior-PRIVATE working state into {@link BehaviorInstance.scratch} where it
+   * belongs — changes the snapshot and is a determinism MAJOR, never a free internal cleanup. A
+   * `__`-prefixed key is a LIBRARY-RESERVED name (collision-avoidance with authored JSON/`$cfg` keys),
+   * NOT a "private" marker — several (`__pathProgress`, `__gridDir`) are deliberately read cross-part.
+   */
   state: Record<string, unknown>;
   /** Entities overlapping this one this tick (populated by the collision system). */
   collisions: Entity[] = [];

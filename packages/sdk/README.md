@@ -1,11 +1,11 @@
 # @gitcade/sdk
 
-The **GitCade SDK** — the engine standard for AI-built, open-source, community-governed
-browser games. A lightweight TypeScript entity-component runtime for 2D Canvas
+The **GitCade SDK** — the engine standard for AI-built, open-source browser
+games. A lightweight TypeScript entity-component runtime for 2D Canvas
 games, plus the schema, the storage bridge, and the publish-time validator.
 
 This package is the **frozen contract** every GitCade game, the component library,
-the build worker, the marketplace, and governance depend on.
+the build worker, and the marketplace depend on.
 
 ## Install
 

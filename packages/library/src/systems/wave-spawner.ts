@@ -1,5 +1,6 @@
 import type { SystemFn } from "@gitcade/sdk";
 import { num, str, bool } from "@gitcade/sdk";
+import { WAVES_COMPLETE, WAVE_START, SPAWN } from "../channels.js";
 import { points, spawnFrom, systemState, randomFreeCell, type Vec2 } from "../util.js";
 
 interface SpawnerState extends Record<string, unknown> {
@@ -115,7 +116,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
     if (!ready) return;
     if (maxWaves > 0 && s.wave >= maxWaves) {
       s.done = true;
-      world.events.emit("waves-complete", { waves: s.wave });
+      WAVES_COMPLETE.emit(world, { waves: s.wave });
       return;
     }
     s.wave += 1;
@@ -123,7 +124,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
     s.spawnTimer = 0;
     s.betweenWaves = false;
     world.state[waveKey] = s.wave;
-    world.events.emit("wave-start", { wave: s.wave, size: waveSizeFor(s.wave) });
+    WAVE_START.emit(world, { wave: s.wave, size: waveSizeFor(s.wave) });
   }
 
   // Drip spawns out across the wave.
@@ -153,7 +154,7 @@ export const waveSpawner: SystemFn = (world, params, dt) => {
         s.spawnedThisWave += 1;
         s.spawnCursor += 1;
         s.spawnTimer = interval;
-        world.events.emit("spawn", { wave: s.wave, id: spawned.id });
+        SPAWN.emit(world, { wave: s.wave, id: spawned.id });
       }
     }
   }

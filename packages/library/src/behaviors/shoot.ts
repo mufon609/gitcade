@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "@gitcade/sdk";
 import { num, str, strArray, bool } from "@gitcade/sdk";
+import { SHOOT } from "../channels.js";
 import { vec2, normalize, toward, spawnFrom } from "../util.js";
 
 /**
@@ -57,7 +58,7 @@ export const shoot: BehaviorFn = (entity, world, params, _dt, scratch) => {
     bullet.vx = unit.x * speed;
     bullet.vy = unit.y * speed;
     world.audio.play(sound);
-    world.events.emit("shoot", { source: entity.id, projectile: bullet.id });
+    SHOOT.emit(world, { source: entity.id, projectile: bullet.id });
   }
 };
 

@@ -34,6 +34,14 @@ export { LIBRARY_PALETTE, PALETTE } from "./palette.js";
 export { registerLibrary, createLibraryRegistry } from "./registry.js";
 
 /**
+ * Typed event channels for the library's well-known signals (respawn, damage, shoot, upgrade-denied,
+ * …) + the re-exported engine {@link GAME_OVER}. The opt-in {@link defineChannel} facade over the
+ * SDK EventBus: one declaration per channel name + payload, so emitters/listeners stop re-typing
+ * magic strings. The namespace stays open — a game still emits its own raw strings.
+ */
+export * from "./channels.js";
+
+/**
  * Public grid-placement helpers. These back the `place-on-free-cell` system +
  * `wave-spawner` `placement:"free-cell"`, and are part of the public API so a game
  * wanting grid-snap need not inline the formula. The rest of `util.ts` (vector math,

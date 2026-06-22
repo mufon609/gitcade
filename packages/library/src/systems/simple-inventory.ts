@@ -1,5 +1,6 @@
 import type { SystemFn } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
+import { ITEM_GAINED, ITEM_LOST } from "../channels.js";
 import { systemState } from "../util.js";
 
 /**
@@ -31,8 +32,8 @@ export const simpleInventory: SystemFn = (world, params) => {
     bag[item] = count;
 
     const before = prev[item] ?? 0;
-    if (count > before) world.events.emit("item-gained", { item, count, delta: count - before });
-    else if (count < before) world.events.emit("item-lost", { item, count, delta: count - before });
+    if (count > before) ITEM_GAINED.emit(world, { item, count, delta: count - before });
+    else if (count < before) ITEM_LOST.emit(world, { item, count, delta: count - before });
     prev[item] = count;
   }
 };

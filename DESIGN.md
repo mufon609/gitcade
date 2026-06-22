@@ -53,7 +53,7 @@ that a code-first engine cannot match:
 | Decision | What we chose | What we rejected, and why |
 |---|---|---|
 | **Game logic** | Composed from versioned catalog parts referenced as `partId@version` | **Per-game freeform code.** It can't be validated, composed, or diffed; every game becomes a bespoke blob no other game or tool can reason about. The marketplace can't exist on top of it. |
-| **Balance / tunables** | Plain numbers in `config.json`, referenced by `$cfg.key`; magic literals are a publish error | **Numbers inline in code.** A rebalance would be a code change, governance/votes couldn't map to a verifiable diff, and forks couldn't be compared value-by-value. |
+| **Balance / tunables** | Plain numbers in `config.json`, referenced by `$cfg.key`; magic literals are a publish error | **Numbers inline in code.** A rebalance would be a code change, a remix couldn't be expressed as a one-line diff, and forks couldn't be compared value-by-value. |
 | **Runtime** | Deterministic fixed-timestep loop with a seeded RNG hook | **Variable-step / wall-clock simulation.** Non-determinism forecloses replays, ghosts, seeded challenges, and the headless validator boot — the cheap reproducibility that is a genuine differentiator. |
 | **Storage** | A postMessage storage bridge, saves namespaced by `gameSlug + branch` | **Direct `localStorage` from the game.** A sandboxed game can't reach browser storage anyway, and per-branch namespacing is what lets a fork and its origin coexist without corrupting each other's saves. |
 | **Isolation** | Games run in a `sandbox="allow-scripts"` iframe (opaque origin) served only by the artifact server under a strict per-game CSP | **Running game code on the platform origin.** User-published, AI-built artifacts are untrusted by definition; the strongest isolation is the only honest default. |
@@ -130,8 +130,8 @@ rule (no raw `localStorage` for ecosystem games); the no-magic-numbers rule with
 
 Its job is not to nag — it is to make the pillars *true*:
 
-- No magic numbers ⇒ every fork is diffable and every governance vote can become
-  a concrete, auto-applicable change.
+- No magic numbers ⇒ every fork is diffable and every rebalance/remix is a
+  concrete, one-line `$cfg` diff.
 - Resolved part references ⇒ every remix actually composes from real catalog parts.
 - The smoke boot ⇒ a published game is known to run, not hoped to.
 - Schema + reference integrity ⇒ a fork can never silently fail to load.
@@ -172,7 +172,7 @@ system worse — it makes it a different, ordinary system.
    forking special. The day a remix can silently break is the day the concept
    dies.
 3. **Balance is always data.** No magic numbers, ever. This is what keeps forks
-   diffable and votes mappable to diffs.
+   diffable and a remix a one-line diff.
 4. **Determinism is preserved.** New runtime is additive and no-ops over scenes
    that don't use it, so headless play stays byte-identical. Both kinds of
    simulation non-determinism flow through sanctioned seams: all entropy through

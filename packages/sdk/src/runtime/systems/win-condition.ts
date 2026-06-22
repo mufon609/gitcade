@@ -1,4 +1,5 @@
 import type { SystemFn } from "../types.js";
+import { GAME_OVER } from "../channels.js";
 
 interface Condition {
   /** `world.state` key to test (e.g. `"scoreLeft"`). */
@@ -30,7 +31,7 @@ export const winCondition: SystemFn = (world, params) => {
       world.state.gameOver = true;
       world.state.winner = c.winner;
       world.audio.play(sound);
-      world.events.emit("gameover", { winner: c.winner });
+      GAME_OVER.emit(world, { outcome: "win", winner: c.winner });
       return;
     }
   }

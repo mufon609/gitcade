@@ -1,4 +1,5 @@
 import type { SystemFn, World } from "@gitcade/sdk";
+import { GAME_OVER } from "../channels.js";
 
 /**
  * A top-level entry in the `conditions` list: a predicate (see {@link matches})
@@ -75,7 +76,7 @@ export const winLoseConditions: SystemFn = (world, params) => {
     world.state.winner = c.winner ?? (outcome === "win" ? "player" : "none");
     world.audio.play(c.sound ?? (outcome === "win" ? "win" : "lose"));
     const by = typeof c.key === "string" ? c.key : typeof c.tag === "string" ? c.tag : "composite";
-    world.events.emit("gameover", { outcome, winner: world.state.winner, by });
+    GAME_OVER.emit(world, { outcome, winner: world.state.winner as string | undefined, by });
     return;
   }
 };

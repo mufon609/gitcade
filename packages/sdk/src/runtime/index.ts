@@ -28,6 +28,24 @@ export {
 export { Entity, type BehaviorInstance, type AnimationState, type BodyComponent } from "./entity.js";
 export { Registry, type BehaviorRegistration, type SystemRegistration } from "./registry.js";
 export { EventBus, type GameEvent } from "./eventbus.js";
+// Typed event channels: an additive, opt-in facade over the string-keyed EventBus (the namespace
+// stays open; a raw `world.events.emit(name)` still works). `defineChannel` binds a name to a payload
+// type; the engine channels (GAME_OVER, …) are the canonical declarations the SDK runtime emits.
+export {
+  defineChannel,
+  type Channel,
+  GAME_OVER,
+  PAUSE_CHANGED,
+  LEVELS_COMPLETE,
+  PERSIST_RESTORED,
+  SCORE,
+  ENGINE_CHANNEL_NAMES,
+  type GameOverPayload,
+  type PauseChangedPayload,
+  type LevelsCompletePayload,
+  type PersistRestoredPayload,
+  type ScorePayload,
+} from "./channels.js";
 export { Input, type Pointer, type Tap, type ActionBinding } from "./input.js";
 export { AudioPlayer, supportsMusic, type MusicChannel } from "./audio.js";
 export { Renderer } from "./renderer.js";

@@ -1,5 +1,6 @@
 import type { SystemFn } from "@gitcade/sdk";
 import { num, str } from "@gitcade/sdk";
+import { GAME_OVER } from "../channels.js";
 
 /**
  * A countdown clock. Seeds `world.state[timeKey]` to `duration` on the first tick,
@@ -35,7 +36,7 @@ export const timerCountdown: SystemFn = (world, params, dt) => {
       world.state.outcome = onExpire;
       world.state.winner = onExpire === "win" ? "player" : "time";
       world.audio.play(onExpire === "win" ? "win" : "lose");
-      world.events.emit("gameover", { outcome: onExpire });
+      GAME_OVER.emit(world, { outcome: onExpire as "win" | "lose" });
     }
   }
   world.state[timeKey] = t;

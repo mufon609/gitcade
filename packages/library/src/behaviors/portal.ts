@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "@gitcade/sdk";
 import { str, num } from "@gitcade/sdk";
+import { PORTAL } from "../channels.js";
 import { vec2 } from "../util.js";
 
 /**
@@ -39,6 +40,6 @@ export const portal: BehaviorFn = (entity, world, params) => {
     // Block an immediate bounce-back through the paired exit portal it lands on.
     if (targetId) cds[targetId] = world.time;
     world.audio.play(sound);
-    world.events.emit("portal", { from: entity.id, id: other.id });
+    PORTAL.emit(world, { from: entity.id, id: other.id });
   }
 };

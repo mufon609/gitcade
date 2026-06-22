@@ -4,6 +4,7 @@ import type { GameManifest } from "../schema/manifest.js";
 import type { Config } from "../schema/config.js";
 import { isWhitelistedNumericKey } from "../schema/whitelist.js";
 import { isCfgRef, cfgRefPath, resolveConfigPath } from "../schema/config.js";
+import { ENGINE_CHANNEL_NAMES } from "../runtime/channels.js";
 
 /** A single validation finding. */
 export interface Issue {
@@ -361,6 +362,90 @@ export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): 
     }
   }
 
+  return issues;
+}
+
+/**
+ * Param keys whose VALUE is an event channel NAME — the keys a library/SDK/custom part reads an
+ * event name out of (`str(params, "<key>")`): emit-side `emitOnTap`/`event`/`deathEvent`/`onDenied`/…
+ * plus a few listen-side. Curated from the shipped parts (the same set the audit enumerated). Used to
+ * collect a game's event VOCABULARY in {@link checkFlowEvents}. Deliberately broad (emit AND listen,
+ * one namespace) so the warning-only advisory stays lenient and never over-rejects.
+ */
+const EVENT_NAME_PARAM_KEYS = new Set<string>([
+  "emitOnTap",
+  "emitOnKey",
+  "emitOnHit",
+  "pressEvent",
+  "event",
+  "deathEvent",
+  "enterEvent",
+  "exitEvent",
+  "onOk",
+  "onDenied",
+  "trigger",
+  "boughtEvent",
+  "gameOverEvent",
+  "killEvent",
+  "leakEvent",
+  "placeEvent",
+  "tapEvent",
+  "wavesCompleteEvent",
+]);
+
+/** Recursively collect every event-name param VALUE (a non-empty string under an {@link EVENT_NAME_PARAM_KEYS} key). */
+function collectEventNames(node: unknown, into: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const v of node) collectEventNames(v, into);
+    return;
+  }
+  if (node && typeof node === "object") {
+    for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
+      if (typeof v === "string" && v !== "" && EVENT_NAME_PARAM_KEYS.has(k)) into.add(v);
+      else collectEventNames(v, into);
+    }
+  }
+}
+
+/**
+ * Flow-edge event reconciliation — the symmetric companion to {@link checkSceneRefs}'s
+ * flow-target-missing, WARNING-only. A `scene.flow.on` KEY names the event whose emission triggers
+ * the transition, but {@link EventBus.emit} silently no-ops with no listener and checkSceneRefs only
+ * validates the VALUE/target — so a typo'd or never-emitted flow key (`"gamover"`) passes
+ * schema + validate + the smoke boot and becomes a transition that can NEVER fire, with no
+ * diagnostic. This flags any flow.on key absent from the game's event VOCABULARY.
+ *
+ * Vocabulary (lenient BY DESIGN — a non-failing advisory must never reject a legitimate game): the
+ * engine channel names ({@link ENGINE_CHANNEL_NAMES}); every event-name PARAM VALUE authored across
+ * the scenes (both emit and listen keys — one namespace — gathered from entity behaviors, systems,
+ * override patches, and nested spawn prototypes); plus `extraEmitted`, the LITERAL emit names the
+ * caller scanned from the game's OWN source. Vocabulary is collected GLOBALLY across all scenes (an
+ * event emitted anywhere counts), which is the lenient choice — the goal is catching the dead/typo'd
+ * key, not policing which scene emits what. WARNING-only: a flow key emitted from host glue (main.ts)
+ * the static scan can't see must not fail a publish — the over-rejection trap an OPEN, game-authored
+ * channel namespace forbids.
+ */
+export function checkFlowEvents(scenes: Scene[], extraEmitted: Iterable<string> = []): Issue[] {
+  const vocab = new Set<string>(ENGINE_CHANNEL_NAMES);
+  for (const n of extraEmitted) vocab.add(n);
+  for (const scene of scenes) {
+    scene.entities.forEach((e) => e.behaviors.forEach((b) => collectEventNames(b.params, vocab)));
+    scene.systems.forEach((s) => collectEventNames(s.params, vocab));
+    overridesOf(scene).forEach((ov) => collectEventNames(ov, vocab));
+  }
+
+  const issues: Issue[] = [];
+  for (const scene of scenes) {
+    for (const evt of Object.keys(scene.flow?.on ?? {})) {
+      if (vocab.has(evt)) continue;
+      issues.push({
+        level: "warning",
+        code: "flow-event-never-emitted",
+        message: `flow edge keyed on "${evt}" names an event no part in this game emits (no emitter found in scene params, the game's own source, or the engine channels) — the transition can never fire. Check for a typo, or wire a part/button that emits "${evt}". (Advisory: host-JS emits in main.ts aren't statically visible, so this never affects publishability.)`,
+        where: `${scene.id}.flow.on.${evt}`,
+      });
+    }
+  }
   return issues;
 }
 

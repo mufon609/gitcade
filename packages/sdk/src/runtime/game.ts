@@ -14,6 +14,7 @@ import { resolveParams } from "./params.js";
 import { Renderer } from "./renderer.js";
 import { createDefaultRegistry } from "./defaults.js";
 import type { ResolvedParams, SystemFn } from "./types.js";
+import { LEVELS_COMPLETE, PAUSE_CHANGED } from "./channels.js";
 
 /** Default fixed-update rate (60 Hz). */
 export const DEFAULT_FIXED_DT = 1 / 60;
@@ -316,7 +317,7 @@ export class Game {
     const next = this.levels[here + 1];
     if (next) return next;
     if (this.levelsComplete) return this.levelsComplete;
-    this.world.events.emit("levels-complete", { levels: this.levels.length });
+    LEVELS_COMPLETE.emit(this.world, { levels: this.levels.length });
     return null;
   }
 
@@ -592,7 +593,7 @@ export class Game {
     if (!this.paused && this.pauseScenes && !this.pauseScenes.includes(this.scene.id)) return;
     if (this.paused) this.resume();
     else this.pause();
-    this.world.events.emit("pause-changed", { paused: this.paused });
+    PAUSE_CHANGED.emit(this.world, { paused: this.paused });
   }
 
   /**

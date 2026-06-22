@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "@gitcade/sdk";
 import { num, bool } from "@gitcade/sdk";
+import { PATH_COMPLETE } from "../channels.js";
 import { points, normalize, applyVelocity } from "../util.js";
 
 /**
@@ -52,7 +53,7 @@ export const followPath: BehaviorFn = (entity, world, params, dt, scratch) => {
         s.wp = i;
         entity.vx = 0;
         entity.vy = 0;
-        world.events.emit("path-complete", { id: entity.id });
+        PATH_COMPLETE.emit(world, { id: entity.id });
         return;
       }
     }

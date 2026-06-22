@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "@gitcade/sdk";
 import { num, str, strArray, bool } from "@gitcade/sdk";
+import { GRID_STEP } from "../channels.js";
 
 interface Dir {
   x: number;
@@ -98,7 +99,7 @@ export const moveGridStep: BehaviorFn = (entity, world, params, dt, scratch) => 
     entity.x = Math.round(entity.x / tile) * tile;
     entity.y = Math.round(entity.y / tile) * tile;
   }
-  world.events.emit("grid-step", { id: entity.id, x: entity.x, y: entity.y });
+  GRID_STEP.emit(world, { id: entity.id, x: entity.x, y: entity.y });
 };
 
 function orDefault(value: string[], fallback: string[]): string[] {

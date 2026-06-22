@@ -50,8 +50,11 @@ export type PersistConfig = z.infer<typeof PersistSchema>;
 
 /**
  * A single machine-readable control hint (additive). Pairs an input label with the
- * action it performs, so the platform can render "Space · Rise" on game cards and the
- * detail page instead of scraping a title scene's prose.
+ * action it performs. RESERVED for the platform to render "Space · Rise" on game cards /
+ * the detail page (instead of scraping a title scene's prose) — authored now so it ships
+ * with the manifest, but NOT yet surfaced in the web UI: the persisted manifest snapshot
+ * (`platform/web` `manifestSnapshot`) does not yet carry it, and no card/detail component
+ * reads it. Wiring that reader is additive platform work, no schema change.
  */
 export const ControlHintSchema = z.strictObject({
   /** The input as shown to players, e.g. `"Space"`, `"Arrows / WASD"`, `"Tap"`. */
@@ -63,8 +66,8 @@ export type ControlHint = z.infer<typeof ControlHintSchema>;
 
 /**
  * `game.json` — the manifest every GitCade game ships. This is the ROOT of the
- * frozen contract: the platform, build worker, validator, marketplace and
- * governance all read it.
+ * frozen contract: the platform, build worker, validator, and marketplace all
+ * read it.
  *
  * Tier rules (enforced by `superRefine`):
  *  - `engine` is always the literal `"gitcade-sdk"`.

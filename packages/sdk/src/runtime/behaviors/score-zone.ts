@@ -1,5 +1,6 @@
 import type { BehaviorFn } from "../types.js";
 import { num } from "../params.js";
+import { SCORE } from "../channels.js";
 
 interface Zone {
   edge: "left" | "right" | "top" | "bottom";
@@ -59,7 +60,7 @@ export const scoreZone: BehaviorFn = (entity, world, params) => {
       entity.vx = (world.rng() - 0.5) * spread;
     }
 
-    world.events.emit("score", { scoreKey: zone.scoreKey, edge: zone.edge });
+    SCORE.emit(world, { scoreKey: zone.scoreKey, edge: zone.edge });
     world.audio.play("score");
     break;
   }

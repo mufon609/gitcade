@@ -2,7 +2,7 @@
  * @gitcade/sdk — the GitCade engine standard.
  *
  * This is the FROZEN contract every GitCade game, the component library, the
- * build worker, the marketplace, and governance all depend on. It exports three
+ * build worker, and the marketplace all depend on. It exports three
  * layers:
  *
  *  - **schema/** — Zod validators + inferred TS types for `game.json`,

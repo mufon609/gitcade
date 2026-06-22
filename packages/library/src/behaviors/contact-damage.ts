@@ -1,5 +1,6 @@
 import type { BehaviorFn, Entity } from "@gitcade/sdk";
 import { num, str, bool, hypot } from "@gitcade/sdk";
+import { DAMAGE } from "../channels.js";
 
 /**
  * Deal damage to overlapping entities carrying `targetTag`. Attached to anything
@@ -49,7 +50,7 @@ export const contactDamage: BehaviorFn = (entity, world, params, _dt, scratch) =
     cds[other.id] = world.time;
     other.state[damageKey] = (other.state[damageKey] as number) - damage;
     if (knockback > 0) applyKnockback(entity, other, knockback);
-    world.events.emit("damage", { source: entity.id, target: other.id, amount: damage });
+    DAMAGE.emit(world, { source: entity.id, target: other.id, amount: damage });
     hitSomething = true;
   }
 

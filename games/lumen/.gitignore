@@ -1,0 +1,6 @@
+node_modules/
+dist/
+
+# NOTE: this game's ORIGINAL art (public/assets/lumen/) is COMMITTED — do NOT ignore it.
+# A later session may add @gitcade/library asset syncing; if so, scope that ignore to
+# the synced subdir(s) only (e.g. public/assets/sprites/), never public/assets/lumen/.

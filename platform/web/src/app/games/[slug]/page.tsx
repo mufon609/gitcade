@@ -17,6 +17,18 @@ export default async function GamePage({ params }: { params: { slug: string } })
   if (!game) notFound();
 
   const manifest = (game.manifest ?? {}) as Record<string, unknown>;
+  // Machine-readable control hints from the persisted manifest snapshot (manifestSnapshot carries
+  // them). Defensively narrowed — older snapshots predate the field (→ []) and a malformed entry is
+  // simply dropped rather than thrown on.
+  const controls = Array.isArray(manifest.controls)
+    ? (manifest.controls as unknown[]).filter(
+        (c): c is { input: string; action: string } =>
+          !!c &&
+          typeof c === "object" &&
+          typeof (c as { input?: unknown }).input === "string" &&
+          typeof (c as { action?: unknown }).action === "string",
+      )
+    : [];
   // These reads are independent — run them concurrently. THE VALIDATOR IS THE GATE:
   // refreshGameStatus reconciles from the latest Build before we decide whether the
   // game is playable. Branch list is DB-only (fast); the client refreshes + can add
@@ -79,6 +91,20 @@ export default async function GamePage({ params }: { params: { slug: string } })
           <pre className="mt-2 max-h-96 overflow-auto rounded-md border border-arcade-edge bg-black/40 p-3 text-xs">
             {status.logs ?? "(no logs)"}
           </pre>
+        </div>
+      )}
+
+      {controls.length > 0 && (
+        <div className="gc-panel p-4">
+          <h2 className="text-sm font-bold text-arcade-mute">Controls</h2>
+          <div className="mt-2 flex flex-wrap gap-1.5 text-xs">
+            {controls.map((c, i) => (
+              <span key={i} className="gc-chip">
+                <span className="font-bold text-arcade-ink">{c.input}</span>
+                <span className="text-arcade-mute"> · {c.action}</span>
+              </span>
+            ))}
+          </div>
         </div>
       )}
 

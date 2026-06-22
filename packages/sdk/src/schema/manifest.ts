@@ -49,12 +49,10 @@ export const PersistSchema = z.strictObject({
 export type PersistConfig = z.infer<typeof PersistSchema>;
 
 /**
- * A single machine-readable control hint (additive). Pairs an input label with the
- * action it performs. RESERVED for the platform to render "Space · Rise" on game cards /
- * the detail page (instead of scraping a title scene's prose) — authored now so it ships
- * with the manifest, but NOT yet surfaced in the web UI: the persisted manifest snapshot
- * (`platform/web` `manifestSnapshot`) does not yet carry it, and no card/detail component
- * reads it. Wiring that reader is additive platform work, no schema change.
+ * A single machine-readable control hint (additive). Pairs an input label with the action it
+ * performs, e.g. `{ input: "Space", action: "Rise" }` → rendered as a "Space · Rise" chip in the
+ * platform game detail page's "Controls" strip (and carried in the persisted manifest snapshot),
+ * instead of scraping a title scene's prose.
  */
 export const ControlHintSchema = z.strictObject({
   /** The input as shown to players, e.g. `"Space"`, `"Arrows / WASD"`, `"Tap"`. */

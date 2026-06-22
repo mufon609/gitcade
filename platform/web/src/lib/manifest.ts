@@ -74,5 +74,8 @@ export function manifestSnapshot(m: GameManifest): Record<string, unknown> {
     tier: m.tier,
     license,
     authors: m.authors,
+    // Carried so the game detail page can render a "Controls" strip without re-fetching
+    // game.json; null when the manifest declares none (older snapshots simply render nothing).
+    controls: m.controls ?? null,
   };
 }

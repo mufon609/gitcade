@@ -80,4 +80,18 @@ describe("manifestSnapshot", () => {
     expect(snap.license).toMatchObject({ code: "MIT" });
     expect(() => JSON.stringify(snap)).not.toThrow();
   });
+
+  it("carries controls through the snapshot (the detail-page Controls strip reads it)", () => {
+    const r = parseManifestObject({ ...ECOSYSTEM, controls: [{ input: "Arrows / WASD", action: "Turn" }] });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(manifestSnapshot(r.manifest).controls).toEqual([{ input: "Arrows / WASD", action: "Turn" }]);
+  });
+
+  it("controls is null when the manifest declares none (older games render no strip)", () => {
+    const r = parseManifestObject(ECOSYSTEM);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(manifestSnapshot(r.manifest).controls).toBeNull();
+  });
 });

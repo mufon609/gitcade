@@ -30,6 +30,15 @@ export * from "./systems/index.js";
 export * from "./fx/index.js";
 export * from "./ui/index.js";
 export * from "./audio/index.js";
+
+/**
+ * The replay-intro host helper ({@link ReplayIntro} + {@link attachReplayIntro} + {@link parseRecording})
+ * — a skippable "Echo" of the player's last run, played back on the canvas before live play begins.
+ * A host-side code export built on the SDK's run-recording primitive (`createReplay`), in the same
+ * shape as {@link ScreenEffects}/{@link LibraryAudioPlayer}: a pure controller + thin browser glue,
+ * registering no runtime type and adding no CATALOG entry.
+ */
+export * from "./replay/index.js";
 export { LIBRARY_PALETTE, PALETTE } from "./palette.js";
 export { registerLibrary, createLibraryRegistry } from "./registry.js";
 

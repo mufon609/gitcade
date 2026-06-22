@@ -102,6 +102,52 @@ data/generated definitions under `parts/`.
   `excludeTags` (and `randomFreeCell` an `excludeCells`) to block extra cells beyond
   `occupiedTag`.
 
+### Host helpers (code exports, not data-parts)
+
+A few helpers are plain code the host page wires up, NOT registered runtime types — they orchestrate
+the canvas / rAF loop / a second Game, which a frozen behavior/system can't. Each is a pure,
+unit-testable controller plus a thin browser glue that no-ops cleanly headless; none touch the SDK
+schema or `CATALOG.json`. `ScreenEffects` + `attachScreenEffects` (camera shake / screen flash /
+fade) and `LibraryAudioPlayer` (synthesized SFX + chiptune music) are two; the **replay intro** is
+the third.
+
+**Replay intro** — `ReplayIntro` + `attachReplayIntro` + `parseRecording`. A skippable *Echo* of the
+player's last run, played back on the canvas as a watchable intro before live play begins, built on
+the SDK's run-recording primitive (`createReplay`). The recording re-simulates byte-for-byte through
+a fresh seeded Game, so the intro is a deterministic replay, not a video. Replay and live play are
+temporally separate: the intro plays the recording to completion (or the player skips it), then hands
+control back via `onDone`, where the caller starts the live game.
+
+```ts
+import { createGame } from "@gitcade/sdk";
+import { ReplayIntro, attachReplayIntro, parseRecording } from "@gitcade/library";
+
+// The player's last run for this level, persisted as a JSON string through the storage bridge.
+// parseRecording returns null on a missing / corrupt / stale blob — then there's simply no intro.
+const prior = parseRecording((await storage.get(`run:${entryLevel}`)) ?? "");
+
+// The live game records THIS run (for next time); starting it is the handoff target.
+const live = createGame(raw, { canvas, registry, audio, storage, seed: SEED, record: true });
+const startLive = () => live.start();
+
+if (prior) {
+  // A second Game, seeded + entered identically to the recorded run and NOT started — the controller
+  // drives it. `attachInput: false` so the watching player's keys don't leak into the re-simulation.
+  const replayGame = createGame(raw, { canvas, registry, seed: prior.seed, entrySceneId: prior.sceneId, attachInput: false });
+  const intro = new ReplayIntro({ game: replayGame, recording: prior, onDone: startLive });
+  attachReplayIntro(intro, canvas, { prompt: "ECHO OF YOUR LAST RUN — press any key to skip" });
+} else {
+  startLive();
+}
+```
+
+`ReplayIntro` is the pure controller — `tick(dt)` advances playback at the recorded fixed-timestep
+pace, `skip()` ends it early, and `onDone({ skipped, atFrame })` fires exactly once (completion OR
+skip). `attachReplayIntro` runs the rAF loop (renders the replay + a tint / skip-prompt / progress
+overlay, wires the skip keys + a pointer tap) and returns an idempotent `stop()`; with no animation
+clock it drives the replay to completion so `onDone` still resolves and a non-browser host goes
+straight to live.
+
 ## The composition contract (inherited from the SDK)
 
 - **All balance lives in `config.json`.** A part receives a numeric balance value

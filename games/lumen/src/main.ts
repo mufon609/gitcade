@@ -46,6 +46,8 @@ const storage = makeStorage(manifest.slug);
 const raw = { manifest, config, scenes: [playBase, level1] };
 const SEED = 0x10de; // "lode" — fixed per level, so the Echo always replays the same world
 const RUN_KEY = "run:level-1";
+// Retry-arm delay (host timing) lifted to config.json so it's tunable like any balance value.
+const retryArmDelayMs = ((config as Record<string, number>).retryArmDelay ?? 0.6) * 1000;
 
 // --- DOM handles -------------------------------------------------------------
 // `attachScreenEffects` types the overlay as `{ style: Record<string,string> }`; a DOM
@@ -58,14 +60,9 @@ const resultSub = document.getElementById("result-sub");
 const pauseOverlay = document.getElementById("pause-overlay");
 const pauseBtn = document.getElementById("pause-btn");
 const muteBtn = document.getElementById("mute-btn");
-// HUD is a screen-fixed DOM overlay (a scrolling level's world-space canvas can't host
-// a fixed HUD): the host mirrors the display STRINGS `format-binding` derives as data
-// (motesDisplay/hpDisplay/levelDisplay/livesDisplay) into these elements each frame.
-const hud = document.getElementById("hud");
-const hudMotes = document.getElementById("hud-motes");
-const hudHp = document.getElementById("hud-hp");
-const hudLevel = document.getElementById("hud-level");
-const hudLives = document.getElementById("hud-lives");
+// The HUD is DATA now — screen-space canvas entities (screen:true) the engine draws fixed
+// under the follow-camera (motes/level/lives text bound to format-binding, hp a hud-bar
+// reading the player's state). No host mirror: the game owns its HUD like any other scene data.
 const show = (el: HTMLElement | null, on: boolean): void => {
   if (el) el.style.display = on ? "grid" : "none";
 };
@@ -80,7 +77,6 @@ attachScreenEffects(fx, canvas, fxOverlay);
 
 // --- audio (needs a user gesture before the browser will play sound) ---------
 let liveGame: Game | null = null; // the live, pausable game (null during the Echo)
-let activeGame: Game | null = null; // whatever is on the canvas now (Echo replay OR live) — feeds the HUD
 let musicStarted = false;
 let userMuted = false;
 function resumeAudio(): void {
@@ -124,18 +120,23 @@ if (pauseBtn) pauseBtn.onclick = () => liveGame?.togglePause();
 // --- the Echo attempt loop ---------------------------------------------------
 async function attempt(): Promise<void> {
   liveGame = null;
-  activeGame = null;
   show(startOverlay, false);
   show(resultOverlay, false);
   show(pauseOverlay, false);
 
-  const prior = parseRecording((await storage.get(RUN_KEY)) ?? "");
+  // A storage READ that rejects must NOT brick the boot/retry (a black canvas) — degrade to
+  // "no Echo this run" (the first-run path), exactly as if there were no prior recording.
+  let prior: ReturnType<typeof parseRecording> = null;
+  try {
+    prior = parseRecording((await storage.get(RUN_KEY)) ?? "");
+  } catch {
+    prior = null;
+  }
   if (prior) {
     // Play the Echo of the last run on a SECOND, input-less, seeded Game, THEN hand off to
     // live play (on natural completion OR a skip). attachInput:false so the watching
     // player's keystrokes don't leak into the re-simulation.
     const replayGame = createGame(raw, { canvas, registry, seed: prior.seed, entrySceneId: "level-1", attachInput: false });
-    activeGame = replayGame; // the Echo feeds the HUD while it plays
     const intro = new ReplayIntro({ game: replayGame, recording: prior, onDone: () => startLive() });
     attachReplayIntro(intro, canvas, {
       prompt: "✦ ECHO OF YOUR LAST RUN — press any key to skip ✦",
@@ -173,13 +174,14 @@ function startLive(): void {
     pauseScenes: ["level-1"],
   });
   liveGame = live;
-  activeGame = live;
   resumeAudio();
 
   // FLASH on outcomes (host overlay); SHAKE in-engine via the camera-shake system ("shake").
+  // Every lethal cause — spikes, the void, a drained wraith — now routes through the player's
+  // `health-and-death`, so "died" is the ONE canonical "player died" signal: the flash, the shake,
+  // and the in-engine `explosion` (bound to "died" in play-base) all fire for ALL three the same way.
   fx.bindToEvents(live.world, {
-    died: (f) => f.flash("#ff4fb0", 0.22),
-    void: (f) => f.flash("#1b1442", 0.3),
+    died: (f) => f.flash("#ff4fb0", 0.24),
     "level-clear": (f) => f.flash("#ffe0a8", 0.3),
     gameover: (f) => f.flash("#ff4fb0", 0.4),
   });
@@ -187,7 +189,6 @@ function startLive(): void {
     live.world.events.emit("shake", { magnitude, duration });
   };
   live.world.events.on("died", () => shake(9, 0.35));
-  live.world.events.on("void", () => shake(8, 0.3));
   live.world.events.on("level-clear", () => shake(6, 0.5));
   live.world.events.on("gameover", () => shake(12, 0.5));
 
@@ -198,15 +199,17 @@ function startLive(): void {
     syncAudio();
   });
 
-  // Persist the recording on BOTH outcomes, so even a failed run becomes the next Echo.
+  // Persist the recording on BOTH outcomes, so even a failed run becomes the next Echo — but a
+  // storage WRITE that rejects must cost ONLY next run's Echo, never the result/retry screen (and
+  // never leave the game simulating headless behind a frozen overlay). So tear down + show the
+  // result + arm retry FIRST and synchronously; THEN persist fire-and-forget with its own catch.
   let finished = false;
-  const finish = async (won: boolean): Promise<void> => {
+  const finish = (won: boolean): void => {
     if (finished) return;
     finished = true;
     const motes = (live.world.state.motes as number) ?? 0;
-    await storage.set(RUN_KEY, JSON.stringify(live.getRecording()));
+    const recording = live.getRecording(); // capture before stop() tears the loop down
     live.stop();
-    activeGame = null;
     syncAudio();
     if (resultTitle) resultTitle.textContent = won ? "THE BEACON IS LIT" : "THE VOID CLAIMS YOU";
     if (resultSub) resultSub.textContent = `◆ ${motes} motes gathered`;
@@ -220,29 +223,14 @@ function startLive(): void {
       };
       window.addEventListener("keydown", retry);
       resultOverlay?.addEventListener("pointerdown", retry);
-    }, 600);
+    }, retryArmDelayMs);
+    void storage.set(RUN_KEY, JSON.stringify(recording)).catch(() => {});
   };
-  live.world.events.on("level-clear", () => void finish(true)); // reached the Beacon
-  live.world.events.on("gameover", () => void finish(false)); // the void / damage drained every life
+  live.world.events.on("level-clear", () => finish(true)); // reached the Beacon
+  live.world.events.on("gameover", () => finish(false)); // the void / damage drained every life
 
   live.start();
 }
-
-// HUD mirror: copy the active game's `format-binding` display strings into the screen-fixed
-// DOM HUD each frame (its own rAF, independent of the SDK game loop). Hidden when nothing
-// is on the canvas (the start / result overlays own the screen then).
-function tickHud(): void {
-  const s = activeGame?.world.state;
-  if (hud) hud.style.display = s ? "flex" : "none";
-  if (s) {
-    if (hudMotes) hudMotes.textContent = typeof s.motesDisplay === "string" ? s.motesDisplay : "◆ 0";
-    if (hudHp) hudHp.textContent = typeof s.hpDisplay === "string" ? s.hpDisplay : "♥ 0";
-    if (hudLevel) hudLevel.textContent = typeof s.levelDisplay === "string" ? s.levelDisplay : "LEVEL 1";
-    if (hudLives) hudLives.textContent = typeof s.livesDisplay === "string" ? s.livesDisplay : "✦ 0";
-  }
-  requestAnimationFrame(tickHud);
-}
-requestAnimationFrame(tickHud);
 
 renderMute();
 void attempt();

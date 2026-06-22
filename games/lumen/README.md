@@ -25,14 +25,18 @@ host glue in [`src/main.ts`](./src/main.ts) (audio, screen juice, pause, and the
   the generator, not the JSON.
 - Art: the committed, original `public/assets/lumen/*.png` (see [`ART.md`](./ART.md)) — generated
   by `npm run gen:art`, never synced from the library.
+- The **HUD is data**: `screen:true` canvas entities in `play-base` — text widgets `bind` to the
+  strings `format-binding` derives, and a `hud-bar` health bar reads the player's own `state.hp`
+  (`valueEntity`). The engine draws them fixed under the follow-camera, so they stay put while the
+  world scrolls — no DOM overlay, no host mirror.
 
 ## Parts used (pinned to `@gitcade/library@1.13.0`)
 
 Behaviors: `move-platformer@1.3.0`, `sprite-state-machine@1.0.0`, `face-velocity@1.0.0`,
 `health-and-death@1.0.0`, `dust@1.0.0`, `collect-on-touch@1.0.0`, `tween@1.0.0`,
 `ai-patrol@1.0.0`, `contact-damage@1.0.0`, `follow-path@1.1.0`, `portal@1.0.0`,
-`trigger-zone@1.0.0` (+ SDK built-ins `velocity`, `sprite-animate`).
-Systems: `camera-follow@2.0.0`, `camera-shake@1.0.0`, `score@1.0.0`, `lives-respawn@1.0.0`,
+`trigger-zone@1.1.0`, `hud-bar@1.1.0` (+ SDK built-ins `velocity`, `sprite-animate`).
+Systems: `camera-follow@2.0.0`, `camera-shake@1.0.0`, `score@1.0.0`, `lives-respawn@1.1.0`,
 `format-binding@1.0.0`, `sparkle@1.0.0`, `explosion@1.0.0` (+ SDK built-in `aabb-collision`).
 Tile collision (solid / one-way / slope / ladder) is the SDK `collider` + tilemap-property path.
 
@@ -50,19 +54,14 @@ npm run validate     # gitcade validate . → exit 0 = publishable
 Controls: **← → / A·D** move · **Space / W / ↑** jump · **↓ / S** drop-through & climb ·
 **P / Esc** pause · **any key** skips the Echo.
 
-## Deviations / notes
+## Notes
 
-- **HUD is a screen-fixed DOM overlay** (in `index.html`, mirrored from state by `main.ts`),
-  not canvas text entities. The SDK renderer draws every entity under the camera transform and
-  has no screen-space layer, so canvas HUD scrolls off in a camera-following level, and no
-  library/SDK part anchors an entity to the camera. `format-binding` still derives the display
-  strings as data; the host just paints them. (A `hud-bar` health bar was avoided for the same
-  family of reason: it reads a numeric `world.state.hp`, but the only data bridge —
-  `format-binding` — emits strings and player hp lives on the entity, so the bar renders empty;
-  health shows as `♥`-count text instead.)
-- **Checkpoints are decorative + audible** (a violet marker + a `trigger-zone` chime); respawn
-  is the level-start `lives-respawn.respawnPosition` (the sanctioned v1). A moving checkpoint is
-  left as later polish.
+- **Checkpoints move the respawn point.** Each `trigger-zone` checkpoint writes its position to
+  `world.state` (`setRespawnKey`), and `lives-respawn` (`respawnStateKey`) respawns there — so a
+  mid-level death returns you to the last checkpoint, not the level start.
+- **One canonical death.** Spikes and the void deal lethal `contact-damage` (not a raw `kill`), so
+  every death — spike, void, or a drained wraith — drives the player's `health-and-death` and fires
+  the single `died` event the host binds explosion + flash + shake to.
 - **Catalog sync:** `@gitcade/library`'s `package.json` was already `1.13.0` but its generated
   `CATALOG.json` version header still read `1.12.1` (it only regenerates at publish). Regenerated
   via `npm run catalog` (version-header only; parts byte-identical) so `part:"id@1.x"` provenance

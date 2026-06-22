@@ -40,21 +40,8 @@
       }
       #pause-btn { right: 8px; }
       #mute-btn { left: 8px; }
-      /* HUD — screen-fixed (a scrolling level's world-space canvas can't host a fixed
-         HUD, so it's a DOM overlay the host mirrors from world.state each frame). The
-         56px side padding clears the corner mute/pause buttons. */
-      #hud {
-        position: absolute; top: 0; left: 0; right: 0; z-index: 4;
-        display: flex; justify-content: space-between; align-items: flex-start;
-        padding: 13px 56px; pointer-events: none;
-        font: 16px ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: 1px;
-        text-shadow: 1px 1px 0 #070512;
-      }
-      #hud .left { display: flex; gap: 18px; }
-      #hud-motes { color: var(--gold); }
-      #hud-hp { color: var(--ember); }
-      #hud-level { color: var(--aqua); }
-      #hud-lives { color: var(--ink); }
+      /* The HUD is DATA: screen-space canvas entities (screen:true) authored in play-base,
+         drawn fixed under the follow-camera by the engine — no DOM overlay, no host mirror. */
       /* Overlays: pause, start, result. */
       .overlay {
         position: absolute; inset: 0; z-index: 10; display: none; place-items: center;
@@ -77,11 +64,6 @@
     <div id="stage">
       <canvas id="game" width="800" height="480"></canvas>
       <div id="fx-overlay"></div>
-      <div id="hud">
-        <div class="left"><span id="hud-motes">◆ 0</span><span id="hud-hp">♥ 3</span></div>
-        <span id="hud-level">LEVEL 1</span>
-        <span id="hud-lives">✦ 5</span>
-      </div>
       <button id="pause-btn" aria-label="Pause">II</button>
       <button id="mute-btn" aria-label="Mute audio">🔊</button>
 

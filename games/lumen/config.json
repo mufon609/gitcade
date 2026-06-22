@@ -11,7 +11,7 @@
   "runFriction": 2500,
   "jumpCut": 0.5,
   "apexGravityMult": 0.55,
-  "apexThreshold": 90,
+  "apexThreshold": 180,
   "dropThroughTime": 0.4,
   "climbSpeed": 150,
 
@@ -20,6 +20,8 @@
   "startLives": 5,
   "respawnDelay": 0.8,
   "playerHp": 3,
+  "hpLowThreshold": 0.34,
+  "retryArmDelay": 0.6,
 
   "moteValue": 1,
   "emberValue": 10,
@@ -29,6 +31,9 @@
   "wraithDamage": 1,
   "wraithKnockback": 240,
   "damageCooldown": 1.0,
+
+  "spikeDamage": 99,
+  "voidDamage": 99,
 
   "driftstoneSpeed": 70,
   "liftSpeed": 55,

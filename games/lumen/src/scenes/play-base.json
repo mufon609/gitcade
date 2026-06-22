@@ -69,6 +69,56 @@
           "params": { "rate": "$cfg.fxDustRate", "minSpeed": "$cfg.fxDustMinSpeed", "ttl": "$cfg.fxDustTtl", "color": "#34c2b3" }
         }
       ]
+    },
+
+    {
+      "id": "hud-motes",
+      "sprite": { "kind": "text", "bind": "motesDisplay", "font": "16px monospace", "color": "#ffd24a", "align": "left" },
+      "position": { "x": 56, "y": 14 },
+      "screen": true,
+      "tags": ["hud"],
+      "layer": 11
+    },
+    {
+      "id": "hud-level",
+      "sprite": { "kind": "text", "bind": "levelDisplay", "font": "16px monospace", "color": "#34c2b3", "align": "center" },
+      "position": { "x": 400, "y": 14 },
+      "screen": true,
+      "tags": ["hud"],
+      "layer": 11
+    },
+    {
+      "id": "hud-lives",
+      "sprite": { "kind": "text", "bind": "livesDisplay", "font": "16px monospace", "color": "#ffe0a8", "align": "right" },
+      "position": { "x": 744, "y": 14 },
+      "screen": true,
+      "tags": ["hud"],
+      "layer": 11
+    },
+    {
+      "id": "hud-hp-track",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#2a2350" },
+      "size": { "w": 96, "h": 12 },
+      "position": { "x": 56, "y": 38 },
+      "screen": true,
+      "tags": ["hud"],
+      "layer": 10
+    },
+    {
+      "id": "hud-hp",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#ff9a3c" },
+      "size": { "w": 96, "h": 12 },
+      "position": { "x": 56, "y": 38 },
+      "screen": true,
+      "tags": ["hud"],
+      "layer": 11,
+      "behaviors": [
+        {
+          "type": "hud-bar",
+          "part": "hud-bar@1.1.0",
+          "params": { "valueKey": "hp", "valueEntity": "player", "max": "$cfg.playerHp", "lowColor": "#ff4fb0", "lowThreshold": "$cfg.hpLowThreshold" }
+        }
+      ]
     }
   ],
   "systems": [
@@ -96,12 +146,13 @@
     { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "motes", "highKey": "bestMotes", "persist": false } },
     {
       "type": "lives-respawn",
-      "part": "lives-respawn@1.0.0",
+      "part": "lives-respawn@1.1.0",
       "params": {
         "startLives": "$cfg.startLives",
         "watchTag": "player",
         "respawnDelay": "$cfg.respawnDelay",
         "respawnPosition": { "x": 64, "y": 360 },
+        "respawnStateKey": "respawnPoint",
         "prototype": {
           "id": "player",
           "sprite": {
@@ -168,8 +219,7 @@
         "bindings": [
           { "from": "level", "template": "LEVEL {v}", "to": "levelDisplay" },
           { "from": "motes", "template": "◆ {v}", "to": "motesDisplay" },
-          { "from": "lives", "template": "✦ {v}", "to": "livesDisplay" },
-          { "from": "hp", "fromEntity": "player", "template": "♥ {v}", "to": "hpDisplay" }
+          { "from": "lives", "template": "✦ {v}", "to": "livesDisplay" }
         ]
       }
     },

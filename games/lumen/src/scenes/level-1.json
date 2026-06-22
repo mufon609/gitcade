@@ -672,7 +672,7 @@
       -1,
       -1,
       -1,
-      -1,
+      4,
       -1,
       -1,
       -1,
@@ -697,9 +697,6 @@
       0,
       0,
       0,
-      -1,
-      -1,
-      -1,
       -1,
       -1,
       -1,
@@ -776,6 +773,9 @@
       -1,
       -1,
       4,
+      1,
+      -1,
+      -1,
       -1,
       -1,
       -1,
@@ -870,12 +870,14 @@
       -1,
       -1,
       -1,
-      -1,
-      -1,
-      -1,
-      -1,
+      3,
       -1,
       4,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
       -1,
       -1,
       -1,
@@ -968,14 +970,12 @@
       -1,
       -1,
       3,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
       -1,
-      4,
+      0,
+      0,
+      0,
+      0,
+      2,
       -1,
       -1,
       -1,
@@ -1031,103 +1031,6 @@
       1,
       1,
       1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      3,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      4,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
-      -1,
       -1,
       -1,
       -1,
@@ -1173,11 +1076,108 @@
       -1,
       -1,
       -1,
+      2,
       -1,
       -1,
-      4,
       -1,
       -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      3,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      2,
       -1,
       -1,
       -1,
@@ -2159,11 +2159,11 @@
       },
       "size": {
         "w": 12,
-        "h": 40
+        "h": 24
       },
       "position": {
         "x": 906,
-        "y": 344
+        "y": 360
       },
       "tags": [
         "checkpoint"
@@ -2172,13 +2172,25 @@
       "behaviors": [
         {
           "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "part": "trigger-zone@1.1.0",
           "params": {
             "tag": "player",
             "enterEvent": "checkpoint",
             "once": true,
-            "setStateKey": "cp1",
+            "setRespawnKey": "respawnPoint",
             "sound": "collect"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.12,
+            "duration": "$cfg.checkpointPulseDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
           }
         }
       ]
@@ -2198,7 +2210,7 @@
       },
       "position": {
         "x": 960,
-        "y": 380
+        "y": 384
       },
       "tags": [
         "driftstone"
@@ -2215,16 +2227,16 @@
           "params": {
             "points": [
               {
-                "x": 960,
-                "y": 380
+                "x": 992,
+                "y": 392
               },
               {
-                "x": 1184,
-                "y": 380
+                "x": 1216,
+                "y": 392
               },
               {
-                "x": 960,
-                "y": 380
+                "x": 992,
+                "y": 392
               }
             ],
             "speed": "$cfg.driftstoneSpeed",
@@ -2367,12 +2379,12 @@
         "strokeWidth": 1
       },
       "size": {
-        "w": 32,
-        "h": 32
+        "w": 16,
+        "h": 12
       },
       "position": {
-        "x": 1408,
-        "y": 352
+        "x": 1416,
+        "y": 372
       },
       "tags": [
         "spike"
@@ -2380,12 +2392,12 @@
       "layer": 2,
       "behaviors": [
         {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
           "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "hazard",
+            "targetTag": "player",
+            "damage": "$cfg.spikeDamage",
+            "cooldown": "$cfg.damageCooldown",
             "sound": "hit"
           }
         }
@@ -2401,12 +2413,12 @@
         "strokeWidth": 1
       },
       "size": {
-        "w": 32,
-        "h": 32
+        "w": 16,
+        "h": 12
       },
       "position": {
-        "x": 1440,
-        "y": 352
+        "x": 1448,
+        "y": 372
       },
       "tags": [
         "spike"
@@ -2414,12 +2426,12 @@
       "layer": 2,
       "behaviors": [
         {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
           "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "hazard",
+            "targetTag": "player",
+            "damage": "$cfg.spikeDamage",
+            "cooldown": "$cfg.damageCooldown",
             "sound": "hit"
           }
         }
@@ -2435,12 +2447,12 @@
         "strokeWidth": 1
       },
       "size": {
-        "w": 32,
-        "h": 32
+        "w": 16,
+        "h": 12
       },
       "position": {
-        "x": 1536,
-        "y": 352
+        "x": 1640,
+        "y": 372
       },
       "tags": [
         "spike"
@@ -2448,12 +2460,12 @@
       "layer": 2,
       "behaviors": [
         {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
           "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "hazard",
+            "targetTag": "player",
+            "damage": "$cfg.spikeDamage",
+            "cooldown": "$cfg.damageCooldown",
             "sound": "hit"
           }
         }
@@ -2469,12 +2481,12 @@
         "strokeWidth": 1
       },
       "size": {
-        "w": 32,
-        "h": 32
+        "w": 16,
+        "h": 12
       },
       "position": {
-        "x": 1568,
-        "y": 352
+        "x": 1672,
+        "y": 372
       },
       "tags": [
         "spike"
@@ -2482,80 +2494,12 @@
       "layer": 2,
       "behaviors": [
         {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
           "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "hazard",
-            "sound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "spike-4",
-      "sprite": {
-        "kind": "shape",
-        "shape": "triangle",
-        "color": "#ff4fb0",
-        "stroke": "#070512",
-        "strokeWidth": 1
-      },
-      "size": {
-        "w": 32,
-        "h": 32
-      },
-      "position": {
-        "x": 1664,
-        "y": 352
-      },
-      "tags": [
-        "spike"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
-          "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "hazard",
-            "sound": "hit"
-          }
-        }
-      ]
-    },
-    {
-      "id": "spike-5",
-      "sprite": {
-        "kind": "shape",
-        "shape": "triangle",
-        "color": "#ff4fb0",
-        "stroke": "#070512",
-        "strokeWidth": 1
-      },
-      "size": {
-        "w": 32,
-        "h": 32
-      },
-      "position": {
-        "x": 1696,
-        "y": 352
-      },
-      "tags": [
-        "spike"
-      ],
-      "layer": 2,
-      "behaviors": [
-        {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
-          "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "hazard",
+            "targetTag": "player",
+            "damage": "$cfg.spikeDamage",
+            "cooldown": "$cfg.damageCooldown",
             "sound": "hit"
           }
         }
@@ -2582,7 +2526,7 @@
         "h": 16
       },
       "position": {
-        "x": 1480,
+        "x": 1512,
         "y": 296
       },
       "tags": [
@@ -2642,8 +2586,8 @@
         "h": 16
       },
       "position": {
-        "x": 1608,
-        "y": 296
+        "x": 1544,
+        "y": 264
       },
       "tags": [
         "mote"
@@ -2702,8 +2646,8 @@
         "h": 16
       },
       "position": {
-        "x": 1864,
-        "y": 264
+        "x": 1576,
+        "y": 296
       },
       "tags": [
         "mote"
@@ -2822,7 +2766,7 @@
         "h": 16
       },
       "position": {
-        "x": 1992,
+        "x": 2024,
         "y": 264
       },
       "tags": [
@@ -2882,8 +2826,8 @@
         "h": 16
       },
       "position": {
-        "x": 2056,
-        "y": 328
+        "x": 1960,
+        "y": 232
       },
       "tags": [
         "mote"
@@ -2942,8 +2886,8 @@
         "h": 16
       },
       "position": {
-        "x": 2056,
-        "y": 296
+        "x": 1960,
+        "y": 200
       },
       "tags": [
         "mote"
@@ -3002,8 +2946,8 @@
         "h": 16
       },
       "position": {
-        "x": 2056,
-        "y": 264
+        "x": 1992,
+        "y": 200
       },
       "tags": [
         "mote"
@@ -3062,68 +3006,8 @@
         "h": 16
       },
       "position": {
-        "x": 2056,
-        "y": 232
-      },
-      "tags": [
-        "mote"
-      ],
-      "layer": 4,
-      "behaviors": [
-        {
-          "type": "collect-on-touch",
-          "part": "collect-on-touch@1.0.0",
-          "params": {
-            "collectorTag": "player",
-            "value": "$cfg.moteValue",
-            "scoreKey": "motes",
-            "kind": "mote",
-            "sound": "collect"
-          }
-        },
-        {
-          "type": "sprite-animate",
-          "params": {
-            "play": "spin"
-          }
-        },
-        {
-          "type": "tween",
-          "part": "tween@1.0.0",
-          "params": {
-            "property": "scale",
-            "from": 1,
-            "to": 1.2,
-            "duration": "$cfg.moteBobDuration",
-            "easing": "in-out-quad",
-            "loop": "pingpong"
-          }
-        }
-      ]
-    },
-    {
-      "id": "mote-20",
-      "sprite": {
-        "kind": "sheet",
-        "src": "assets/lumen/mote.png",
-        "frameWidth": 16,
-        "frameHeight": 16,
-        "frameCount": 4,
-        "fps": 10,
-        "animations": {
-          "spin": {
-            "from": 0,
-            "to": 3
-          }
-        }
-      },
-      "size": {
-        "w": 16,
-        "h": 16
-      },
-      "position": {
         "x": 2152,
-        "y": 328
+        "y": 360
       },
       "tags": [
         "mote"
@@ -3256,11 +3140,11 @@
       },
       "size": {
         "w": 12,
-        "h": 40
+        "h": 24
       },
       "position": {
         "x": 2442,
-        "y": 344
+        "y": 360
       },
       "tags": [
         "checkpoint"
@@ -3269,13 +3153,25 @@
       "behaviors": [
         {
           "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "part": "trigger-zone@1.1.0",
           "params": {
             "tag": "player",
             "enterEvent": "checkpoint",
             "once": true,
-            "setStateKey": "cp2",
+            "setRespawnKey": "respawnPoint",
             "sound": "collect"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.12,
+            "duration": "$cfg.checkpointPulseDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
           }
         }
       ]
@@ -3295,7 +3191,7 @@
       },
       "position": {
         "x": 2528,
-        "y": 380
+        "y": 384
       },
       "tags": [
         "driftstone"
@@ -3312,16 +3208,16 @@
           "params": {
             "points": [
               {
-                "x": 2528,
-                "y": 380
+                "x": 2560,
+                "y": 392
               },
               {
-                "x": 2528,
+                "x": 2560,
                 "y": 200
               },
               {
-                "x": 2528,
-                "y": 380
+                "x": 2560,
+                "y": 392
               }
             ],
             "speed": "$cfg.liftSpeed",
@@ -3335,7 +3231,7 @@
       ]
     },
     {
-      "id": "mote-21",
+      "id": "mote-20",
       "sprite": {
         "kind": "sheet",
         "src": "assets/lumen/mote.png",
@@ -3395,7 +3291,7 @@
       ]
     },
     {
-      "id": "mote-22",
+      "id": "mote-21",
       "sprite": {
         "kind": "sheet",
         "src": "assets/lumen/mote.png",
@@ -3531,7 +3427,7 @@
       ]
     },
     {
-      "id": "mote-23",
+      "id": "mote-22",
       "sprite": {
         "kind": "sheet",
         "src": "assets/lumen/mote.png",
@@ -3591,7 +3487,7 @@
       ]
     },
     {
-      "id": "mote-24",
+      "id": "mote-23",
       "sprite": {
         "kind": "sheet",
         "src": "assets/lumen/mote.png",
@@ -3715,7 +3611,7 @@
       "behaviors": [
         {
           "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "part": "trigger-zone@1.1.0",
           "params": {
             "tag": "player",
             "enterEvent": "level-clear",
@@ -3756,12 +3652,12 @@
       "layer": 0,
       "behaviors": [
         {
-          "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
           "params": {
-            "tag": "player",
-            "kill": true,
-            "enterEvent": "void",
+            "targetTag": "player",
+            "damage": "$cfg.voidDamage",
+            "cooldown": "$cfg.damageCooldown",
             "sound": "hit"
           }
         }

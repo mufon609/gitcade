@@ -118,3 +118,31 @@ functions where a pure helper has no `world`). Gate sites use **squared-distance
 
 The determinism *fingerprint* re-based to `world.math` at **sdk/library 1.12.0**; pre-1.12.0
 fingerprints are not comparable across that boundary.
+
+---
+
+## Recording and replaying a run
+
+Because a fixed-timestep run is a pure function of its seed and its per-frame input, a run is fully
+captured by `(seed, fixedDt, the per-tick input stream)`, and re-driving a fresh `seededRng(seed)`
+engine through that same input reproduces `snapshotWorld(world)` at **every** tick. `runtime/replay.ts`
+is the primitive (browser-safe, no `node:` built-ins, like `determinism.ts`):
+
+- **Recorder.** A Game built with `{ seed, record: true }` samples input once per tick at the TOP of
+  `update` — the held-key set (`input.heldKeys()`) plus the tap-down edges (`input.justPressed()`) as
+  the tick begins, before any behavior consumes them and before `endFrame()` clears the edge buffers.
+  The sample is **read-only**, so a recorder never perturbs the simulation (a non-recording game is
+  byte-identical). It uses its OWN monotonic tick counter, not `world.frame` (which resets to 0 on
+  every `loadScene`), so a recording spans scene changes with a continuous frame index. The capture is
+  delta-encoded: `keys` only when the held set changes (frame 0 always), `taps` only on tap ticks.
+- **Replay.** `createReplay(game, recording)` re-feeds the recorded input through the **same seams a
+  live player would** — `input.setKey` for the held-key delta and `input.tap` for each tap — then
+  advances one fixed `update`, input BEFORE update. Entropy comes only from the replay engine's
+  `seededRng(recording.seed)`; nothing in the replay path reads a wall clock. So the replay is not a
+  re-rendering of saved frames but a genuine re-simulation that lands on byte-identical state — which
+  is what makes the optional `finalSnapshot` a meaningful end-to-end integrity check.
+
+Scope (v1): keyboard held-state + discrete pointer taps (`input.tap`'s press/release-at-a-point
+model), which fully covers a platformer. Held-pointer / drag reproduction is out of scope. A recording
+crossing the `world.math` fingerprint boundary (sdk 1.12.0) replays within its own engine but is not
+comparable across it, like any other fingerprint.

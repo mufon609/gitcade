@@ -96,6 +96,41 @@ schema field or additive runtime/validator behavior; a game that sets neither
   gate instead of surfacing at runtime. An `overrides` patch is held to the same bar:
   one whose `id` hits no entity (a dead patch) fails as `override-target-missing`.
 
+## Run recording & replay
+
+A fixed-timestep run is a pure function of its seed and its per-frame input, so a run is fully
+captured by `(seed, fixedDt, the per-tick input stream)` and reproduces **byte-for-byte** when
+re-driven through a fresh seeded engine. That is the substrate for ghost replays, verifiable
+speedruns, and seeded daily challenges. Opt-in and default-off — a game that records nothing is
+byte-identical to one built without these options.
+
+- **Seeded, recordable Game.** `createGame(raw, { seed })` builds the RNG as `seededRng(seed)` and
+  remembers the seed (mutually exclusive with a custom `rng`). Add `record: true` (which **requires**
+  `seed`) and the engine accumulates a `RunRecording` as it ticks — read it with
+  `game.getRecording()`, or `game.resetRecording()` to re-arm at a level boundary. Recording only
+  **reads** input at the top of each tick, so it never perturbs the simulation.
+- **Compact recording.** `RunRecording` is plain JSON (persist it through the storage bridge). Input
+  is delta-encoded and sparse: held `KeyboardEvent.code` keys are emitted only on the tick they
+  change (frame 0 always), and discrete pointer **taps** on the tick they occur. Set the optional
+  `finalSnapshot` (a `snapshotWorld` string) for an integrity check.
+- **Replay driver.** `createReplay(game, recording)` returns a `ReplayController` — `step()` applies
+  one tick's recorded input then advances one fixed `update`, exposing `frame` / `total` / `done` /
+  `progress`. The consumer builds the replay Game from the same sources, seeded identically, and owns
+  the loop (render between steps on its own rAF for a watchable, skippable intro; a headless test
+  just loops `while (!done) step()`):
+
+```ts
+const rec = game.getRecording();
+const replay = createReplay(
+  createGame(raw, { seed: rec.seed, entrySceneId: rec.sceneId, attachInput: false }),
+  rec,
+);
+while (!replay.done) { replay.step(); replay.game.render(); } // render is browser-only
+```
+
+Scope (v1): keyboard held-state + discrete taps — fully covering a platformer. Held-pointer / drag
+streams are out of scope.
+
 ## Quick start (composing a game from JSON)
 
 ```ts

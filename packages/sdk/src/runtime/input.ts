@@ -127,6 +127,16 @@ export class Input {
   }
 
   /**
+   * A SORTED copy of the currently-held `KeyboardEvent.code` set — the read the run recorder samples
+   * each tick to capture keyboard state. SORTED so the captured value is order-stable (the held set's
+   * iteration order is insertion-dependent), and a COPY so a caller can't mutate the live set.
+   * Additive, read-only.
+   */
+  heldKeys(): string[] {
+    return [...this.down].sort();
+  }
+
+  /**
    * A -1/0/+1 axis from two key groups (keyboard only). Both held cancels to 0.
    * (Touch control is done by synthesizing key events into this set — see the games'
    * `#touch` pads — not by passing pointer zones here.)

@@ -15,6 +15,8 @@ import { Renderer } from "./renderer.js";
 import { createDefaultRegistry } from "./defaults.js";
 import type { ResolvedParams, SystemFn } from "./types.js";
 import { LEVELS_COMPLETE, PAUSE_CHANGED } from "./channels.js";
+import { seededRng } from "./determinism.js";
+import { RunRecorder, type RunRecording } from "./replay.js";
 
 /** Default fixed-update rate (60 Hz). */
 export const DEFAULT_FIXED_DT = 1 / 60;
@@ -37,6 +39,18 @@ export interface GameOptions {
   input?: Input;
   /** Deterministic RNG (defaults to `Math.random`). */
   rng?: () => number;
+  /**
+   * Seed for the canonical seeded RNG: when set, the engine builds its RNG as `seededRng(seed)` and
+   * REMEMBERS the seed so a recording can replay it. MUTUALLY EXCLUSIVE with {@link rng} (a seed
+   * names one specific stream; passing both throws). Omit for fresh, non-reproducible play.
+   */
+  seed?: number;
+  /**
+   * Record this run for replay (default false). REQUIRES {@link seed} — an unseeded run is not
+   * reproducible, so recording one throws. When on, the Game accumulates a {@link RunRecording} as
+   * it ticks, read via {@link Game.getRecording} / re-armed via {@link Game.resetRecording}.
+   */
+  record?: boolean;
   /** Fixed timestep in seconds (default 1/60). */
   fixedDt?: number;
   /** Attach DOM input listeners on start (default: true when a canvas is present). */
@@ -128,6 +142,8 @@ export class Game {
   /** Ordered level sequence + completion target; empty list ⇒ no campaign concept. */
   private readonly levels: string[];
   private readonly levelsComplete?: string;
+  /** Run recorder when built with `{ seed, record: true }`; `null` ⇒ not recording (byte-identical path). */
+  private readonly recorder: RunRecorder | null = null;
 
   constructor(opts: GameOptions) {
     if (opts.scenes.length === 0) throw new Error("Game requires at least one scene");
@@ -150,6 +166,19 @@ export class Game {
     this.pauseKeys = opts.pauseKeys ?? [];
     this.pauseScenes = opts.pauseScenes ?? null;
 
+    // Seed / RNG / recording — all opt-in and default-off, so a game that sets none is byte-identical
+    // to today. A `seed` builds the canonical seeded RNG and is REMEMBERED so a recording can replay
+    // it; it is mutually exclusive with a custom `rng` (a seed names one specific stream). `record`
+    // accumulates a replay of this run and REQUIRES a seed — an unseeded run can't reproduce.
+    if (opts.seed !== undefined && opts.rng) {
+      throw new Error("Game: `seed` and `rng` are mutually exclusive (a seed builds seededRng(seed))");
+    }
+    if (opts.record && opts.seed === undefined) {
+      throw new Error("Game: `record: true` requires a `seed` — an unseeded run is not reproducible");
+    }
+    const rng = opts.seed !== undefined ? seededRng(opts.seed) : opts.rng;
+    this.recorder = opts.record ? new RunRecorder(opts.seed!, this.fixedDt) : null;
+
     this.world = new World({
       // WORLD bounds = the entry scene's `world` (the scrollable area) or its `size`
       // (viewport) when unset. loadScene re-applies this per scene + sets the
@@ -163,7 +192,7 @@ export class Game {
       input: opts.input,
       audio: opts.audio,
       storage: opts.storage ?? new MemoryStorage(),
-      rng: opts.rng,
+      rng,
       persist: opts.persist,
     });
 
@@ -334,6 +363,12 @@ export class Game {
 
   /** Run exactly one fixed-update step. */
   update(dt: number): void {
+    // Record this tick's input at the very TOP — the held-key set + tap-down edges as the tick
+    // BEGINS, before any system/behavior consumes them and before endFrame() clears the edges. The
+    // recorder reads input only (no world mutation), and the whole step is guarded so a non-recording
+    // game does no read and no allocation — byte-identical to today.
+    if (this.recorder) this.recorder.capture(this.scene.id, this.world.input);
+
     this.world.dt = dt;
     this.world.frame += 1;
     this.world.time += dt;
@@ -401,6 +436,28 @@ export class Game {
   /** Run `n` fixed-update steps with no rendering (headless tests / validator boot). */
   stepFrames(n: number): void {
     for (let i = 0; i < n; i++) this.update(this.fixedDt);
+  }
+
+  /**
+   * The run captured so far, as a snapshot copy — only when this Game was built with
+   * `{ seed, record: true }`. Replay it through a fresh seeded Game via {@link createReplay} (boot
+   * it with `recording.sceneId` + `recording.seed`). Throws if recording was not enabled (asking for
+   * a recording you didn't arm is a usage error, not an empty result).
+   */
+  getRecording(): RunRecording {
+    if (!this.recorder) {
+      throw new Error("Game.getRecording(): recording is not enabled — build with { seed, record: true }");
+    }
+    return this.recorder.toRecording(this.scene.id);
+  }
+
+  /**
+   * Clear the recording buffer + tick counter while STAYING armed, so a consumer can re-arm at the
+   * start of each level (the next tick records as frame 0 in the now-current scene). No-op when
+   * recording is disabled.
+   */
+  resetRecording(): void {
+    this.recorder?.reset();
   }
 
   /**

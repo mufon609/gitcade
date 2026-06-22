@@ -81,6 +81,17 @@ export {
   type DeterminismReport,
 } from "./determinism.js";
 
+// Run recorder + replay driver (additive, browser-safe). A Game built with `{ seed, record: true }`
+// captures its per-tick input — delta-encoded held keys + tap edges — read via `getRecording()` /
+// re-armed via `resetRecording()`; `createReplay` re-drives a fresh seeded Game through a recording
+// byte-for-byte. The substrate for ghost replays / verifiable speedruns.
+export {
+  createReplay,
+  type RecordedFrame,
+  type RunRecording,
+  type ReplayController,
+} from "./replay.js";
+
 export {
   BUILTIN_BEHAVIOR_TYPES,
   registerBuiltinBehaviors,

@@ -44,6 +44,19 @@ const stepUntil = (g: Game, done: () => boolean, maxFrames: number): number => {
   return maxFrames;
 };
 
+// Boot straight into level-2 for the level-2 tests. createGame resolves the entry scene from
+// `manifest.entryPoint` (level-1) and IGNORES any `entrySceneId`, so the only way into level-2 is the
+// real path: boot level-1 and advance one level. The two settle ticks + the drain tick run with NO input
+// and seed nothing random, so two `bootL2` games on the same seed reach level-2 in byte-identical state —
+// which is what lets the level-2 Echo replay below compare equal.
+function bootL2(opts: { seed?: number; record?: boolean } = {}): Game {
+  const g = boot(opts);
+  g.stepFrames(2);
+  g.requestNextLevel();
+  g.stepFrames(1); // drain the queued transition → level-2 is now the active scene
+  return g;
+}
+
 // --- tilemap helpers for the structural assertions (read straight off the generated scene) ---
 // The JSON imports infer very precise (per-element union) types; loosen them for structural reads.
 type TileProp = { solid?: boolean; oneWay?: boolean; slopeL?: number; slopeR?: number; ladder?: boolean };
@@ -397,6 +410,40 @@ describe("lumen Echo — a recorded run replays byte-for-byte", () => {
     expect(seen.length).toBe(90);
     expect(seen).toEqual(origSnaps); // byte-identical at every tick — the Echo re-runs the run
   });
+
+  it("a recorded LEVEL-2 run replays byte-for-byte (per-level recording: no cross-scene transition)", () => {
+    // The Phase-1 desync was a SINGLE recording spanning level-1 → level-2: an input-only replay can't
+    // reproduce the host-driven `requestNextLevel()` transition, so it desynced at the boundary. The fix
+    // is PER-LEVEL recordings — each starts fresh on its level's entry and contains NO transition. Here we
+    // prove a level-2 recording re-simulates byte-identically: record on a game advanced into level-2 and
+    // RE-ARMED there (`resetRecording`), then replay through a fresh game advanced the same way.
+    const rec = bootL2({ seed: SEED, record: true });
+    rec.resetRecording(); // drop the level-1 + drain ticks → frame 0 is now level-2's first tick
+    const origSnaps: string[] = [];
+    rec.world.input.setKey("ArrowRight", true);
+    for (let f = 0; f < 90; f++) {
+      if (f === 20) rec.world.input.setKey("Space", true);
+      if (f === 24) rec.world.input.setKey("Space", false);
+      rec.stepFrames(1);
+      origSnaps.push(snapshotWorld(rec.world));
+    }
+    const recording = rec.getRecording();
+    expect(recording.seed).toBe(SEED);
+    expect(recording.sceneId).toBe("level-2"); // the re-armed recording is rooted at level-2 — NOT level-1
+    expect(recording.frameCount).toBe(90);
+    // No frame's input references a scene change (recordings carry only input); the single recording is
+    // wholly within level-2 — the cross-scene transition that desynced the spanning Phase-1 recording is gone.
+
+    const replayGame = bootL2({ seed: recording.seed }); // same path into level-2 → identical entry state
+    const replay = createReplay(replayGame, recording);
+    const seen: string[] = [];
+    while (!replay.done) {
+      replay.step();
+      seen.push(snapshotWorld(replay.game.world));
+    }
+    expect(seen.length).toBe(90);
+    expect(seen).toEqual(origSnaps); // byte-identical — a level-2 Echo lines up exactly
+  });
 });
 
 describe("lumen level sequencing — two levels, stats carry across the transition", () => {
@@ -405,15 +452,26 @@ describe("lumen level sequencing — two levels, stats carry across the transiti
     id: string;
     extends?: string;
     world?: { width: number; height: number };
+    overrides?: Array<{ id: string; position?: { x: number; y: number } }>;
     entities: Array<{ id: string; tags?: string[] }>;
+    tilemap: { tileSize: number; cols: number; rows: number; tiles: number[]; properties: Record<string, TileProp> };
   };
 
-  it("STRUCTURAL: level-2 is a stub that extends play-base (flat floor + motes + a Beacon + the void)", () => {
+  it("STRUCTURAL: level-2 is the real two-path world that extends play-base (≈3× level-1, taller)", () => {
     expect(LEVEL2.id).toBe("level-2");
     expect(LEVEL2.extends).toBe("play-base"); // shares the shell — player, HUD, camera, FX, systems, flow
+    // ≈3× level-1's length, and TALLER (a real high route): 300×24 = 9600×768 vs level-1's 100×15.
+    expect(LEVEL2.world).toEqual({ width: 9600, height: 768 });
+    expect(LEVEL2.tilemap.cols).toBe(level1.tilemap.cols * 3);
+    expect(LEVEL2.world!.height).toBeGreaterThan(level1.world!.height);
+    // The one field-level patch a taller level needs: the player spawn dropped onto level-2's floor.
+    expect(LEVEL2.overrides?.some((o) => o.id === "player" && typeof o.position?.y === "number")).toBe(true);
+    // The full obstacle roster + the lone emberstone (the clouds bonus) are present.
+    expect(LEVEL2.entities.filter((e) => e.tags?.includes("mote")).length).toBeGreaterThan(20);
+    expect(LEVEL2.entities.filter((e) => e.tags?.includes("rift")).length).toBe(2); // the riftgate pair
+    expect(LEVEL2.entities.filter((e) => e.tags?.includes("ember")).length).toBe(1); // the lone emberstone (clouds)
     expect(LEVEL2.entities.some((e) => e.tags?.includes("beacon"))).toBe(true);
     expect(LEVEL2.entities.some((e) => e.tags?.includes("void"))).toBe(true);
-    expect(LEVEL2.entities.filter((e) => e.tags?.includes("mote")).length).toBeGreaterThan(0);
     expect(manifest.levels).toEqual(["level-1", "level-2"]); // the ordered campaign sequence
   });
 
@@ -430,7 +488,7 @@ describe("lumen level sequencing — two levels, stats carry across the transiti
     g.stepFrames(5);
     expect(g.world.query("player").length).toBe(1);
     expect(g.world.query("beacon").length).toBe(1);
-    expect(player(g).body.contacts.onGround).toBe(true); // rests on level-2's flat floor
+    expect(player(g).body.contacts.onGround).toBe(true); // the spawn-position override drops it onto level-2's row-21 floor
   });
 
   it("clearing level-1 at PARTIAL hp boots level-2 with that SAME hp + carried motes & lives", () => {
@@ -476,8 +534,9 @@ describe("lumen level sequencing — two levels, stats carry across the transiti
     expect(g.scene.id).toBe("level-2");
     expect(player(g).state.hp).toBe(1); // the carried sliver seeds the live player
 
-    // Die in the void → lives-respawn clones the PROTOTYPE (static $cfg.playerHp, no hpStateKey).
-    player(g).y = 460;
+    // Die in the void → lives-respawn clones the PROTOTYPE (static $cfg.playerHp, no hpStateKey). level-2's
+    // floor is row 21, so its kill-plane sits far lower than level-1's — read it off the live void entity.
+    player(g).y = g.world.query("void")[0]!.y + 12;
     stepUntil(g, () => g.world.query("player").length === 0, 8);
     g.stepFrames(Math.ceil(config.respawnDelay * 60) + 5);
     expect(g.world.query("player").length).toBe(1);
@@ -497,7 +556,7 @@ describe("lumen level sequencing — two levels, stats carry across the transiti
     g.world.events.on("level-clear", () => (cleared = true));
     g.world.events.on("levels-complete", () => (complete = true));
 
-    // Touch level-2's Beacon → "level-clear" (the stub really is clearable)…
+    // Touch level-2's Beacon → "level-clear"…
     const beacon = g.world.query("beacon")[0]!;
     const p = player(g);
     p.x = beacon.x;
@@ -509,5 +568,148 @@ describe("lumen level sequencing — two levels, stats carry across the transiti
     g.requestNextLevel();
     expect(complete).toBe(true);
     expect(g.scene.id).toBe("level-2"); // there is no level past the last
+  });
+});
+
+describe("lumen level-2 — the two-path world (structure ENCODED + both paths reachable)", () => {
+  // level-2 structural reads (the generated geometry — a regression fails loudly), mirroring the level-1
+  // helpers above against level-2's own tilemap.
+  const TM2 = level2.tilemap as unknown as { tileSize: number; cols: number; rows: number; tiles: number[]; properties: Record<string, TileProp> };
+  const tile2 = (c: number, r: number): number => TM2.tiles[r * TM2.cols + c] ?? -1;
+  const isSolid2 = (c: number, r: number): boolean => tile2(c, r) === 0;
+  const FLOOR2_ROW = 21; // level-2's ground walk-surface row
+  const firstSlopeCol = (tm: typeof TM2): number => {
+    for (let c = 0; c < tm.cols; c++) for (let r = 0; r < tm.rows; r++) { const t = tm.tiles[r * tm.cols + c]; if (t === 2 || t === 3) return c; }
+    return tm.cols;
+  };
+  const firstPitCol = (tm: typeof TM2, floorRow: number): number => {
+    for (let c = 0; c < tm.cols; c++) if (tm.tiles[floorRow * tm.cols + c] !== 0) return c; // first gap in the solid floor
+    return tm.cols;
+  };
+  const L2ENT = level2.entities as unknown as LevelEntity[];
+  const l2ent = (id: string): LevelEntity => L2ENT.find((e) => e.id === id)!;
+  const rift = (id: string) => l2ent(id);
+
+  it("P1: the GROUND path is a continuous solid floor — one void gap (the pit), bridged by a driftstone", () => {
+    // Almost every column has solid floor at the walk row; exactly one contiguous gap (the pit) breaks it.
+    let solidCols = 0, gaps = 0, inGap = false;
+    for (let c = 0; c < TM2.cols; c++) {
+      if (isSolid2(c, FLOOR2_ROW)) { solidCols++; inGap = false; }
+      else if (!inGap) { gaps++; inGap = true; }
+    }
+    expect(solidCols).toBeGreaterThan(TM2.cols - 12); // the floor is solid nearly everywhere
+    expect(gaps).toBe(1); // the single pit — so a cloud-faller lands safe everywhere except over it
+    // The pit is bridged by the carrying driftstone (the level-1 carry mechanic, re-used near the END).
+    const drift = l2ent("driftstone-h");
+    expect(drift.behaviors?.[0].params?.points).toBeDefined();
+  });
+
+  it("P2: the CLOUDS path is high footing, PORTAL-GATED on a perch, and rejoins via a descent", () => {
+    // rift-A (entry) sits on a perch WELL above the floor (a floor-walker passes under it); rift-B is high
+    // in the clouds; the two target each other (the bidirectional pair).
+    const a = rift("rift-A"), b = rift("rift-B");
+    const floorY = FLOOR2_ROW * TM2.tileSize; // 672
+    expect(a.position!.y + a.size!.h).toBeLessThan(floorY - 32); // rift-A's base is a jump above the floor (the perch)
+    expect(b.position!.y).toBeLessThan(floorY - 256); // rift-B is far up in the clouds
+    expect(a.behaviors?.some((x) => x.params?.targetId === "rift-B")).toBe(true);
+    expect(b.behaviors?.some((x) => x.params?.targetId === "rift-A")).toBe(true);
+    // High footing exists in the clouds band (rows ≤ 9) across the divergence, AND a one-way descent
+    // staircase steps back down toward the floor (rows 9 < 13 < 17) — the reconvergence.
+    let cloudFooting = 0;
+    for (let c = 53; c < 130; c++) for (let r = 4; r <= 9; r++) { const t = tile2(c, r); if (t === 0 || t === 1) cloudFooting++; }
+    expect(cloudFooting).toBeGreaterThan(20);
+    const oneWayInRow = (r: number) => Array.from({ length: TM2.cols }, (_, c) => tile2(c, r) === 1).some(Boolean);
+    expect(oneWayInRow(13) && oneWayInRow(17)).toBe(true); // the descent cascade rungs toward the ground
+  });
+
+  it("P3: the beat ORDER differs from level-1 — pit-before-hill in L1 is reversed to hill-before-pit in L2", () => {
+    const L1TM = level1.tilemap as unknown as typeof TM2;
+    expect(firstPitCol(L1TM, 12)).toBeLessThan(firstSlopeCol(L1TM)); // level-1: the pit comes before the hill
+    expect(firstSlopeCol(TM2)).toBeLessThan(firstPitCol(TM2, FLOOR2_ROW)); // level-2: the hill comes before the pit
+  });
+
+  it("P4: the first GROUND checkpoint precedes the first hazard (no sky-fall respawn)", () => {
+    // level-2's floor sits lower than level-1's, so the inherited `lives-respawn` fallback (64,360) is
+    // ABOVE level-2's floor. A pre-checkpoint death would respawn from the sky — so a checkpoint must be
+    // claimed before anything can kill you. The spawn→hill stretch is hazard-free and a checkpoint sits
+    // just past it, before the first spike/wraith.
+    const col = (e: LevelEntity) => Math.round((e.position?.x ?? 0) / TS);
+    const groundCps = L2ENT.filter((e) => e.tags?.includes("checkpoint") && (e.position?.y ?? 0) > FLOOR2_ROW * TS - 60).map(col);
+    const hazards = L2ENT.filter((e) => e.tags?.includes("spike") || e.tags?.includes("wraith")).map(col);
+    expect(Math.min(...groundCps)).toBeLessThan(Math.min(...hazards));
+  });
+
+  it("a coarse autopilot beats level-2 via the GROUND path (level-clear, no gameover, within budget)", () => {
+    const g = bootL2();
+    let cleared = false, over = false;
+    g.world.events.on("level-clear", () => (cleared = true));
+    g.world.events.on("gameover", () => (over = true));
+    const footingAt = (x: number, yTop: number, yBot: number): boolean => {
+      for (let y = yTop; y <= yBot; y += TS) {
+        const i = g.world.tileAt(x, y);
+        const pr = i >= 0 ? TM2.properties?.[String(i)] : undefined;
+        if (pr && (pr.solid === true || pr.oneWay === true || typeof pr.slopeL === "number" || typeof pr.slopeR === "number")) return true;
+      }
+      return false;
+    };
+    let stuckTicks = 0, lastX = 0, jumpHeld = false;
+    const BUDGET = 6000; // clears in ≈3300; the slack absorbs platform-cycle waits
+    for (let f = 0; f < BUDGET && !cleared && !over; f++) {
+      const p = player(g);
+      if (!p) { hold(g, "ArrowRight", false); hold(g, "Space", false); g.stepFrames(1); continue; }
+      const px = p.x, pcx = p.cx, pcy = p.cy, foot = p.y + p.h, leadX = p.x + p.w;
+      const onGround = p.body.contacts.onGround;
+      const pitAhead = onGround && !footingAt(leadX + 6, foot - 6, foot + 2 * TS) && !footingAt(leadX + TS, foot - 6, foot + 2 * TS);
+      const stepOff = footingAt(leadX + 8, foot + 2, foot + 2) || footingAt(leadX + 20, foot + 2, foot + 2);
+      const hazardAhead = [...g.world.query("spike"), ...g.world.query("wraith")].some((h) => h.x > pcx - 10 && h.x < pcx + 58 && Math.abs(h.cy - pcy) < 64);
+      const onDrift = g.world.query("driftstone").some((d) => Math.abs(foot - d.y) < 10 && leadX > d.x + 2 && px < d.x + d.w - 2);
+      let goRight = true, wantJump = false;
+      const waiting = pitAhead && !onDrift; // hold at the lip for the carrying platform
+      if (onDrift) goRight = stepOff; else if (waiting) goRight = false;
+      if (hazardAhead && onGround && !waiting) wantJump = true;
+      if (onGround && goRight && !onDrift && Math.abs(px - lastX) < 0.3) stuckTicks++; else stuckTicks = 0;
+      if (stuckTicks > 30) wantJump = true;
+      lastX = px;
+      if (wantJump && onGround) jumpHeld = true;
+      if (jumpHeld && !onGround && p.vy >= 0) jumpHeld = false; // release at apex (full jump, no jumpCut)
+      hold(g, "ArrowRight", goRight);
+      hold(g, "ArrowLeft", false);
+      hold(g, "Space", jumpHeld);
+      g.stepFrames(1);
+    }
+    expect(over).toBe(false); // never bottomed out in the void
+    expect(cleared).toBe(true); // reached the Beacon along the ground
+  });
+
+  it("the CLOUDS entry works: stepping into the fork riftgate warps the player up onto cloud footing", () => {
+    const g = bootL2();
+    g.stepFrames(4);
+    const a = g.world.query("rift").find((r) => r.id === "rift-A")!;
+    const floorCy = player(g).cy;
+    // Stand the player on rift-A (as a jump-up onto the perch would), step, and confirm it warps up to the
+    // cloud platform (row 9, cy ≈ 288) and SETTLES grounded there — the high route is genuinely entered.
+    const p = player(g);
+    p.x = a.cx - p.w / 2; p.y = a.cy - p.h / 2; p.vx = 0; p.vy = 0;
+    g.stepFrames(12);
+    const q = player(g);
+    expect(q.cy).toBeLessThan(floorCy - 256); // warped far UP into the clouds (not still on the floor)
+    expect(q.body.contacts.onGround).toBe(true); // landed on cloud footing, not the void
+  });
+
+  it("the clouds LIFT bridges the walkway up to the ember perch, and the emberstone is collectible", () => {
+    const g = bootL2();
+    g.stepFrames(4);
+    // The vertical lift's center sweeps from the walkway (row 9, cy ≈ 296) up to the ember perch (row 5, cy ≈ 168).
+    let minCy = Infinity, maxCy = -Infinity;
+    for (let i = 0; i < 360; i++) { g.stepFrames(1); const lift = g.world.query("driftstone").find((d) => d.id === "driftstone-lift")!; minCy = Math.min(minCy, lift.cy); maxCy = Math.max(maxCy, lift.cy); }
+    expect(minCy).toBeLessThan(5 * TS + 24); // reaches the perch tier (row 5)
+    expect(maxCy).toBeGreaterThan(9 * TS - 8); // returns to the walkway tier (row 9)
+    // The emberstone (worth emberValue, the high-route payoff) collects on touch.
+    const before = (g.world.state.motes as number) ?? 0;
+    const ember = g.world.query("ember")[0]!;
+    player(g).x = ember.x; player(g).y = ember.y;
+    g.stepFrames(3);
+    expect(g.world.query("ember").length).toBe(0);
+    expect(g.world.state.motes as number).toBe(before + config.emberValue);
   });
 });

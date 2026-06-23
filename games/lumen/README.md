@@ -5,11 +5,11 @@ across the drifting twilight ruins of the **Dusklands** to the Beacon — over o
 moving driftstones, spike corridors, a slope, a ladder, a riftgate pair, and a vertical lift,
 dodging patrolling driftwraiths and the void below.
 
-**Headline feature — the Echo.** Every attempt is recorded; the *next* attempt opens with a
-skippable, deterministic replay of your last run (a violet "Echo") before live play. It rides
-the SDK run-recorder (`createGame({ seed, record:true })` → `getRecording()`) + the library
-`ReplayIntro` host helper — a fixed per-level seed means the Echo re-simulates byte-for-byte in
-the identical world, so it lines up with how you play.
+**Headline feature — the Echo.** Every level's run is recorded; the *next* attempt opens with a
+skippable, deterministic replay of your last run of the level you start on (a violet "Echo") before
+live play. It rides the SDK run-recorder (`createGame({ seed, record:true })` → `getRecording()`) +
+the library `attachReplayLoop` host helper — a fixed per-level seed means the Echo re-simulates
+byte-for-byte in the identical world, so it lines up with how you play.
 
 ## The game is data
 
@@ -19,12 +19,14 @@ host glue in [`src/main.ts`](./src/main.ts) (audio, screen juice, pause, and the
 
 - [`src/scenes/play-base.json`](./src/scenes/play-base.json) — the shared shell (player, camera,
   systems, FX, and the `flow.persist` carry-over set), authored once. Each level `extends` it.
-- [`src/scenes/level-1.json`](./src/scenes/level-1.json) (the full Dusklands gauntlet) and
-  [`src/scenes/level-2.json`](./src/scenes/level-2.json) (a short Phase-1 **STUB** — flat floor + a
-  few motes + the Beacon — proving the level→level transition before its real layout is built) are
-  both **generated** by [`scripts/gen-level.mjs`](./scripts/gen-level.mjs) (`npm run gen:level`),
-  the deterministic source for the tilemaps + obstacle layout, exactly as `gen-art.mjs` is for the
-  art. Edit the generator, not the JSON.
+- [`src/scenes/level-1.json`](./src/scenes/level-1.json) (the Dusklands gauntlet) and
+  [`src/scenes/level-2.json`](./src/scenes/level-2.json) (**The Sundering Reach** — a ~3× longer,
+  taller two-path world: a safe GROUND line and an optional high CLOUDS line entered through a
+  riftgate, holding the bonus motes + the emberstone, rejoining before the Beacon) are each
+  **generated** by their own deterministic source — [`scripts/gen-level.mjs`](./scripts/gen-level.mjs)
+  (`npm run gen:level`) for level-1, [`scripts/gen-level-2.mjs`](./scripts/gen-level-2.mjs)
+  (`npm run gen:level-2`) for level-2 — exactly as `gen-art.mjs` is for the art. Edit the generator,
+  not the JSON.
 - Art: the committed, original `public/assets/lumen/*.png` (see [`ART.md`](./ART.md)) — generated
   by `npm run gen:art`, never synced from the library.
 - The **HUD is data**: `screen:true` canvas entities in `play-base` — text widgets `bind` to the
@@ -36,7 +38,7 @@ host glue in [`src/main.ts`](./src/main.ts) (audio, screen juice, pause, and the
 
 Behaviors: `move-platformer@1.3.0`, `sprite-state-machine@1.0.0`, `face-velocity@1.0.0`,
 `health-and-death@1.1.0`, `dust@1.0.0`, `collect-on-touch@1.0.0`, `tween@1.0.0`,
-`ai-patrol@1.0.0`, `contact-damage@1.0.0`, `follow-path@1.1.0`, `portal@1.0.0`,
+`ai-patrol@1.0.0`, `contact-damage@1.0.0`, `follow-path@1.1.0`, `portal@2.0.0`,
 `trigger-zone@1.1.0`, `hud-bar@1.1.0` (+ SDK built-ins `velocity`, `sprite-animate`).
 Systems: `camera-follow@2.0.0`, `camera-shake@1.0.0`, `score@1.0.0`, `lives-respawn@1.1.0`,
 `format-binding@1.0.0`, `sparkle@1.0.0`, `explosion@1.0.0` (+ SDK built-in `aabb-collision`).
@@ -45,8 +47,10 @@ Tile collision (solid / one-way / slope / ladder) is the SDK `collider` + tilema
 ## Run
 
 ```bash
-npm run gen:art      # (re)generate the committed art        — rarely needed
-npm run gen:level    # (re)generate level-1.json + level-2.json — after editing the generator
+npm run gen:art      # (re)generate the committed art          — rarely needed
+npm run gen:level    # (re)generate level-1.json               — after editing scripts/gen-level.mjs
+npm run gen:level-2  # (re)generate level-2.json               — after editing scripts/gen-level-2.mjs
+npm run gen:levels   # both of the above
 npm run dev          # vite dev server
 npm run build        # static /dist (the build-worker artifact)
 npm test             # headless smoke + the Echo byte-replay determinism test
@@ -63,9 +67,17 @@ Controls: **← → / A·D** move · **Space / W / ↑** jump · **↓ / S** dro
   bestMotes ride `scene.flow.persist`, while the player's remaining **HP** rides
   `health-and-death@1.1.0`'s `hpStateKey:"carriedHp"` (the host stashes `player.state.hp` on
   `level-clear`; the next level's rebuilt player re-seeds its hp from it). A fresh *life* still
-  respawns at full HP — the `lives-respawn` prototype keeps the static `$cfg.playerHp`. The host
-  advances on a continue press (`game.requestNextLevel()`); the **final** Beacon has no next level,
-  so it emits `levels-complete` — the win.
+  respawns at full HP — the `lives-respawn` prototype keeps the static `$cfg.playerHp`. On
+  `level-clear` the host `requestNextLevel()`s and re-arms the run recorder *immediately* (so the
+  card shows over the freshly-loaded next level, and that level records from its own tick 0); a
+  continue press just resumes. The **final** Beacon has no next level, so it emits `levels-complete`
+  — the win. level-2's floor sits lower than level-1's, so it `scene.overrides` the inherited player
+  spawn onto its own floor (the one field-level patch a taller level needs).
+- **Per-level Echo recordings.** Each level's run is recorded on its own key (`run:<sceneId>`) and
+  contains NO scene change — the recorder is re-armed on every level entry. A single recording
+  spanning a level transition would desync on replay (an input-only replay can't reproduce the
+  host's `requestNextLevel()`), so the attract-loop Echo replays the level the attempt STARTS in
+  (level-1), and it lines up byte-for-byte.
 - **Checkpoints move the respawn point.** Each `trigger-zone` checkpoint writes its position to
   `world.state` (`setRespawnKey`), and `lives-respawn` (`respawnStateKey`) respawns there — so a
   mid-level death returns you to the last checkpoint, not the level start.

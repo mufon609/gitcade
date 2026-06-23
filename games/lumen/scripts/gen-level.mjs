@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 /**
- * Author games/lumen/src/scenes/{level-1,level-2}.json from a readable grid spec.
+ * Author games/lumen/src/scenes/level-1.json from a readable grid spec.
  *
  * A 100×15 tilemap (1500 indices) plus ~40 grid-aligned obstacle entities is
  * infeasible to hand-edit without miscounting, so — exactly like `gen-art.mjs` is the
  * deterministic source for the committed PNGs — THIS is the deterministic source for the
- * committed level JSON the engine reads. Re-run `npm run gen:level` and the output is
+ * committed level-1 JSON the engine reads. Re-run `npm run gen:level` and the output is
  * byte-identical. Edit the BEATS here, never the generated JSON.
  *
- * level-1 is the full Dusklands gauntlet (below). level-2 is a Phase-1 STUB at the very
- * bottom — a short flat floor + a few motes + the Beacon — that exists only to prove the
- * level→level transition and stat carry-over; its real layout is a later phase's work.
+ * level-1 is the full Dusklands gauntlet (below). Its sibling level-2 — the two-path "Sundering
+ * Reach" — has its own generator, `scripts/gen-level-2.mjs` (`npm run gen:level-2`).
  *
  * Conventions (see ART.md for the tile index→meaning contract):
  *   tile 0 solid · 1 oneWay · 2 slopeL · 3 slopeR · 4 ladder · 5 decor · -1 empty
@@ -338,66 +337,3 @@ for (let r = 0; r < ROWS; r++) {
 }
 process.stderr.write(preview);
 console.log(`Wrote level-1.json — ${COLS}×${ROWS} tilemap, ${entities.length} entities (world ${COLS * TS}×${ROWS * TS}).`);
-
-// ============================================================================
-// level-2 — Phase-1 STUB. A short flat floor + a teaching arc of motes + the Beacon, and
-// nothing more: it exists to PROVE the level→level transition and stat carry-over (motes /
-// lives via flow.persist, the player's hp via health-and-death `hpStateKey:"carriedHp"`)
-// before any real level-2 layout is built. It `extends` play-base, so the player, the data
-// HUD, the camera, the FX, and the systems all come from the shared shell — this declares
-// only its own world bounds, floor tilemap, and the three level-specific entities. Real
-// content is a later phase's job; edit it HERE, never the generated JSON.
-// ============================================================================
-const COLS2 = 30; // world 960×480 — short, with a little scroll past the 800px viewport
-const ROWS2 = ROWS; // same 15-row height → floor rows 12–13, the void band + kill-plane line up with level-1
-const tiles2 = new Array(COLS2 * ROWS2).fill(-1);
-const set2 = (c, r, v) => {
-  if (c >= 0 && c < COLS2 && r >= 0 && r < ROWS2) tiles2[r * COLS2 + c] = v;
-};
-// Flat solid floor (rows 12–13) the full width; row 14 stays the void band the kill-plane sits below.
-for (let r = FLOOR_TOP_ROW; r <= FLOOR_TOP_ROW + 1; r++) for (let c = 0; c < COLS2; c++) set2(c, r, 0);
-const properties2 = { "0": { solid: true } }; // the stub uses only solid floor
-
-moteN = 0; // restart mote ids for level-2's own scene (level-1.json is already written, so its ids are fixed)
-const BEACON2_COL = 27; // near the right edge — a short walk from the x=64 spawn
-const entities2 = [
-  // A gentle arc of motes along the floor (rewards the walk; collecting is optional, the Beacon is the goal).
-  mote(8, 11),
-  mote(13, 10),
-  mote(18, 10),
-  mote(22, 11),
-  {
-    id: "beacon",
-    sprite: { kind: "image", src: "assets/lumen/beacon.png" },
-    size: { w: 32, h: 64 },
-    position: { x: BEACON2_COL * TS, y: FLOOR_TOP_Y - 64 },
-    tags: ["beacon"],
-    layer: 3,
-    behaviors: [
-      // The SAME goal trigger as level-1: emits the canonical `level-clear` once on touch. Being the
-      // LAST level, the host advances it past the Beacon into the `levels-complete` final-win edge.
-      { type: "trigger-zone", part: "trigger-zone@1.1.0", params: { tag: "player", enterEvent: "level-clear", once: true, sound: "win" } },
-      { type: "tween", part: "tween@1.0.0", params: { property: "scale", from: 1, to: 1.08, duration: "$cfg.beaconPulseDuration", easing: "in-out-quad", loop: "pingpong" } },
-    ],
-  },
-  {
-    id: "void",
-    sprite: { kind: "none" },
-    size: { w: COLS2 * TS, h: 60 },
-    position: { x: 0, y: 450 },
-    tags: ["void"],
-    layer: 0,
-    behaviors: [{ type: "contact-damage", part: "contact-damage@1.0.0", params: { targetTag: "player", damage: "$cfg.voidDamage", cooldown: "$cfg.damageCooldown", sound: "hit" } }],
-  },
-];
-
-const scene2 = {
-  id: "level-2",
-  extends: "play-base",
-  world: { width: COLS2 * TS, height: ROWS2 * TS },
-  tilemap: { tileSize: TS, tileset: "assets/lumen/tiles.png", cols: COLS2, rows: ROWS2, tiles: tiles2, properties: properties2 },
-  entities: entities2,
-};
-const outPath2 = join(__dirname, "..", "src", "scenes", "level-2.json");
-writeFileSync(outPath2, JSON.stringify(scene2, null, 2) + "\n", "utf8");
-console.log(`Wrote level-2.json (STUB) — ${COLS2}×${ROWS2} tilemap, ${entities2.length} entities (world ${COLS2 * TS}×${ROWS2 * TS}).`);

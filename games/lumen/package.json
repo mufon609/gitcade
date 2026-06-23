@@ -7,6 +7,8 @@
   "scripts": {
     "gen:art": "node scripts/gen-art.mjs",
     "gen:level": "node scripts/gen-level.mjs",
+    "gen:level-2": "node scripts/gen-level-2.mjs",
+    "gen:levels": "npm run gen:level && npm run gen:level-2",
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",

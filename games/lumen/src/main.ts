@@ -46,7 +46,18 @@ const storage = makeStorage(manifest.slug);
 // recorded Echo re-simulates in the identical world and lines up with live play.
 const raw = { manifest, config, scenes: [playBase, level1, level2] };
 const SEED = 0x10de; // "lode" — fixed, so the Echo always replays the same world
-const RUN_KEY = "run:level-1"; // the run starts at level-1; its recording spans the whole attempt
+// PER-LEVEL recordings, keyed by scene id. A SINGLE recording spanning level-1 → level-2 desyncs on
+// replay: an input-only replay can't reproduce the host's `requestNextLevel()` between levels, so it
+// drifts at the boundary. So each level's run is recorded on its OWN key and contains NO scene change —
+// the recorder is RE-ARMED on every level entry (see the level-clear handler). The attract-loop Echo
+// replays the level the attempt STARTS in (the entry scene), which is the only Echo a restart-from-level-1
+// campaign ever shows.
+const ENTRY_SCENE = "level-1";
+const runKey = (sceneId: string): string => `run:${sceneId}`;
+const persistRun = (sceneId: string, recording: unknown): void => {
+  // Fire-and-forget: a failed write costs only next run's Echo, never the live game (see finish()).
+  void storage.set(runKey(sceneId), JSON.stringify(recording)).catch(() => {});
+};
 // Retry-arm delay (host timing) lifted to config.json so it's tunable like any balance value.
 const retryArmDelayMs = ((config as Record<string, number>).retryArmDelay ?? 0.6) * 1000;
 
@@ -133,7 +144,9 @@ async function attempt(): Promise<void> {
   // "no Echo this run" (the first-run path), exactly as if there were no prior recording.
   let prior: ReturnType<typeof parseRecording> = null;
   try {
-    prior = parseRecording((await storage.get(RUN_KEY)) ?? "");
+    // The Echo replays the level the attempt STARTS in (the entry scene). Each level is keyed separately,
+    // and the entry-level recording is clean (it never spanned the transition), so the replay never desyncs.
+    prior = parseRecording((await storage.get(runKey(ENTRY_SCENE))) ?? "");
   } catch {
     prior = null;
   }
@@ -224,6 +237,7 @@ function startLive(): void {
     if (finished) return;
     finished = true;
     const motes = (live.world.state.motes as number) ?? 0;
+    const sceneId = live.scene.id; // the level the run ENDED in — its recording is per-level (no transition)
     const recording = live.getRecording(); // capture before stop() tears the loop down
     live.stop();
     syncAudio();
@@ -240,15 +254,24 @@ function startLive(): void {
       window.addEventListener("keydown", retry);
       resultOverlay?.addEventListener("pointerdown", retry);
     }, retryArmDelayMs);
-    void storage.set(RUN_KEY, JSON.stringify(recording)).catch(() => {});
+    // Persist under THIS level's key — a level-1 death updates the level-1 Echo; a level-2 death stores a
+    // clean (re-armed) level-2 recording and leaves the level-1 Echo intact from when this run cleared it.
+    persistRun(sceneId, recording);
   };
-  // Between-levels interstitial. A Beacon emits "level-clear". For every level BUT the last, the
-  // host CARRIES the player's remaining hp forward (entity hp → world.state.carriedHp, which the
-  // scene's flow.persist hands to the next level, where the rebuilt player's health-and-death
-  // re-seeds hp from it via `hpStateKey:"carriedHp"`), FREEZES the sim, and shows a card with the
-  // carried stats. A continue press advances (requestNextLevel) and resumes, so the next tick drains
-  // the transition. The LAST level skips the card — advancing past the final Beacon emits
+  // Between-levels interstitial. A Beacon emits "level-clear". For every level BUT the last, the host
+  // CARRIES the player's remaining hp forward (entity hp → world.state.carriedHp, which the scene's
+  // flow.persist hands to the next level, where the rebuilt player's health-and-death re-seeds hp from it
+  // via `hpStateKey:"carriedHp"`), PERSISTS the leaving level's recording, ADVANCES, RE-ARMS the recorder
+  // for the next level, then FREEZES and shows the carried-stats card. A continue press resumes into the
+  // already-loaded next level. The LAST level skips the card — advancing past the final Beacon emits
   // "levels-complete" (no next level, no levelsComplete scene), which is the win edge bound below.
+  //
+  // PER-LEVEL RECORDING — order matters. This handler runs MID-TICK (a behavior emitted "level-clear"),
+  // so `requestNextLevel()` queued here DRAINS at the END of this very tick (→ the next level is loaded
+  // before the next tick begins), and `resetRecording()` then aligns the recorder's frame 0 to that next
+  // level's FIRST tick. We therefore persist the leaving level's recording (clean — captured BEFORE the
+  // drain) and read the carried stats FIRST, then advance + re-arm. (Re-arming after the transition is
+  // why the card shows over the next level, not the cleared one — a non-issue behind the opaque card.)
   const levelsTotal = manifest.levels?.length ?? 1;
   live.world.events.on("level-clear", () => {
     const p = live.world.query("player")[0];
@@ -258,24 +281,27 @@ function startLive(): void {
       live.requestNextLevel(); // last level → emits "levels-complete" → finish(true) below
       return;
     }
+    // Capture the leaving level's CLEAN recording + the carried stats BEFORE advancing/re-arming.
+    persistRun(live.scene.id, live.getRecording());
+    const hp = (live.world.state.carriedHp as number) ?? 0;
+    const motes = (live.world.state.motes as number) ?? 0;
+    const lives = (live.world.state.lives as number) ?? 0;
+    // Advance now (drains at the end of THIS tick) and re-arm so the next level records fresh from tick 0.
+    live.requestNextLevel();
+    live.resetRecording();
     live.pause();
     syncAudio();
     if (interstitialTitle) interstitialTitle.textContent = `LEVEL ${here + 1}`;
-    if (interstitialStats) {
-      const hp = (live.world.state.carriedHp as number) ?? 0;
-      const motes = (live.world.state.motes as number) ?? 0;
-      const lives = (live.world.state.lives as number) ?? 0;
-      interstitialStats.textContent = `HP ${hp}    ◆ ${motes}    ✦ ${lives}`;
-    }
+    if (interstitialStats) interstitialStats.textContent = `HP ${hp}    ◆ ${motes}    ✦ ${lives}`;
     show(interstitialOverlay, true);
-    // Arm continue after a beat so a movement key still held at the Beacon doesn't instant-skip it.
+    // Arm continue after a beat so a movement key still held at the Beacon doesn't instant-skip it. The
+    // transition has already drained, so continue simply RESUMES into the next level.
     setTimeout(() => {
       const cont = (): void => {
         window.removeEventListener("keydown", cont);
         interstitialOverlay?.removeEventListener("pointerdown", cont);
         show(interstitialOverlay, false);
-        live.requestNextLevel(); // queue the next-level transition
-        live.resume(); // unfreeze — the next tick drains it into the next level
+        live.resume(); // unfreeze — the next level is already loaded; play begins
         syncAudio();
       };
       window.addEventListener("keydown", cont);

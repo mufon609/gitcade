@@ -1,21 +1,20 @@
 {
   "id": "portal",
   "kind": "behavior",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "category": "interaction",
   "tags": ["interaction", "portal", "teleport", "warp"],
   "license": "MIT",
-  "description": "Teleport entities of a tag to a fixed point or a paired exit entity on contact, with a per-entrant cooldown to prevent bounce-back.",
+  "description": "Teleport entities of a tag to a fixed point or a paired exit entity on a fresh contact edge. Timer-free: fires once on arrival, again only after the entrant leaves and returns; an entrant placed onto a portal by its pair is never bounced back.",
   "dependencies": ["aabb-collision"],
   "params": {
     "tag": { "type": "string", "balance": false, "description": "Tag of entities that can use the portal." },
     "to": { "type": "object", "balance": false, "description": "{ x, y } destination (structural; used when targetId unset)." },
     "targetId": { "type": "string", "balance": false, "description": "Id of an entity whose position is the destination." },
-    "cooldown": { "type": "number", "balance": true, "description": "Seconds before the same entity can teleport again." },
     "sound": { "type": "string", "balance": false, "description": "Sound key on teleport." }
   },
   "definition": {
     "type": "portal",
-    "params": { "tag": "player", "to": { "x": 40, "y": 40 }, "cooldown": "$cfg.portalCooldown" }
+    "params": { "tag": "player", "to": { "x": 40, "y": 40 } }
   }
 }

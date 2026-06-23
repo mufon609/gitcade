@@ -38,8 +38,6 @@
   "driftstoneSpeed": 70,
   "liftSpeed": 55,
 
-  "portalCooldown": 0.8,
-
   "moteBobDuration": 1.1,
   "emberPulseDuration": 1.6,
   "beaconPulseDuration": 1.0,

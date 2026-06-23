@@ -197,7 +197,7 @@ const riftgate = (id, c, targetId) => ({
   tags: ["rift"],
   layer: 3,
   behaviors: [
-    { type: "portal", part: "portal@1.0.0", params: { tag: "player", targetId, cooldown: "$cfg.portalCooldown", sound: "collect" } },
+    { type: "portal", part: "portal@2.0.0", params: { tag: "player", targetId, sound: "collect" } },
     { type: "tween", part: "tween@1.0.0", params: { property: "scale", from: 1, to: 1.12, duration: "$cfg.riftPulseDuration", easing: "in-out-quad", loop: "pingpong" } },
   ],
 });

@@ -3066,11 +3066,10 @@
       "behaviors": [
         {
           "type": "portal",
-          "part": "portal@1.0.0",
+          "part": "portal@2.0.0",
           "params": {
             "tag": "player",
             "targetId": "rift-B",
-            "cooldown": "$cfg.portalCooldown",
             "sound": "collect"
           }
         },
@@ -3109,11 +3108,10 @@
       "behaviors": [
         {
           "type": "portal",
-          "part": "portal@1.0.0",
+          "part": "portal@2.0.0",
           "params": {
             "tag": "player",
             "targetId": "rift-A",
-            "cooldown": "$cfg.portalCooldown",
             "sound": "collect"
           }
         },

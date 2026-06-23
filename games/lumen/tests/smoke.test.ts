@@ -186,8 +186,8 @@ describe("lumen level geometry — the mechanical-tightness fixes are ENCODED (c
     expect(overlap).toBeGreaterThanOrEqual(16);
   });
 
-  it("C2: the ramp tops one row ABOVE the ledge — no solid wall at the climb's arrival row", () => {
-    // The highest slopeR (idx 3) ramp cell.
+  it("C2: the ramp tops out FLUSH with the ledge — a flat-top hill (apex row == ledge surface row)", () => {
+    // The highest slopeR (idx 3) ramp cell — the apex.
     let apexCol = -1;
     let apexRow = TM.rows;
     for (let c = 0; c < TM.cols; c++) {
@@ -196,12 +196,14 @@ describe("lumen level geometry — the mechanical-tightness fixes are ENCODED (c
       }
     }
     expect(apexCol).toBeGreaterThan(0);
-    // The ledge's solid surface is one row BELOW the apex; the cell at the apex row, over the
-    // ledge's leading column, is EMPTY — so the climber arrives above the ledge and lands on it,
-    // never ramming a same-row solid face (the old jam) or sinking through a same-row one-way.
+    // The solid ledge begins at the apex's NEXT column, at the SAME row: the ramp tops out flush with
+    // the ledge (no 32px notch). The climber walks off the ramp onto the ledge — the engine collider
+    // `stepHeight` clears the sub-pixel slope-exit lip there — and walking back the other way simply
+    // descends the ramp with no upward lurch. (Both directions are gated by the traversal test below.)
     const ledgeLeadCol = apexCol + 1;
-    expect(isSolid(ledgeLeadCol, apexRow + 1)).toBe(true); // ledge surface, one row down
-    expect(tileAt(ledgeLeadCol, apexRow)).toBe(-1); // nothing to ram at the arrival row
+    expect(isSolid(ledgeLeadCol, apexRow)).toBe(true); // solid ledge flush at the apex row
+    expect(tileAt(apexCol, apexRow - 1)).toBe(-1); // nothing protrudes a row above the apex (no notch)
+    expect(tileAt(ledgeLeadCol, apexRow - 1)).toBe(-1); // nor above the ledge's leading cell
   });
 
   it("C3: the high ledge connects FORWARD via a down-ramp that rejoins the floor past the climb", () => {
@@ -241,6 +243,66 @@ describe("lumen level geometry — the mechanical-tightness fixes are ENCODED (c
       expect(s.position!.x % TS).toBe((TS - 16) / 2); // centered horizontally in the cell
       expect(s.position!.y + s.size!.h).toBe(FLOOR_TOP_Y); // base flush on the floor (sits LOW)
     }
+  });
+});
+
+describe("lumen hill traversal — the flat-top hill is smooth BOTH directions (slope-exit jam fixed)", () => {
+  const LEDGE_TOP_Y = 9 * TS; // 288 — the hilltop solid surface
+
+  // Place the player so its (inset) collider foot settles on `footSurfaceY` at world-x `cx`, then hold
+  // `key` for `frames`, recording center-x each frame and the worst grounded horizontal stall — a JAM
+  // wedges the body for dozens of frames with no x progress; a smooth climb/descent keeps it ≈0.
+  function driveHeld(cx: number, footSurfaceY: number, key: "ArrowLeft" | "ArrowRight", frames: number) {
+    const g = boot();
+    const p0 = player(g);
+    p0.x = cx - p0.w / 2;
+    p0.y = footSurfaceY - p0.h - 4; // a few px above the surface; the settle drops it on cleanly
+    p0.vx = 0;
+    p0.vy = 0;
+    g.stepFrames(14); // settle onto the surface
+    hold(g, key);
+    const dir = key === "ArrowRight" ? 1 : -1;
+    let prevX = player(g).x;
+    let maxStall = 0;
+    let stall = 0;
+    const cxs: number[] = [];
+    for (let f = 0; f < frames; f++) {
+      g.stepFrames(1);
+      const q = player(g);
+      if (!q) break; // walked off into a hazard past the hill — irrelevant to the hill itself
+      const dx = q.x - prevX;
+      if (q.body.contacts.onGround && Math.sign(dx) !== dir && Math.abs(dx) < 0.5) stall++;
+      else { maxStall = Math.max(maxStall, stall); stall = 0; }
+      cxs.push(q.cx);
+      prevX = q.x;
+    }
+    return { maxStall: Math.max(maxStall, stall), cxs };
+  }
+
+  it("the player collider opts into stepHeight (the engine seam-clearing knob)", () => {
+    const p = player(boot());
+    expect(p.body.collider?.stepHeight).toBeGreaterThan(0); // both the live + respawn-prototype copies set it
+  });
+
+  it("holding ArrowRight climbs floor → ramp → ledge with no horizontal stall (the seam step-up)", () => {
+    // start on the flat safe footing left of the ramp base (col 54), foot on the floor
+    const { cxs, maxStall } = driveHeld(54 * TS + TS / 2, FLOOR_TOP_Y, "ArrowRight", 100);
+    // climbed ONTO the hilltop ledge (cols 59–63): a frame with the player's center over it proves the
+    // slope→ledge seam was cleared, not jammed — the reported bug, in reverse.
+    expect(cxs.some((cx) => cx >= 59 * TS && cx <= 63 * TS)).toBe(true);
+    expect(maxStall).toBeLessThan(8); // no multi-frame wedge at the seam (a jam is dozens of frames)
+  });
+
+  it("holding ArrowLeft descends hilltop → ramp → floor with no upward lurch or stall (the reported bug)", () => {
+    // start standing on the hilltop ledge (col 61), foot on the ledge surface
+    const { cxs, maxStall } = driveHeld(61 * TS + TS / 2, LEDGE_TOP_Y, "ArrowLeft", 80);
+    // center-x strictly decreases across the descent: no jam, and (crucially) no upward lurch flinging
+    // it back — the flush apex means walking off the ledge simply descends the ramp.
+    let monotonic = true;
+    for (let i = 1; i < cxs.length; i++) if (cxs[i] > cxs[i - 1] + 0.5) { monotonic = false; break; }
+    expect(monotonic).toBe(true);
+    expect(maxStall).toBeLessThan(8);
+    expect(Math.min(...cxs)).toBeLessThan(56 * TS); // descended past the ramp base (col 56) onto the floor
   });
 });
 

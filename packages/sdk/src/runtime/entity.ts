@@ -59,6 +59,14 @@ export interface ColliderComponent {
   mass: number;
   /** Collider-box inset from the sprite AABB, in px per side (`{0,0}` ⇒ collider == sprite box). */
   inset: { x: number; y: number };
+  /**
+   * Max height (px) of a solid lip this dynamic body auto-steps ONTO instead of being walled by it.
+   * `undefined`/absent ⇒ 0 ⇒ no step (the exact original wall path). Mirrored from the authored
+   * `collider.stepHeight` by the factory ONLY when >0, so a body that doesn't use it serializes an
+   * identical collider (the snapshot — and the committed golden — stay byte-identical). See the
+   * step-up branch in {@link resolveSolids}.
+   */
+  stepHeight?: number;
 }
 
 /**

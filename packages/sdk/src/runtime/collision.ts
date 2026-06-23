@@ -80,11 +80,39 @@ export interface SolidContacts {
 const MAX_SOLID_SUBSTEPS = 16;
 
 /**
+ * The `collider.stepHeight` test for the X pass: a body that ran into a solid wall whose highest
+ * blocking top is `topY` may STEP onto it — instead of being stopped — when that top is a small lip
+ * (`0 < foot − topY ≤ stepHeight`) AND the body, raised so its foot rests on `topY`, has clear
+ * HEADROOM (no fully-solid rect reaches down into the raised box; a one-way platform never blocks the
+ * head, matching the upward Y pass). The lip itself (top exactly at `topY`) only touches the raised
+ * foot, so it never counts as a headroom collision. Pure geometry — no rng/time — so step-up does not
+ * perturb determinism; with `stepHeight = 0` (every body that doesn't opt in) it is never consulted.
+ */
+function canStepUp(body: MovingBody, rects: readonly SolidRect[], topY: number, stepHeight: number): boolean {
+  const lip = body.y + body.h - topY; // how far the body's foot sits BELOW the lip's top
+  if (lip <= 0 || lip > stepHeight) return false;
+  const newTop = topY - body.h; // the body's top once raised to stand its foot on the lip
+  const x0 = body.x;
+  const x1 = body.x + body.w;
+  for (const r of rects) {
+    if (r.oneWay) continue; // pass-through platforms don't block the head
+    // A solid strictly ABOVE the lip (`r.y < topY`) that reaches down into the raised body's vertical
+    // span (`r.y + r.h > newTop`) and overlaps it horizontally would be hit by the step — block it.
+    if (r.x < x1 && r.x + r.w > x0 && r.y < topY && r.y + r.h > newTop) return false;
+  }
+  return true;
+}
+
+/**
  * One axis-separated push-out pass: resolve `body` against the SOLID `rects` it ran
  * into, X then Y, zeroing the contacted velocity component and reporting which faces
  * touched. Each axis resolves against the LEADING edge (the cell/box that edge has
  * entered), pushing the body flush to that solid's face — when several solids contain the
  * edge (overlapping bodies, never grid cells) it takes the furthest push, the safe one.
+ *
+ * STEP-UP: a `stepHeight > 0` body that hits a wall whose top is a small lip is RAISED onto it (vx
+ * kept, no wall) rather than stopped — see {@link canStepUp}. `stepHeight = 0` (the default) skips the
+ * test entirely, so a body that doesn't opt in is byte-identical to the pre-step resolver.
  *
  * The X pass guards against misreading a floor/ceiling as a wall two ways: it tests the
  * body's vertical span from BEFORE this step's own fall (`y - vy*subDt`), so a floor the
@@ -99,7 +127,7 @@ const MAX_SOLID_SUBSTEPS = 16;
  * land-from-above). Both X passes and the upward Y pass skip it — so a body runs past it
  * sideways and jumps up THROUGH it freely. Resting on one reports `onOneWay`.
  */
-function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: number, eps: number): SolidContacts {
+function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: number, eps: number, stepHeight = 0): SolidContacts {
   let onGround = false;
   let onCeiling = false;
   let onWallL = false;
@@ -119,31 +147,46 @@ function resolveSolidStep(body: MovingBody, rects: readonly SolidRect[], subDt: 
   if (body.vx > 0) {
     const edge = body.x + body.w - eps; // leading right edge
     let stop = Infinity;
+    let stepTopY = Infinity; // highest (smallest-y) blocking-solid top at the leading edge — the step-up target
     for (const r of rects) {
       if (r.oneWay) continue; // one-way platforms never block horizontally
       if (!(r.y < spanBot && r.y + r.h > spanTop && r.x <= edge && edge < r.x + r.w)) continue;
       if (ovY(r) < ovX(r)) continue; // a floor/ceiling the body sits in, not a wall — the Y pass owns it
       if (r.x < stop) stop = r.x;
+      if (r.y < stepTopY) stepTopY = r.y;
     }
     if (stop < Infinity) {
-      body.x = stop - body.w;
-      body.vx = 0;
-      onWallR = true;
+      // STEP-UP (collider.stepHeight): a small lip the body can climb is stepped ONTO — body raised,
+      // vx kept, no wall — instead of stopping it dead. Gated on stepHeight>0, so a body without it
+      // takes the EXACT original wall path (byte-identical). See {@link canStepUp}.
+      if (stepHeight > 0 && canStepUp(body, rects, stepTopY, stepHeight)) {
+        body.y = stepTopY - body.h;
+      } else {
+        body.x = stop - body.w;
+        body.vx = 0;
+        onWallR = true;
+      }
     }
   } else if (body.vx < 0) {
     const edge = body.x; // leading left edge
     let stop = -Infinity;
+    let stepTopY = Infinity;
     for (const r of rects) {
       if (r.oneWay) continue; // one-way platforms never block horizontally
       const right = r.x + r.w;
       if (!(r.y < spanBot && r.y + r.h > spanTop && r.x <= edge && edge < right)) continue;
       if (ovY(r) < ovX(r)) continue; // a floor/ceiling the body sits in, not a wall — the Y pass owns it
       if (right > stop) stop = right;
+      if (r.y < stepTopY) stepTopY = r.y;
     }
     if (stop > -Infinity) {
-      body.x = stop;
-      body.vx = 0;
-      onWallL = true;
+      if (stepHeight > 0 && canStepUp(body, rects, stepTopY, stepHeight)) {
+        body.y = stepTopY - body.h;
+      } else {
+        body.x = stop;
+        body.vx = 0;
+        onWallL = true;
+      }
     }
   }
 
@@ -217,9 +260,12 @@ export function resolveSolids(
   body: MovingBody,
   rects: readonly SolidRect[],
   dt: number,
-  opts?: { eps?: number },
+  opts?: { eps?: number; stepHeight?: number },
 ): SolidContacts {
   const eps = opts?.eps ?? 0.001;
+  // Max lip (px) the body auto-steps onto instead of being walled (collider.stepHeight). 0 ⇒ off ⇒
+  // the X pass takes the exact original wall path, so an omitted/0 stepHeight is byte-identical.
+  const stepHeight = opts?.stepHeight ?? 0;
   // A non-finite velocity (garbage in) would poison position via the integrator and make
   // `steps` NaN; treat it as 0 so the resolver degrades safely instead of propagating it.
   if (!Number.isFinite(body.vx)) body.vx = 0;
@@ -241,7 +287,7 @@ export function resolveSolids(
 
   // Fast path: a slow body resolves in one pass at its integrated position — no rewind,
   // so the result is bit-for-bit the pre-sweep resolver (what every shipped slow body sees).
-  if (steps === 1) return resolveSolidStep(body, rects, dt, eps);
+  if (steps === 1) return resolveSolidStep(body, rects, dt, eps, stepHeight);
 
   // Swept: rewind to the pre-integration position, then advance + resolve in equal slices.
   // A slice that makes contact zeroes its velocity component, so later slices stop there.
@@ -256,7 +302,7 @@ export function resolveSolids(
   for (let i = 0; i < steps; i++) {
     body.x += body.vx * subDt;
     body.y += body.vy * subDt;
-    const c = resolveSolidStep(body, rects, subDt, eps);
+    const c = resolveSolidStep(body, rects, subDt, eps, stepHeight);
     onGround = onGround || c.onGround;
     onCeiling = onCeiling || c.onCeiling;
     onWallL = onWallL || c.onWallL;

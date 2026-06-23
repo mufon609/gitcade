@@ -82,7 +82,7 @@ describe("config resolution", () => {
 
 describe("numeric whitelist", () => {
   it("whitelists structural keys", () => {
-    for (const k of ["x", "y", "w", "h", "layer", "padding", "frame", "tileSize"]) {
+    for (const k of ["x", "y", "w", "h", "layer", "padding", "frame", "tileSize", "stepHeight"]) {
       expect(isWhitelistedNumericKey(k)).toBe(true);
     }
   });

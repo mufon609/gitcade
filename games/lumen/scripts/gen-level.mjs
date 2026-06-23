@@ -60,25 +60,23 @@ fill(70, 12, 73, 13, -1);
 fill(16, 10, 19, 10, 1); // ledge A
 fill(21, 8, 24, 8, 1); // ledge B
 
-// Beat 5 — the HILL: a slopeR ramp up, a solid high ledge, a slopeL ramp down. The C2 fix —
-// the ramp TOPS ONE ROW ABOVE the ledge's solid blocks (apex at row 8, ledge surface at row 9).
-// Why: a slope snaps the foot to its surface under the entity CENTER, which reaches the ledge
-// row only at the very seam — a tick later the slope releases with the foot a pixel or two BELOW
-// the ledge top, so a same-row SOLID reads as a wall (the old jam) and a same-row ONE-WAY misses
-// the landing (you sink through it). Topping one row higher means the climber arrives ABOVE the
-// ledge and simply lands on its top — no face to ram, no lip to miss. The down-ramp lands the
-// player back on the floor at col 67 — forward of the col-56 base — so the high route is a genuine
-// way THROUGH the segment, not a dead-end.
+// Beat 5 — the HILL: a slopeR ramp up, a solid high ledge, a slopeL ramp down — FLAT-TOPPED. The
+// ramp tops out FLUSH with the ledge: its apex cell (col 58) reaches row 9's surface (y=288) at its
+// right edge, exactly where the solid ledge begins. A 45° slope snaps the foot to its surface under
+// the entity CENTER, so a climber arrives at the seam with its foot ~half a collider-width below the
+// ledge top — a small lip. The player collider's `stepHeight` (set in play-base) lets the engine STEP
+// the body UP onto that lip instead of ramming the ledge's vertical face, so the slope→ledge seam is
+// smooth walking RIGHT, and the flush apex means walking LEFT off the ledge simply descends the ramp
+// (no upward lurch). The down-ramp lands the player back on the floor at col 67 — forward of the
+// col-56 base — so the high route is a genuine way THROUGH the segment, not a dead-end.
 const RAMP = [
   [56, 11], // 384 → 352
   [57, 10], // 352 → 320
-  [58, 9], //  320 → 288
-  [59, 8], //  288 → 256  (apex one row ABOVE the ledge surface — the climber lands ONTO the ledge)
+  [58, 9], //  320 → 288  (apex tops FLUSH with the ledge surface at row 9)
 ];
 for (const [c, r] of RAMP) set(c, r, 3); // slopeR — ascends to the right
-const RAMP_APEX_ROW = 8;
-const LEDGE_ROW = 9; // solid high ledge surface = top of row 9 (y=288), one row below the apex
-const LEDGE_L = 60;
+const LEDGE_ROW = 9; // solid high ledge surface = top of row 9 (y=288), flush with the ramp apex
+const LEDGE_L = 59; // first solid ledge col — the ramp apex (col 58) tops out at its left edge
 const LEDGE_R = 63;
 fill(LEDGE_L, LEDGE_ROW, LEDGE_R, LEDGE_ROW, 0);
 const DROP = [

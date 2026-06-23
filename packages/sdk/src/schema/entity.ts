@@ -32,6 +32,14 @@ import { BehaviorDefSchema } from "./behavior.js";
  *    sprite with `inset.x:4` collides as 16px wide), for fairer corner-clip / contact geometry.
  *    Default `{0,0}` (collider == sprite box). Structural geometry like `size`/`position`, so it is
  *    NOT subject to the no-magic-numbers rule (that rule scans only behavior/system `params`).
+ *  - `stepHeight` — max height (px) of a solid lip a DYNAMIC body auto-steps ONTO instead of being
+ *    walled by it: when the body runs into a solid whose top is at most `stepHeight` above the body's
+ *    foot (and the stepped-up position has clear headroom), the resolver raises the body onto the lip
+ *    and lets it keep moving, rather than zeroing its sideways velocity. Sized just over the sub-pixel
+ *    lip a 45° ramp leaves where it tops out flush with a same-row solid (≈ half the collider width),
+ *    it makes a flat-topped slope→ledge seam smooth without auto-climbing real ledges. Default 0
+ *    (no step — every body takes the exact wall path, byte-identically). Structural geometry like
+ *    `inset`, so it is NOT subject to the no-magic-numbers rule.
  */
 export const ColliderSchema = z.strictObject({
   role: z.enum(["dynamic", "solid"]),
@@ -40,6 +48,7 @@ export const ColliderSchema = z.strictObject({
   pushable: z.boolean().default(false),
   mass: z.number().positive().default(1),
   inset: z.strictObject({ x: z.number().default(0), y: z.number().default(0) }).default({ x: 0, y: 0 }),
+  stepHeight: z.number().min(0).default(0),
 });
 
 export type ColliderDef = z.infer<typeof ColliderSchema>;

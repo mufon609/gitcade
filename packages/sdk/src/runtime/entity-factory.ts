@@ -47,6 +47,9 @@ export function buildEntity(def: EntityDef, registry: Registry, config: Config):
       pushable: def.collider.pushable,
       mass: def.collider.mass,
       inset: { x: def.collider.inset.x, y: def.collider.inset.y },
+      // Mirror stepHeight ONLY when set (>0): an absent key keeps the runtime collider — and so the
+      // snapshot + the committed determinism golden — byte-identical for every body that doesn't opt in.
+      ...(def.collider.stepHeight > 0 ? { stepHeight: def.collider.stepHeight } : {}),
     };
   }
 

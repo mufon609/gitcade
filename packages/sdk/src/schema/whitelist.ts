@@ -90,6 +90,14 @@ export const WHITELISTED_NUMERIC_PARAM_KEYS: ReadonlySet<string> = new Set([
   "tileWidth",
   "tileHeight",
 
+  // --- Physics / collider geometry (structural, like size/inset — not balance) ---
+  // `stepHeight`: max px lip a dynamic body auto-steps onto (the slope-exit seam clearer). A scalar
+  // collider field, so unlike `inset` (whose `x`/`y` leaves are already whitelisted) its own key must
+  // be listed. Authored on `entity.collider`, but a `lives-respawn` prototype carries a collider INSIDE
+  // system params, where the rule reaches it — so it is whitelisted to match the schema's "not subject
+  // to the no-magic-numbers rule" contract.
+  "stepHeight",
+
   // --- Misc structural (non-balance) ---
   "strokeWidth",
   "lineWidth",

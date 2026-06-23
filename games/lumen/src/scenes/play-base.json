@@ -32,7 +32,7 @@
       "size": { "w": 24, "h": 24 },
       "position": { "x": 64, "y": 360 },
       "tags": ["player"],
-      "collider": { "role": "dynamic", "inset": { "x": 4, "y": 2 } },
+      "collider": { "role": "dynamic", "inset": { "x": 4, "y": 2 }, "stepHeight": 10 },
       "layer": 5,
       "behaviors": [
         {
@@ -172,7 +172,7 @@
           },
           "size": { "w": 24, "h": 24 },
           "tags": ["player"],
-          "collider": { "role": "dynamic", "inset": { "x": 4, "y": 2 } },
+          "collider": { "role": "dynamic", "inset": { "x": 4, "y": 2 }, "stepHeight": 10 },
           "layer": 5,
           "behaviors": [
             {

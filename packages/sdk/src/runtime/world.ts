@@ -1025,7 +1025,10 @@ export class World {
     }
 
     // Pass 1 — solid AABB push-out (tiles + solid entities + crates), writing the contact flags.
-    const contacts = resolveSolids(body, rects, dt);
+    // The body's collider.stepHeight (0 unless authored) lets it climb a small lip instead of being
+    // walled — threaded here so the seam where a ramp tops out flush with a same-row solid is smooth.
+    const stepHeight = e.body.collider!.stepHeight ?? 0;
+    const contacts = resolveSolids(body, rects, dt, { stepHeight });
     applyContacts(e.body, this.frame, contacts);
     // Pass 2 — floor SLOPES: rest the body's bottom on the per-column ramp surface, AFTER the solid
     // pass settled X (a wall at a ramp's base has clamped the sample x). Merges into the same-tick

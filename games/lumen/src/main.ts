@@ -5,10 +5,11 @@
  *
  * The one thing data can't express is the ECHO ATTEMPT LOOP: each attempt is RECORDED
  * (the SDK run-recorder, `createGame({ seed, record:true })` → `getRecording()`), and the
- * NEXT attempt opens with a skippable replay of your last run — the "Echo" — before live
- * play (the library `ReplayIntro`, which drives a SECOND Game instance, the canvas rAF,
- * and the skip input). A FIXED per-level seed means every attempt shares one seeded world,
- * so the recorded Echo re-simulates byte-for-byte in the identical world and lines up.
+ * NEXT attempt opens with an arcade ATTRACT loop of your last run — the "Echo" — that
+ * replays on repeat until you press a key, and that keypress starts live play (the library
+ * `attachReplayLoop`, which drives a SECOND Game instance, the canvas rAF, and the skip
+ * input). A FIXED per-level seed means every attempt shares one seeded world, so the
+ * recorded Echo re-simulates byte-for-byte in the identical world and lines up.
  *
  * Everything else here is the same host-only glue breakout keeps: library audio (gesture-
  * gated + mute), screen juice (flash overlay + an in-engine camera-shake nudge), and the
@@ -20,8 +21,7 @@ import {
   LibraryAudioPlayer,
   ScreenEffects,
   attachScreenEffects,
-  ReplayIntro,
-  attachReplayIntro,
+  attachReplayLoop,
   parseRecording,
 } from "@gitcade/library";
 import manifest from "../game.json";
@@ -133,17 +133,22 @@ async function attempt(): Promise<void> {
     prior = null;
   }
   if (prior) {
-    // Play the Echo of the last run on a SECOND, input-less, seeded Game, THEN hand off to
-    // live play (on natural completion OR a skip). attachInput:false so the watching
-    // player's keystrokes don't leak into the re-simulation.
-    const replayGame = createGame(raw, { canvas, registry, seed: prior.seed, entrySceneId: "level-1", attachInput: false });
-    const intro = new ReplayIntro({ game: replayGame, recording: prior, onDone: () => startLive() });
-    attachReplayIntro(intro, canvas, {
-      prompt: "✦ ECHO OF YOUR LAST RUN — press any key to skip ✦",
-      tint: "#4b3f8f",
-      tintAlpha: 0.22,
-      // The player's whole vocabulary, so "any key" really skips into live play.
-      skipKeys: ["Space", "Enter", "Escape", "KeyG", "KeyP", "KeyW", "KeyA", "KeyS", "KeyD", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"],
+    // Attract-LOOP the Echo of the last run on a SECOND, input-less, seeded Game: it replays on
+    // repeat until the player presses a key, and THAT keypress starts live play. A fresh seeded Game
+    // per cycle (makeReplayGame, attachInput:false) keeps every Echo byte-identical and stops the
+    // watching player's keystrokes leaking into the re-simulation.
+    const rec = prior; // narrowed non-null; `makeReplayGame` (a closure) needs a const to see it
+    attachReplayLoop(canvas, {
+      makeReplayGame: () => createGame(raw, { canvas, registry, seed: rec.seed, entrySceneId: "level-1", attachInput: false }),
+      recording: rec,
+      onStart: () => startLive(),
+      visuals: {
+        prompt: "✦ ECHO OF YOUR LAST RUN — press any key to skip ✦",
+        tint: "#4b3f8f",
+        tintAlpha: 0.22,
+        // The player's whole vocabulary, so "any key" really skips into live play.
+        skipKeys: ["Space", "Enter", "Escape", "KeyG", "KeyP", "KeyW", "KeyA", "KeyS", "KeyD", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"],
+      },
     });
   } else {
     // First-ever attempt — no Echo yet. A brief "begin" overlay, then live play.

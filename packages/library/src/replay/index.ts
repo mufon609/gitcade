@@ -9,6 +9,10 @@
  * no CATALOG entry. The controller ({@link ReplayIntro}) is pure and unit-testable; the
  * {@link attachReplayIntro} glue runs the rAF loop and is a safe no-op (never stranding `onDone`)
  * headless. {@link parseRecording} safe-loads a recording persisted through the storage bridge.
+ *
+ * {@link attachReplayLoop} wraps {@link attachReplayIntro} into an arcade ATTRACT LOOP: the Echo
+ * replays on repeat until the player presses a key, and that keypress starts live play. It's the
+ * template for future Echo games — built on the two above, adding no replay mechanics of its own.
  */
 export {
   ReplayIntro,
@@ -18,3 +22,5 @@ export {
   type ReplayIntroDoneInfo,
   type ReplayIntroVisuals,
 } from "./replay-intro.js";
+
+export { attachReplayLoop, type ReplayLoopOptions } from "./replay-loop.js";

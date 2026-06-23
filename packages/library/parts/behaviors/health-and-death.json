@@ -1,7 +1,7 @@
 {
   "id": "health-and-death",
   "kind": "behavior",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "combat",
   "tags": ["combat", "health", "death", "reuse-proof"],
   "license": "MIT",
@@ -9,6 +9,7 @@
   "dependencies": [],
   "params": {
     "hp": { "type": "number", "balance": true, "description": "Starting hit points (only if state.hp unset)." },
+    "hpStateKey": { "type": "string", "balance": false, "description": "Optional world.state key whose number, when set, seeds hp instead of the static hp param (cross-context carry-over)." },
     "lifespan": { "type": "number", "balance": true, "description": "Seconds to live before dying of old age (0 = no limit)." },
     "deathEvent": { "type": "string", "balance": false, "description": "Event name emitted on death." },
     "deathSound": { "type": "string", "balance": false, "description": "Sound key on death." },

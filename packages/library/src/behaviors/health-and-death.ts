@@ -15,6 +15,9 @@ import { num, str, bool } from "@gitcade/sdk";
  *
  * Params:
  *  - `hp`: starting hit points (balance → `$cfg`; default 1, only if `state.hp` unset)
+ *  - `hpStateKey`: optional `world.state` key whose NUMBER, when set, seeds hp instead of the
+ *    static `hp` param (cross-context carry-over — e.g. a level transition stashing the player's
+ *    remaining hp). Unset key / non-number ⇒ the static `hp` path, byte-identical to before.
  *  - `lifespan`: seconds to live before dying of old age (balance → `$cfg`; default 0 = no limit)
  *  - `deathEvent`: event name emitted on death (default `"death"`)
  *  - `deathSound`: sound key on death (default `"explode"`)
@@ -27,7 +30,12 @@ export const healthAndDeath: BehaviorFn = (entity, world, params, dt, scratch) =
   if (s.dead) return;
 
   if (typeof entity.state.hp !== "number") {
-    entity.state.hp = num(params, "hp", 1);
+    // Optional cross-context carry-over: when `hpStateKey` names a numeric `world.state` value
+    // (e.g. a level transition stashing the player's remaining hp), seed FROM it instead of the
+    // static `hp` param. Unset key / non-number ⇒ the static `hp` path, byte-identical to before.
+    const carryKey = str(params, "hpStateKey", "");
+    const carried = carryKey ? world.state[carryKey] : undefined;
+    entity.state.hp = typeof carried === "number" ? carried : num(params, "hp", 1);
   }
 
   const lifespan = num(params, "lifespan", 0);

@@ -1,7 +1,7 @@
 /**
- * Lumen bootstrap (host glue). The GAME is data — game.json + config.json + two scenes
- * (the `play-base` shell + `level-1`), composing only @gitcade/library + SDK parts. No
- * balance or gameplay logic lives here.
+ * Lumen bootstrap (host glue). The GAME is data — game.json + config.json + the scenes
+ * (the `play-base` shell + the `level-1`/`level-2` levels), composing only @gitcade/library +
+ * SDK parts. No balance or gameplay logic lives here.
  *
  * The one thing data can't express is the ECHO ATTEMPT LOOP: each attempt is RECORDED
  * (the SDK run-recorder, `createGame({ seed, record:true })` → `getRecording()`), and the
@@ -28,6 +28,7 @@ import manifest from "../game.json";
 import config from "../config.json";
 import playBase from "./scenes/play-base.json";
 import level1 from "./scenes/level-1.json";
+import level2 from "./scenes/level-2.json";
 import { registerCustomBehaviors } from "./custom-behaviors/index.js";
 import { makeStorage } from "./host/storage.js";
 
@@ -43,9 +44,9 @@ const storage = makeStorage(manifest.slug);
 
 // The replayable run sources + a FIXED seed: every attempt shares one seeded world, so the
 // recorded Echo re-simulates in the identical world and lines up with live play.
-const raw = { manifest, config, scenes: [playBase, level1] };
-const SEED = 0x10de; // "lode" — fixed per level, so the Echo always replays the same world
-const RUN_KEY = "run:level-1";
+const raw = { manifest, config, scenes: [playBase, level1, level2] };
+const SEED = 0x10de; // "lode" — fixed, so the Echo always replays the same world
+const RUN_KEY = "run:level-1"; // the run starts at level-1; its recording spans the whole attempt
 // Retry-arm delay (host timing) lifted to config.json so it's tunable like any balance value.
 const retryArmDelayMs = ((config as Record<string, number>).retryArmDelay ?? 0.6) * 1000;
 
@@ -58,6 +59,9 @@ const resultOverlay = document.getElementById("result-overlay");
 const resultTitle = document.getElementById("result-title");
 const resultSub = document.getElementById("result-sub");
 const pauseOverlay = document.getElementById("pause-overlay");
+const interstitialOverlay = document.getElementById("interstitial-overlay");
+const interstitialTitle = document.getElementById("interstitial-title");
+const interstitialStats = document.getElementById("interstitial-stats");
 const pauseBtn = document.getElementById("pause-btn");
 const muteBtn = document.getElementById("mute-btn");
 // The HUD is DATA now — screen-space canvas entities (screen:true) the engine draws fixed
@@ -123,6 +127,7 @@ async function attempt(): Promise<void> {
   show(startOverlay, false);
   show(resultOverlay, false);
   show(pauseOverlay, false);
+  show(interstitialOverlay, false);
 
   // A storage READ that rejects must NOT brick the boot/retry (a black canvas) — degrade to
   // "no Echo this run" (the first-run path), exactly as if there were no prior recording.
@@ -176,9 +181,13 @@ function startLive(): void {
     record: true,
     entrySceneId: "level-1",
     pauseKeys: ["Escape", "KeyP"],
-    pauseScenes: ["level-1"],
+    pauseScenes: ["level-1", "level-2"],
   });
   liveGame = live;
+  // Dev-only debug seam (stripped from the production build via `import.meta.env.DEV`): exposes the
+  // live Game so a headless-browser harness can drive end-to-end checks (e.g. teleport onto a Beacon
+  // to exercise the between-levels interstitial). Absent from the shipped build-worker artifact.
+  if (import.meta.env.DEV) (window as unknown as { __lumen?: Game }).__lumen = live;
   resumeAudio();
 
   // FLASH on outcomes (host overlay); SHAKE in-engine via the camera-shake system ("shake").
@@ -187,7 +196,8 @@ function startLive(): void {
   // and the in-engine `explosion` (bound to "died" in play-base) all fire for ALL three the same way.
   fx.bindToEvents(live.world, {
     died: (f) => f.flash("#ff4fb0", 0.24),
-    "level-clear": (f) => f.flash("#ffe0a8", 0.3),
+    "level-clear": (f) => f.flash("#ffe0a8", 0.3), // a stage cleared (every Beacon)
+    "levels-complete": (f) => f.flash("#ffe0a8", 0.4), // the FINAL beacon — the win
     gameover: (f) => f.flash("#ff4fb0", 0.4),
   });
   const shake = (magnitude: number, duration: number): void => {
@@ -195,6 +205,7 @@ function startLive(): void {
   };
   live.world.events.on("died", () => shake(9, 0.35));
   live.world.events.on("level-clear", () => shake(6, 0.5));
+  live.world.events.on("levels-complete", () => shake(6, 0.5));
   live.world.events.on("gameover", () => shake(12, 0.5));
 
   // Pause overlay + audio re-gate. The SDK owns the freeze + the Esc/P key (pauseKeys);
@@ -231,7 +242,50 @@ function startLive(): void {
     }, retryArmDelayMs);
     void storage.set(RUN_KEY, JSON.stringify(recording)).catch(() => {});
   };
-  live.world.events.on("level-clear", () => finish(true)); // reached the Beacon
+  // Between-levels interstitial. A Beacon emits "level-clear". For every level BUT the last, the
+  // host CARRIES the player's remaining hp forward (entity hp → world.state.carriedHp, which the
+  // scene's flow.persist hands to the next level, where the rebuilt player's health-and-death
+  // re-seeds hp from it via `hpStateKey:"carriedHp"`), FREEZES the sim, and shows a card with the
+  // carried stats. A continue press advances (requestNextLevel) and resumes, so the next tick drains
+  // the transition. The LAST level skips the card — advancing past the final Beacon emits
+  // "levels-complete" (no next level, no levelsComplete scene), which is the win edge bound below.
+  const levelsTotal = manifest.levels?.length ?? 1;
+  live.world.events.on("level-clear", () => {
+    const p = live.world.query("player")[0];
+    if (p) live.world.state.carriedHp = p.state.hp as number;
+    const here = (live.world.state.level as number) ?? 1;
+    if (here >= levelsTotal) {
+      live.requestNextLevel(); // last level → emits "levels-complete" → finish(true) below
+      return;
+    }
+    live.pause();
+    syncAudio();
+    if (interstitialTitle) interstitialTitle.textContent = `LEVEL ${here + 1}`;
+    if (interstitialStats) {
+      const hp = (live.world.state.carriedHp as number) ?? 0;
+      const motes = (live.world.state.motes as number) ?? 0;
+      const lives = (live.world.state.lives as number) ?? 0;
+      interstitialStats.textContent = `HP ${hp}    ◆ ${motes}    ✦ ${lives}`;
+    }
+    show(interstitialOverlay, true);
+    // Arm continue after a beat so a movement key still held at the Beacon doesn't instant-skip it.
+    setTimeout(() => {
+      const cont = (): void => {
+        window.removeEventListener("keydown", cont);
+        interstitialOverlay?.removeEventListener("pointerdown", cont);
+        show(interstitialOverlay, false);
+        live.requestNextLevel(); // queue the next-level transition
+        live.resume(); // unfreeze — the next tick drains it into the next level
+        syncAudio();
+      };
+      window.addEventListener("keydown", cont);
+      interstitialOverlay?.addEventListener("pointerdown", cont);
+    }, retryArmDelayMs);
+  });
+
+  // Run outcomes: the FINAL Beacon ("levels-complete") wins; draining the last life ("gameover")
+  // loses. "level-clear" alone is now just a stage boundary (handled above), no longer the win.
+  live.world.events.on("levels-complete", () => finish(true));
   live.world.events.on("gameover", () => finish(false)); // the void / damage drained every life
 
   live.start();

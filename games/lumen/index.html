@@ -94,6 +94,18 @@
           <p class="prompt">↻ press any key / tap to echo again</p>
         </div>
       </div>
+
+      <!-- Between-levels interstitial: shown when a (non-final) Beacon is reached. The host fills
+           the title with the next level and the stats with the carried HP / motes / lives, then a
+           continue press advances (game.requestNextLevel) and resumes the frozen sim. -->
+      <div id="interstitial-overlay" class="overlay">
+        <div class="card">
+          <h1 id="interstitial-title">LEVEL 2</h1>
+          <h2>THE DUSK DEEPENS</h2>
+          <p id="interstitial-stats">HP 3 &nbsp;·&nbsp; ◆ 0 &nbsp;·&nbsp; ✦ 5</p>
+          <p class="prompt">▶ press any key / tap to descend</p>
+        </div>
+      </div>
     </div>
     <script type="module" src="/src/main.ts"></script>
   </body>

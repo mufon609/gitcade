@@ -6,6 +6,7 @@ import manifest from "../game.json";
 import config from "../config.json";
 import playBase from "../src/scenes/play-base.json";
 import level1 from "../src/scenes/level-1.json";
+import level2 from "../src/scenes/level-2.json";
 
 /**
  * The headless smoke boot `gitcade validate` defers to (Lumen uses @gitcade/library parts
@@ -28,7 +29,7 @@ function boot(opts: { seed?: number; record?: boolean } = {}): Game {
   const registry = createLibraryRegistry();
   registerCustomBehaviors(registry);
   return createGame(
-    { manifest, config, scenes: [playBase, level1] },
+    { manifest, config, scenes: [playBase, level1, level2] },
     { canvas: null, registry, entrySceneId: "level-1", seed: opts.seed ?? SEED, record: opts.record },
   );
 }
@@ -395,5 +396,118 @@ describe("lumen Echo — a recorded run replays byte-for-byte", () => {
     }
     expect(seen.length).toBe(90);
     expect(seen).toEqual(origSnaps); // byte-identical at every tick — the Echo re-runs the run
+  });
+});
+
+describe("lumen level sequencing — two levels, stats carry across the transition", () => {
+  // Loosen the JSON import's precise inferred type for structural reads.
+  const LEVEL2 = level2 as unknown as {
+    id: string;
+    extends?: string;
+    world?: { width: number; height: number };
+    entities: Array<{ id: string; tags?: string[] }>;
+  };
+
+  it("STRUCTURAL: level-2 is a stub that extends play-base (flat floor + motes + a Beacon + the void)", () => {
+    expect(LEVEL2.id).toBe("level-2");
+    expect(LEVEL2.extends).toBe("play-base"); // shares the shell — player, HUD, camera, FX, systems, flow
+    expect(LEVEL2.entities.some((e) => e.tags?.includes("beacon"))).toBe(true);
+    expect(LEVEL2.entities.some((e) => e.tags?.includes("void"))).toBe(true);
+    expect(LEVEL2.entities.filter((e) => e.tags?.includes("mote")).length).toBeGreaterThan(0);
+    expect(manifest.levels).toEqual(["level-1", "level-2"]); // the ordered campaign sequence
+  });
+
+  it("requestNextLevel advances level-1 → level-2 and the HUD level index becomes 2", () => {
+    const g = boot();
+    g.stepFrames(2);
+    expect(g.scene.id).toBe("level-1");
+    expect(g.world.state.level).toBe(1);
+    g.world.state.carriedHp = config.playerHp; // host carries hp on the boundary
+    g.requestNextLevel();
+    g.stepFrames(1); // drain the queued transition
+    expect(g.scene.id).toBe("level-2");
+    expect(g.world.state.level).toBe(2); // format-binding renders this as HUD "LEVEL 2"
+    g.stepFrames(5);
+    expect(g.world.query("player").length).toBe(1);
+    expect(g.world.query("beacon").length).toBe(1);
+    expect(player(g).body.contacts.onGround).toBe(true); // rests on level-2's flat floor
+  });
+
+  it("clearing level-1 at PARTIAL hp boots level-2 with that SAME hp + carried motes & lives", () => {
+    const g = boot();
+    g.stepFrames(2);
+    const p = player(g);
+    // Mid-level progress: a partial-hp player who has banked motes; lives untouched.
+    p.state.hp = 2; // took two hits (full is config.playerHp = 3)
+    g.world.state.motes = 7;
+    const livesBefore = g.world.state.lives as number;
+    expect(p.state.hp).toBeLessThan(config.playerHp);
+
+    // Reach level-1's Beacon → "level-clear"; the host carries the LIVE player's remaining hp.
+    let cleared = false;
+    g.world.events.on("level-clear", () => {
+      cleared = true;
+      g.world.state.carriedHp = player(g).state.hp; // exactly what main.ts's handler does
+    });
+    const beacon = g.world.query("beacon")[0]!;
+    p.x = beacon.x;
+    p.y = beacon.y + 16;
+    g.stepFrames(3);
+    expect(cleared).toBe(true);
+
+    // The host advances on the continue press.
+    g.requestNextLevel();
+    g.stepFrames(1); // drain → level-2 built (the player is rebuilt, hp unset)
+    expect(g.scene.id).toBe("level-2");
+    expect(g.world.state.level).toBe(2);
+    g.stepFrames(1); // level-2 player's health-and-death seeds hp from carriedHp via hpStateKey
+
+    expect(player(g).state.hp).toBe(2); // the PARTIAL hp carried over — NOT reset to full playerHp
+    expect(g.world.state.motes).toBe(7); // motes carried (scene flow.persist)
+    expect(g.world.state.lives).toBe(livesBefore); // lives carried (scene flow.persist)
+  });
+
+  it("a fresh LIFE in level-2 respawns at FULL hp (the prototype is static, not the carried value)", () => {
+    const g = boot();
+    g.stepFrames(2);
+    g.world.state.carriedHp = 1; // arrive in level-2 on a sliver of hp
+    g.requestNextLevel();
+    g.stepFrames(2);
+    expect(g.scene.id).toBe("level-2");
+    expect(player(g).state.hp).toBe(1); // the carried sliver seeds the live player
+
+    // Die in the void → lives-respawn clones the PROTOTYPE (static $cfg.playerHp, no hpStateKey).
+    player(g).y = 460;
+    stepUntil(g, () => g.world.query("player").length === 0, 8);
+    g.stepFrames(Math.ceil(config.respawnDelay * 60) + 5);
+    expect(g.world.query("player").length).toBe(1);
+    expect(player(g).state.hp).toBe(config.playerHp); // a fresh life is FULL hp, not the carried 1
+  });
+
+  it("the final win fires only AFTER level-2's Beacon (its clear → levels-complete, no further level)", () => {
+    const g = boot();
+    g.stepFrames(2);
+    g.world.state.carriedHp = config.playerHp;
+    g.requestNextLevel(); // level-1 → level-2
+    g.stepFrames(2);
+    expect(g.scene.id).toBe("level-2");
+
+    let cleared = false;
+    let complete = false;
+    g.world.events.on("level-clear", () => (cleared = true));
+    g.world.events.on("levels-complete", () => (complete = true));
+
+    // Touch level-2's Beacon → "level-clear" (the stub really is clearable)…
+    const beacon = g.world.query("beacon")[0]!;
+    const p = player(g);
+    p.x = beacon.x;
+    p.y = beacon.y + 16;
+    g.stepFrames(3);
+    expect(cleared).toBe(true);
+
+    // …and advancing the LAST level emits "levels-complete" (the final-win edge), staying put.
+    g.requestNextLevel();
+    expect(complete).toBe(true);
+    expect(g.scene.id).toBe("level-2"); // there is no level past the last
   });
 });

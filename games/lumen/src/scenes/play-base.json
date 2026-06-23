@@ -2,6 +2,7 @@
   "id": "play-base",
   "size": { "width": 800, "height": 480 },
   "music": "action",
+  "flow": { "persist": ["motes", "bestMotes", "lives", "carriedHp"] },
   "background": {
     "color": "#1b1442",
     "layers": [
@@ -60,8 +61,8 @@
         { "type": "face-velocity", "part": "face-velocity@1.0.0", "params": {} },
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
-          "params": { "hp": "$cfg.playerHp", "deathEvent": "died", "deathSound": "explode" }
+          "part": "health-and-death@1.1.0",
+          "params": { "hp": "$cfg.playerHp", "hpStateKey": "carriedHp", "deathEvent": "died", "deathSound": "explode" }
         },
         {
           "type": "dust",
@@ -200,7 +201,7 @@
             { "type": "face-velocity", "part": "face-velocity@1.0.0", "params": {} },
             {
               "type": "health-and-death",
-              "part": "health-and-death@1.0.0",
+              "part": "health-and-death@1.1.0",
               "params": { "hp": "$cfg.playerHp", "deathEvent": "died", "deathSound": "explode" }
             },
             {

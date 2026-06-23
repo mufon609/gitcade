@@ -1,0 +1,786 @@
+{
+  "id": "level-2",
+  "extends": "play-base",
+  "world": {
+    "width": 960,
+    "height": 480
+  },
+  "tilemap": {
+    "tileSize": 32,
+    "tileset": "assets/lumen/tiles.png",
+    "cols": 30,
+    "rows": 15,
+    "tiles": [
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "properties": {
+      "0": {
+        "solid": true
+      }
+    }
+  },
+  "entities": [
+    {
+      "id": "mote-0",
+      "sprite": {
+        "kind": "sheet",
+        "src": "assets/lumen/mote.png",
+        "frameWidth": 16,
+        "frameHeight": 16,
+        "frameCount": 4,
+        "fps": 10,
+        "animations": {
+          "spin": {
+            "from": 0,
+            "to": 3
+          }
+        }
+      },
+      "size": {
+        "w": 16,
+        "h": 16
+      },
+      "position": {
+        "x": 264,
+        "y": 360
+      },
+      "tags": [
+        "mote"
+      ],
+      "layer": 4,
+      "behaviors": [
+        {
+          "type": "collect-on-touch",
+          "part": "collect-on-touch@1.0.0",
+          "params": {
+            "collectorTag": "player",
+            "value": "$cfg.moteValue",
+            "scoreKey": "motes",
+            "kind": "mote",
+            "sound": "collect"
+          }
+        },
+        {
+          "type": "sprite-animate",
+          "params": {
+            "play": "spin"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.2,
+            "duration": "$cfg.moteBobDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mote-1",
+      "sprite": {
+        "kind": "sheet",
+        "src": "assets/lumen/mote.png",
+        "frameWidth": 16,
+        "frameHeight": 16,
+        "frameCount": 4,
+        "fps": 10,
+        "animations": {
+          "spin": {
+            "from": 0,
+            "to": 3
+          }
+        }
+      },
+      "size": {
+        "w": 16,
+        "h": 16
+      },
+      "position": {
+        "x": 424,
+        "y": 328
+      },
+      "tags": [
+        "mote"
+      ],
+      "layer": 4,
+      "behaviors": [
+        {
+          "type": "collect-on-touch",
+          "part": "collect-on-touch@1.0.0",
+          "params": {
+            "collectorTag": "player",
+            "value": "$cfg.moteValue",
+            "scoreKey": "motes",
+            "kind": "mote",
+            "sound": "collect"
+          }
+        },
+        {
+          "type": "sprite-animate",
+          "params": {
+            "play": "spin"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.2,
+            "duration": "$cfg.moteBobDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mote-2",
+      "sprite": {
+        "kind": "sheet",
+        "src": "assets/lumen/mote.png",
+        "frameWidth": 16,
+        "frameHeight": 16,
+        "frameCount": 4,
+        "fps": 10,
+        "animations": {
+          "spin": {
+            "from": 0,
+            "to": 3
+          }
+        }
+      },
+      "size": {
+        "w": 16,
+        "h": 16
+      },
+      "position": {
+        "x": 584,
+        "y": 328
+      },
+      "tags": [
+        "mote"
+      ],
+      "layer": 4,
+      "behaviors": [
+        {
+          "type": "collect-on-touch",
+          "part": "collect-on-touch@1.0.0",
+          "params": {
+            "collectorTag": "player",
+            "value": "$cfg.moteValue",
+            "scoreKey": "motes",
+            "kind": "mote",
+            "sound": "collect"
+          }
+        },
+        {
+          "type": "sprite-animate",
+          "params": {
+            "play": "spin"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.2,
+            "duration": "$cfg.moteBobDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "mote-3",
+      "sprite": {
+        "kind": "sheet",
+        "src": "assets/lumen/mote.png",
+        "frameWidth": 16,
+        "frameHeight": 16,
+        "frameCount": 4,
+        "fps": 10,
+        "animations": {
+          "spin": {
+            "from": 0,
+            "to": 3
+          }
+        }
+      },
+      "size": {
+        "w": 16,
+        "h": 16
+      },
+      "position": {
+        "x": 712,
+        "y": 360
+      },
+      "tags": [
+        "mote"
+      ],
+      "layer": 4,
+      "behaviors": [
+        {
+          "type": "collect-on-touch",
+          "part": "collect-on-touch@1.0.0",
+          "params": {
+            "collectorTag": "player",
+            "value": "$cfg.moteValue",
+            "scoreKey": "motes",
+            "kind": "mote",
+            "sound": "collect"
+          }
+        },
+        {
+          "type": "sprite-animate",
+          "params": {
+            "play": "spin"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.2,
+            "duration": "$cfg.moteBobDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "beacon",
+      "sprite": {
+        "kind": "image",
+        "src": "assets/lumen/beacon.png"
+      },
+      "size": {
+        "w": 32,
+        "h": 64
+      },
+      "position": {
+        "x": 864,
+        "y": 320
+      },
+      "tags": [
+        "beacon"
+      ],
+      "layer": 3,
+      "behaviors": [
+        {
+          "type": "trigger-zone",
+          "part": "trigger-zone@1.1.0",
+          "params": {
+            "tag": "player",
+            "enterEvent": "level-clear",
+            "once": true,
+            "sound": "win"
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.08,
+            "duration": "$cfg.beaconPulseDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "void",
+      "sprite": {
+        "kind": "none"
+      },
+      "size": {
+        "w": 960,
+        "h": 60
+      },
+      "position": {
+        "x": 0,
+        "y": 450
+      },
+      "tags": [
+        "void"
+      ],
+      "layer": 0,
+      "behaviors": [
+        {
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
+          "params": {
+            "targetTag": "player",
+            "damage": "$cfg.voidDamage",
+            "cooldown": "$cfg.damageCooldown",
+            "sound": "hit"
+          }
+        }
+      ]
+    }
+  ]
+}

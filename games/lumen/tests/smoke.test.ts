@@ -69,6 +69,50 @@ const isSlope = (c: number, r: number): boolean => tileAt(c, r) === 2 || tileAt(
 const ent = (id: string): LevelEntity => ENTITIES.find((e) => e.id === id)!;
 const spikes = (): LevelEntity[] => ENTITIES.filter((e) => e.tags?.includes("spike"));
 
+// --- a scene-AGNOSTIC coarse autopilot (shared by the campaign / full-run Echo / clouds drives below) ---
+// The level-1 / level-2 beatability autopilots read the active scene's footing inline; the whole-campaign
+// drives cross a transition, so they read it off the ACTIVE scene each tick (level-1 and level-2 have
+// different tilemaps). Same policy as the per-level autopilots, factored into one place: walk right, hop
+// hazards, wait at a pit lip for the carrying driftstone then ride it, nudge off a wedge — with the
+// anti-stuck counter + the held-to-apex jump latch carried in `ctx` so a single run threads both levels.
+const footingActive = (g: Game, x: number, yTop: number, yBot: number): boolean => {
+  const props = (g.scene as unknown as { tilemap?: { properties?: Record<string, TileProp> } }).tilemap?.properties ?? {};
+  for (let y = yTop; y <= yBot; y += TS) {
+    const idx = g.world.tileAt(x, y);
+    const p = idx >= 0 ? props[String(idx)] : undefined;
+    if (p && (p.solid === true || p.oneWay === true || typeof p.slopeL === "number" || typeof p.slopeR === "number")) return true;
+  }
+  return false;
+};
+type PilotCtx = { lastX: number; stuck: number; jumpHeld: boolean };
+const newPilot = (): PilotCtx => ({ lastX: 0, stuck: 0, jumpHeld: false });
+// Decide the ground autopilot's move-right for this tick + update the held-jump latch in ctx (no stepping).
+const groundControls = (g: Game, p: NonNullable<ReturnType<typeof player>>, ctx: PilotCtx): boolean => {
+  const px = p.x, foot = p.y + p.h, leadX = p.x + p.w, onGround = p.body.contacts.onGround;
+  const pitAhead = onGround && !footingActive(g, leadX + 6, foot - 6, foot + 2 * TS) && !footingActive(g, leadX + TS, foot - 6, foot + 2 * TS);
+  const stepOff = footingActive(g, leadX + 8, foot + 2, foot + 2) || footingActive(g, leadX + 20, foot + 2, foot + 2);
+  const hazardAhead = [...g.world.query("spike"), ...g.world.query("wraith")].some((h) => h.x > p.cx - 10 && h.x < p.cx + 58 && Math.abs(h.cy - p.cy) < 64);
+  const onDrift = g.world.query("driftstone").some((d) => Math.abs(foot - d.y) < 10 && leadX > d.x + 2 && px < d.x + d.w - 2);
+  let goRight = true, wantJump = false;
+  const waiting = pitAhead && !onDrift;
+  if (onDrift) goRight = stepOff; else if (waiting) goRight = false;
+  if (hazardAhead && onGround && !waiting) wantJump = true;
+  if (onGround && goRight && !onDrift && Math.abs(px - ctx.lastX) < 0.3) ctx.stuck++; else ctx.stuck = 0;
+  if (ctx.stuck > 30) wantJump = true;
+  ctx.lastX = px;
+  if (wantJump && onGround) ctx.jumpHeld = true;
+  if (ctx.jumpHeld && !onGround && p.vy >= 0) ctx.jumpHeld = false; // release at apex → full jump, no jumpCut
+  return goRight;
+};
+// One full ground-autopilot tick: decide, apply input, advance one fixed frame.
+const groundTick = (g: Game, ctx: PilotCtx): void => {
+  const p = player(g);
+  if (!p) { hold(g, "ArrowRight", false); hold(g, "Space", false); g.stepFrames(1); return; }
+  const goRight = groundControls(g, p, ctx);
+  hold(g, "ArrowRight", goRight); hold(g, "ArrowLeft", false); hold(g, "Space", ctx.jumpHeld);
+  g.stepFrames(1);
+};
+
 describe("lumen smoke (level-1 boots from the play-base shell)", () => {
   it("boots level-1 with the player, HUD-fed state, and the obstacle roster", () => {
     const g = boot();
@@ -782,5 +826,200 @@ describe("lumen level-2 Phase-3 — the void HUNTER (chaser) + the RIFT-SENTRY (
     expect(sawBolt).toBe(true); // ai-aim-and-fire spawned a bolt
     expect(died).toBe(true); // its damage drove the PLAYER's health-and-death → the one canonical death
     expect(g.world.query("player").length).toBe(0); // destroyed via the standard death flow (FX bind here)
+  });
+});
+
+describe("lumen campaign — ONE continuous autopilot beats BOTH levels and wins; stats carry EXACTLY across the boundary", () => {
+  // The headline end-to-end: a single coarse autopilot drives spawn → level-1 Beacon → the host's
+  // between-levels carry → level-2 → the final win, with NO teleporting — every transition is the real
+  // one. It wires the EXACT host boundary from main.ts (stash the live player's hp on world.state.carriedHp,
+  // then requestNextLevel), so the carry-over it asserts is the shipping path, not a contrivance.
+  it("spawn → L1 Beacon → carry → L2 → levels-complete: motes+lives+hp are byte-exact across the boundary, gameover never fires", () => {
+    const g = boot();
+    const total = manifest.levels!.length;
+    let won = false, over = false;
+    // The leaving (level-1) values captured AT the clear, and the same keys read back once level-2 has seeded.
+    let bMotes = -1, bLives = -1, bHp = -1, aMotes = -1, aLives = -1, aHp = -1;
+    let boundaryFrame = -1, inL2 = false;
+    g.world.events.on("level-clear", () => {
+      const p = player(g);
+      if (p) g.world.state.carriedHp = p.state.hp as number; // exactly what main.ts stashes on a clear
+      if (((g.world.state.level as number) ?? 1) < total) {
+        bMotes = g.world.state.motes as number; bLives = g.world.state.lives as number; bHp = g.world.state.carriedHp as number;
+      }
+      g.requestNextLevel(); // last level → emits levels-complete (no scene change)
+    });
+    g.world.events.on("levels-complete", () => (won = true));
+    g.world.events.on("gameover", () => (over = true));
+
+    const ctx = newPilot();
+    const BUDGET = 9000; // L1 (~1100) + L2 (~3300) clears well inside this
+    for (let f = 0; f < BUDGET && !won && !over; f++) {
+      groundTick(g, ctx);
+      if (!inL2 && g.scene.id === "level-2") { inL2 = true; boundaryFrame = f; } // the tick the transition drained
+      // +2 ticks in: level-2's player has run a tick, so its health-and-death has re-seeded hp from carriedHp.
+      if (inL2 && f === boundaryFrame + 2) { aMotes = g.world.state.motes as number; aLives = g.world.state.lives as number; aHp = player(g)!.state.hp as number; }
+    }
+
+    expect(won).toBe(true);   // the FINAL Beacon's levels-complete fired — the whole two-level campaign cleared
+    expect(over).toBe(false); // never bottomed out across either level
+    expect(g.scene.id).toBe("level-2");
+    // EXACT carry-over across the REAL boundary: motes + lives ride scene flow.persist, hp rides carriedHp.
+    expect(boundaryFrame).toBeGreaterThan(0);
+    expect(aMotes).toBe(bMotes);
+    expect(aLives).toBe(bLives);
+    expect(aHp).toBe(bHp);
+    // EASY margin: it reaches the final Beacon with hp to spare (it eats at most the hunter brush + a sentry
+    // bolt on level-2's eased damage) — encoded so a rebalance that quietly hardens the run can't slip past.
+    expect(player(g)!.state.hp as number).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("lumen full-run Echo — a recording that SPANS the level-1 → level-2 boundary replays byte-for-byte", () => {
+  // The two per-level Echoes above prove a single level re-simulates; THIS proves determinism holds straight
+  // THROUGH a scene transition. The run recorder's tick index is continuous across loadScene (it is NOT
+  // world.frame, which resets), so one recording spans both levels. An input-only replay cannot reproduce
+  // the HOST's requestNextLevel() — which is precisely why the SHIPPING Echo records PER-LEVEL and only ever
+  // replays the entry level — so the harness here reproduces that ONE host action (the same level-clear →
+  // carriedHp + requestNextLevel main.ts runs). With it, the spanning recording re-simulates byte-identically
+  // at EVERY tick, the boundary tick included — the determinism guarantee the per-level split is built on.
+  const wireHostBoundary = (g: Game): void => {
+    g.world.events.on("level-clear", () => {
+      const p = player(g);
+      if (p) g.world.state.carriedHp = p.state.hp as number;
+      g.requestNextLevel();
+    });
+  };
+  it("record a continuous run crossing into level-2, then replay it through a fresh seeded game — identical per-tick snapshots", () => {
+    // Record: the shared ground autopilot (pure input — nothing teleported, so the recording captures it all),
+    // crossing the boundary and continuing a stretch into level-2.
+    const rec = boot({ seed: SEED, record: true });
+    wireHostBoundary(rec);
+    const origSnaps: string[] = [];
+    const ctx = newPilot();
+    let l2Frame = -1;
+    for (let f = 0; f < 4000; f++) {
+      groundTick(rec, ctx);
+      origSnaps.push(snapshotWorld(rec.world));
+      if (l2Frame < 0 && rec.scene.id === "level-2") l2Frame = f;
+      if (l2Frame >= 0 && f >= l2Frame + 400) break; // a full level-1 + the transition + a level-2 stretch
+    }
+    const recording = rec.getRecording();
+    expect(recording.sceneId).toBe("level-1"); // rooted where frame 0 was captured — the run STARTED in level-1
+    expect(l2Frame).toBeGreaterThan(0);         // and genuinely crossed INTO level-2 mid-recording
+    expect(recording.frameCount).toBe(origSnaps.length);
+
+    // Replay through a FRESH seeded game with the SAME host boundary wiring → it transitions on the same tick
+    // the recording did, so every per-tick snapshot matches (the boundary tick and all of level-2 included).
+    const rg = boot({ seed: recording.seed });
+    wireHostBoundary(rg);
+    const replay = createReplay(rg, recording);
+    const seen: string[] = [];
+    while (!replay.done) { replay.step(); seen.push(snapshotWorld(replay.game.world)); }
+
+    expect(seen.length).toBe(origSnaps.length);
+    expect(seen).toEqual(origSnaps); // byte-identical across BOTH levels AND the transition between them
+  });
+});
+
+describe("lumen clouds path — the optional HIGH route is a real alternate that rejoins the ground and reaches the Beacon", () => {
+  const FLOOR2_Y = 21 * TS; // level-2 ground walk-surface (672)
+
+  it("a clouds autopilot beats level-2 via the HIGH route — jumps the fork into the clouds, walks the walkway, rejoins the ground, lights the Beacon", () => {
+    const g = bootL2();
+    let cleared = false, over = false, minCy = Infinity;
+    g.world.events.on("level-clear", () => (cleared = true));
+    g.world.events.on("gameover", () => (over = true));
+    const ctx = newPilot();
+    // Modes (every transition PHYSICAL — no teleport): walk to the fork (approach) → hop up into rift-A until
+    // it warps us to the clouds (fork) → walk the high walkway, leaping only SAME-TIER gaps so an end-of-tier
+    // edge drops us back to the always-solid ground (cloud) → finish along the ground (ground).
+    let mode: "approach" | "fork" | "cloud" | "ground" = "approach";
+    const BUDGET = 8000;
+    for (let f = 0; f < BUDGET && !cleared && !over; f++) {
+      const p = player(g);
+      if (!p) { hold(g, "ArrowRight", false); hold(g, "Space", false); g.stepFrames(1); continue; }
+      minCy = Math.min(minCy, p.cy);
+      const foot = p.y + p.h, leadX = p.x + p.w, onGround = p.body.contacts.onGround;
+      if (mode === "approach" && p.cx / TS >= 46 && onGround) mode = "fork";
+      if (mode === "fork" && p.cy < 420) mode = "cloud";                         // warped up onto the cloud
+      if (mode === "cloud" && onGround && foot > FLOOR2_Y - 16) mode = "ground"; // fell back onto the floor
+      let goRight = true;
+      if (mode === "approach" || mode === "ground") {
+        goRight = groundControls(g, p, ctx);
+      } else if (mode === "fork") {
+        if (onGround) ctx.jumpHeld = true;                                       // hop toward rift-A until it warps us
+        if (ctx.jumpHeld && !onGround && p.vy >= 0) ctx.jumpHeld = false;
+      } else { // cloud: leap a small same-tier gap, otherwise let a real drop carry us back down to the ground
+        const gapNow = onGround && !footingActive(g, leadX + 6, foot - 6, foot + 10);
+        const sameTier = footingActive(g, leadX + TS, foot - 6, foot + 6) || footingActive(g, leadX + 2 * TS, foot - 6, foot + 6) || footingActive(g, leadX + 3 * TS, foot - 6, foot + 6);
+        if (gapNow && sameTier && onGround) ctx.jumpHeld = true;
+        if (ctx.jumpHeld && !onGround && p.vy >= 0) ctx.jumpHeld = false;
+      }
+      hold(g, "ArrowRight", goRight); hold(g, "ArrowLeft", false); hold(g, "Space", ctx.jumpHeld);
+      g.stepFrames(1);
+    }
+    expect(cleared).toBe(true);      // reached the Beacon via the high route + the ground finish
+    expect(over).toBe(false);        // never fell into the void
+    // Went genuinely INTO the clouds: a ground/hill jump tops out near cy≈456; only the rift warp (cloud
+    // surface cy≈276, a cloud-jump apex lower still) reaches below 360 — so this can't be a mere ground hop.
+    expect(minCy).toBeLessThan(360);
+    expect(player(g)!.state.hp as number).toBeGreaterThanOrEqual(2); // EASY: clears the high route with margin too
+  });
+
+  it("the designed descent cascade rejoins the ground FORWARD of the fork (ember perch → one-way cascade → floor at the reconverge)", () => {
+    const g = bootL2();
+    g.stepFrames(4);
+    // Arrange the player atop the ember perch (row 5) — the high-route apex the lift delivers you onto (the
+    // lift sweep + the ember collect are covered above); from there the authored reconvergence is "hold right".
+    const ember = g.world.query("ember")[0]!;
+    const p = player(g);
+    p.x = ember.x - 24; p.y = 5 * TS - p.h; p.vx = 0; p.vy = 0;
+    g.stepFrames(6);
+    expect(p.body.contacts.onGround).toBe(true); // standing on the perch
+    let died = false; g.world.events.on("died", () => (died = true));
+    let landedCol = -1;
+    for (let f = 0; f < 420 && landedCol < 0; f++) {
+      hold(g, "ArrowRight"); g.stepFrames(1);
+      const q = player(g);
+      if (!q) break;
+      if (f > 4 && q.body.contacts.onGround && q.y + q.h > FLOOR2_Y - 16) landedCol = Math.round(q.cx / TS);
+    }
+    expect(died).toBe(false);                       // a safe STEPPED descent, never a fall into a hazard
+    expect(landedCol).toBeGreaterThanOrEqual(120);  // rejoined the GROUND well forward — at the reconverge (~col 128)…
+    expect(landedCol).toBeLessThanOrEqual(150);     // …not straight back down at the perch
+  });
+});
+
+describe("lumen EASY difficulty — generous checkpoints + no blind jumps onto hazards (ENCODED so a rebalance can't silently harden it)", () => {
+  const L2E = level2.entities as unknown as LevelEntity[];
+  const FLOOR2_ROW = 21;
+  const colOf = (e: LevelEntity) => Math.round((e.position?.x ?? 0) / TS);
+  const TM2 = level2.tilemap as unknown as { cols: number; tiles: number[] };
+  const tile2 = (c: number, r: number) => TM2.tiles[r * TM2.cols + c] ?? -1;
+
+  it("level-2 GROUND checkpoints are plentiful and close — a death never costs much progress", () => {
+    const groundCps = L2E.filter((e) => e.tags?.includes("checkpoint") && (e.position?.y ?? 0) > FLOOR2_ROW * TS - 60).map(colOf).sort((a, b) => a - b);
+    expect(groundCps.length).toBeGreaterThanOrEqual(6); // a generous count strung along the ground line
+    const spawnCol = 2; // the level-2 spawn (x=64)
+    const beaconCol = colOf(L2E.find((e) => e.tags?.includes("beacon"))!);
+    const marks = [spawnCol, ...groundCps, beaconCol];
+    let maxGap = 0;
+    for (let i = 1; i < marks.length; i++) maxGap = Math.max(maxGap, marks[i] - marks[i - 1]);
+    expect(maxGap).toBeLessThanOrEqual(60); // no stretch between safe points (spawn / checkpoint / Beacon) is punishingly long
+  });
+
+  it("no blind hazard jumps — every level-2 spike CLUSTER has flat solid floor to walk up to before the hop", () => {
+    const spikeCols = L2E.filter((e) => e.tags?.includes("spike")).map(colOf).sort((a, b) => a - b);
+    expect(spikeCols.length).toBeGreaterThan(0);
+    const clusterStarts = spikeCols.filter((c) => !spikeCols.includes(c - 1)); // the leftmost spike of each contiguous run
+    for (const c of clusterStarts) {
+      for (let k = 1; k <= 3; k++) {
+        expect(tile2(c - k, FLOOR2_ROW)).toBe(0);          // solid floor for several cols before the cluster
+        expect(tile2(c - k, FLOOR2_ROW - 1)).not.toBe(2);  // …and no slope in the approach (you walk up flat, then hop)
+        expect(tile2(c - k, FLOOR2_ROW - 1)).not.toBe(3);
+        expect(spikeCols.includes(c - k)).toBe(false);     // …and the approach itself is spike-free
+      }
+    }
   });
 });

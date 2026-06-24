@@ -44,11 +44,13 @@ const stepUntil = (g: Game, done: () => boolean, maxFrames: number): number => {
   return maxFrames;
 };
 
-// Boot straight into level-2 for the level-2 tests. createGame resolves the entry scene from
-// `manifest.entryPoint` (level-1) and IGNORES any `entrySceneId`, so the only way into level-2 is the
-// real path: boot level-1 and advance one level. The two settle ticks + the drain tick run with NO input
-// and seed nothing random, so two `bootL2` games on the same seed reach level-2 in byte-identical state —
-// which is what lets the level-2 Echo replay below compare equal.
+// Boot into level-2 for the level-2 tests via the REAL campaign path: boot level-1 and advance one
+// level. createGame now HONORS `entrySceneId`, so level-2 IS directly bootable (the SDK's
+// faithful-level-replay test boots a recorded level-2 in ISOLATION, restoring the recording's
+// entryState) — but these tests want level-2 entered exactly as a playthrough reaches it: the carried
+// world.state AND the seeded-rng phase, not a from-scratch boot. The two settle ticks + the drain tick
+// run with NO input and seed nothing random, so two `bootL2` games on the same seed reach level-2 in
+// byte-identical state — which is what lets the level-2 Echo replay below compare equal.
 function bootL2(opts: { seed?: number; record?: boolean } = {}): Game {
   const g = boot(opts);
   g.stepFrames(2);

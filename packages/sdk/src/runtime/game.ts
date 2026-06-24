@@ -364,10 +364,11 @@ export class Game {
   /** Run exactly one fixed-update step. */
   update(dt: number): void {
     // Record this tick's input at the very TOP — the held-key set + tap-down edges as the tick
-    // BEGINS, before any system/behavior consumes them and before endFrame() clears the edges. The
-    // recorder reads input only (no world mutation), and the whole step is guarded so a non-recording
-    // game does no read and no allocation — byte-identical to today.
-    if (this.recorder) this.recorder.capture(this.scene.id, this.world.input);
+    // BEGINS, before any system/behavior consumes them and before endFrame() clears the edges. On the
+    // recording's first tick the recorder also deep-copies `world.state` here (pre-tick) as the level's
+    // entry state. The recorder reads input + state only (no world mutation), and the whole step is
+    // guarded so a non-recording game does no read and no allocation — byte-identical to today.
+    if (this.recorder) this.recorder.capture(this.scene.id, this.world.input, this.world.state);
 
     this.world.dt = dt;
     this.world.frame += 1;

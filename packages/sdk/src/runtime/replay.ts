@@ -4,10 +4,13 @@ import type { Input } from "./input.js";
 /**
  * Run recorder + replay driver — the substrate for ghost replays, seeded-challenge proofs, and
  * verifiable speedruns. It rests on the engine's one load-bearing property (see
- * {@link runDeterminismCheck}): a fixed-timestep run is a pure function of its seed and its
- * per-frame input. So a run is fully captured by `(seed, fixedDt, the per-tick input stream)`, and
- * re-driving a FRESH `seededRng(seed)` Game through that same input reproduces the original world
- * state BYTE-FOR-BYTE at every tick.
+ * {@link runDeterminismCheck}): a fixed-timestep run is a pure function of its seed, its per-frame
+ * input, and its STARTING world state. So a run is fully captured by `(seed, fixedDt, the per-tick
+ * input stream)` plus — for a level entered MID-CAMPAIGN, not from a fresh boot — the carried
+ * `world.state` it started from ({@link RunRecording.entryState}). Re-driving a FRESH `seededRng(seed)`
+ * Game, with that entry state restored, through that same input reproduces the original world state
+ * BYTE-FOR-BYTE at every tick. The entry state is what lets a level be replayed IN ISOLATION (booted
+ * directly at its own scene) rather than only by re-playing every level before it.
  *
  * Two halves, both browser-safe (no `node:` built-ins, exactly like {@link snapshotWorld}):
  *  - {@link RunRecorder} — sampled once per tick at the TOP of {@link Game.update} (guarded so a
@@ -69,6 +72,19 @@ export interface RunRecording {
   /** Sparse, delta-encoded per-tick input. Frame 0 is always present (the initial held set, possibly `[]`). */
   frames: RecordedFrame[];
   /**
+   * OPTIONAL entry state: a snapshot of `world.state` at the recording's FIRST captured tick (pre-tick,
+   * before any system/behavior runs) — the carried slice a level was ENTERED with: the leaving level's
+   * `flow.persist` hand-off (carriedHp / motes / lives / …) plus the `level` index `loadScene` stamped.
+   * It makes a level SELF-CONTAINED: boot a fresh Game directly at {@link sceneId} (createGame's
+   * `entrySceneId`) and {@link createReplay} restores this onto `world.state` BEFORE tick 0, so the run
+   * reproduces byte-for-byte without re-playing the levels before it. Plain JSON (every value already
+   * round-trips the storage bridge). BACKWARD-COMPATIBLE and NON-versioned: a recording without it
+   * (older, or a from-scratch entry-level run that carried nothing) replays exactly as before —
+   * {@link createReplay} simply skips the restore, and an old reader ignores the unknown key — so the
+   * `schemaVersion` is unchanged.
+   */
+  entryState?: Record<string, unknown>;
+  /**
    * OPTIONAL integrity check: {@link snapshotWorld} of the world after the last tick (a STRING, not
    * a hash — browser-safe). The recorder does not stamp it (it samples at tick TOP, pre-tick); a
    * consumer sets it post-run and a replay confirms its final snapshot matches.
@@ -105,6 +121,16 @@ function sameKeys(a: string[], b: string[]): boolean {
 }
 
 /**
+ * Deep-copy a `world.state` slice to plain JSON — the recording must be JSON (it persists through the
+ * storage bridge), and the LIVE state keeps mutating after the snapshot, so a reference copy would
+ * drift. A JSON round-trip is the right clone here precisely because anything a recording can carry
+ * must already be JSON-serializable; a value that wouldn't survive it could never be in a recording.
+ */
+function cloneState(state: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+}
+
+/**
  * Accumulates a {@link RunRecording} as a {@link Game} ticks. The Game constructs one when built
  * with `{ seed, record: true }` and calls {@link capture} at the TOP of every {@link Game.update}.
  * Internal — the public surface is `Game.getRecording()` / `Game.resetRecording()` + the recording
@@ -122,6 +148,12 @@ export class RunRecorder {
   private lastHeld: string[] | null = null;
   /** Scene active when this buffer's frame 0 was captured; `null` until then (then a fallback is used). */
   private startSceneId: string | null = null;
+  /**
+   * Snapshot of `world.state` at this buffer's frame 0 — the carried slice the level was entered with,
+   * stamped into {@link RunRecording.entryState} so the level can be replayed in isolation. `null`
+   * until frame 0 captures it (and again after {@link reset}, so a re-arm re-captures the NEW level's).
+   */
+  private entryState: Record<string, unknown> | null = null;
 
   constructor(
     private readonly seed: number,
@@ -141,9 +173,16 @@ export class RunRecorder {
    * both the press and release buffers at one point on one tick, so the press edge identifies it
    * once (capturing both buffers would double-count it), and replay re-injects via {@link Input.tap}
    * to restore both edges. Held-pointer / drag streams are out of scope.
+   *
+   * Frame 0 ALSO deep-copies `world.state` into {@link entryState} — the carried slice this level was
+   * entered with — so an isolation replay can restore it before tick 0. Still pure-read: it copies the
+   * state and mutates nothing, so the simulation is byte-identical whether or not a recorder is attached.
    */
-  capture(sceneId: string, input: Input): void {
-    if (this.tick === 0) this.startSceneId = sceneId;
+  capture(sceneId: string, input: Input, state: Record<string, unknown>): void {
+    if (this.tick === 0) {
+      this.startSceneId = sceneId;
+      this.entryState = cloneState(state);
+    }
     const held = input.heldKeys(); // already a sorted copy
     const presses = input.justPressed();
     const keysChanged = this.lastHeld === null || !sameKeys(held, this.lastHeld);
@@ -166,13 +205,17 @@ export class RunRecorder {
     this.tick = 0;
     this.lastHeld = null;
     this.startSceneId = null;
+    this.entryState = null; // re-captured at the next frame 0 (the NEW level's entry state)
   }
 
   /**
    * A snapshot copy of the run captured so far. Copied deep enough (the frames array + each frame +
    * its `keys`/`taps` arrays) that the returned recording never mutates as the Game keeps ticking,
    * and a consumer can freely add `finalSnapshot` to it. `fallbackSceneId` is used only for an empty
-   * buffer (no tick captured yet), where {@link startSceneId} has not been set.
+   * buffer (no tick captured yet), where {@link startSceneId} has not been set. {@link entryState} is
+   * re-cloned so the returned recording's copy never aliases the recorder's (or another caller's), and
+   * is omitted entirely when nothing has been captured yet — keeping an empty/never-armed buffer's
+   * recording free of the optional key.
    */
   toRecording(fallbackSceneId: string): RunRecording {
     return {
@@ -187,6 +230,7 @@ export class RunRecorder {
         ...(fr.keys ? { keys: fr.keys.slice() } : {}),
         ...(fr.taps ? { taps: fr.taps.map((t) => ({ x: t.x, y: t.y })) } : {}),
       })),
+      ...(this.entryState ? { entryState: cloneState(this.entryState) } : {}),
     };
   }
 }
@@ -202,6 +246,12 @@ export class RunRecorder {
  * // browser: step on your own rAF and render between steps for a watchable, skippable intro
  * while (!replay.done) { replay.step(); game.render(); }
  * ```
+ *
+ * Booting at `rec.sceneId` makes the game start in the recorded level; when the recording carries an
+ * {@link RunRecording.entryState} (a mid-campaign level), createReplay restores it onto `world.state`
+ * BEFORE the first {@link ReplayController.step}, so a level booted IN ISOLATION resumes from the same
+ * carried state — no need to re-play the levels before it. A recording without `entryState` skips the
+ * restore and replays exactly as before.
  *
  * Validates `recording.schemaVersion` and throws on a mismatch — a recording from an incompatible
  * format must fail loudly, never silently mis-replay.
@@ -230,6 +280,18 @@ class ReplayDriver implements ReplayController {
     this.game = game;
     this.recording = recording;
     this.input = game.world.input;
+    // Restore the captured entry state onto `world.state` BEFORE tick 0, so a level booted IN ISOLATION
+    // (a fresh Game at `recording.sceneId`) resumes from the carried slice the recorded run entered with
+    // — the carriedHp / motes / lives a mid-campaign level was handed. Without it an isolation boot
+    // starts from defaults and diverges (e.g. a different starting hp → a different damage outcome).
+    // Clear-then-assign (loadScene's own carry pattern) makes `world.state` EXACTLY the captured slice;
+    // the deep copy keeps the live state from aliasing the recording as it mutates. A recording with no
+    // entryState (older, or a from-scratch entry level) skips this and replays exactly as before.
+    if (recording.entryState) {
+      const state = game.world.state;
+      for (const k of Object.keys(state)) delete state[k];
+      Object.assign(state, cloneState(recording.entryState));
+    }
   }
 
   get frame(): number {

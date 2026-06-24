@@ -234,6 +234,78 @@ const checkpoint = (c, surfaceY = FLOOR_TOP_Y) => ({
   ],
 });
 
+// === PHASE-3 MECHANIC · the void HUNTER (chaser) ============================
+// A voidhound: `ai-chase` pursues "player" in full 2D (lockAxis "none") at a SLOW speed, so the faster
+// player out-runs it — it swoops across you ONCE in the open, then trails behind for good. It is ghostly
+// like the wraith (NO collider → flies straight at the player through terrain). `health-and-death` gives
+// it hp purely for completeness (nothing in Lumen damages it, and its `deathEvent` is deliberately NOT
+// "died", so it can never drive the player's death FX); `contact-damage` routes a touch through the
+// PLAYER's hp, so a lethal one fires the single canonical "died" the shell already binds flash/shake/
+// explosion to. `face-velocity` turns it to face its travel. Order: chase SETS velocity → `velocity`
+// integrates → contact → health → face (reads vx) → animate (the wraith's behavior order).
+let hunterN = 0;
+const hunter = (c, r) => ({
+  id: `hunter-${hunterN++}`,
+  sprite: { kind: "sheet", src: "assets/lumen/voidhound.png", frameWidth: 24, frameHeight: 24, frameCount: 2, fps: 4, animations: { hover: { from: 0, to: 1, fps: 4 } } },
+  size: { w: 24, h: 24 },
+  position: { x: c * TS, y: r * TS },
+  tags: ["hunter"],
+  layer: 4,
+  behaviors: [
+    { type: "ai-chase", part: "ai-chase@1.0.0", params: { targetTag: "player", speed: "$cfg.hunterSpeed", stopDistance: "$cfg.hunterStopDistance", lockAxis: "none" } },
+    { type: "velocity", params: {} },
+    { type: "contact-damage", part: "contact-damage@1.0.0", params: { targetTag: "player", damage: "$cfg.hunterDamage", cooldown: "$cfg.damageCooldown" } },
+    { type: "health-and-death", part: "health-and-death@1.1.0", params: { hp: "$cfg.hunterHp", deathEvent: "hunter-spent", deathSound: "" } },
+    { type: "face-velocity", part: "face-velocity@1.0.0", params: {} },
+    { type: "sprite-animate", params: { play: "hover" } },
+  ],
+});
+
+// === PHASE-3 MECHANIC · the RIFT-SENTRY (shooting obstacle) =================
+// An arcane turret: `ai-aim-and-fire` fires a SLOW bolt at the player on a cooldown while the player is
+// within range. The bolt is an entity-def — `velocity` + `contact-damage{selfDestruct}` (one-shot, dies
+// on the hit) + `health-and-death{lifespan}` (a MISS expires of old age, so bolts never accumulate) —
+// and routes its damage through the player's hp → the same canonical "died". Slow bolts + a moving
+// player = easy to jump/dodge (a walker eats one on the approach; once past, the bolts chase and miss).
+// Stationary, NO collider (an emplacement floating in the ruins); a `tween` pulses it visibly "alive".
+let sentryN = 0;
+const BOLT_WH = 10;
+const riftSentry = (c, y) => ({
+  id: `rift-sentry-${sentryN++}`,
+  sprite: { kind: "image", src: "assets/lumen/riftsentry.png" },
+  size: { w: 24, h: 24 },
+  position: { x: c * TS + (TS - 24) / 2, y },
+  tags: ["rift-sentry"],
+  layer: 3,
+  behaviors: [
+    {
+      type: "ai-aim-and-fire",
+      part: "ai-aim-and-fire@1.1.0",
+      params: {
+        targetTag: "player",
+        range: "$cfg.sentryRange",
+        cooldown: "$cfg.sentryCooldown",
+        projectileSpeed: "$cfg.sentryBulletSpeed",
+        // The bolt — danger-fuchsia (the universal hazard tell), a small shape primitive (ART.md sanctions
+        // shapes for projectiles, as the gloomspikes/driftstones are). $cfg-balanced damage + lifespan.
+        projectile: {
+          id: "bolt",
+          sprite: { kind: "shape", shape: "circle", color: "#ff4fb0", stroke: "#070512", strokeWidth: 1 },
+          size: { w: BOLT_WH, h: BOLT_WH },
+          tags: ["bolt"],
+          layer: 3,
+          behaviors: [
+            { type: "velocity", params: {} },
+            { type: "contact-damage", part: "contact-damage@1.0.0", params: { targetTag: "player", damage: "$cfg.sentryBulletDamage", selfDestruct: true, sound: "hit" } },
+            { type: "health-and-death", part: "health-and-death@1.1.0", params: { hp: "$cfg.sentryBulletHp", lifespan: "$cfg.sentryBulletLifespan", deathSound: "" } },
+          ],
+        },
+      },
+    },
+    { type: "tween", part: "tween@1.0.0", params: { property: "scale", from: 1, to: 1.15, duration: "$cfg.sentryPulseDuration", easing: "in-out-quad", loop: "pingpong" } },
+  ],
+});
+
 // --- entities ---------------------------------------------------------------
 const entities = [];
 
@@ -280,9 +352,25 @@ entities.push(driftstone("driftstone-h", [{ x: driftNearX, y: driftY }, { x: dri
 entities.push(mote(PIT_L + 1, 20), mote(PIT_R - 1, 20));
 entities.push(checkpoint(186));
 entities.push(wraith(214, 226));
+// This open post-pit flat (checkpoint 186 behind, wraith 214 ahead) is where the void HUNTER (spawned far
+// right, Beat G8) swoops in to cross the player ≈col 200 — these motes pull the eye forward into the
+// incoming-hunter sightline, the safe arena where you first read its slow approach before it brushes past.
 entities.push(mote(196, 20), mote(204, 20), mote(220, 19), mote(236, 20));
 entities.push(checkpoint(244));
+
+// Beat G7 — the RIFT-SENTRY (Phase-3 shooting obstacle). The long, open Beacon run-up past checkpoint
+// 244 IS the SAFE-INTRO: the floating, pulsing sentry is visible from far off and the player watches its
+// first slow bolt cross the open before it can connect. It fires while the player APPROACHES (a walker
+// eats about one), then the player passes and the bolts trail and miss. Motes lure the weave through its
+// fire line. Floats a little above head height so a jump clears the bolt — easy to dodge.
+entities.push(riftSentry(262, FLOOR_TOP_Y - 56));
 entities.push(mote(258, 20), mote(268, 19), mote(278, 20), mote(286, 20));
+
+// Beat G8 — the void HUNTER (Phase-3 chaser). It SPAWNS high near the Beacon and immediately homes left
+// in full 2D toward the player; being slow, it meets the player back in the open post-pit flat (≈col 200,
+// see the wraith/mote beat above), brushes ONCE, then trails the rest of the run — always out-run. Spawned
+// high so it reads as descending out of the dusk as it closes; its damage routes the canonical "died".
+entities.push(hunter(286, 14));
 
 // === CLOUDS PATH entities ===================================================
 // rift-B arrival (paired with rift-A), then walkway motes + a cloud checkpoint + the ladder cache.

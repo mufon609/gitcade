@@ -228,7 +228,9 @@ color coding are unchanged.
 | **mote** (coin) | `mote.png` `64×16` | `sheet` 16×16 ×4 | a glowing **gold** orb, 4-frame spin (width narrows to an edge sliver and back), warm rim + pale top glint + soft halo |
 | **emberstone** (gem) | `emberstone.png` `16×16` | `image` | a **faceted warm crystal** — `gold`/`ember` diamond, glow upper facets, a hot near-white core, soft `ember` halo. Sharper & rarer-looking than a mote |
 | **driftwraith** (patrolling enemy) | `driftwraith.png` `48×24` | `sheet` 24×24 ×2 | a **fuchsia** spectre: rounded top, **tattered tail** of three swaying lobes, menacing `void` eye-slits under a `violet` brow. 2-frame bob/sway |
+| **voidhound** (chasing enemy) | `voidhound.png` `48×24` | `sheet` 24×24 ×2 | a sleek **fuchsia** void-hunter: an elongated body tapering to a forward (right) **snout**, ONE menacing `void` eye-slit under a `violet` brow, a hot core, and a swaying back-`violet` tail of three wispy streaks. Drawn **facing right** (`face-velocity` mirrors it). Lower + sleeker than the wraith so the patroller and the **hunter** read apart at a glance. 2-frame hover |
 | **riftgate** (portal) | `riftgate.png` `32×48` | `image` | a tall **violet** rift — concentric violet/glow rings around a `void` core, swirling sparks, anchored on a teal-lit stone base |
+| **rift-sentry** (shooting turret) | `riftsentry.png` `24×24` | `image` | an arcane **violet** eye in a stone socket: concentric `violet`/`glow` rings around a `void` core with a hot **`fuchsia`** pupil (the firing aperture — it lobs `fuchsia` bolts), orbiting sparks, on a teal-lit stone nub. Stationary; a `tween` pulses it alive |
 | **Beacon** (level goal) | `beacon.png` `32×64` | `image` | a **warm light column** (glow→ember) rising from a teal-lit stone pedestal, bright core, crown spark, rising gold sparks. Warm, distinct from the cool riftgate |
 
 Reference patterns:
@@ -242,7 +244,11 @@ Reference patterns:
 { "kind": "sheet", "src": "assets/lumen/driftwraith.png", "frameWidth": 24, "frameHeight": 24,
   "frameCount": 2, "fps": 3, "animations": { "bob": { "from": 0, "to": 1, "fps": 3 } } }
 
+{ "kind": "sheet", "src": "assets/lumen/voidhound.png", "frameWidth": 24, "frameHeight": 24,
+  "frameCount": 2, "fps": 4, "animations": { "hover": { "from": 0, "to": 1, "fps": 4 } } }
+
 { "kind": "image", "src": "assets/lumen/riftgate.png" }      // entity size 32×48
+{ "kind": "image", "src": "assets/lumen/riftsentry.png" }    // entity size 24×24
 { "kind": "image", "src": "assets/lumen/beacon.png" }        // entity size 32×64
 ```
 
@@ -256,6 +262,7 @@ these exact specs so they stay on-palette:
 | Element | Lore name | Sprite spec | Notes |
 |---------|-----------|-------------|-------|
 | **spikes** | gloomspikes | `{ "kind": "shape", "shape": "triangle", "color": "#ff4fb0", "stroke": "#070512", "strokeWidth": 1 }` | one upward triangle = one spike (apex up); tile a row across a hazard span. `fuchsia` = the universal danger tell |
+| **rift-bolt** | the rift-sentry's bolt | `{ "kind": "shape", "shape": "circle", "color": "#ff4fb0", "stroke": "#070512", "strokeWidth": 1 }` | the turret's slow projectile, a small (10×10) `fuchsia` danger-orb — a shape, like the spikes; spawned by `ai-aim-and-fire`, self-destructs on a hit, expires by `lifespan` on a miss |
 | **moving platform** | driftstones | `{ "kind": "shape", "shape": "rect", "color": "#3a2f6b", "stroke": "#4fe0cf", "strokeWidth": 2 }` | a twilight slab with a bright lit edge — matches the re-keyed tileset stone; pair with a `path`/`tween` mover |
 | **checkpoint** | — | inactive `{ "kind": "shape", "shape": "rect", "color": "#9a5cff" }` → on activation swap `color` to `"#4fe0cf"` (or pulse opacity) | a slender standing marker; violet (dormant) → lit-teal (active) reads as "saved" |
 | **kill-plane** | the void | `{ "kind": "none" }` trigger entity, or a world-bounds death | invisible logic; the *visual* cue is the `void` `#070512` darkness opening below the lowest platforms |
@@ -293,7 +300,9 @@ these exact specs so they stay on-palette:
 | `mote.png` | 64×16 | sheet (16×16) | 4 |
 | `emberstone.png` | 16×16 | image | 1 |
 | `driftwraith.png` | 48×24 | sheet (24×24) | 2 |
+| `voidhound.png` | 48×24 | sheet (24×24) | 2 |
 | `riftgate.png` | 32×48 | image | 1 |
+| `riftsentry.png` | 24×24 | image | 1 |
 | `beacon.png` | 32×64 | image | 1 |
 
 Regenerate all of them with `npm run gen:art`.

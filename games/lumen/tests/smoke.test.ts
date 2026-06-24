@@ -713,3 +713,69 @@ describe("lumen level-2 — the two-path world (structure ENCODED + both paths r
     expect(g.world.state.motes as number).toBe(before + config.emberValue);
   });
 });
+
+describe("lumen level-2 Phase-3 — the void HUNTER (chaser) + the RIFT-SENTRY (turret)", () => {
+  it("both new mechanics are present in level-2: a HUNTER (chaser) and a RIFT-SENTRY (turret)", () => {
+    const g = bootL2();
+    expect(g.world.query("hunter").length).toBe(1); // the void hunter (ai-chase)
+    expect(g.world.query("rift-sentry").length).toBe(1); // the arcane turret (ai-aim-and-fire)
+    // Composed from the EXISTING catalog at the confirmed versions (no engine work).
+    const hunter = g.world.query("hunter")[0]!;
+    const hb = (level2.entities as unknown as LevelEntity[]).find((e) => e.id === hunter.id)!.behaviors!;
+    expect(hb.some((b) => (b as { part?: string }).part === "ai-chase@1.0.0")).toBe(true);
+    expect(hb.some((b) => (b as { part?: string }).part === "health-and-death@1.1.0")).toBe(true);
+    expect(hb.some((b) => (b as { part?: string }).part === "face-velocity@1.0.0")).toBe(true);
+    const sentry = (level2.entities as unknown as LevelEntity[]).find((e) => e.tags?.includes("rift-sentry"))!;
+    expect(sentry.behaviors!.some((b) => (b as { part?: string }).part === "ai-aim-and-fire@1.1.0")).toBe(true);
+  });
+
+  it("the SHELL pairs the new tags so contact-damage fires (player×hunter, player×bolt)", () => {
+    // The one integration seam in the shared play-base shell: the new tags joined aabb-collision.pairs.
+    const sys = (playBase.systems as Array<{ type: string; params?: { pairs?: string[][] } }>).find((s) => s.type === "aabb-collision")!;
+    const pairs = (sys.params!.pairs ?? []).map((p) => p.join("×"));
+    expect(pairs).toContain("player×hunter"); // the chaser can damage the player
+    expect(pairs).toContain("player×bolt"); // the sentry's bolt can damage the player
+  });
+
+  it("the void HUNTER pursues — it closes distance toward a standing player (ai-chase, full 2D)", () => {
+    const g = bootL2();
+    const dist = (a: { cx: number; cy: number }, b: { cx: number; cy: number }) => Math.hypot(a.cx - b.cx, a.cy - b.cy);
+    const d0 = dist(g.world.query("hunter")[0]!, player(g));
+    g.stepFrames(180); // hold no input — the player stands; the hunter homes in
+    const h = g.world.query("hunter")[0]!;
+    expect(d0 - dist(h, player(g))).toBeGreaterThan(100); // measurably closed the gap
+    expect(h.vx).toBeLessThan(0); // moving LEFT toward the player (who spawns far to its left)
+  });
+
+  it("the void HUNTER's touch drains player hp (contact-damage through the shell pair)", () => {
+    const g = bootL2();
+    g.stepFrames(4); // settle + seed hp
+    const p = player(g);
+    const hp0 = p.state.hp as number;
+    const hunter = g.world.query("hunter")[0]!;
+    hunter.x = p.cx - hunter.w / 2; // drop it onto the player, as the cross-paths brush does
+    hunter.y = p.cy - hunter.h / 2;
+    g.stepFrames(2);
+    expect(player(g).state.hp as number).toBe(hp0 - config.hunterDamage); // exactly one hit landed
+  });
+
+  it("a RIFT-SENTRY bolt damages the player, and a lethal one fires the canonical 'died'", () => {
+    const g = bootL2();
+    g.stepFrames(4); // settle the player on the floor + seed its hp
+    const sentry = g.world.query("rift-sentry")[0]!;
+    const p = player(g);
+    p.x = sentry.cx - 140 - p.w / 2; // park within range (320px), to the sentry's left, on the floor
+    p.vx = 0;
+    p.state.hp = 1; // a sliver — the next bolt is lethal
+    let died = false;
+    g.world.events.on("died", () => (died = true));
+    let sawBolt = false;
+    for (let f = 0; f < 240 && !died; f++) {
+      if (g.world.query("bolt").length > 0) sawBolt = true; // the turret actually launched a projectile
+      g.stepFrames(1);
+    }
+    expect(sawBolt).toBe(true); // ai-aim-and-fire spawned a bolt
+    expect(died).toBe(true); // its damage drove the PLAYER's health-and-death → the one canonical death
+    expect(g.world.query("player").length).toBe(0); // destroyed via the standard death flow (FX bind here)
+  });
+});

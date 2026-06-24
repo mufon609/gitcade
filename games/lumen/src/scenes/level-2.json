@@ -9534,6 +9534,92 @@
       ]
     },
     {
+      "id": "rift-sentry-0",
+      "sprite": {
+        "kind": "image",
+        "src": "assets/lumen/riftsentry.png"
+      },
+      "size": {
+        "w": 24,
+        "h": 24
+      },
+      "position": {
+        "x": 8388,
+        "y": 616
+      },
+      "tags": [
+        "rift-sentry"
+      ],
+      "layer": 3,
+      "behaviors": [
+        {
+          "type": "ai-aim-and-fire",
+          "part": "ai-aim-and-fire@1.1.0",
+          "params": {
+            "targetTag": "player",
+            "range": "$cfg.sentryRange",
+            "cooldown": "$cfg.sentryCooldown",
+            "projectileSpeed": "$cfg.sentryBulletSpeed",
+            "projectile": {
+              "id": "bolt",
+              "sprite": {
+                "kind": "shape",
+                "shape": "circle",
+                "color": "#ff4fb0",
+                "stroke": "#070512",
+                "strokeWidth": 1
+              },
+              "size": {
+                "w": 10,
+                "h": 10
+              },
+              "tags": [
+                "bolt"
+              ],
+              "layer": 3,
+              "behaviors": [
+                {
+                  "type": "velocity",
+                  "params": {}
+                },
+                {
+                  "type": "contact-damage",
+                  "part": "contact-damage@1.0.0",
+                  "params": {
+                    "targetTag": "player",
+                    "damage": "$cfg.sentryBulletDamage",
+                    "selfDestruct": true,
+                    "sound": "hit"
+                  }
+                },
+                {
+                  "type": "health-and-death",
+                  "part": "health-and-death@1.1.0",
+                  "params": {
+                    "hp": "$cfg.sentryBulletHp",
+                    "lifespan": "$cfg.sentryBulletLifespan",
+                    "deathSound": ""
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "tween",
+          "part": "tween@1.0.0",
+          "params": {
+            "property": "scale",
+            "from": 1,
+            "to": 1.15,
+            "duration": "$cfg.sentryPulseDuration",
+            "easing": "in-out-quad",
+            "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
       "id": "mote-26",
       "sprite": {
         "kind": "sheet",
@@ -9769,6 +9855,81 @@
             "duration": "$cfg.moteBobDuration",
             "easing": "in-out-quad",
             "loop": "pingpong"
+          }
+        }
+      ]
+    },
+    {
+      "id": "hunter-0",
+      "sprite": {
+        "kind": "sheet",
+        "src": "assets/lumen/voidhound.png",
+        "frameWidth": 24,
+        "frameHeight": 24,
+        "frameCount": 2,
+        "fps": 4,
+        "animations": {
+          "hover": {
+            "from": 0,
+            "to": 1,
+            "fps": 4
+          }
+        }
+      },
+      "size": {
+        "w": 24,
+        "h": 24
+      },
+      "position": {
+        "x": 9152,
+        "y": 448
+      },
+      "tags": [
+        "hunter"
+      ],
+      "layer": 4,
+      "behaviors": [
+        {
+          "type": "ai-chase",
+          "part": "ai-chase@1.0.0",
+          "params": {
+            "targetTag": "player",
+            "speed": "$cfg.hunterSpeed",
+            "stopDistance": "$cfg.hunterStopDistance",
+            "lockAxis": "none"
+          }
+        },
+        {
+          "type": "velocity",
+          "params": {}
+        },
+        {
+          "type": "contact-damage",
+          "part": "contact-damage@1.0.0",
+          "params": {
+            "targetTag": "player",
+            "damage": "$cfg.hunterDamage",
+            "cooldown": "$cfg.damageCooldown"
+          }
+        },
+        {
+          "type": "health-and-death",
+          "part": "health-and-death@1.1.0",
+          "params": {
+            "hp": "$cfg.hunterHp",
+            "deathEvent": "hunter-spent",
+            "deathSound": ""
+          }
+        },
+        {
+          "type": "face-velocity",
+          "part": "face-velocity@1.0.0",
+          "params": {}
+        },
+        {
+          "type": "sprite-animate",
+          "params": {
+            "play": "hover"
           }
         }
       ]

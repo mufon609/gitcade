@@ -721,6 +721,76 @@ function beacon() {
   return g;
 }
 
+/** voidhound (Phase-3 CHASER) — a sleek fuchsia void-hunter: a forward (right) snout, a single menacing
+ *  void eye, a hot core, and a swaying back-tail. 2-frame hover. 24×24 → 48×24. Drawn facing RIGHT (the
+ *  game's face-velocity mirrors it); deliberately LOWER and sleeker than the tall, 3-lobe-tail wraith so
+ *  the two danger-fuchsia enemies read apart at a glance: the wraith patrols, the hound HUNTS. */
+function voidhoundFrame(f) {
+  const g = new Grid(24, 24);
+  const bx = 11; // body center x
+  const cy = 13 - f; // slight vertical hover between the two frames
+  g.radialGlow(bx, cy, 12, 7, C.fuchsia, withA(C.fuchsia, 0), 115);
+  // swaying back-tail — three wispy streaks trailing LEFT, behind a right-facing hunter (sway per frame)
+  const streaks = [[cy - 3, f ? 6 : 8], [cy, f ? 9 : 7], [cy + 3, f ? 6 : 8]];
+  for (const [sy, len] of streaks)
+    for (let i = 0; i < len; i++) {
+      const curl = i > 4 ? (sy < cy ? 1 : sy > cy ? -1 : 0) : 0; // outer tail curls toward the spine
+      g.px(1 + i, sy + curl, withA(lerp(C.fuchsia, C.violet, 0.35 + 0.5 * (i / len)), Math.max(40, 160 - i * 16)));
+    }
+  // body — sleek (low, elongated), lit top, violet underside
+  g.ellipse(bx, cy, 7, 4, C.fuchsia);
+  g.ellipse(bx, cy + 1, 7, 3, lerp(C.fuchsia, C.violet, 0.55));
+  g.ellipse(bx - 1, cy - 1, 5, 2, C.fuchsia);
+  // a SHARP snout tapering to a void-tipped point at the RIGHT edge (the hunting front)
+  for (let i = 0; i <= 6; i++) {
+    const h = Math.max(0, 3 - Math.ceil(i * 0.6));
+    for (let dy = -h; dy <= h; dy++) g.px(bx + 6 + i, cy + dy, lerp(C.fuchsia, C.void, i / 7));
+  }
+  // hot core (back of the body) + a pale gloss
+  g.disc(bx - 2, cy, 2, withA(C.glow, 210));
+  g.px(bx - 2, cy - 1, HOT_CORE);
+  // menacing single void eye-slit forward of center, glint + violet brow (≠ Lumen's round eyes)
+  g.rect(bx + 2, cy - 2, 3, 2, C.void);
+  g.px(bx + 4, cy - 2, C.glow);
+  g.px(bx + 2, cy - 3, C.violet);
+  g.px(bx + 4, cy - 3, C.violet);
+  return g;
+}
+function voidhoundSheet() {
+  const sheet = new Grid(48, 24);
+  sheet.blit(voidhoundFrame(0), 0, 0);
+  sheet.blit(voidhoundFrame(1), 24, 0);
+  return sheet;
+}
+
+/** rift-sentry (Phase-3 TURRET) — an arcane violet eye in a stone socket: concentric violet/glow rings
+ *  around a void core with a hot FUCHSIA pupil (the firing aperture — it lobs fuchsia bolts), orbiting
+ *  sparks, on a teal-lit stone nub that anchors it in the ruins. Stationary; a tween pulses it alive. 24×24. */
+function riftSentry() {
+  const g = new Grid(24, 24);
+  const cx = 12;
+  const cy = 11;
+  g.radialGlow(cx, cy, 12, 12, C.violet, withA(C.violet, 0), 120);
+  // concentric arcane rings (violet ↔ glow), void core — outer→inner overdraw leaves bands
+  for (const [rx, ry, col] of [[10, 10, C.violet], [8, 8, lerp(C.violet, C.glow, 0.4)], [6, 6, C.violet], [4, 4, C.void]]) g.ellipse(cx, cy, rx, ry, col);
+  // the firing aperture — a hot fuchsia pupil in the void core (the danger tell: fuchsia in, fuchsia bolts out)
+  g.disc(cx, cy, 2, C.fuchsia);
+  g.disc(cx, cy, 1, HOT_CORE);
+  // orbiting sparks (seeded → byte-stable)
+  const rnd = mulberry32(0x4101);
+  for (let i = 0; i < 10; i++) {
+    const a = rnd() * Math.PI * 2;
+    const rr = 0.55 + rnd() * 0.45;
+    g.px(cx + Math.round(Math.cos(a) * rr * 9), cy + Math.round(Math.sin(a) * rr * 9), withA(rnd() > 0.5 ? C.glow : C.violet, 140 + Math.floor(rnd() * 90)));
+  }
+  // teal-lit stone nub base — matches the re-keyed play stone (brighter body + bright lit cap)
+  g.rect(6, 20, 12, 4, C.twilight);
+  g.rect(6, 20, 12, 1, C.litcap);
+  g.px(6, 20, C.rim);
+  g.px(17, 20, C.rim);
+  return g;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Generate. Clean ONLY this game's own art subdir (never the whole public/assets,
 // which a later session may also fill with synced library art), then recreate it.
@@ -737,7 +807,9 @@ write("near.png", nearLayer()); // parallax — near mist + light-wisps (factor 
 write("mote.png", moteSheet());
 write("emberstone.png", emberstone());
 write("driftwraith.png", wraithSheet());
+write("voidhound.png", voidhoundSheet()); // Phase-3 chaser — fuchsia void-hunter (2-frame, faces right)
 write("riftgate.png", riftgate());
+write("riftsentry.png", riftSentry()); // Phase-3 turret — arcane violet eye, fuchsia firing aperture
 write("beacon.png", beacon());
 
 console.log(`gen-art (Lumen): wrote ${written.length} PNG(s) to public/assets/lumen/ — ${written.join(", ")}.`);

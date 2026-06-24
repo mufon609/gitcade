@@ -131,6 +131,8 @@
           ["player", "ember"],
           ["player", "wraith"],
           ["player", "spike"],
+          ["player", "hunter"],
+          ["player", "bolt"],
           ["player", "checkpoint"],
           ["player", "rift"],
           ["player", "beacon"],

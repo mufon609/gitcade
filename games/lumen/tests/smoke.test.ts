@@ -256,7 +256,7 @@ describe("lumen level geometry — the mechanical-tightness fixes are ENCODED (c
     expect(apexCol).toBeGreaterThan(0);
     // The solid ledge begins at the apex's NEXT column, at the SAME row: the ramp tops out flush with
     // the ledge (no 32px notch). The climber walks off the ramp onto the ledge — the engine collider
-    // `stepHeight` clears the sub-pixel slope-exit lip there — and walking back the other way simply
+    // `stepHeight` (10) clears the ~half-collider-width (≈8px) slope-exit lip there — and walking back simply
     // descends the ramp with no upward lurch. (Both directions are gated by the traversal test below.)
     const ledgeLeadCol = apexCol + 1;
     expect(isSolid(ledgeLeadCol, apexRow)).toBe(true); // solid ledge flush at the apex row
@@ -361,6 +361,59 @@ describe("lumen hill traversal — the flat-top hill is smooth BOTH directions (
     expect(monotonic).toBe(true);
     expect(maxStall).toBeLessThan(8);
     expect(Math.min(...cxs)).toBeLessThan(56 * TS); // descended past the ramp base (col 56) onto the floor
+  });
+});
+
+describe("lumen lives-respawn prototype — the player is authored TWICE; guard the copy from drifting", () => {
+  // `lives-respawn` clones a `prototype` entity-def on each respawn. The part takes a full prototype
+  // OBJECT — there is no data path to point it at the live `player` entity by id — so play-base authors
+  // the player TWICE: the live entity AND the respawn prototype. With two levels now sharing this one
+  // shell, that duplicate spans a bigger surface, so a drifted copy (a changed collider / stepHeight /
+  // inset / layer, or a behavior added to one copy but not the other) is a real bug. These lock the two
+  // together, allowing ONLY the two deliberate differences:
+  //   (a) the prototype carries NO `position` — lives-respawn supplies the respawn point; and
+  //   (b) the prototype's health-and-death omits `hpStateKey:"carriedHp"` — a fresh LIFE respawns at the
+  //       static $cfg.playerHp, NOT the (possibly-low) hp a level transition carries into the live player.
+  type EntityDef = Record<string, unknown> & { behaviors?: Array<{ type: string; params: Record<string, unknown> }> };
+  const livePlayer = (playBase.entities as unknown as EntityDef[]).find((e) => e.id === "player")!;
+  const respawnSys = (playBase.systems as unknown as Array<{ type: string; params: { prototype: EntityDef } }>).find((s) => s.type === "lives-respawn")!;
+  const proto = respawnSys.params.prototype;
+
+  it("the prototype omits position (lives-respawn supplies the respawn point) and h&d's hpStateKey", () => {
+    expect(livePlayer.position).toBeDefined();
+    expect(proto.position).toBeUndefined();
+    const liveHd = livePlayer.behaviors!.find((b) => b.type === "health-and-death")!;
+    const protoHd = proto.behaviors!.find((b) => b.type === "health-and-death")!;
+    expect(liveHd.params.hpStateKey).toBe("carriedHp"); // the live player re-seeds from the carried hp
+    expect(protoHd.params.hpStateKey).toBeUndefined(); // a fresh life does NOT — it's full $cfg.playerHp
+  });
+
+  it("EVERY other field — sprite, size, tags, collider, layer, and all OTHER behaviors — byte-matches", () => {
+    // Normalize the two sanctioned diffs, then assert full structural equality: anything else that drifts
+    // (a collider inset, the stepHeight, the layer, a behavior added to one copy only) fails LOUDLY here.
+    const norm = (def: EntityDef): EntityDef => {
+      const c = JSON.parse(JSON.stringify(def)) as EntityDef;
+      delete c.position;
+      const hd = c.behaviors!.find((b) => b.type === "health-and-death")!;
+      delete hd.params.hpStateKey;
+      return c;
+    };
+    expect(norm(proto)).toEqual(norm(livePlayer));
+  });
+
+  it("IN-ENGINE: a respawned player (cloned from the prototype) has the SAME collider as the live player", () => {
+    // The data guard above proves the AUTHORED copies match; this proves the engine instantiates the
+    // prototype into a body whose collider (role + inset + stepHeight) is byte-identical to the live one.
+    const g = boot();
+    g.stepFrames(5);
+    const liveCollider = JSON.parse(JSON.stringify(player(g).body.collider)); // snapshot the original, pre-death
+    expect((liveCollider as { stepHeight?: number }).stepHeight).toBe(10); // the seam-clearing knob is live
+    player(g).y = 460; // into the void → lives-respawn clones the prototype after respawnDelay
+    stepUntil(g, () => g.world.query("player").length === 0, 8);
+    g.stepFrames(Math.ceil(config.respawnDelay * 60) + 5);
+    const respawned = player(g);
+    expect(respawned).toBeTruthy();
+    expect(respawned.body.collider).toEqual(liveCollider); // role + inset + stepHeight all identical
   });
 });
 

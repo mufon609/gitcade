@@ -93,7 +93,3 @@ Controls: **← → / A·D** move · **Space / W / ↑** jump · **↓ / S** dro
 - **One canonical death.** Spikes, the void, the hunter's touch, and a rift-sentry bolt all deal lethal
   `contact-damage` (not a raw `kill`), so every death drives the player's `health-and-death` and fires
   the single `died` event the host binds explosion + flash + shake to.
-- **Catalog sync:** `@gitcade/library`'s `package.json` was already `1.13.0` but its generated
-  `CATALOG.json` version header still read `1.12.1` (it only regenerates at publish). Regenerated
-  via `npm run catalog` (version-header only; parts byte-identical) so `part:"id@1.x"` provenance
-  pinned to `1.13.0` resolves. No part definitions changed.

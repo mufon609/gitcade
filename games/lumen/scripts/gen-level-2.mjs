@@ -39,9 +39,10 @@
  *     ground riftgates sit above the floor (`y = surface − 48`): the arrival settles onto footing.
  *  4. `follow-path`/`ai-patrol` steer by the entity CENTER — a mover's waypoints are CENTER coords, and
  *     a vertical lift's top rides flush with a surface when its center y = surface + halfHeight.
- *  5. A walkable slope (tile 2/3) SNAPS feet to its ramp surface; the player collider `stepHeight`
- *     (set in play-base) clears the sub-pixel slope→ledge seam, so the flat-topped HILL walks smoothly
- *     both directions (the exact level-1 construction, re-used here).
+ *  5. A walkable slope (tile 2/3) SNAPS feet to its ramp surface at the entity CENTER, so a climber meets
+ *     the slope→ledge seam with its foot ~half a collider-width (≈8px) below the ledge top — a small lip.
+ *     The player collider `stepHeight:10` (set in play-base) STEPS the body up onto it, so the flat-topped
+ *     HILL walks smoothly both directions (the exact level-1 construction, re-used here).
  *  6. A ladder (tile 4) is climbable while the player's CENTER is over a ladder cell — so a climb-UP
  *     cache rises from a ledge with its bottom cell at the stander's center row (the level-1 pattern).
  */

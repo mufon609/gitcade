@@ -37,13 +37,13 @@
 
   "hunterSpeed": 70,
   "hunterStopDistance": 8,
-  "hunterDamage": 1,
+  "hunterDamage": 0.5,
   "hunterHp": 4,
 
   "sentryRange": 320,
   "sentryCooldown": 1.5,
   "sentryBulletSpeed": 150,
-  "sentryBulletDamage": 1,
+  "sentryBulletDamage": 0.5,
   "sentryBulletHp": 1,
   "sentryBulletLifespan": 2.6,
   "sentryPulseDuration": 1.0,

@@ -14,6 +14,31 @@
       }
     }
   ],
+  "background": {
+    "color": "#120a30",
+    "layers": [
+      {
+        "src": "assets/lumen/sky2.png",
+        "scrollX": 0,
+        "parallaxX": 0
+      },
+      {
+        "src": "assets/lumen/far2.png",
+        "scrollX": 0,
+        "parallaxX": 0.2
+      },
+      {
+        "src": "assets/lumen/mid2.png",
+        "scrollX": 0,
+        "parallaxX": 0.5
+      },
+      {
+        "src": "assets/lumen/near2.png",
+        "scrollX": 0,
+        "parallaxX": 0.8
+      }
+    ]
+  },
   "tilemap": {
     "tileSize": 32,
     "tileset": "assets/lumen/tiles.png",

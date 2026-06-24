@@ -432,6 +432,24 @@ entities.push({
   behaviors: [{ type: "contact-damage", part: "contact-damage@1.0.0", params: { targetTag: "player", damage: "$cfg.voidDamage", cooldown: "$cfg.damageCooldown", sound: "hit" } }],
 });
 
+// --- background (level-2's OWN sky — "THE DUSK DEEPENS") --------------------
+// Under scene `extends`, a re-declared `background` REPLACES the inherited one wholesale (the SDK
+// resolves it as `child.background ?? base.background` — a whole-object swap, not a merge). So this
+// swaps ONLY level-2's sky to the shifted "dusk deepens" parallax set (sky2/far2/mid2/near2.png from
+// gen-art.mjs); level-1, which declares no `background`, keeps the shared play-base shell's untouched.
+// Same 4-layer structure + the SAME parallax factors as the shell — only the layer ART differs.
+// `background` is render-only (NOT in snapshotWorld), so a sky swap cannot affect byte-replay, either
+// Echo, or the cross-engine determinism golden.
+const background = {
+  color: "#120a30", // matches sky2.png's TOP (the L2 `dusk2` hue) so any uncovered gap reads as more sky
+  layers: [
+    { src: "assets/lumen/sky2.png", scrollX: 0, parallaxX: 0 },
+    { src: "assets/lumen/far2.png", scrollX: 0, parallaxX: 0.2 },
+    { src: "assets/lumen/mid2.png", scrollX: 0, parallaxX: 0.5 },
+    { src: "assets/lumen/near2.png", scrollX: 0, parallaxX: 0.8 },
+  ],
+};
+
 // --- scene ------------------------------------------------------------------
 const scene = {
   id: "level-2",
@@ -440,6 +458,7 @@ const scene = {
   // The one field-level patch a taller level needs: drop the inherited (level-1-tuned) player spawn onto
   // level-2's row-21 floor. Everything else — sprite, collider, behaviors, the whole shell — is inherited.
   overrides: [{ id: "player", position: { x: 64, y: FLOOR_TOP_Y - 24 } }],
+  background, // level-2's OWN sky (the inherited play-base background is replaced wholesale; see above)
   tilemap: { tileSize: TS, tileset: "assets/lumen/tiles.png", cols: COLS, rows: ROWS, tiles, properties },
   entities,
 };

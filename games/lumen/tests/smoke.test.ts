@@ -677,8 +677,13 @@ describe("lumen level-2 — the two-path world (structure ENCODED + both paths r
       hold(g, "Space", jumpHeld);
       g.stepFrames(1);
     }
+    const finalHp = (player(g)?.state.hp as number) ?? 0; // the player persists at the Beacon (clear ≠ death)
     expect(over).toBe(false); // never bottomed out in the void
     expect(cleared).toBe(true); // reached the Beacon along the ground
+    // EASY-MARGIN GUARD: the no-dodge ground run eats at most the hunter's brush + one sentry bolt
+    // (0.5 hp each on level-2's eased Phase-3 damage), so it clears with ≥ 2 of 3 hp — comfortably above
+    // the brink. Encoded so a future rebalance that quietly hardens those hits can't erode the margin.
+    expect(finalHp).toBeGreaterThanOrEqual(2);
   });
 
   it("the CLOUDS entry works: stepping into the fork riftgate warps the player up onto cloud footing", () => {
@@ -766,7 +771,7 @@ describe("lumen level-2 Phase-3 — the void HUNTER (chaser) + the RIFT-SENTRY (
     const p = player(g);
     p.x = sentry.cx - 140 - p.w / 2; // park within range (320px), to the sentry's left, on the floor
     p.vx = 0;
-    p.state.hp = 1; // a sliver — the next bolt is lethal
+    p.state.hp = config.sentryBulletDamage; // a sliver = exactly one bolt's damage — the next bolt that connects is lethal
     let died = false;
     g.world.events.on("died", () => (died = true));
     let sawBolt = false;

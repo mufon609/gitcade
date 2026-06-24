@@ -67,6 +67,17 @@ const HEX = {
   skyMagenta: "#b5417a", //  sky dusk band
   horizon: "#ff9a4d", //  warm amber horizon glow
   haze: "#6a5a9c", //  cool atmospheric haze the distant layers fade toward
+  // ── LEVEL-2 SKY variant ("THE DUSK DEEPENS") — a cooler, deeper, more ARCANE dusk for the
+  //    Sundering Reach. ONLY these five atmosphere hues shift; the SAME four layer generators
+  //    (parameterized over a sky-palette) re-render with them into sky2/far2/mid2/near2.png. The
+  //    play layer + hero + level-1 sky are untouched (so player.png/tiles.png/sky.png… stay
+  //    byte-identical). Same depth discipline: no `void` shadow, no full-range litcap/rim edge —
+  //    these are sky/atmosphere hues only, fed to the same back-layer code.
+  dusk2: "#120a30", //  L2 sky TOP — deeper indigo-violet (sunk further toward night)
+  skyPurple2: "#46217e", //  L2 sky mid band — royal violet
+  skyMagenta2: "#8a2f7e", //  L2 sky dusk band — violet-orchid (cooler/more arcane than L1's pink)
+  horizon2: "#d96a72", //  L2 horizon glow — a dusky rose ember (the sun's last red, cooled from amber)
+  haze2: "#574b8e", //  L2 atmospheric haze — a cooler, bluer violet
 };
 
 function hexToRgba(hex) {
@@ -477,16 +488,26 @@ function tilesSheet() {
 // The engine's built-in `background.layers` drift each plane by `world.time` (NOT by
 // camera) — these layers are usable either way; the scroll WIRING is the game session's
 // call. Intended parallax factors it may pick: sky 0 · far ~0.2 · mid ~0.5 · near ~0.8.
+//
+// PER-LEVEL VARIANTS: the four generators take a SKY-PALETTE `S` ({ dusk, skyPurple, skyMagenta,
+// horizon, haze } — the only hues that vary per level). Everything else (the shared `C` play/hero
+// colours used for stars, ridge catch-lights, ruin stone, lit windows, mist) is identical across
+// levels. Called with SKY_L1 → the level-1 set (byte-identical to before, since SKY_L1's hues ARE
+// the original `C` ones) and SKY_L2 → the "dusk deepens" set (→ sky2/far2/mid2/near2.png).
 // ═════════════════════════════════════════════════════════════════════════════
 const SKY_W = 256;
 const SKY_H = 480;
+// The per-level sky palettes (see the HEX block). SKY_L1 threads the ORIGINAL atmosphere hues, so
+// the level-1 planes regenerate byte-for-byte; SKY_L2 threads the shifted "dusk deepens" hues.
+const SKY_L1 = { dusk: C.dusk, skyPurple: C.skyPurple, skyMagenta: C.skyMagenta, horizon: C.horizon, haze: C.haze };
+const SKY_L2 = { dusk: C.dusk2, skyPurple: C.skyPurple2, skyMagenta: C.skyMagenta2, horizon: C.horizon2, haze: C.haze2 };
 
-/** Opaque sky colour at vertical fraction t∈[0,1]: indigo → purple → magenta → amber horizon. */
-function skyColAt(t) {
-  if (t < 0.42) return lerp(C.dusk, C.skyPurple, t / 0.42);
-  if (t < 0.72) return lerp(C.skyPurple, C.skyMagenta, (t - 0.42) / 0.3);
-  if (t < 0.88) return lerp(C.skyMagenta, C.horizon, (t - 0.72) / 0.16);
-  return lerp(C.horizon, lerp(C.horizon, C.glow, 0.45), (t - 0.88) / 0.12); // bright horizon glow band
+/** Opaque sky colour at vertical fraction t∈[0,1] for sky-palette `S`: indigo → purple → magenta → horizon. */
+function skyColAt(t, S) {
+  if (t < 0.42) return lerp(S.dusk, S.skyPurple, t / 0.42);
+  if (t < 0.72) return lerp(S.skyPurple, S.skyMagenta, (t - 0.42) / 0.3);
+  if (t < 0.88) return lerp(S.skyMagenta, S.horizon, (t - 0.72) / 0.16);
+  return lerp(S.horizon, lerp(S.horizon, C.glow, 0.45), (t - 0.88) / 0.12); // bright horizon glow band
 }
 
 /** Seamless 0..1 ridge height from summed integer-harmonic sines (wraps at x=SKY_W → x=0). */
@@ -500,53 +521,53 @@ function ridge(x, harmonics) {
   return 0.5 + 0.5 * (v / norm);
 }
 
-/** sky.png — full OPAQUE gradient sky + faint seamless star scatter. 256×480. */
-function skyLayer() {
+/** sky.png — full OPAQUE gradient sky + faint seamless star scatter, for sky-palette `S`. 256×480. */
+function skyLayer(S) {
   const g = new Grid(SKY_W, SKY_H);
-  for (let y = 0; y < SKY_H; y++) g.hline(0, SKY_W - 1, y, skyColAt(y / (SKY_H - 1)));
+  for (let y = 0; y < SKY_H; y++) g.hline(0, SKY_W - 1, y, skyColAt(y / (SKY_H - 1), S));
   // faint stars in the upper indigo region — drawn OPAQUE (lerp over the sky colour so a
   // star never punches an alpha hole), kept off the x=0/255 seam so the plane tiles cleanly.
   const rnd = mulberry32(0x5001);
   for (let i = 0; i < 70; i++) {
     const x = 3 + Math.floor(rnd() * (SKY_W - 6));
     const y = Math.floor(rnd() * 210);
-    g.px(x, y, lerp(skyColAt(y / (SKY_H - 1)), rnd() > 0.7 ? C.litcap : C.glow, 0.25 + rnd() * 0.5));
+    g.px(x, y, lerp(skyColAt(y / (SKY_H - 1), S), rnd() > 0.7 ? C.litcap : C.glow, 0.25 + rnd() * 0.5));
   }
   return g;
 }
 
-/** far.png — distant peaks + drifting spires, MOST faded (atmospheric). Bottom-anchored. 256×480. */
-function farLayer() {
+/** far.png — distant peaks + drifting spires, MOST faded (atmospheric), for sky-palette `S`. Bottom-anchored. 256×480. */
+function farLayer(S) {
   const g = new Grid(SKY_W, SKY_H);
-  const farCol = lerp(C.skyMagenta, C.haze, 0.55); // dusty mauve, low contrast vs the lower sky
+  const farCol = lerp(S.skyMagenta, S.haze, 0.55); // dusty mauve, low contrast vs the lower sky
   const base = Math.round(SKY_H * 0.58); // ridge sits low on the horizon
   const H = [[1, 1.0, 0.12], [2, 0.5, 0.6], [3, 0.3, 0.27], [6, 0.16, 0.8]];
   for (let x = 0; x < SKY_W; x++) {
     const topY = Math.round(base - ridge(x, H) * (SKY_H * 0.22));
     for (let y = topY; y < SKY_H; y++) {
       const d = (y - topY) / (SKY_H - topY || 1);
-      g.px(x, y, withA(lerp(farCol, lerp(farCol, C.skyPurple, 0.5), d), 205)); // faded; slight depth shift, sky bleeds
+      g.px(x, y, withA(lerp(farCol, lerp(farCol, S.skyPurple, 0.5), d), 205)); // faded; slight depth shift, sky bleeds
     }
-    g.px(x, topY, withA(lerp(farCol, C.rim, 0.18), 215)); // catch-light along the ridge
+    g.px(x, topY, withA(lerp(farCol, C.rim, 0.18), 215)); // subtle ridge catch-light (18% rim — NOT a full-range edge)
   }
   // a few faint distant spires (off-seam) reaching above the ridge
   const rnd = mulberry32(0x5002);
   for (let i = 0; i < 5; i++) {
     const sx = 18 + Math.floor(rnd() * (SKY_W - 36));
     const tip = base - Math.round(SKY_H * 0.26) - Math.floor(rnd() * 40);
-    for (let y = tip; y < base; y++) g.px(sx, y, withA(lerp(farCol, C.skyPurple, 0.3), 205));
+    for (let y = tip; y < base; y++) g.px(sx, y, withA(lerp(farCol, S.skyPurple, 0.3), 205));
     g.px(sx, tip, withA(lerp(farCol, C.rim, 0.2), 200));
   }
   return g;
 }
 
-/** mid.png — drifting-ruin towers, medium fade + a few lit windows. Bottom-anchored. 256×480. */
-function midLayer() {
+/** mid.png — drifting-ruin towers, medium fade + a few lit windows, for sky-palette `S`. Bottom-anchored. 256×480. */
+function midLayer(S) {
   const g = new Grid(SKY_W, SKY_H);
-  const midCol = lerp(C.twilight, C.haze, 0.45); // desaturated indigo — lighter/cooler than play stone
+  const midCol = lerp(C.twilight, S.haze, 0.45); // desaturated indigo — lighter/cooler than play stone
   const baseY = SKY_H - 1;
   // continuous thin haze base band (uniform across x → seamless) grounds the towers
-  for (let i = 0; i < 12; i++) g.hline(0, SKY_W - 1, baseY - i, withA(lerp(midCol, C.dusk, i / 12), 190 - i * 6));
+  for (let i = 0; i < 12; i++) g.hline(0, SKY_W - 1, baseY - i, withA(lerp(midCol, S.dusk, i / 12), 190 - i * 6));
   // broken ruin towers at seeded INTERIOR x (never straddling the x=0/255 seam)
   const rnd = mulberry32(0x5003);
   const towers = [];
@@ -563,7 +584,7 @@ function midLayer() {
       const dd = (yy - topY) / (baseY - topY || 1);
       g.rect(x, yy, w, 1, withA(lerp(midCol, lerp(midCol, C.void, 0.4), dd), 230)); // darkens toward the base
     }
-    g.rect(x, topY, w, 1, withA(lerp(midCol, C.haze, 0.4), 230)); // lit ridge of the broken top
+    g.rect(x, topY, w, 1, withA(lerp(midCol, S.haze, 0.4), 230)); // lit ridge of the broken top
     if (w >= 12) g.rect(x + Math.floor(w / 2), topY - 2, 2, 3, withA(midCol, 230)); // a snapped merlon
     // a couple of faint lit windows (opaque-bright dots; warm or cool)
     const wins = 1 + Math.floor(r * 3);
@@ -576,17 +597,19 @@ function midLayer() {
   return g;
 }
 
-/** near.png — near mist + drifting light-wisps, MOSTLY TRANSPARENT (closest layer). 256×480. */
-function nearLayer() {
+/** near.png — near mist + drifting light-wisps, MOSTLY TRANSPARENT (closest layer), for sky-palette `S`. 256×480. */
+function nearLayer(S) {
   const g = new Grid(SKY_W, SKY_H);
-  // light-wisps (soft glow blobs) drifting mid-height — off-seam, spaced apart so they don't clobber
-  const wisps = [[40, 250, C.litcap, 60], [150, 300, C.horizon, 55], [210, 230, C.glow, 45], [95, 350, C.litcap, 40]];
+  // light-wisps (soft glow blobs) drifting mid-height — off-seam, spaced apart so they don't clobber.
+  // One wisp is keyed to the horizon hue (S.horizon) so the near layer warms with the sky; the rest
+  // are the shared cool litcap/glow light-motes.
+  const wisps = [[40, 250, C.litcap, 60], [150, 300, S.horizon, 55], [210, 230, C.glow, 45], [95, 350, C.litcap, 40]];
   for (const [wx, wy, col, a] of wisps) g.radialGlow(wx, wy, 26, 12, col, withA(col, 0), a);
   // ground mist — soft horizontal bands rising in alpha toward the bottom (uniform → seamless)
   const mistTop = SKY_H - 70;
   for (let y = mistTop; y < SKY_H; y++) {
     const t = (y - mistTop) / 70;
-    g.hline(0, SKY_W - 1, y, withA(lerp(C.haze, C.litcap, 0.25), Math.round(18 + t * 70)));
+    g.hline(0, SKY_W - 1, y, withA(lerp(S.haze, C.litcap, 0.25), Math.round(18 + t * 70)));
   }
   return g;
 }
@@ -800,10 +823,17 @@ mkdirSync(ASSETS, { recursive: true });
 
 write("player.png", lumenSheet()); // REQUIRED — hero sheet (FROZEN this pass — byte-identical)
 write("tiles.png", tilesSheet()); // REQUIRED — Dusklands tileset
-write("sky.png", skyLayer()); // parallax — opaque gradient sky (factor 0)
-write("far.png", farLayer()); // parallax — distant peaks/spires (factor ~0.2)
-write("mid.png", midLayer()); // parallax — drifting-ruin towers (factor ~0.5)
-write("near.png", nearLayer()); // parallax — near mist + light-wisps (factor ~0.8)
+// LEVEL-1 parallax set (SKY_L1 = the original atmosphere hues → byte-identical to the committed files).
+write("sky.png", skyLayer(SKY_L1)); // parallax — opaque gradient sky (factor 0)
+write("far.png", farLayer(SKY_L1)); // parallax — distant peaks/spires (factor ~0.2)
+write("mid.png", midLayer(SKY_L1)); // parallax — drifting-ruin towers (factor ~0.5)
+write("near.png", nearLayer(SKY_L1)); // parallax — near mist + light-wisps (factor ~0.8)
+// LEVEL-2 parallax set (SKY_L2 = the "dusk deepens" hues). Same 4-layer structure + factors; only the
+// sky/atmosphere hues differ. level-2.json declares its OWN `background` pointing at these (gen-level-2.mjs).
+write("sky2.png", skyLayer(SKY_L2)); // L2 parallax — deeper, cooler gradient sky (factor 0)
+write("far2.png", farLayer(SKY_L2)); // L2 parallax — distant peaks/spires (factor ~0.2)
+write("mid2.png", midLayer(SKY_L2)); // L2 parallax — drifting-ruin towers (factor ~0.5)
+write("near2.png", nearLayer(SKY_L2)); // L2 parallax — near mist + light-wisps (factor ~0.8)
 write("mote.png", moteSheet());
 write("emberstone.png", emberstone());
 write("driftwraith.png", wraithSheet());

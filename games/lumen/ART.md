@@ -65,6 +65,20 @@ pass, so they are byte-load-bearing (changing one drifts `player.png`):
 | `horizon`    | `#ff9a4d` | warm amber horizon glow |
 | `haze`       | `#6a5a9c` | cool atmospheric haze the distant layers fade toward |
 
+**Level-2 sky variant — "THE DUSK DEEPENS."** Level-2 (the Sundering Reach) keeps the *exact same*
+four-layer structure and depth discipline but re-keys these five atmosphere hues cooler, deeper, and
+more arcane — the dusk sunk further toward night. ONLY these shift; the play layer, the hero, and
+level-1's sky stay byte-identical. `gen-art.mjs` feeds them to the **same** layer generators
+(parameterized over a sky-palette) to emit `sky2`/`far2`/`mid2`/`near2.png`.
+
+| Name          | Hex       | Role (level-2) |
+|---------------|-----------|----------------|
+| `dusk2`       | `#120a30` | scene base color + sky **top** — deeper indigo-violet |
+| `skyPurple2`  | `#46217e` | sky mid band — royal violet |
+| `skyMagenta2` | `#8a2f7e` | sky dusk band — violet-orchid (cooler/more arcane than L1's pink) |
+| `horizon2`    | `#d96a72` | horizon glow — a dusky rose ember (cooled from L1's amber) |
+| `haze2`       | `#574b8e` | atmospheric haze — a cooler, bluer violet |
+
 **Glow technique:** auras are soft (semi-transparent) radial pixels under an
 opaque body; the host sets `image-rendering: pixelated`, so keep frames small and
 crisp.
@@ -214,6 +228,14 @@ Reference the built-in slot in a scene (layers paint back→front in array order
 }
 ```
 
+**Per-level variants.** Level-2 ships a parallel set — `sky2`/`far2`/`mid2`/`near2.png` — in the
+shifted "dusk deepens" palette (see the Palette section): the *same* 256×480 structure, depth
+discipline, and parallax factors, only the five atmosphere hues re-keyed. Level-2 declares its OWN
+scene `background` pointing at them; under scene `extends` a re-declared `background` REPLACES the
+inherited one wholesale, so level-1 keeps the shared shell's sky and only level-2's swaps.
+`background` is render-only (not in the determinism snapshot), so the swap is purely visual — it can't
+touch byte-replay or the Echoes.
+
 ---
 
 ## Collectibles & props (PNG sprites)
@@ -297,6 +319,10 @@ these exact specs so they stay on-palette:
 | `far.png` | 256×480 | image (parallax) | 1 — transparent above |
 | `mid.png` | 256×480 | image (parallax) | 1 — transparent above |
 | `near.png` | 256×480 | image (parallax) | 1 — mostly transparent |
+| `sky2.png` | 256×480 | image (parallax) | 1 — opaque · **level-2 "dusk deepens" variant** |
+| `far2.png` | 256×480 | image (parallax) | 1 — transparent above · level-2 variant |
+| `mid2.png` | 256×480 | image (parallax) | 1 — transparent above · level-2 variant |
+| `near2.png` | 256×480 | image (parallax) | 1 — mostly transparent · level-2 variant |
 | `mote.png` | 64×16 | sheet (16×16) | 4 |
 | `emberstone.png` | 16×16 | image | 1 |
 | `driftwraith.png` | 48×24 | sheet (24×24) | 2 |

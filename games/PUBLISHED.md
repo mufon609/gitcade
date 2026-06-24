@@ -9,7 +9,7 @@ repo (the platform pipeline is the CI — locked decision). The platform seed sc
 `repoUrl` list below.
 
 Default branch: `main`. Visibility: public. Current release: all six pin
-`@gitcade/sdk@1.10.1` + `@gitcade/library@1.10.0`.
+`@gitcade/sdk@1.12.0` + `@gitcade/library@1.12.1`.
 
 ## Seed games
 
@@ -45,3 +45,27 @@ npx gitcade validate .      # tier=ecosystem: schema + no-magic-numbers + no-raw
 - `partId@version` provenance refs in the scenes resolve against the pinned
   `@gitcade/library` `CATALOG.json` installed in `node_modules` — exercised
   end-to-end by these standalone repos.
+
+## Pending publication
+
+Staged-but-unpublished games live below this marker. They are drafted and ready, but deliberately
+**not** enqueued: [`seed.ts`](../platform/web/scripts/seed.ts) parses only the content *above* this
+heading, and the release tooling iterates the `GAMES` list in
+[`tools/release/lib.mjs`](../tools/release/lib.mjs) (which does not include them). A game stays here
+until its pinned dependencies are live on public npm and its standalone repo exists.
+
+| Slug | Repo URL (to be created) | Tier | Proves |
+|---|---|---|---|
+| lumen | https://github.com/gitcade-games/lumen | ecosystem | side-scrolling platformer; deterministic run-recorder "Echo" replay intro, parallax depth, scrolling screen-space HUD, checkpoints + lives/respawn, two-level campaign with carry-over — the showcase that drove sdk + library **1.13.0** |
+
+**Why lumen is pending:** it pins `@gitcade/sdk@1.13.0` + `@gitcade/library@1.13.0`, which are staged
+on `main` but not yet on public npm (latest is `1.12.0` / `1.12.1`). The build worker installs a
+game's pins from public npm, so lumen cannot build through the pipeline until that release ships.
+
+**To promote it to a live seed game (each step human-gated):**
+1. Publish `sdk@1.13.0` + `library@1.13.0` to npm: `npm run release:publish -- --yes`.
+2. Create the public `gitcade-games/lumen` repo.
+3. Add `"lumen"` to the `GAMES` list in [`tools/release/lib.mjs`](../tools/release/lib.mjs) so the
+   repo-sync + MinIO-artifact steps include it.
+4. Move the lumen row above into the **Seed games** table — `seed.ts` then enqueues it through the
+   normal `publishGame` path, and the worker builds + validates it like any other.

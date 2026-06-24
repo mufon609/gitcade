@@ -27,11 +27,16 @@ const SEED_TAGS: Record<string, string[]> = {
   "tower-defense": ["strategy"],
   "idle-clicker": ["idle"],
   "survival-arena": ["action", "shooter"],
+  // Staged (see PUBLISHED.md → "Pending publication"); inert until lumen is promoted to a seed game.
+  lumen: ["arcade", "platformer"],
 };
 
-/** Pull the seed game repo URLs out of games/PUBLISHED.md (excludes the scaffold). */
+/** Pull the seed game repo URLs out of games/PUBLISHED.md (excludes the scaffold + any pending drafts). */
 function readSeedRepoUrls(): string[] {
-  const md = readFileSync(path.join(repoRoot, "games", "PUBLISHED.md"), "utf8");
+  // Parse ONLY the published sections: everything below a "## Pending publication" marker is a
+  // staged-but-unpublished draft (a game pinning an as-yet-unpublished sdk/library) and must NOT be
+  // enqueued until it's promoted up into the Seed games table.
+  const md = readFileSync(path.join(repoRoot, "games", "PUBLISHED.md"), "utf8").split(/^##\s+Pending\b/m)[0];
   const urls = new Set<string>();
   const re = /https:\/\/github\.com\/[\w.-]+\/[\w.-]+/g;
   for (const m of md.matchAll(re)) {

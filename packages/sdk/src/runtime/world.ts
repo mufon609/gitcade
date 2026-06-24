@@ -165,6 +165,15 @@ export class World {
   /** Fixed-update frame counter. */
   frame = 0;
 
+  /**
+   * Monotonic count of {@link rng} draws since boot — the seeded stream's POSITION. Incremented by the
+   * counting wrapper in the constructor, NOT snapshotted (it is engine bookkeeping, not simulation
+   * state, so it never enters {@link snapshotWorld} and never affects byte-replay identity). A recording
+   * stamps it at its first tick so a level booted IN ISOLATION can fast-forward the seeded stream to the
+   * same phase ({@link advanceRngTo}) — the entropy analogue of the snapshotted carry in {@link state}.
+   */
+  private _rngCalls = 0;
+
   private byIdIndex = new Map<string, Entity>();
   /**
    * Tag → the entities carrying it, in entity-array order — the index behind {@link query}/
@@ -204,9 +213,35 @@ export class World {
     this.input = opts.input ?? new Input();
     this.audio = opts.audio ?? new AudioPlayer();
     this.storage = opts.storage ?? new MemoryStorage();
-    this.rng = opts.rng ?? Math.random;
+    // Wrap the RNG in a COUNTING closure: the underlying stream is unchanged (same values, same order
+    // — the cross-engine determinism fingerprint is untouched), but every draw advances `_rngCalls`, so
+    // the seeded stream's POSITION is observable. A recording stamps that position (RunRecording.
+    // entryRngCalls) and createReplay restores it via advanceRngTo — the entropy analogue of restoring
+    // `state`, so a mid-campaign level replays at the right RNG phase even booted in isolation.
+    const baseRng = opts.rng ?? Math.random;
+    this.rng = () => {
+      this._rngCalls += 1;
+      return baseRng();
+    };
     this.persist = opts.persist;
     this.input.setWorldSize(opts.bounds.width, opts.bounds.height);
+  }
+
+  /** The seeded RNG stream's current POSITION — how many times {@link rng} has been drawn since boot. */
+  get rngCalls(): number {
+    return this._rngCalls;
+  }
+
+  /**
+   * Fast-forward the seeded RNG to the absolute draw position `target`, advancing the stream (never
+   * rewinding). {@link createReplay} uses it to restore the RNG PHASE a recording was made at, so a
+   * level booted IN ISOLATION (a fresh seeded Game at the recorded scene) resumes the exact stream
+   * position the recorded run had on entry — the entropy analogue of restoring {@link state}. It is a
+   * NO-OP when already at or past `target`, so a replay that reached the level by re-playing the prior
+   * levels (already in phase) is never double-advanced.
+   */
+  advanceRngTo(target: number): void {
+    while (this._rngCalls < target) this.rng();
   }
 
   /** Add an already-built entity to the world. */

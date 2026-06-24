@@ -228,3 +228,106 @@ describe("faithful arbitrary-level replay (entryState capture + restore, primiti
     expect(seen).toEqual(origSnaps);
   });
 });
+
+/**
+ * 1.13.0 (Phase 1b) — RNG-PHASE capture. entryState alone is not enough when the levels BEFORE the one
+ * being replayed CONSUMED entropy: the seeded RNG is ONE continuous stream across scenes (loadScene
+ * never re-seeds it), so a mid-campaign level begins at a NON-ZERO stream position. A fresh isolation
+ * boot starts that stream at 0, so without restoring the phase it draws different rng values from tick 0
+ * and diverges — even with the carried world.state restored. `RunRecording.entryRngCalls` captures the
+ * position; createReplay fast-forwards via `world.advanceRngTo` before tick 0. The fixture above kept
+ * level-1 rng-free to isolate entryState; THIS one makes level-1 burn rng every tick so the phase is the
+ * thing under test.
+ */
+describe("faithful replay across an rng-CONSUMING prior level (entryRngCalls, primitive 3)", () => {
+  const rngBurner: BehaviorFn = (e, world) => {
+    e.x += world.rng(); // one rng draw per tick → level-1 advances the seeded stream
+  };
+  function registryBurn(): Registry {
+    const r = createDefaultRegistry();
+    r.registerBehavior("rng-burner", rngBurner);
+    r.registerBehavior("carried-hp-bleeder", carriedHpBleeder);
+    return r;
+  }
+  // level-1 here CONSUMES rng each tick (and still carries `carriedHp`); level-2 is the same rng-driven,
+  // carry-seeded bleeder as the fixture above.
+  const level1Burns = {
+    id: "level-1",
+    size: { width: 200, height: 200 },
+    entities: [
+      { id: "burner", sprite: { kind: "none" }, size: { w: 8, h: 8 }, position: { x: 0, y: 0 }, behaviors: [{ type: "rng-burner", params: {} }] },
+    ],
+    systems: [],
+    flow: { persist: ["carriedHp"] },
+  };
+  const rawBurn: RawGameSources = { manifest, config, scenes: [level1Burns, level2] };
+  const LEVEL1_TICKS = 9;
+
+  /** Record a level-2 run reached through an rng-CONSUMING level-1, so the stream phase at entry is non-zero. */
+  function recordL2AfterBurningL1(): { rec: RunRecording; origSnaps: string[] } {
+    const g = createGame(rawBurn, { canvas: null, registry: registryBurn(), seed: SEED, record: true });
+    expect(g.scene.id).toBe("level-1");
+    g.stepFrames(LEVEL1_TICKS); // level-1 draws rng every tick → the seeded stream advances
+    g.world.state.carriedHp = PARTIAL_HP;
+    g.requestNextLevel();
+    g.stepFrames(1); // drain the transition → level-2 active, carriedHp carried
+    expect(g.scene.id).toBe("level-2");
+    g.resetRecording(); // re-arm: frame 0 captures level-2's entryState AND the non-zero RNG phase
+    const origSnaps = driveSnaps(g, N);
+    return { rec: g.getRecording(), origSnaps };
+  }
+
+  it("captures a NON-ZERO entryRngCalls (level-1 advanced the seeded stream)", () => {
+    const { rec } = recordL2AfterBurningL1();
+    expect(rec.entryRngCalls).toBeGreaterThan(0); // the carried RNG phase
+    expect(rec.entryState!.carriedHp).toBe(PARTIAL_HP); // entryState is still carried too
+  });
+
+  it("isolation replay restores the RNG phase → byte-for-byte (THE primitive-3 property)", () => {
+    const { rec, origSnaps } = recordL2AfterBurningL1();
+    const replayGame = createGame(rawBurn, { canvas: null, registry: registryBurn(), seed: rec.seed, entrySceneId: "level-2" });
+    expect(replayGame.world.rngCalls).toBe(0); // a fresh isolation boot starts at stream position 0
+    const replay = createReplay(replayGame, rec); // restores entryState + fast-forwards rng to entryRngCalls
+    const seen: string[] = [];
+    while (!replay.done) {
+      replay.step();
+      seen.push(snapshotWorld(replay.game.world));
+    }
+    expect(seen).toEqual(origSnaps); // faithful even though level-1 consumed entropy
+  });
+
+  it("WITHOUT the restored RNG phase the isolation boot DIVERGES (proves entryRngCalls is load-bearing)", () => {
+    const { rec, origSnaps } = recordL2AfterBurningL1();
+    // Strip ONLY the phase (keep entryState): carriedHp is right, but the rng starts at position 0 instead
+    // of the recorded phase, so the bleeder's rng-driven trajectory differs from the very first tick.
+    const stripped: RunRecording = { ...rec, entryRngCalls: undefined };
+    const replayGame = createGame(rawBurn, { canvas: null, registry: registryBurn(), seed: rec.seed, entrySceneId: "level-2" });
+    const replay = createReplay(replayGame, stripped);
+    const seen: string[] = [];
+    while (!replay.done) {
+      replay.step();
+      seen.push(snapshotWorld(replay.game.world));
+    }
+    expect(seen).not.toEqual(origSnaps); // wrong rng phase → diverged
+  });
+
+  it("advanceRngTo NO-OPS for a campaign-path replay (already in phase → no double-advance)", () => {
+    // A replay that reaches level-2 by RE-PLAYING level-1 already has the rng in phase; the fast-forward
+    // must be a no-op, not a second advance. This is what keeps a via-level-1 Echo path valid (lumen's).
+    const { rec, origSnaps } = recordL2AfterBurningL1();
+    const replayGame = createGame(rawBurn, { canvas: null, registry: registryBurn(), seed: rec.seed });
+    replayGame.stepFrames(LEVEL1_TICKS);
+    replayGame.world.state.carriedHp = PARTIAL_HP;
+    replayGame.requestNextLevel();
+    replayGame.stepFrames(1);
+    expect(replayGame.scene.id).toBe("level-2");
+    expect(replayGame.world.rngCalls).toBe(rec.entryRngCalls); // reached the SAME phase via the campaign
+    const replay = createReplay(replayGame, rec); // advanceRngTo(entryRngCalls) → no-op (already there)
+    const seen: string[] = [];
+    while (!replay.done) {
+      replay.step();
+      seen.push(snapshotWorld(replay.game.world));
+    }
+    expect(seen).toEqual(origSnaps); // not double-advanced
+  });
+});

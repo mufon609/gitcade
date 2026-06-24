@@ -7,10 +7,12 @@ import type { Input } from "./input.js";
  * {@link runDeterminismCheck}): a fixed-timestep run is a pure function of its seed, its per-frame
  * input, and its STARTING world state. So a run is fully captured by `(seed, fixedDt, the per-tick
  * input stream)` plus — for a level entered MID-CAMPAIGN, not from a fresh boot — the carried
- * `world.state` it started from ({@link RunRecording.entryState}). Re-driving a FRESH `seededRng(seed)`
- * Game, with that entry state restored, through that same input reproduces the original world state
- * BYTE-FOR-BYTE at every tick. The entry state is what lets a level be replayed IN ISOLATION (booted
- * directly at its own scene) rather than only by re-playing every level before it.
+ * `world.state` it started from ({@link RunRecording.entryState}) AND the seeded-RNG PHASE it started at
+ * ({@link RunRecording.entryRngCalls}, the stream position the prior levels left it at). Re-driving a
+ * FRESH `seededRng(seed)` Game, with that entry state restored and the RNG fast-forwarded to that phase,
+ * through that same input reproduces the original world state BYTE-FOR-BYTE at every tick. Those two are
+ * what let a level be replayed IN ISOLATION (booted directly at its own scene) rather than only by
+ * re-playing every level before it.
  *
  * Two halves, both browser-safe (no `node:` built-ins, exactly like {@link snapshotWorld}):
  *  - {@link RunRecorder} — sampled once per tick at the TOP of {@link Game.update} (guarded so a
@@ -85,6 +87,19 @@ export interface RunRecording {
    */
   entryState?: Record<string, unknown>;
   /**
+   * OPTIONAL entry RNG phase: the seeded stream's POSITION (`world.rngCalls`) at the recording's FIRST
+   * captured tick — how many times the RNG had been drawn before this segment began. A level entered
+   * mid-campaign starts at a NON-ZERO phase (prior levels consumed entropy), and the RNG is ONE
+   * continuous stream across scenes, so an isolation boot (a fresh seeded Game whose RNG is at position
+   * 0) must fast-forward to this phase before tick 0 or it draws different values and diverges. {@link
+   * createReplay} restores it via {@link World.advanceRngTo}; together with {@link entryState} it makes a
+   * level fully self-contained. BACKWARD-COMPATIBLE and NON-versioned: a recording without it (older, or
+   * a from-scratch entry-level run whose phase is 0) skips the fast-forward and replays exactly as
+   * before, so `schemaVersion` is unchanged. (`advanceRngTo` no-ops when a replay already reached the
+   * phase by re-playing the prior levels, so a campaign-path replay is never double-advanced.)
+   */
+  entryRngCalls?: number;
+  /**
    * OPTIONAL integrity check: {@link snapshotWorld} of the world after the last tick (a STRING, not
    * a hash — browser-safe). The recorder does not stamp it (it samples at tick TOP, pre-tick); a
    * consumer sets it post-run and a replay confirms its final snapshot matches.
@@ -154,6 +169,13 @@ export class RunRecorder {
    * until frame 0 captures it (and again after {@link reset}, so a re-arm re-captures the NEW level's).
    */
   private entryState: Record<string, unknown> | null = null;
+  /**
+   * The seeded RNG's POSITION (`world.rngCalls`) at this buffer's frame 0 — the stream phase the level
+   * was entered at, stamped into {@link RunRecording.entryRngCalls}. `null` until frame 0 captures it
+   * (and again after {@link reset}). `null` (NOT 0) is the unset sentinel because 0 is a VALID phase
+   * (a from-scratch entry-level run whose stream is untouched).
+   */
+  private entryRngCalls: number | null = null;
 
   constructor(
     private readonly seed: number,
@@ -174,14 +196,17 @@ export class RunRecorder {
    * once (capturing both buffers would double-count it), and replay re-injects via {@link Input.tap}
    * to restore both edges. Held-pointer / drag streams are out of scope.
    *
-   * Frame 0 ALSO deep-copies `world.state` into {@link entryState} — the carried slice this level was
-   * entered with — so an isolation replay can restore it before tick 0. Still pure-read: it copies the
-   * state and mutates nothing, so the simulation is byte-identical whether or not a recorder is attached.
+   * Frame 0 ALSO deep-copies `world.state` into {@link entryState} and stamps the RNG phase
+   * (`rngCalls`) into {@link entryRngCalls} — the carried slice + seeded-stream position this level was
+   * entered with — so an isolation replay can restore both before tick 0. Still pure-read: it copies the
+   * state + reads a counter and mutates nothing, so the simulation is byte-identical whether or not a
+   * recorder is attached.
    */
-  capture(sceneId: string, input: Input, state: Record<string, unknown>): void {
+  capture(sceneId: string, input: Input, state: Record<string, unknown>, rngCalls: number): void {
     if (this.tick === 0) {
       this.startSceneId = sceneId;
       this.entryState = cloneState(state);
+      this.entryRngCalls = rngCalls;
     }
     const held = input.heldKeys(); // already a sorted copy
     const presses = input.justPressed();
@@ -206,6 +231,7 @@ export class RunRecorder {
     this.lastHeld = null;
     this.startSceneId = null;
     this.entryState = null; // re-captured at the next frame 0 (the NEW level's entry state)
+    this.entryRngCalls = null; // re-captured at the next frame 0 (the NEW level's RNG phase)
   }
 
   /**
@@ -231,6 +257,7 @@ export class RunRecorder {
         ...(fr.taps ? { taps: fr.taps.map((t) => ({ x: t.x, y: t.y })) } : {}),
       })),
       ...(this.entryState ? { entryState: cloneState(this.entryState) } : {}),
+      ...(this.entryRngCalls !== null ? { entryRngCalls: this.entryRngCalls } : {}),
     };
   }
 }
@@ -248,10 +275,11 @@ export class RunRecorder {
  * ```
  *
  * Booting at `rec.sceneId` makes the game start in the recorded level; when the recording carries an
- * {@link RunRecording.entryState} (a mid-campaign level), createReplay restores it onto `world.state`
- * BEFORE the first {@link ReplayController.step}, so a level booted IN ISOLATION resumes from the same
- * carried state — no need to re-play the levels before it. A recording without `entryState` skips the
- * restore and replays exactly as before.
+ * {@link RunRecording.entryState} / {@link RunRecording.entryRngCalls} (a mid-campaign level),
+ * createReplay restores that carried `world.state` AND fast-forwards the seeded RNG to the recorded
+ * phase BEFORE the first {@link ReplayController.step}, so a level booted IN ISOLATION resumes from the
+ * same carried state AND the same RNG stream position — no need to re-play the levels before it. A
+ * recording without those (older, or a from-scratch entry level) skips both and replays exactly as before.
  *
  * Validates `recording.schemaVersion` and throws on a mismatch — a recording from an incompatible
  * format must fail loudly, never silently mis-replay.
@@ -291,6 +319,15 @@ class ReplayDriver implements ReplayController {
       const state = game.world.state;
       for (const k of Object.keys(state)) delete state[k];
       Object.assign(state, cloneState(recording.entryState));
+    }
+    // Restore the seeded-RNG PHASE: fast-forward this fresh game's stream to the position the recorded
+    // run was at on entry. An isolation boot starts at position 0, so the prior levels' entropy is
+    // replayed as a single advance; a replay that reached the level by re-playing the prior levels is
+    // already in phase, so advanceRngTo no-ops (never double-advances). Without it, a level whose prior
+    // levels consumed entropy would draw different rng values from tick 0 and diverge. Skipped (no-op)
+    // when the recording carries no phase — an older recording, or a from-scratch entry level (phase 0).
+    if (recording.entryRngCalls !== undefined) {
+      game.world.advanceRngTo(recording.entryRngCalls);
     }
   }
 

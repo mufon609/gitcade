@@ -2,7 +2,7 @@
   "name": "Lumen: Echoes of the Dusklands",
   "slug": "lumen",
   "description": "Guide Lumen, a luminous wisp, left-to-right across the drifting twilight ruins of the Dusklands. Every attempt opens with a skippable Echo — a deterministic replay of your last run.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "1.13.0",
   "libraryVersion": "1.13.0",

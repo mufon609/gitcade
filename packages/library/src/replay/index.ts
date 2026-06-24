@@ -24,3 +24,12 @@ export {
 } from "./replay-intro.js";
 
 export { attachReplayLoop, type ReplayLoopOptions } from "./replay-loop.js";
+
+/**
+ * {@link restoreRecordingEntry} — the LIVE-game counterpart to {@link createReplay}'s entry restore.
+ * Re-applies a recording's captured entry-state + seeded-RNG phase onto a fresh Game booted DIRECTLY at
+ * a mid-campaign level, so a live re-entry (a retry, a level-select) resumes from the same carried slice
+ * the level was reached with — and lines up with the Echo of that recording. Host-side CODE, no CATALOG
+ * entry. (sdk 1.13.0 — uses createGame `entrySceneId` + `RunRecording.entryState`/`entryRngCalls`.)
+ */
+export { restoreRecordingEntry } from "./restore-entry.js";

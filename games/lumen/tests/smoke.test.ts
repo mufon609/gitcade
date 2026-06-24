@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { createGame, createReplay, snapshotWorld, type Game } from "@gitcade/sdk";
-import { createLibraryRegistry } from "@gitcade/library";
+import { createLibraryRegistry, restoreRecordingEntry } from "@gitcade/library";
 import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
+import { createCampaign } from "../src/campaign.js";
 import manifest from "../game.json";
 import config from "../config.json";
 import playBase from "../src/scenes/play-base.json";
@@ -57,6 +58,18 @@ function bootL2(opts: { seed?: number; record?: boolean } = {}): Game {
   g.requestNextLevel();
   g.stepFrames(1); // drain the queued transition → level-2 is now the active scene
   return g;
+}
+
+// Boot DIRECTLY at any scene in ISOLATION (createGame's entrySceneId) — the per-level Echo / live-retry
+// boot path main.ts uses (the Phase-2 attract loop and a mid-campaign retry both enter a level this way,
+// then restore the recording's entry-state). Unlike bootL2, NO level before it is played.
+function isoBoot(sceneId: string, opts: { seed?: number; record?: boolean } = {}): Game {
+  const registry = createLibraryRegistry();
+  registerCustomBehaviors(registry);
+  return createGame(
+    { manifest, config, scenes: [playBase, level1, level2] },
+    { canvas: null, registry, entrySceneId: sceneId, seed: opts.seed ?? SEED, record: opts.record },
+  );
 }
 
 // --- tilemap helpers for the structural assertions (read straight off the generated scene) ---
@@ -1076,5 +1089,109 @@ describe("lumen EASY difficulty — generous checkpoints + no blind jumps onto h
         expect(spikeCols.includes(c - k)).toBe(false);     // …and the approach itself is spike-free
       }
     }
+  });
+});
+
+describe("lumen Phase-2 — the Echo shows the level you're ON + the end-of-level CHOICE", () => {
+  // The PURE campaign-nav policy main.ts reads off manifest.levels (the choice's advance-vs-re-enter
+  // targets + the per-level Echo key) — factored into src/campaign.ts so it's tested without the DOM glue.
+  const campaign = createCampaign(manifest.levels as string[]);
+
+  it("(b) choice nav: Continue advances to the next level, Replay re-enters the cleared one, the final level wins", () => {
+    expect(campaign.first).toBe("level-1"); // the campaign start, and where a win restarts
+    // Clearing a NON-final level offers the choice: Continue → the NEXT level; Replay → the SAME level.
+    expect(campaign.isFinal("level-1")).toBe(false);
+    expect(campaign.next("level-1")).toBe("level-2"); // Continue target
+    // (Replay's target is the just-cleared level itself — identity, exercised by the live re-entry test below.)
+    // The FINAL level has no `next` → no choice card; clearing it wins.
+    expect(campaign.isFinal("level-2")).toBe(true);
+    expect(campaign.next("level-2")).toBeNull();
+    // The Echo/recording key is per-level — a level-2 player surfaces run:level-2, NOT run:level-1.
+    expect(campaign.runKey("level-1")).toBe("run:level-1");
+    expect(campaign.runKey("level-2")).toBe("run:level-2");
+  });
+
+  it("(a) the Echo surfaced for a level-2 player is THIS level's run, and it replays byte-for-byte booted IN ISOLATION", () => {
+    // Record a real level-2 run the campaign way (enter level-2, re-arm) — the recording the host persists
+    // under run:level-2 and surfaces when the player is ON level-2.
+    const rec0 = bootL2({ seed: SEED, record: true });
+    rec0.resetRecording();
+    const origSnaps: string[] = [];
+    rec0.world.input.setKey("ArrowRight", true);
+    for (let f = 0; f < 90; f++) {
+      if (f === 20) rec0.world.input.setKey("Space", true);
+      if (f === 24) rec0.world.input.setKey("Space", false);
+      rec0.stepFrames(1);
+      origSnaps.push(snapshotWorld(rec0.world));
+    }
+    const recording = rec0.getRecording();
+    // The surfaced recording is rooted at the level the player is on — level-2, NOT level-1 (the old bug).
+    expect(recording.sceneId).toBe("level-2");
+    expect(campaign.runKey(recording.sceneId)).toBe("run:level-2");
+    expect(recording.entryState?.level).toBe(2); // the carried slice the level was entered with
+
+    // THE ECHO PATH (what main.ts's attachReplayLoop now does): boot the replay game DIRECTLY at the
+    // recorded level via entrySceneId — NOT by re-playing level-1 — and let createReplay restore the
+    // recording's entry-state + RNG phase before tick 0. The level-2 Echo, booted in isolation.
+    const echoGame = isoBoot("level-2", { seed: recording.seed });
+    expect(echoGame.scene.id).toBe("level-2");
+    expect(echoGame.world.state.level).toBe(2);
+    const replay = createReplay(echoGame, recording);
+    const seen: string[] = [];
+    while (!replay.done) {
+      replay.step();
+      seen.push(snapshotWorld(replay.game.world));
+    }
+    expect(seen.length).toBe(90);
+    expect(seen).toEqual(origSnaps); // the level-2 Echo lines up byte-for-byte, booted in isolation
+  });
+
+  it("(a) the level-1 Echo (fresh start / post-win) replays in isolation too — its entry is a no-op { level: 1 }", () => {
+    // After a win the loop restarts at level-1; its Echo boots level-1 fresh. Its entryState is just
+    // { level: 1 }, so the isolation boot + restore replays it exactly like the boot path — no desync.
+    const rec = boot({ seed: SEED, record: true });
+    const origSnaps: string[] = [];
+    rec.world.input.setKey("ArrowRight", true);
+    for (let f = 0; f < 60; f++) {
+      rec.stepFrames(1);
+      origSnaps.push(snapshotWorld(rec.world));
+    }
+    const recording = rec.getRecording();
+    expect(recording.sceneId).toBe("level-1");
+    expect(recording.entryState).toEqual({ level: 1 }); // nothing is carried into the first level
+    const echoGame = isoBoot("level-1", { seed: recording.seed });
+    const replay = createReplay(echoGame, recording);
+    const seen: string[] = [];
+    while (!replay.done) {
+      replay.step();
+      seen.push(snapshotWorld(replay.game.world));
+    }
+    expect(seen).toEqual(origSnaps);
+  });
+
+  it("(b) a LIVE retry of level-2 resumes from the recorded entry (restoreRecordingEntry) — the carry the Echo replays from", () => {
+    // The retry-into-level-2 path: after dying in level-2, the host boots level-2 LIVE and restores the
+    // recording's entry-state, so the live run starts from the carried hp/motes the Echo replays from —
+    // NOT a from-scratch full-hp boot. Record a partial-hp level-2 entry, then restore it onto a fresh boot.
+    const rec0 = boot({ seed: SEED, record: true });
+    rec0.stepFrames(2);
+    rec0.world.state.carriedHp = 1; // arrive in level-2 on a sliver (the host stashes hp on the clear)
+    rec0.world.state.motes = 9; // …with some banked motes
+    rec0.requestNextLevel();
+    rec0.stepFrames(1); // drain → level-2 active, carry persisted via flow.persist
+    rec0.resetRecording();
+    rec0.stepFrames(20);
+    const recording = rec0.getRecording();
+    expect(recording.entryState?.carriedHp).toBe(1);
+    expect(recording.entryState?.motes).toBe(9);
+
+    // The LIVE retry: a fresh isolation boot at level-2 starts from DEFAULTS until the entry is restored.
+    const live = isoBoot("level-2", { seed: recording.seed });
+    expect(live.world.state.carriedHp).toBeUndefined();
+    restoreRecordingEntry(live, recording);
+    expect(live.world.state.carriedHp).toBe(1); // resumes the carried sliver…
+    expect(live.world.state.motes).toBe(9); // …and the banked motes
+    live.stepFrames(1); // the level-2 player re-seeds hp from the carried 1 (NOT full playerHp)
+    expect(player(live)!.state.hp).toBe(1);
   });
 });

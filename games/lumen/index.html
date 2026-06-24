@@ -57,7 +57,19 @@
       .card .keys { margin-top: 14px; font-size: 12px; opacity: .7; line-height: 1.7; }
       .card .keys b { color: var(--gold); font-weight: 600; }
       .card .prompt { margin-top: 16px; font-size: 14px; color: var(--gold); }
+      .card .prompt b { color: var(--ink); font-weight: 700; }
       #result-title { color: var(--ember); }
+      /* End-of-level choice buttons (Replay vs Continue). */
+      .card .choices { display: flex; gap: 12px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+      .choice-btn {
+        border: 2px solid var(--violet); border-radius: 10px; padding: 10px 16px;
+        background: rgba(154, 92, 255, .18); color: var(--ink);
+        font: inherit; font-size: 14px; letter-spacing: 1px; cursor: pointer;
+        touch-action: manipulation; transition: background .12s, border-color .12s;
+      }
+      .choice-btn:hover, .choice-btn:focus { background: rgba(154, 92, 255, .4); border-color: var(--gold); outline: none; }
+      #continue-btn { border-color: var(--aqua); background: rgba(52, 194, 179, .18); }
+      #continue-btn:hover, #continue-btn:focus { background: rgba(52, 194, 179, .4); border-color: var(--gold); }
     </style>
   </head>
   <body>
@@ -95,15 +107,20 @@
         </div>
       </div>
 
-      <!-- Between-levels interstitial: shown when a (non-final) Beacon is reached. The host fills
-           the title with the next level and the stats with the carried HP / motes / lives, then a
-           continue press advances (game.requestNextLevel) and resumes the frozen sim. -->
-      <div id="interstitial-overlay" class="overlay">
+      <!-- Between-levels CHOICE: shown when a (non-final) Beacon is reached. The host fills the carried
+           HP / motes / lives and the Continue label (the next level), then the player picks — Replay
+           (R / button → re-enter the just-cleared level: its Echo, then live) or Continue
+           (Enter·Space·→ / button → advance into the already-loaded next level, carry-over preserved). -->
+      <div id="choice-overlay" class="overlay">
         <div class="card">
-          <h1 id="interstitial-title">LEVEL 2</h1>
+          <h1 id="choice-title">BEACON LIT</h1>
           <h2>THE DUSK DEEPENS</h2>
-          <p id="interstitial-stats">HP 3 &nbsp;·&nbsp; ◆ 0 &nbsp;·&nbsp; ✦ 5</p>
-          <p class="prompt">▶ press any key / tap to descend</p>
+          <p id="choice-stats">HP 3 &nbsp;·&nbsp; ◆ 0 &nbsp;·&nbsp; ✦ 5</p>
+          <div class="choices">
+            <button id="replay-btn" class="choice-btn">↻ Replay this level</button>
+            <button id="continue-btn" class="choice-btn">→ Continue</button>
+          </div>
+          <p class="prompt"><b>R</b> replay &nbsp;·&nbsp; <b>Enter</b> continue</p>
         </div>
       </div>
     </div>

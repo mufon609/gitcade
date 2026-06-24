@@ -3,19 +3,32 @@
  * (the `play-base` shell + the `level-1`/`level-2` levels), composing only @gitcade/library +
  * SDK parts. No balance or gameplay logic lives here.
  *
- * The one thing data can't express is the ECHO ATTEMPT LOOP: each attempt is RECORDED
- * (the SDK run-recorder, `createGame({ seed, record:true })` → `getRecording()`), and the
- * NEXT attempt opens with an arcade ATTRACT loop of your last run — the "Echo" — that
- * replays on repeat until you press a key, and that keypress starts live play (the library
- * `attachReplayLoop`, which drives a SECOND Game instance, the canvas rAF, and the skip
- * input). A FIXED per-level seed means every attempt shares one seeded world, so the
- * recorded Echo re-simulates byte-for-byte in the identical world and lines up.
+ * The two things data can't express are the ECHO ATTEMPT LOOP and the END-OF-LEVEL CHOICE:
  *
- * Everything else here is the same host-only glue breakout keeps: library audio (gesture-
- * gated + mute), screen juice (flash overlay + an in-engine camera-shake nudge), and the
- * pause overlay (the SDK owns the freeze + the Esc/P key; the host just reacts).
+ *  - ECHO. Each attempt is RECORDED (the SDK run-recorder, `createGame({ seed, record:true })` →
+ *    `getRecording()`), and the NEXT attempt of THAT LEVEL opens with an arcade ATTRACT loop of your
+ *    last run of it — the "Echo" — replaying on repeat until you press a key, and that keypress starts
+ *    live play (the library `attachReplayLoop`, driving a SECOND Game + the canvas rAF + skip input).
+ *    The Echo replays the level you are ON (`currentLevel`), booting that level IN ISOLATION
+ *    (createGame `entrySceneId`) with the recording's restored entry-state — so the level-1 Echo plays
+ *    after a fresh start, and the level-2 Echo plays once you have reached level-2. A FIXED per-level
+ *    seed means every attempt shares one seeded world, so the recorded Echo re-simulates byte-for-byte.
+ *
+ *  - CHOICE. Clearing a non-final Beacon doesn't auto-advance: it offers "↻ Replay this level" (re-enter
+ *    the level you just cleared — its Echo, then live) or "→ Continue" (advance to the next level,
+ *    carrying your stats, exactly as before). The final Beacon still wins; draining your lives still loses.
+ *
+ * Per-level recordings are keyed by scene id (`run:<sceneId>`): a SINGLE recording spanning level-1 →
+ * level-2 desyncs on replay (an input-only replay can't reproduce the host's `requestNextLevel()`
+ * between levels), so each level records on its OWN key with NO scene change — the recorder is RE-ARMED
+ * on every level entry. The level the loop is on rides a persisted `currentLevel`, so a reload (or a
+ * retry) resumes the right level + Echo.
+ *
+ * Everything else here is the same host-only glue breakout keeps: library audio (gesture-gated + mute),
+ * screen juice (flash overlay + an in-engine camera-shake nudge), and the pause overlay (the SDK owns
+ * the freeze + the Esc/P key; the host just reacts).
  */
-import { createGame, type Game } from "@gitcade/sdk";
+import { createGame, type Game, type RunRecording } from "@gitcade/sdk";
 import {
   createLibraryRegistry,
   LibraryAudioPlayer,
@@ -23,6 +36,7 @@ import {
   attachScreenEffects,
   attachReplayLoop,
   parseRecording,
+  restoreRecordingEntry,
 } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
@@ -31,6 +45,7 @@ import level1 from "./scenes/level-1.json";
 import level2 from "./scenes/level-2.json";
 import { registerCustomBehaviors } from "./custom-behaviors/index.js";
 import { makeStorage } from "./host/storage.js";
+import { createCampaign } from "./campaign.js";
 
 const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
@@ -46,18 +61,47 @@ const storage = makeStorage(manifest.slug);
 // recorded Echo re-simulates in the identical world and lines up with live play.
 const raw = { manifest, config, scenes: [playBase, level1, level2] };
 const SEED = 0x10de; // "lode" — fixed, so the Echo always replays the same world
-// PER-LEVEL recordings, keyed by scene id. A SINGLE recording spanning level-1 → level-2 desyncs on
-// replay: an input-only replay can't reproduce the host's `requestNextLevel()` between levels, so it
-// drifts at the boundary. So each level's run is recorded on its OWN key and contains NO scene change —
-// the recorder is RE-ARMED on every level entry (see the level-clear handler). The attract-loop Echo
-// replays the level the attempt STARTS in (the entry scene), which is the only Echo a restart-from-level-1
-// campaign ever shows.
-const ENTRY_SCENE = "level-1";
-const runKey = (sceneId: string): string => `run:${sceneId}`;
+
+// --- campaign navigation (host policy) ---------------------------------------
+// The ordered level sequence is data (manifest.levels); `campaign` is the PURE policy the loop reads off
+// it (firstLevel / next / isFinal / per-level runKey), factored into ./campaign.ts so it's unit-tested
+// independently of this DOM bootstrap. A level never hard-wires its successor — the per-level Echo /
+// choice flow stays scene-agnostic. Local aliases keep the call sites below terse.
+const campaign = createCampaign((manifest.levels ?? []) as string[]);
+const LEVELS = campaign.levels;
+const firstLevel = campaign.first;
+const nextLevelId = campaign.next;
+const isFinalLevel = campaign.isFinal;
+const levelLabel = campaign.label;
+
+// PER-LEVEL recordings, keyed by scene id (see the file header for why a single spanning recording desyncs).
+const runKey = campaign.runKey;
 const persistRun = (sceneId: string, recording: unknown): void => {
   // Fire-and-forget: a failed write costs only next run's Echo, never the live game (see finish()).
   void storage.set(runKey(sceneId), JSON.stringify(recording)).catch(() => {});
 };
+
+// `currentLevel` — the level the loop is on (which Echo to show, where to boot live). PERSISTED so a
+// reload or a retry resumes it; reset to the first level after a campaign win. The default-param of
+// `attempt()` reads it, so updating it before an attempt re-points the whole loop.
+const CURRENT_LEVEL_KEY = "currentLevel";
+let currentLevel = firstLevel;
+const setCurrentLevel = (id: string): void => {
+  currentLevel = id;
+  if (dev) dev.level = id;
+  void storage.set(CURRENT_LEVEL_KEY, id).catch(() => {}); // fire-and-forget, like persistRun
+};
+/** Resume the persisted level on boot — degrade to the first level on any read error / stale value. */
+async function readCurrentLevel(): Promise<string> {
+  try {
+    const v = await storage.get(CURRENT_LEVEL_KEY);
+    if (typeof v === "string" && LEVELS.includes(v)) return v;
+  } catch {
+    /* fall through to the first level */
+  }
+  return firstLevel;
+}
+
 // Retry-arm delay (host timing) lifted to config.json so it's tunable like any balance value.
 const retryArmDelayMs = ((config as Record<string, number>).retryArmDelay ?? 0.6) * 1000;
 
@@ -70,9 +114,12 @@ const resultOverlay = document.getElementById("result-overlay");
 const resultTitle = document.getElementById("result-title");
 const resultSub = document.getElementById("result-sub");
 const pauseOverlay = document.getElementById("pause-overlay");
-const interstitialOverlay = document.getElementById("interstitial-overlay");
-const interstitialTitle = document.getElementById("interstitial-title");
-const interstitialStats = document.getElementById("interstitial-stats");
+// Between-levels CHOICE card (Replay vs Continue) — see the level-clear handler.
+const choiceOverlay = document.getElementById("choice-overlay");
+const choiceTitle = document.getElementById("choice-title");
+const choiceStats = document.getElementById("choice-stats");
+const replayBtn = document.getElementById("replay-btn");
+const continueBtn = document.getElementById("continue-btn");
 const pauseBtn = document.getElementById("pause-btn");
 const muteBtn = document.getElementById("mute-btn");
 // The HUD is DATA now — screen-space canvas entities (screen:true) the engine draws fixed
@@ -80,6 +127,25 @@ const muteBtn = document.getElementById("mute-btn");
 // reading the player's state). No host mirror: the game owns its HUD like any other scene data.
 const show = (el: HTMLElement | null, on: boolean): void => {
   if (el) el.style.display = on ? "grid" : "none";
+};
+
+// --- dev-only debug seam -----------------------------------------------------
+// Stripped from the production build via `import.meta.env.DEV` (absent from the shipped build-worker
+// artifact). A headless-browser harness POLLS `phase`/`level` and drives the live `game` (e.g. teleport
+// onto a Beacon to exercise the choice flow + the level-2 Echo end-to-end) over the chromium CDP shim.
+interface LumenDev {
+  /** The live, pausable game — `null` during the Echo attract loop. */
+  game: Game | null;
+  /** The level the loop is on (the persisted `currentLevel`). */
+  level: string;
+  /** Coarse loop phase a harness can poll: `boot|echo|start|live|choice|result`. */
+  phase: string;
+}
+const dev: LumenDev | null = import.meta.env.DEV
+  ? ((window as unknown as { __lumen: LumenDev }).__lumen = { game: null, level: firstLevel, phase: "boot" })
+  : null;
+const setPhase = (phase: string): void => {
+  if (dev) dev.phase = phase;
 };
 
 // --- screen juice (presentation only) ----------------------------------------
@@ -133,33 +199,38 @@ window.addEventListener("keydown", (e) => {
 if (pauseBtn) pauseBtn.onclick = () => liveGame?.togglePause();
 
 // --- the Echo attempt loop ---------------------------------------------------
-async function attempt(): Promise<void> {
+// Open an attempt of `sceneId` (defaults to the level the loop is on): attract-loop ITS Echo, then live.
+async function attempt(sceneId: string = currentLevel): Promise<void> {
   liveGame = null;
+  if (dev) dev.game = null;
   show(startOverlay, false);
   show(resultOverlay, false);
   show(pauseOverlay, false);
-  show(interstitialOverlay, false);
+  show(choiceOverlay, false);
 
   // A storage READ that rejects must NOT brick the boot/retry (a black canvas) — degrade to
   // "no Echo this run" (the first-run path), exactly as if there were no prior recording.
-  let prior: ReturnType<typeof parseRecording> = null;
+  let prior: RunRecording | null = null;
   try {
-    // The Echo replays the level the attempt STARTS in (the entry scene). Each level is keyed separately,
-    // and the entry-level recording is clean (it never spanned the transition), so the replay never desyncs.
-    prior = parseRecording((await storage.get(runKey(ENTRY_SCENE))) ?? "");
+    // The Echo replays THIS level's last run. Each level is keyed separately and is clean (it never
+    // spanned a transition), and the recording carries the entry-state it was reached with — so booting
+    // it in isolation (entrySceneId: rec.sceneId) and restoring that state replays it without desync.
+    prior = parseRecording((await storage.get(runKey(sceneId))) ?? "");
   } catch {
     prior = null;
   }
   if (prior) {
-    // Attract-LOOP the Echo of the last run on a SECOND, input-less, seeded Game: it replays on
-    // repeat until the player presses a key, and THAT keypress starts live play. A fresh seeded Game
-    // per cycle (makeReplayGame, attachInput:false) keeps every Echo byte-identical and stops the
-    // watching player's keystrokes leaking into the re-simulation.
+    setPhase("echo");
+    // Attract-LOOP the Echo of the last run on a SECOND, input-less, seeded Game booted at THIS level: it
+    // replays on repeat until the player presses a key, and THAT keypress starts live play. A fresh seeded
+    // Game per cycle (makeReplayGame, attachInput:false) keeps every Echo byte-identical and stops the
+    // watching player's keystrokes leaking into the re-simulation. createReplay restores the recording's
+    // entry-state/RNG-phase, so a mid-campaign level (level-2) replays faithfully even booted in isolation.
     const rec = prior; // narrowed non-null; `makeReplayGame` (a closure) needs a const to see it
     attachReplayLoop(canvas, {
-      makeReplayGame: () => createGame(raw, { canvas, registry, seed: rec.seed, entrySceneId: "level-1", attachInput: false }),
+      makeReplayGame: () => createGame(raw, { canvas, registry, seed: rec.seed, entrySceneId: rec.sceneId, attachInput: false }),
       recording: rec,
-      onStart: () => startLive(),
+      onStart: () => startLive(sceneId, rec),
       visuals: {
         prompt: "✦ ECHO OF YOUR LAST RUN — press any key to skip ✦",
         tint: "#4b3f8f",
@@ -169,19 +240,24 @@ async function attempt(): Promise<void> {
       },
     });
   } else {
-    // First-ever attempt — no Echo yet. A brief "begin" overlay, then live play.
+    // No Echo for this level yet (first-ever attempt, or a cleared write). A brief "begin" overlay, then live.
+    setPhase("start");
     show(startOverlay, true);
     const begin = (): void => {
       window.removeEventListener("keydown", begin);
       startOverlay?.removeEventListener("pointerdown", begin);
-      startLive();
+      startLive(sceneId, null);
     };
     window.addEventListener("keydown", begin);
     startOverlay?.addEventListener("pointerdown", begin);
   }
 }
 
-function startLive(): void {
+// Start live play of `sceneId`. `prior` (this level's last recording, when there is one) seeds a
+// mid-campaign re-entry from its carried state so the live run lines up with the Echo it followed.
+function startLive(sceneId: string, prior: RunRecording | null): void {
+  setCurrentLevel(sceneId);
+  setPhase("live");
   show(startOverlay, false);
   show(resultOverlay, false);
 
@@ -192,15 +268,18 @@ function startLive(): void {
     storage,
     seed: SEED,
     record: true,
-    entrySceneId: "level-1",
+    entrySceneId: sceneId,
     pauseKeys: ["Escape", "KeyP"],
     pauseScenes: ["level-1", "level-2"],
   });
+  // Re-enter a mid-campaign level from its recorded ENTRY-STATE (carriedHp / motes / lives + the RNG
+  // phase), so a level-2 retry resumes from the carry the Echo replays from — not a from-scratch boot.
+  // For the first level the captured entry is just { level: 1 } and the restore is a no-op, so applying
+  // it whenever we have a prior recording is uniform and safe. The live recorder then captures this same
+  // entry as the new run's frame 0, keeping every re-entry self-consistent.
+  if (prior) restoreRecordingEntry(live, prior);
   liveGame = live;
-  // Dev-only debug seam (stripped from the production build via `import.meta.env.DEV`): exposes the
-  // live Game so a headless-browser harness can drive end-to-end checks (e.g. teleport onto a Beacon
-  // to exercise the between-levels interstitial). Absent from the shipped build-worker artifact.
-  if (import.meta.env.DEV) (window as unknown as { __lumen?: Game }).__lumen = live;
+  if (dev) dev.game = live;
   resumeAudio();
 
   // FLASH on outcomes (host overlay); SHAKE in-engine via the camera-shake system ("shake").
@@ -237,10 +316,14 @@ function startLive(): void {
     if (finished) return;
     finished = true;
     const motes = (live.world.state.motes as number) ?? 0;
-    const sceneId = live.scene.id; // the level the run ENDED in — its recording is per-level (no transition)
+    const endedIn = live.scene.id; // the level the run ENDED in — its recording is per-level (no transition)
     const recording = live.getRecording(); // capture before stop() tears the loop down
     live.stop();
     syncAudio();
+    setPhase("result");
+    // A win ends the campaign → the next attempt RESTARTS at the first level. A loss keeps `currentLevel`
+    // as the level we ended in, so the retry re-enters THAT level (its Echo, then live).
+    if (won) setCurrentLevel(firstLevel);
     if (resultTitle) resultTitle.textContent = won ? "THE BEACON IS LIT" : "THE VOID CLAIMS YOU";
     if (resultSub) resultSub.textContent = `◆ ${motes} motes gathered`;
     show(resultOverlay, true);
@@ -249,63 +332,89 @@ function startLive(): void {
       const retry = (): void => {
         window.removeEventListener("keydown", retry);
         resultOverlay?.removeEventListener("pointerdown", retry);
-        void attempt();
+        void attempt(); // defaults to currentLevel (the first level after a win, else the level we ended in)
       };
       window.addEventListener("keydown", retry);
       resultOverlay?.addEventListener("pointerdown", retry);
     }, retryArmDelayMs);
     // Persist under THIS level's key — a level-1 death updates the level-1 Echo; a level-2 death stores a
     // clean (re-armed) level-2 recording and leaves the level-1 Echo intact from when this run cleared it.
-    persistRun(sceneId, recording);
+    persistRun(endedIn, recording);
   };
-  // Between-levels interstitial. A Beacon emits "level-clear". For every level BUT the last, the host
-  // CARRIES the player's remaining hp forward (entity hp → world.state.carriedHp, which the scene's
-  // flow.persist hands to the next level, where the rebuilt player's health-and-death re-seeds hp from it
-  // via `hpStateKey:"carriedHp"`), PERSISTS the leaving level's recording, ADVANCES, RE-ARMS the recorder
-  // for the next level, then FREEZES and shows the carried-stats card. A continue press resumes into the
-  // already-loaded next level. The LAST level skips the card — advancing past the final Beacon emits
-  // "levels-complete" (no next level, no levelsComplete scene), which is the win edge bound below.
+
+  // Between-levels CHOICE. A Beacon emits "level-clear". For every level BUT the last, the host CARRIES
+  // the player's remaining hp forward (entity hp → world.state.carriedHp, which the scene's flow.persist
+  // hands to the next level, where the rebuilt player's health-and-death re-seeds hp from it via
+  // `hpStateKey:"carriedHp"`), PERSISTS the leaving level's clean recording, ADVANCES + RE-ARMS the
+  // recorder for the next level, then FREEZES and offers a choice: Replay the just-cleared level (its Echo,
+  // then live) or Continue into the already-loaded next level. The LAST level skips the card — advancing
+  // past the final Beacon emits "levels-complete" (the win edge), handled below.
   //
-  // PER-LEVEL RECORDING — order matters. This handler runs MID-TICK (a behavior emitted "level-clear"),
-  // so `requestNextLevel()` queued here DRAINS at the END of this very tick (→ the next level is loaded
-  // before the next tick begins), and `resetRecording()` then aligns the recorder's frame 0 to that next
-  // level's FIRST tick. We therefore persist the leaving level's recording (clean — captured BEFORE the
-  // drain) and read the carried stats FIRST, then advance + re-arm. (Re-arming after the transition is
-  // why the card shows over the next level, not the cleared one — a non-issue behind the opaque card.)
-  const levelsTotal = manifest.levels?.length ?? 1;
+  // PER-LEVEL RECORDING — order matters. This handler runs MID-TICK (a behavior emitted "level-clear"), so
+  // `requestNextLevel()` queued here DRAINS at the END of this very tick (→ the next level is loaded before
+  // the next tick begins), and `resetRecording()` then aligns the recorder's frame 0 to that next level's
+  // FIRST tick. We therefore advance + re-arm IMMEDIATELY (as before) and make the CHOICE over the already-
+  // loaded next level: Continue resumes it; Replay discards it (live.stop()) and re-enters the cleared one.
   live.world.events.on("level-clear", () => {
     const p = live.world.query("player")[0];
     if (p) live.world.state.carriedHp = p.state.hp as number;
-    const here = (live.world.state.level as number) ?? 1;
-    if (here >= levelsTotal) {
+    const justCleared = live.scene.id; // still the cleared level (mid-tick, before the drain)
+    if (isFinalLevel(justCleared)) {
       live.requestNextLevel(); // last level → emits "levels-complete" → finish(true) below
       return;
     }
-    // Capture the leaving level's CLEAN recording + the carried stats BEFORE advancing/re-arming.
-    persistRun(live.scene.id, live.getRecording());
+    // Capture the CLEARED level's clean recording (so Replay's Echo is THIS very run) + the carried stats
+    // BEFORE advancing/re-arming.
+    persistRun(justCleared, live.getRecording());
     const hp = (live.world.state.carriedHp as number) ?? 0;
     const motes = (live.world.state.motes as number) ?? 0;
     const lives = (live.world.state.lives as number) ?? 0;
+    const next = nextLevelId(justCleared)!; // non-final ⇒ present
     // Advance now (drains at the end of THIS tick) and re-arm so the next level records fresh from tick 0.
     live.requestNextLevel();
     live.resetRecording();
     live.pause();
     syncAudio();
-    if (interstitialTitle) interstitialTitle.textContent = `LEVEL ${here + 1}`;
-    if (interstitialStats) interstitialStats.textContent = `HP ${hp}    ◆ ${motes}    ✦ ${lives}`;
-    show(interstitialOverlay, true);
-    // Arm continue after a beat so a movement key still held at the Beacon doesn't instant-skip it. The
-    // transition has already drained, so continue simply RESUMES into the next level.
+    setPhase("choice");
+    if (choiceTitle) choiceTitle.textContent = "BEACON LIT";
+    if (choiceStats) choiceStats.textContent = `HP ${hp}    ◆ ${motes}    ✦ ${lives}`;
+    if (continueBtn) continueBtn.textContent = `→ Continue to ${levelLabel(next)}`;
+    show(choiceOverlay, true);
+    // Arm BOTH choices after a beat so a movement key still held at the Beacon doesn't instant-pick. The
+    // transition has already drained, so Continue simply RESUMES into the next level; Replay tears the
+    // (advanced) live game down and re-enters the just-cleared level via a fresh attempt.
     setTimeout(() => {
-      const cont = (): void => {
-        window.removeEventListener("keydown", cont);
-        interstitialOverlay?.removeEventListener("pointerdown", cont);
-        show(interstitialOverlay, false);
+      const cleanup = (): void => {
+        window.removeEventListener("keydown", onKey);
+        replayBtn?.removeEventListener("pointerdown", onReplay);
+        continueBtn?.removeEventListener("pointerdown", onContinue);
+      };
+      const onContinue = (): void => {
+        cleanup();
+        show(choiceOverlay, false);
+        setCurrentLevel(next); // the loop is now on the next level (carry-over already in world.state)
         live.resume(); // unfreeze — the next level is already loaded; play begins
         syncAudio();
+        setPhase("live");
       };
-      window.addEventListener("keydown", cont);
-      interstitialOverlay?.addEventListener("pointerdown", cont);
+      const onReplay = (): void => {
+        cleanup();
+        show(choiceOverlay, false);
+        live.stop(); // abandon the advanced next level…
+        void attempt(justCleared); // …and re-enter the just-cleared level: its Echo (this run), then live
+      };
+      const onKey = (e: KeyboardEvent): void => {
+        if (e.code === "KeyR") {
+          e.preventDefault();
+          onReplay();
+        } else if (e.code === "Enter" || e.code === "Space" || e.code === "ArrowRight" || e.code === "KeyD") {
+          e.preventDefault();
+          onContinue();
+        }
+      };
+      window.addEventListener("keydown", onKey);
+      replayBtn?.addEventListener("pointerdown", onReplay);
+      continueBtn?.addEventListener("pointerdown", onContinue);
     }, retryArmDelayMs);
   });
 
@@ -318,5 +427,9 @@ function startLive(): void {
 }
 
 renderMute();
-void attempt();
-
+// Resume the persisted level, then open its attempt (Echo, then live).
+void (async () => {
+  currentLevel = await readCurrentLevel();
+  if (dev) dev.level = currentLevel;
+  void attempt();
+})();

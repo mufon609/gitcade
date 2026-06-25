@@ -27,11 +27,11 @@ No engine code — every entity and rule is a catalog part or SDK built-in:
 | Part | Source | Role |
 |---|---|---|
 | `keyboard-axis` | SDK built-in | the paddle — Arrows / A·D drive it on the X axis (`touch: true` lets a finger drag it) |
-| `health-and-death@1.0.0` | library behavior | each **breakable** brick's hit points + score tally on break |
+| `health-and-death@1.1.0` | library behavior | each **breakable** brick's hit points + score tally on break |
 | `contact-damage@1.0.0` | library behavior | the ball damaging bricks on contact |
-| `trigger-zone@1.0.0` | library behavior | the bottom kill-line that loses the ball |
+| `trigger-zone@1.1.0` | library behavior | the bottom kill-line that loses the ball |
 | `scale-by-state@1.0.0` | library behavior | ramps the ball's launch speed by `world.state.level` (the runtime sets it to the active stage) — faster each level, zero per-scene config |
-| `lives-respawn@1.0.0` | library system | three lives, respawn the ball, end the game when they run out |
+| `lives-respawn@1.1.0` | library system | three lives, respawn the ball, end the game when they run out |
 | `level-progression@1.0.0` | library system | emits `level-cleared` the moment the **breakable** tag is fully cleared; the `@next` flow token turns that into the next-level (or win) transition |
 | `format-binding@1.0.0` | library system | derives the dynamic "LEVEL N" HUD label from `world.state.level` — one base scene, no per-level label entity |
 | `tap-emit` | library UI part | the full-canvas title / win / over buttons emit the flow events (`start-pressed`, `retry`) — no host menu code |

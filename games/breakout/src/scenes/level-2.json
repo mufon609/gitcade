@@ -25,7 +25,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -59,7 +59,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -93,7 +93,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -127,7 +127,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -161,7 +161,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -195,7 +195,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -229,7 +229,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -263,7 +263,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -297,7 +297,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -331,7 +331,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -365,7 +365,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -399,7 +399,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -433,7 +433,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -467,7 +467,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -501,7 +501,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -535,7 +535,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -569,7 +569,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -603,7 +603,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -637,7 +637,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -671,7 +671,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -705,7 +705,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -739,7 +739,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -773,7 +773,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -807,7 +807,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -841,7 +841,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -875,7 +875,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -909,7 +909,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -943,7 +943,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -977,7 +977,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",
@@ -1011,7 +1011,7 @@
       "behaviors": [
         {
           "type": "health-and-death",
-          "part": "health-and-death@1.0.0",
+          "part": "health-and-death@1.1.0",
           "params": {
             "hp": "$cfg.blockHp",
             "tallyKey": "score",

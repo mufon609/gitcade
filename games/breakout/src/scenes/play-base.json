@@ -40,7 +40,7 @@
       "tags": ["killzone"],
       "layer": 0,
       "behaviors": [
-        { "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "ball", "kill": true, "enterEvent": "ball-lost", "sound": "lose" } }
+        { "type": "trigger-zone", "part": "trigger-zone@1.1.0", "params": { "tag": "ball", "kill": true, "enterEvent": "ball-lost", "sound": "lose" } }
       ]
     },
     {
@@ -74,7 +74,7 @@
     { "type": "score", "part": "score@1.0.0", "params": { "scoreKey": "score", "highKey": "best", "persist": false } },
     {
       "type": "lives-respawn",
-      "part": "lives-respawn@1.0.0",
+      "part": "lives-respawn@1.1.0",
       "params": {
         "startLives": "$cfg.startLives",
         "watchTag": "ball",

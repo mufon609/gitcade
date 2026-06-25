@@ -33,7 +33,7 @@ npm run validate   # also proves the no-magic-numbers rule: zero balance literal
 | `upgrade-tree@1.0.0` | library system | the Range / Fire-rate / Bounty upgrades (cost growth + max levels, all `$cfg`) |
 | `stat-modifier@1.0.0` | library system | a shared upgrade: writes the upgraded range/cooldown onto **every** tower each tick |
 | `win-lose-conditions@1.1.0` | library system | win on all waves complete **and** the field cleared (a composed `all` condition); lose on too many leaks |
-| `trigger-zone@1.0.0` | library behavior | the exit that leaks (and removes) a creep |
+| `trigger-zone@1.1.0` | library behavior | the exit that leaks (and removes) a creep |
 | `explosion@1.0.0` | library FX | the burst on every kill |
 
 ### The two custom systems

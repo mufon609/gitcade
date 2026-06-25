@@ -24,13 +24,13 @@
       "id": "wall-top",
       "sprite": { "kind": "shape", "shape": "rect", "color": "#1a1c2c" },
       "size": { "w": 800, "h": 18 }, "position": { "x": 0, "y": 0 }, "tags": ["wall"], "layer": 6,
-      "behaviors": [{ "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } }]
+      "behaviors": [{ "type": "trigger-zone", "part": "trigger-zone@1.1.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } }]
     },
     {
       "id": "wall-bottom",
       "sprite": { "kind": "shape", "shape": "rect", "color": "#1a1c2c" },
       "size": { "w": 800, "h": 18 }, "position": { "x": 0, "y": 582 }, "tags": ["wall"], "layer": 6,
-      "behaviors": [{ "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } }]
+      "behaviors": [{ "type": "trigger-zone", "part": "trigger-zone@1.1.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } }]
     },
     {
       "id": "hud-score",
@@ -95,7 +95,7 @@
           "behaviors": [
             { "type": "scale-by-state", "params": { "target": "velocity", "mode": "set", "baseX": "$cfg.scrollVx", "levelKey": "level", "perLevel": "$cfg.speedRampPerLevel" } },
             { "type": "velocity", "params": {} },
-            { "type": "trigger-zone", "part": "trigger-zone@1.0.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } },
+            { "type": "trigger-zone", "part": "trigger-zone@1.1.0", "params": { "tag": "player", "enterEvent": "crash", "sound": "explode" } },
             { "type": "health-and-death", "params": { "lifespan": "$cfg.obstacleLife", "deathSound": "" } }
           ]
         }

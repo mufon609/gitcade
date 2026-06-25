@@ -24,7 +24,7 @@
       "behaviors": [
         {
           "type": "trigger-zone",
-          "part": "trigger-zone@1.0.0",
+          "part": "trigger-zone@1.1.0",
           "params": { "tag": "creep", "kill": true, "enterEvent": "creep-leaked", "sound": "lose" }
         }
       ]
@@ -247,7 +247,7 @@
               }
             },
             { "type": "velocity", "params": {} },
-            { "type": "health-and-death", "part": "health-and-death@1.0.0", "params": { "hp": "$cfg.creepHp", "deathEvent": "creep-killed", "deathSound": "explode" } }
+            { "type": "health-and-death", "part": "health-and-death@1.1.0", "params": { "hp": "$cfg.creepHp", "deathEvent": "creep-killed", "deathSound": "explode" } }
           ]
         }
       }

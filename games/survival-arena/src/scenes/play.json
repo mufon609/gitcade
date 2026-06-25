@@ -51,7 +51,7 @@
             }
           }
         },
-        { "type": "health-and-death", "part": "health-and-death@1.0.0", "params": { "hp": "$cfg.playerHp", "deathEvent": "player-died", "deathSound": "lose", "destroyOnDeath": false, "tallyKey": "playerDeaths" } }
+        { "type": "health-and-death", "part": "health-and-death@1.1.0", "params": { "hp": "$cfg.playerHp", "deathEvent": "player-died", "deathSound": "lose", "destroyOnDeath": false, "tallyKey": "playerDeaths" } }
       ]
     },
     {

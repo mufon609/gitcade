@@ -14,6 +14,7 @@ import { persistence } from "./persistence.js";
 import { placeOnFreeCell } from "./place-on-free-cell.js";
 import { inputActions } from "./input-actions.js";
 import { formatBinding } from "./format-binding.js";
+import { levelSelect } from "./level-select.js";
 import { statModifier } from "./stat-modifier.js";
 import { cameraFollow } from "./camera-follow.js";
 import { cameraShake } from "./camera-shake.js";
@@ -38,6 +39,7 @@ export const LIBRARY_SYSTEMS = {
   "place-on-free-cell": placeOnFreeCell,
   "input-actions": inputActions,
   "format-binding": formatBinding,
+  "level-select": levelSelect,
   "stat-modifier": statModifier,
   "camera-follow": cameraFollow,
   "camera-shake": cameraShake,
@@ -68,6 +70,7 @@ export {
   placeOnFreeCell,
   inputActions,
   formatBinding,
+  levelSelect,
   statModifier,
   cameraFollow,
   cameraShake,

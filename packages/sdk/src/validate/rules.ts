@@ -1,5 +1,5 @@
 import type { Scene } from "../schema/scene.js";
-import { isReservedFlowTarget, resolveSceneInheritance } from "../schema/index.js";
+import { isReservedFlowTarget, levelTargetId, resolveSceneInheritance } from "../schema/index.js";
 import type { GameManifest } from "../schema/manifest.js";
 import type { Config } from "../schema/config.js";
 import { isWhitelistedNumericKey } from "../schema/whitelist.js";
@@ -216,6 +216,21 @@ export function checkSceneRefs(scenes: Scene[], manifest: GameManifest | null): 
             message: `flow edge "${evt}" → "${target}" uses a reserved level token but game.json declares no \`levels\` sequence`,
             where: `${scene.id}.flow.on.${evt}`,
           });
+        } else {
+          // `@level:<id>` names a SPECIFIC level — it must be one of game.json's `levels`
+          // (the runtime resolves it against that list; an unknown id is a no-op jump).
+          // The companion to `level-scene-missing` (which checks the list entries name
+          // real scenes): this checks an @level EDGE names a listed level. Skipped when
+          // there is no `levels` sequence, since flow-token-without-levels already fired.
+          const lid = levelTargetId(target);
+          if (lid !== null && !manifest!.levels!.includes(lid)) {
+            issues.push({
+              level: "error",
+              code: "level-target-missing",
+              message: `flow edge "${evt}" → "${target}" jumps to level "${lid}", which is not in game.json \`levels\``,
+              where: `${scene.id}.flow.on.${evt}`,
+            });
+          }
         }
         continue;
       }

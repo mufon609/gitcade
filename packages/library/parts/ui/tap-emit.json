@@ -1,12 +1,24 @@
 {
   "id": "tap-emit",
   "kind": "ui",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "category": "ui",
   "tags": ["ui", "button", "input", "flow", "menu"],
   "license": "MIT",
-  "description": "A per-entity behavior that emits a game event when the entity is clicked/tapped (reads the SDK click edge and the topmost entity pick). Turns a button into a pure-data scene-flow edge: wire emitOnTap to a scene.flow.on transition for title→play→over with no host code.",
+  "description": "A per-entity behavior that emits a game event when the entity is clicked/tapped (reads the SDK click edge and the topmost entity pick). Turns a button into a pure-data scene-flow edge: wire emitOnTap to a scene.flow.on transition for title→play→over with no host code. Optional requireKey GATES the emit on a truthy world.state flag, so a button is LOCKED content (a level-select card enabled only for cleared levels, a buy button needing funds) — absent ⇒ always emits.",
   "dependencies": [],
+  "params": {
+    "emitOnTap": {
+      "type": "string",
+      "balance": false,
+      "description": "Event name emitted on tap (default 'tapped'). Wire it to a scene.flow.on transition."
+    },
+    "requireKey": {
+      "type": "string",
+      "balance": false,
+      "description": "Optional world.state key that must be truthy for the tap to emit — a data gate for locked content. Absent ⇒ always emits. A flat key (project a nested value, e.g. via level-select, first)."
+    }
+  },
   "definition": {
     "type": "tap-emit",
     "params": { "emitOnTap": "start-pressed" }

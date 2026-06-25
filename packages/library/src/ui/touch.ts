@@ -96,8 +96,16 @@ export const touchButton: BehaviorFn = (entity, world, params) => {
  *
  * Idle headless (no pointers) so smoke tests are unaffected. Params:
  *  - `emitOnTap`: event name to emit on tap (default `"tapped"`)
+ *  - `requireKey` (additive, optional): a `world.state` key that must be TRUTHY for the tap to emit —
+ *    a data-driven GATE turning the button into LOCKED content. Absent ⇒ always emits (byte-identical
+ *    to before this param). A level-select gates each level card on a per-level `selectable` flag a
+ *    `level-select` system projects from the won-set, so only CLEARED levels are pickable; any
+ *    "enabled-only-when-X" button (a buy button needing funds, a locked door needing a key) uses it the
+ *    same way. The flag is a flat key (project a nested value to a flat one first, e.g. via `level-select`).
  */
 export const tapEmit: BehaviorFn = (entity, world, params) => {
+  const requireKey = str(params, "requireKey", "");
+  if (requireKey && !world.state[requireKey]) return; // gated: a falsy/absent flag ⇒ the button is locked, no emit
   const event = str(params, "emitOnTap", "tapped");
   for (const tap of world.input.justReleased()) {
     if (world.entityAt(tap.x, tap.y) === entity) {

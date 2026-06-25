@@ -17,8 +17,6 @@ export interface Campaign {
   isFinal(id: string): boolean;
   /** Human label for a level ("level-2" → "Level 2"), for the Continue button. */
   label(id: string): string;
-  /** The per-level recording / Echo storage key (`run:<sceneId>`). */
-  runKey(id: string): string;
 }
 
 /** Bind the navigation policy to one ordered level list (`manifest.levels`). */
@@ -33,6 +31,5 @@ export function createCampaign(levels: string[]): Campaign {
     next,
     isFinal: (id) => next(id) === null,
     label: (id) => `Level ${levels.indexOf(id) + 1}`,
-    runKey: (id) => `run:${id}`,
   };
 }

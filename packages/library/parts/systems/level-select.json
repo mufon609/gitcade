@@ -1,0 +1,62 @@
+{
+  "id": "level-select",
+  "kind": "system",
+  "version": "1.0.0",
+  "category": "ui",
+  "tags": ["ui", "menu", "level-select", "progress", "campaign"],
+  "license": "MIT",
+  "description": "Projects a campaign progress index (the run-store's won-set + per-level bests, loaded into world.state by `persistence`) into the FLAT per-level keys a data-authored level-select menu binds: `<id>:sel` (a boolean the gated tap-emit reads, so only CLEARED levels are pickable), `<id>:status` (cleared/locked label), `<id>:score` and `<id>:time` (best score / best time, shown for cleared levels). The scene-side companion to createRunStore + the SDK `@level:<id>` flow token; pure (no rng/clock), so determinism is untouched.",
+  "dependencies": ["persistence", "tap-emit"],
+  "params": {
+    "levels": {
+      "type": "array",
+      "balance": false,
+      "description": "Ordered level (scene) ids to project — typically the game's manifest.levels."
+    },
+    "wonKey": {
+      "type": "string",
+      "balance": false,
+      "description": "world.state key of the won-set map (default 'runWon' — the run-store default)."
+    },
+    "bestKey": {
+      "type": "string",
+      "balance": false,
+      "description": "world.state key of the per-level bests map (default 'runBest')."
+    },
+    "prefix": {
+      "type": "string",
+      "balance": false,
+      "description": "Namespacing prefix for the written keys (default '' ⇒ '<id>:sel' etc.)."
+    },
+    "clearedText": {
+      "type": "string",
+      "balance": false,
+      "description": "Status label for a cleared level (default 'CLEARED')."
+    },
+    "lockedText": {
+      "type": "string",
+      "balance": false,
+      "description": "Status label for a not-yet-cleared level (default 'LOCKED')."
+    },
+    "scoreTemplate": {
+      "type": "string",
+      "balance": false,
+      "description": "{v}-template for the best score (default '{v}')."
+    },
+    "timeTemplate": {
+      "type": "string",
+      "balance": false,
+      "description": "{v}-template for the best time in seconds, 1 dp (default '{v}s')."
+    }
+  },
+  "definition": {
+    "type": "level-select",
+    "params": {
+      "levels": ["level-1", "level-2"],
+      "clearedText": "✓ CLEARED",
+      "lockedText": "🔒 LOCKED",
+      "scoreTemplate": "◆ {v}",
+      "timeTemplate": "⧗ {v}s"
+    }
+  }
+}

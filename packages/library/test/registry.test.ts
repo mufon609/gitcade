@@ -5,12 +5,12 @@ import { LIBRARY_BEHAVIOR_TYPES } from "../src/behaviors/index.js";
 import { LIBRARY_SYSTEM_TYPES } from "../src/systems/index.js";
 
 describe("library registration", () => {
-  it("registers all 23 behaviors and 17 systems as new TYPES", () => {
+  it("registers all 23 behaviors and 18 systems as new TYPES", () => {
     expect(LIBRARY_BEHAVIOR_TYPES).toHaveLength(23);
     // 9 base + 3 economy/spawning (transaction, persistence, place-on-free-cell)
-    // + input-actions + format-binding + stat-modifier
+    // + input-actions + format-binding + level-select + stat-modifier
     // + camera-follow + camera-shake.
-    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(17);
+    expect(LIBRARY_SYSTEM_TYPES).toHaveLength(18);
 
     const registry = createDefaultRegistry();
     registerLibrary(registry);

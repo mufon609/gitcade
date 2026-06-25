@@ -1,0 +1,171 @@
+{
+  "id": "menu",
+  "size": { "width": 800, "height": 480 },
+  "background": {
+    "color": "#0b0820",
+    "layers": [{ "src": "assets/lumen/sky.png", "scrollX": 0, "parallaxX": 0 }]
+  },
+  "entities": [
+    {
+      "id": "menu-title",
+      "sprite": { "kind": "text", "text": "LEVEL SELECT", "font": "38px monospace", "color": "#ff9a3c", "align": "center" },
+      "size": { "w": 600, "h": 44 },
+      "position": { "x": 400, "y": 44 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "menu-hint",
+      "sprite": { "kind": "text", "text": "Relight any beacon you have already reached — tap a cleared level", "font": "13px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 600, "h": 20 },
+      "position": { "x": 400, "y": 90 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+
+    {
+      "id": "card-1-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#150f33", "stroke": "#9a5cff", "strokeWidth": 2 },
+      "size": { "w": 620, "h": 96 },
+      "position": { "x": 90, "y": 132 },
+      "tags": ["ui"],
+      "layer": 2
+    },
+    {
+      "id": "card-1-label",
+      "sprite": { "kind": "text", "text": "LEVEL 1", "font": "26px monospace", "color": "#ffe0a8", "align": "left" },
+      "size": { "w": 280, "h": 32 },
+      "position": { "x": 116, "y": 150 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-1-status",
+      "sprite": { "kind": "text", "bind": "level-1:status", "text": "🔒 LOCKED", "font": "16px monospace", "color": "#34c2b3", "align": "left" },
+      "size": { "w": 280, "h": 22 },
+      "position": { "x": 116, "y": 188 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-1-score",
+      "sprite": { "kind": "text", "bind": "level-1:score", "text": "", "font": "18px monospace", "color": "#ffd24a", "align": "right" },
+      "size": { "w": 240, "h": 24 },
+      "position": { "x": 684, "y": 152 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-1-time",
+      "sprite": { "kind": "text", "bind": "level-1:time", "text": "", "font": "16px monospace", "color": "#9aa0c0", "align": "right" },
+      "size": { "w": 240, "h": 22 },
+      "position": { "x": 684, "y": 188 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-1-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 620, "h": 96 },
+      "position": { "x": 90, "y": 132 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "pick-level-1", "requireKey": "level-1:sel" } }
+      ]
+    },
+
+    {
+      "id": "card-2-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#150f33", "stroke": "#9a5cff", "strokeWidth": 2 },
+      "size": { "w": 620, "h": 96 },
+      "position": { "x": 90, "y": 248 },
+      "tags": ["ui"],
+      "layer": 2
+    },
+    {
+      "id": "card-2-label",
+      "sprite": { "kind": "text", "text": "LEVEL 2", "font": "26px monospace", "color": "#ffe0a8", "align": "left" },
+      "size": { "w": 280, "h": 32 },
+      "position": { "x": 116, "y": 266 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-2-status",
+      "sprite": { "kind": "text", "bind": "level-2:status", "text": "🔒 LOCKED", "font": "16px monospace", "color": "#34c2b3", "align": "left" },
+      "size": { "w": 280, "h": 22 },
+      "position": { "x": 116, "y": 304 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-2-score",
+      "sprite": { "kind": "text", "bind": "level-2:score", "text": "", "font": "18px monospace", "color": "#ffd24a", "align": "right" },
+      "size": { "w": 240, "h": 24 },
+      "position": { "x": 684, "y": 268 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-2-time",
+      "sprite": { "kind": "text", "bind": "level-2:time", "text": "", "font": "16px monospace", "color": "#9aa0c0", "align": "right" },
+      "size": { "w": 240, "h": 22 },
+      "position": { "x": 684, "y": 304 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-2-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 620, "h": 96 },
+      "position": { "x": 90, "y": 248 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "pick-level-2", "requireKey": "level-2:sel" } }
+      ]
+    },
+
+    {
+      "id": "back-label",
+      "sprite": { "kind": "text", "text": "↩ BACK  (Esc)", "font": "16px monospace", "color": "#cfd2e6", "align": "center" },
+      "size": { "w": 240, "h": 24 },
+      "position": { "x": 400, "y": 404 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "back-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 240, "h": 44 },
+      "position": { "x": 280, "y": 392 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [{ "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "menu-back" } }]
+    }
+  ],
+  "systems": [
+    { "type": "persistence", "part": "persistence@1.0.0", "params": {} },
+    {
+      "type": "level-select",
+      "part": "level-select@1.0.0",
+      "params": {
+        "levels": ["level-1", "level-2"],
+        "wonKey": "runWon",
+        "bestKey": "runBest",
+        "clearedText": "✓ CLEARED",
+        "lockedText": "🔒 LOCKED",
+        "scoreTemplate": "◆ {v}",
+        "timeTemplate": "⧗ {v}s"
+      }
+    }
+  ],
+  "flow": {
+    "on": {
+      "pick-level-1": "@level:level-1",
+      "pick-level-2": "@level:level-2"
+    },
+    "persist": []
+  }
+}

@@ -1,8 +1,8 @@
 {
   "name": "Lumen: Echoes of the Dusklands",
   "slug": "lumen",
-  "description": "Guide Lumen, a luminous wisp, left-to-right across the drifting twilight ruins of the Dusklands. Every attempt opens with a skippable Echo — a deterministic replay of your last run.",
-  "version": "0.2.0",
+  "description": "Guide Lumen, a luminous wisp, left-to-right across the drifting twilight ruins of the Dusklands. Every attempt opens with a skippable Echo — a deterministic replay of your last run. Relight any cleared beacon from the level-select.",
+  "version": "0.3.0",
   "engine": "gitcade-sdk",
   "sdkVersion": "1.13.0",
   "libraryVersion": "1.13.0",
@@ -14,7 +14,9 @@
     { "input": "← → / A·D", "action": "Move" },
     { "input": "Space / W / ↑", "action": "Jump" },
     { "input": "↓ / S", "action": "Drop through / Climb" },
-    { "input": "Any key", "action": "Skip Echo" }
+    { "input": "Any key", "action": "Skip Echo" },
+    { "input": "L", "action": "Level select" }
   ],
-  "levels": ["level-1", "level-2"]
+  "levels": ["level-1", "level-2"],
+  "persist": { "slot": "progress", "keys": ["runWon", "runBest"] }
 }

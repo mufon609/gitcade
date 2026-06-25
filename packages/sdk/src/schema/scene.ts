@@ -74,15 +74,34 @@ export const SceneFlowSchema = z.strictObject({
  *  - `"@next"` — advance to the level after the active one (or `levelsComplete` past
  *    the last; or the first level when emitted from a non-level scene like a title).
  *  - `"@first"` — (re)start at the first level (e.g. a game-over "retry" edge).
- * Using a token means a level never hard-wires its successor, so reordering or
- * inserting levels is a `manifest.levels` edit, not a per-scene rewire.
+ *  - `"@level:<sceneId>"` — jump to a SPECIFIC level by id, resolved against `levels`
+ *    (the parameterized companion to `@next`/`@first`). A data-authored level-select
+ *    targets ANY level INTROSPECTIVELY — the engine resolves the id to the level (and
+ *    sets `world.state.level` to its stage index) and the validator proves it names a
+ *    real level — instead of an opaque literal scene id the validator can't relate to
+ *    the campaign. Resolves to `<sceneId>` WHEN it is in `levels`, else a no-op (null),
+ *    which the validator surfaces (see `level-target-missing`).
+ * Using a token means a level (or a menu) never hard-wires a literal successor, so
+ * reordering or inserting levels is a `manifest.levels` edit, not a per-scene rewire.
  */
 export const RESERVED_FLOW_TARGETS = ["@next", "@first"] as const;
-export type ReservedFlowTarget = (typeof RESERVED_FLOW_TARGETS)[number];
+/** Prefix of the parameterized level-jump token `@level:<sceneId>`. */
+export const LEVEL_TARGET_PREFIX = "@level:";
+export type ReservedFlowTarget = (typeof RESERVED_FLOW_TARGETS)[number] | `${typeof LEVEL_TARGET_PREFIX}${string}`;
 
-/** True if a `flow.on` target is a reserved level-sequence token rather than a scene id. */
+/** True if a `flow.on` target is a reserved level-sequence token (`@next`/`@first`/`@level:<id>`) rather than a literal scene id. */
 export function isReservedFlowTarget(target: string): target is ReservedFlowTarget {
-  return (RESERVED_FLOW_TARGETS as readonly string[]).includes(target);
+  return (RESERVED_FLOW_TARGETS as readonly string[]).includes(target) || target.startsWith(LEVEL_TARGET_PREFIX);
+}
+
+/**
+ * The level id named by an `@level:<id>` token, or `null` for any other target
+ * (`@next`/`@first`/a literal scene id). The single parse point the runtime
+ * ({@link isReservedFlowTarget} → resolveLevelTarget) and the validator share, so
+ * the token's grammar lives in one place.
+ */
+export function levelTargetId(target: string): string | null {
+  return target.startsWith(LEVEL_TARGET_PREFIX) ? target.slice(LEVEL_TARGET_PREFIX.length) : null;
 }
 
 /** Scene background: a solid CSS color or a layered (parallax) descriptor. */

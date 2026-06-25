@@ -1,6 +1,6 @@
 import type { Config } from "../schema/config.js";
 import type { Scene } from "../schema/scene.js";
-import { isReservedFlowTarget, type ReservedFlowTarget } from "../schema/scene.js";
+import { isReservedFlowTarget, levelTargetId, type ReservedFlowTarget } from "../schema/scene.js";
 import { resolveSceneInheritance } from "../schema/scene-inheritance.js";
 import type { PersistConfig } from "../schema/manifest.js";
 import { World } from "./world.js";
@@ -338,16 +338,23 @@ export class Game {
 
   /**
    * Resolve a reserved level-sequence flow target against `manifest.levels`,
-   * keyed on the ACTIVE scene. `"@first"` ⇒ the first level. `"@next"` ⇒ the level
-   * after the active one, or `levelsComplete` past the last, or the first level when
-   * emitted from a non-level scene (a title/menu "start" edge). Returns `null` (a
-   * no-op transition) when there is no level sequence or no resolvable destination —
-   * e.g. clearing the last level with no `levelsComplete` set, which instead emits a
-   * `"levels-complete"` event so a host/part can react.
+   * keyed on the ACTIVE scene. `"@first"` ⇒ the first level. `"@level:<id>"` ⇒ that
+   * specific level WHEN `<id>` is one of the levels, else null (the validator surfaces
+   * a bad id; the runtime no-ops). `"@next"` ⇒ the level after the active one, or
+   * `levelsComplete` past the last, or the first level when emitted from a non-level
+   * scene (a title/menu "start" edge). Returns `null` (a no-op transition) when there
+   * is no level sequence or no resolvable destination — e.g. clearing the last level
+   * with no `levelsComplete` set, which instead emits a `"levels-complete"` event so a
+   * host/part can react. (loadScene then sets `world.state.level` from the destination's
+   * stage index, so a `@level` jump tracks the stage like any other level entry.)
    */
   private resolveLevelTarget(token: ReservedFlowTarget): string | null {
     if (this.levels.length === 0) return null;
     if (token === "@first") return this.levels[0];
+    // `@level:<id>` — a direct jump to a named level (a data-authored level-select), valid
+    // only when the id IS one of the levels; an unknown id is a no-op the validator flags.
+    const levelId = levelTargetId(token);
+    if (levelId !== null) return this.levels.includes(levelId) ? levelId : null;
     const here = this.levels.indexOf(this.scene.id);
     if (here < 0) return this.levels[0];
     const next = this.levels[here + 1];

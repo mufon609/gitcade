@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createGame, createReplay, snapshotWorld, type Game } from "@gitcade/sdk";
-import { createLibraryRegistry, restoreRecordingEntry } from "@gitcade/library";
+import { createGame, createReplay, snapshotWorld, MemoryStorage, type Game, type RunRecording } from "@gitcade/sdk";
+import { createLibraryRegistry, restoreRecordingEntry, createRunStore } from "@gitcade/library";
 import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
 import { createCampaign } from "../src/campaign.js";
 import manifest from "../game.json";
@@ -8,6 +8,7 @@ import config from "../config.json";
 import playBase from "../src/scenes/play-base.json";
 import level1 from "../src/scenes/level-1.json";
 import level2 from "../src/scenes/level-2.json";
+import menu from "../src/scenes/menu.json";
 
 /**
  * The headless smoke boot `gitcade validate` defers to (Lumen uses @gitcade/library parts
@@ -1106,9 +1107,6 @@ describe("lumen Phase-2 — the Echo shows the level you're ON + the end-of-leve
     // The FINAL level has no `next` → no choice card; clearing it wins.
     expect(campaign.isFinal("level-2")).toBe(true);
     expect(campaign.next("level-2")).toBeNull();
-    // The Echo/recording key is per-level — a level-2 player surfaces run:level-2, NOT run:level-1.
-    expect(campaign.runKey("level-1")).toBe("run:level-1");
-    expect(campaign.runKey("level-2")).toBe("run:level-2");
   });
 
   it("(a) the Echo surfaced for a level-2 player is THIS level's run, and it replays byte-for-byte booted IN ISOLATION", () => {
@@ -1126,8 +1124,8 @@ describe("lumen Phase-2 — the Echo shows the level you're ON + the end-of-leve
     }
     const recording = rec0.getRecording();
     // The surfaced recording is rooted at the level the player is on — level-2, NOT level-1 (the old bug).
+    // (The run-store keys its LAST recording per level; the round-trip is tested in the run-store describe below.)
     expect(recording.sceneId).toBe("level-2");
-    expect(campaign.runKey(recording.sceneId)).toBe("run:level-2");
     expect(recording.entryState?.level).toBe(2); // the carried slice the level was entered with
 
     // THE ECHO PATH (what main.ts's attachReplayLoop now does): boot the replay game DIRECTLY at the
@@ -1193,5 +1191,97 @@ describe("lumen Phase-2 — the Echo shows the level you're ON + the end-of-leve
     expect(live.world.state.motes).toBe(9); // …and the banked motes
     live.stepFrames(1); // the level-2 player re-seeds hp from the carried 1 (NOT full playerHp)
     expect(player(live)!.state.hp).toBe(1);
+  });
+});
+
+describe("lumen Phase-5 — the run-store + the DATA level-select menu", () => {
+  // Boot the menu scene as the host's openMenu does: the `persistence` system LOADS the run-store's progress
+  // index from the SAME storage; `level-select` PROJECTS it; the gated `tap-emit` cards READ the won-set.
+  function bootMenu(storage: MemoryStorage, opts: Record<string, unknown> = {}): Game {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    return createGame({ manifest, config, scenes: [playBase, level1, level2, menu] }, { canvas: null, registry, storage, entrySceneId: "menu", ...opts });
+  }
+  // Record a real run of `sceneId` for `ticks` frames — the recording the run-store keeps (Echo source) and
+  // whose deterministic tick count IS the best time. (Input-free here; the run's content is irrelevant to the store.)
+  function recordReal(sceneId: string, ticks: number): RunRecording {
+    const g = isoBoot(sceneId, { seed: SEED, record: true });
+    g.stepFrames(ticks);
+    return g.getRecording();
+  }
+  // Let the menu's async `persistence` load (storage.get → world.state) resolve between sim steps.
+  const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+  it("the run-store round-trips runWon/runBest through manifest.persist, and the menu surfaces them", async () => {
+    const storage = new MemoryStorage();
+    const store = createRunStore({ storage }); // lumen's defaults: slot "progress", keys runWon/runBest
+
+    // Clear level-1 (a real recording → best time is its tick count); level-2 stays unplayed.
+    const rec1 = recordReal("level-1", 40);
+    const out = await store.recordRun({ recording: rec1, score: 128, won: true });
+    expect(out.newlyWon).toBe(true);
+    expect(out.best).toEqual({ score: 128, ticks: 40, seconds: 40 * rec1.fixedDt });
+
+    // The progress slot is EXACTLY the shape lumen's manifest.persist declares — the binding bridge.
+    expect(manifest.persist).toEqual({ slot: "progress", keys: ["runWon", "runBest"] });
+    expect(await storage.get("progress")).toEqual({
+      runWon: { "level-1": true },
+      runBest: { "level-1": { score: 128, ticks: 40, seconds: 40 * rec1.fixedDt } },
+    });
+    expect((await store.lastRecording("level-1"))!.frameCount).toBe(40); // the level's Echo source round-trips
+
+    // Boot the menu over the SAME storage: persistence LOADS the index, level-select PROJECTS it.
+    const g = bootMenu(storage);
+    g.stepFrames(1); // persistence issues the async load
+    await flush(); // …it resolves → world.state.runWon / runBest are set (the in-game READ of the index)
+    g.stepFrames(1); // level-select projects the per-level flat keys
+    expect(g.world.state.runWon).toEqual({ "level-1": true }); // the round-trip reached world.state
+    expect(g.world.state["level-1:sel"]).toBe(true); // cleared ⇒ selectable
+    expect(g.world.state["level-1:status"]).toBe("✓ CLEARED");
+    expect(g.world.state["level-1:score"]).toBe("◆ 128");
+    expect(g.world.state["level-1:time"]).toBe(`⧗ ${(40 * rec1.fixedDt).toFixed(1)}s`);
+    // level-2 — never cleared ⇒ locked + blank stats.
+    expect(g.world.state["level-2:sel"]).toBe(false);
+    expect(g.world.state["level-2:status"]).toBe("🔒 LOCKED");
+    expect(g.world.state["level-2:score"]).toBe("");
+    expect(g.world.state["level-2:time"]).toBe("");
+  });
+
+  it("the menu GATES by the won-set and ROUTES a won pick via @level:<id>", async () => {
+    const storage = new MemoryStorage();
+    const store = createRunStore({ storage });
+    await store.recordRun({ recording: recordReal("level-1", 30), score: 7, won: true }); // level-1 cleared, level-2 NOT
+
+    // Boot the menu WITH the level sequence (the portable-host path) so the menu's @level edges resolve
+    // IN-ENGINE — proving the routing end-to-end. (lumen's own host boots it with levels:[] and intercepts
+    // the pick to wrap it in an Echo; the menu's DATA contract is identical either way.)
+    const g = bootMenu(storage);
+    g.stepFrames(1);
+    await flush();
+    g.stepFrames(1);
+    expect(g.world.state["level-1:sel"]).toBe(true);
+    expect(g.world.state["level-2:sel"]).toBe(false);
+
+    // Tap the LOCKED level-2 card → the gated tap-emit must NOT emit ⇒ no transition (won-gating, as DATA).
+    g.world.input.tap(400, 296); // center of card-2-tap (90..710 × 248..344)
+    g.stepFrames(1);
+    expect(g.scene.id).toBe("menu");
+
+    // Tap the CLEARED level-1 card → it emits pick-level-1 → flow @level:level-1 → the menu jumps to level-1
+    // and world.state.level becomes its 1-based stage index. The pick routed introspectively, by id.
+    g.world.input.tap(400, 180); // center of card-1-tap (90..710 × 132..228)
+    g.stepFrames(1);
+    expect(g.scene.id).toBe("level-1");
+    expect(g.world.state.level).toBe(1);
+  });
+
+  it("the BACK card emits menu-back (ungated) — the host's return-to-where-you-were affordance", () => {
+    const g = bootMenu(new MemoryStorage());
+    let back = 0;
+    g.world.events.on("menu-back", () => (back += 1));
+    g.stepFrames(1);
+    g.world.input.tap(400, 414); // center of back-tap (280..520 × 392..436)
+    g.stepFrames(1);
+    expect(back).toBe(1);
   });
 });

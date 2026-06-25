@@ -33,6 +33,12 @@ host glue in [`src/main.ts`](./src/main.ts) (audio, screen juice, pause, and the
   strings `format-binding` derives, and a `hud-bar` health bar reads the player's own `state.hp`
   (`valueEntity`). The engine draws them fixed under the follow-camera, so they stay put while the
   world scrolls — no DOM overlay, no host mirror.
+- [`src/scenes/menu.json`](./src/scenes/menu.json) — the **level-select** is data too. A `persistence`
+  system loads the run-store's progress index (`runWon` / `runBest`) into `world.state`; a
+  `level-select` system projects it into per-level keys; text widgets `bind` to the cleared/locked
+  status + best score/time; and each level card is a `tap-emit` **gated on the won-set**
+  (`requireKey: "<level>:sel"`) that routes a pick via the SDK `@level:<id>` flow token. Reached from
+  the result + choice cards (the **≡ Level select** button / **L**).
 
 ## Parts used (pinned to `@gitcade/library@1.13.0`)
 
@@ -42,7 +48,9 @@ Behaviors: `move-platformer@1.3.0`, `sprite-state-machine@1.0.0`, `face-velocity
 `follow-path@1.1.0`, `portal@2.0.0`, `trigger-zone@1.1.0`, `hud-bar@1.1.0`
 (+ SDK built-ins `velocity`, `sprite-animate`).
 Systems: `camera-follow@2.0.0`, `camera-shake@1.0.0`, `score@1.0.0`, `lives-respawn@1.1.0`,
-`format-binding@1.0.0`, `sparkle@1.0.0`, `explosion@1.0.0` (+ SDK built-in `aabb-collision`).
+`format-binding@1.0.0`, `sparkle@1.0.0`, `explosion@1.0.0`, `persistence@1.0.0` (the level-select
+loads the progress index), `level-select@1.0.0` (the menu's projection) (+ SDK built-in `aabb-collision`).
+UI: `tap-emit@1.1.0` (the menu's level cards — gated on the won-set via `requireKey`).
 Tile collision (solid / one-way / slope / ladder) is the SDK `collider` + tilemap-property path.
 
 ## Run
@@ -59,7 +67,7 @@ npm run validate     # gitcade validate . → exit 0 = publishable
 ```
 
 Controls: **← → / A·D** move · **Space / W / ↑** jump · **↓ / S** drop-through & climb ·
-**P / Esc** pause · **any key** skips the Echo.
+**P / Esc** pause · **any key** skips the Echo · **L** level select (from the result / choice card).
 
 ## Notes
 
@@ -74,11 +82,18 @@ Controls: **← → / A·D** move · **Space / W / ↑** jump · **↓ / S** dro
   continue press just resumes. The **final** Beacon has no next level, so it emits `levels-complete`
   — the win. level-2's floor sits lower than level-1's, so it `scene.overrides` the inherited player
   spawn onto its own floor (the one field-level patch a taller level needs).
-- **Per-level Echo recordings.** Each level's run is recorded on its own key (`run:<sceneId>`) and
-  contains NO scene change — the recorder is re-armed on every level entry. A single recording
-  spanning a level transition would desync on replay (an input-only replay can't reproduce the
-  host's `requestNextLevel()`), so the attract-loop Echo replays the level the attempt STARTS in
-  (level-1), and it lines up byte-for-byte.
+- **Per-level recordings + progress (the run-store).** The library `createRunStore` is the single
+  durable data layer: it keeps each level's LAST recording (the Echo source — recorded on its own
+  per-level key, with NO scene change, since a recording spanning a level transition would desync on
+  replay) and folds the won-set + best score/time into a progress index. The host calls `recordRun(…)`
+  at every run-end; the index round-trips through `manifest.persist {slot:"progress",
+  keys:["runWon","runBest"]}` so the level-select menu reads it as data via its `persistence` system.
+- **Level-select (data + `@level`).** The result and choice cards reach a menu (`menu.json`) of every
+  level: cleared levels are selectable and show their best score/time, locked levels aren't. Picking a
+  level relaunches it fresh — its Echo, then live. The menu is pure data (`level-select` projection +
+  won-gated `tap-emit` + `@level:<id>` flow edges); lumen's host boots it with `levels:[]` and
+  intercepts the pick to wrap the launch in an Echo (its signature), so the in-engine `@level` jump
+  no-ops there — the edges stay the portable, validator-checked contract a non-wrapping host follows.
 - **Checkpoints move the respawn point.** Each `trigger-zone` checkpoint writes its position to
   `world.state` (`setRespawnKey`), and `lives-respawn` (`respawnStateKey`) respawns there — so a
   mid-level death returns you to the last checkpoint, not the level start.

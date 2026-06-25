@@ -8,17 +8,17 @@
   "entities": [
     {
       "id": "menu-title",
-      "sprite": { "kind": "text", "text": "LEVEL SELECT", "font": "38px monospace", "color": "#ff9a3c", "align": "center" },
+      "sprite": { "kind": "text", "text": "LEVEL SELECT", "font": "36px monospace", "color": "#ff9a3c", "align": "center" },
       "size": { "w": 600, "h": 44 },
-      "position": { "x": 400, "y": 44 },
+      "position": { "x": 400, "y": 18 },
       "tags": ["ui"],
       "layer": 10
     },
     {
       "id": "menu-hint",
-      "sprite": { "kind": "text", "text": "Relight any beacon you have already reached — tap a cleared level", "font": "13px monospace", "color": "#9aa0c0", "align": "center" },
-      "size": { "w": 600, "h": 20 },
-      "position": { "x": 400, "y": 90 },
+      "sprite": { "kind": "text", "text": "Relight any beacon you've reached — pick a mode for a cleared level", "font": "13px monospace", "color": "#9aa0c0", "align": "center" },
+      "size": { "w": 720, "h": 20 },
+      "position": { "x": 400, "y": 70 },
       "tags": ["ui"],
       "layer": 10
     },
@@ -26,24 +26,24 @@
     {
       "id": "card-1-frame",
       "sprite": { "kind": "shape", "shape": "rect", "color": "#150f33", "stroke": "#9a5cff", "strokeWidth": 2 },
-      "size": { "w": 620, "h": 96 },
-      "position": { "x": 90, "y": 132 },
+      "size": { "w": 688, "h": 154 },
+      "position": { "x": 56, "y": 96 },
       "tags": ["ui"],
       "layer": 2
     },
     {
       "id": "card-1-label",
-      "sprite": { "kind": "text", "text": "LEVEL 1", "font": "26px monospace", "color": "#ffe0a8", "align": "left" },
-      "size": { "w": 280, "h": 32 },
-      "position": { "x": 116, "y": 150 },
+      "sprite": { "kind": "text", "text": "LEVEL 1", "font": "24px monospace", "color": "#ffe0a8", "align": "left" },
+      "size": { "w": 280, "h": 30 },
+      "position": { "x": 84, "y": 110 },
       "tags": ["ui"],
       "layer": 10
     },
     {
       "id": "card-1-status",
       "sprite": { "kind": "text", "bind": "level-1:status", "text": "🔒 LOCKED", "font": "16px monospace", "color": "#34c2b3", "align": "left" },
-      "size": { "w": 280, "h": 22 },
-      "position": { "x": 116, "y": 188 },
+      "size": { "w": 320, "h": 22 },
+      "position": { "x": 84, "y": 146 },
       "tags": ["ui"],
       "layer": 10
     },
@@ -51,51 +51,122 @@
       "id": "card-1-score",
       "sprite": { "kind": "text", "bind": "level-1:score", "text": "", "font": "18px monospace", "color": "#ffd24a", "align": "right" },
       "size": { "w": 240, "h": 24 },
-      "position": { "x": 684, "y": 152 },
+      "position": { "x": 716, "y": 112 },
       "tags": ["ui"],
       "layer": 10
     },
     {
       "id": "card-1-time",
-      "sprite": { "kind": "text", "bind": "level-1:time", "text": "", "font": "16px monospace", "color": "#9aa0c0", "align": "right" },
+      "sprite": { "kind": "text", "bind": "level-1:time", "text": "", "font": "15px monospace", "color": "#9aa0c0", "align": "right" },
       "size": { "w": 240, "h": 22 },
-      "position": { "x": 684, "y": 188 },
+      "position": { "x": 716, "y": 146 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+
+    {
+      "id": "card-1-echo-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#1a1340", "stroke": "#9a5cff", "strokeWidth": 2 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 84, "y": 186 },
+      "tags": ["ui"],
+      "layer": 3
+    },
+    {
+      "id": "card-1-echo-label",
+      "sprite": { "kind": "text", "text": "▶ ECHO", "font": "16px monospace", "color": "#cfb8ff", "align": "center" },
+      "size": { "w": 200, "h": 22 },
+      "position": { "x": 184, "y": 199 },
       "tags": ["ui"],
       "layer": 10
     },
     {
-      "id": "card-1-tap",
+      "id": "card-1-echo-tap",
       "sprite": { "kind": "none" },
-      "size": { "w": 620, "h": 96 },
-      "position": { "x": 90, "y": 132 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 84, "y": 186 },
       "tags": ["ui"],
       "layer": 999,
       "behaviors": [
-        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "pick-level-1", "requireKey": "level-1:sel" } }
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "echo-level-1", "requireKey": "level-1:sel" } }
+      ]
+    },
+    {
+      "id": "card-1-race-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#112a33", "stroke": "#28d0ff", "strokeWidth": 2 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 300, "y": 186 },
+      "tags": ["ui"],
+      "layer": 3
+    },
+    {
+      "id": "card-1-race-label",
+      "sprite": { "kind": "text", "text": "👻 RACE", "font": "16px monospace", "color": "#aef0ff", "align": "center" },
+      "size": { "w": 200, "h": 22 },
+      "position": { "x": 400, "y": 199 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-1-race-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 300, "y": 186 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "race-level-1", "requireKey": "level-1:sel" } }
+      ]
+    },
+    {
+      "id": "card-1-trial-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#33291a", "stroke": "#ffd24a", "strokeWidth": 2 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 516, "y": 186 },
+      "tags": ["ui"],
+      "layer": 3
+    },
+    {
+      "id": "card-1-trial-label",
+      "sprite": { "kind": "text", "text": "⏱ TIME TRIAL", "font": "15px monospace", "color": "#ffe9a8", "align": "center" },
+      "size": { "w": 200, "h": 22 },
+      "position": { "x": 616, "y": 199 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-1-trial-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 516, "y": 186 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "trial-level-1", "requireKey": "level-1:sel" } }
       ]
     },
 
     {
       "id": "card-2-frame",
       "sprite": { "kind": "shape", "shape": "rect", "color": "#150f33", "stroke": "#9a5cff", "strokeWidth": 2 },
-      "size": { "w": 620, "h": 96 },
-      "position": { "x": 90, "y": 248 },
+      "size": { "w": 688, "h": 154 },
+      "position": { "x": 56, "y": 262 },
       "tags": ["ui"],
       "layer": 2
     },
     {
       "id": "card-2-label",
-      "sprite": { "kind": "text", "text": "LEVEL 2", "font": "26px monospace", "color": "#ffe0a8", "align": "left" },
-      "size": { "w": 280, "h": 32 },
-      "position": { "x": 116, "y": 266 },
+      "sprite": { "kind": "text", "text": "LEVEL 2", "font": "24px monospace", "color": "#ffe0a8", "align": "left" },
+      "size": { "w": 280, "h": 30 },
+      "position": { "x": 84, "y": 276 },
       "tags": ["ui"],
       "layer": 10
     },
     {
       "id": "card-2-status",
       "sprite": { "kind": "text", "bind": "level-2:status", "text": "🔒 LOCKED", "font": "16px monospace", "color": "#34c2b3", "align": "left" },
-      "size": { "w": 280, "h": 22 },
-      "position": { "x": 116, "y": 304 },
+      "size": { "w": 320, "h": 22 },
+      "position": { "x": 84, "y": 312 },
       "tags": ["ui"],
       "layer": 10
     },
@@ -103,27 +174,98 @@
       "id": "card-2-score",
       "sprite": { "kind": "text", "bind": "level-2:score", "text": "", "font": "18px monospace", "color": "#ffd24a", "align": "right" },
       "size": { "w": 240, "h": 24 },
-      "position": { "x": 684, "y": 268 },
+      "position": { "x": 716, "y": 278 },
       "tags": ["ui"],
       "layer": 10
     },
     {
       "id": "card-2-time",
-      "sprite": { "kind": "text", "bind": "level-2:time", "text": "", "font": "16px monospace", "color": "#9aa0c0", "align": "right" },
+      "sprite": { "kind": "text", "bind": "level-2:time", "text": "", "font": "15px monospace", "color": "#9aa0c0", "align": "right" },
       "size": { "w": 240, "h": 22 },
-      "position": { "x": 684, "y": 304 },
+      "position": { "x": 716, "y": 312 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+
+    {
+      "id": "card-2-echo-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#1a1340", "stroke": "#9a5cff", "strokeWidth": 2 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 84, "y": 352 },
+      "tags": ["ui"],
+      "layer": 3
+    },
+    {
+      "id": "card-2-echo-label",
+      "sprite": { "kind": "text", "text": "▶ ECHO", "font": "16px monospace", "color": "#cfb8ff", "align": "center" },
+      "size": { "w": 200, "h": 22 },
+      "position": { "x": 184, "y": 365 },
       "tags": ["ui"],
       "layer": 10
     },
     {
-      "id": "card-2-tap",
+      "id": "card-2-echo-tap",
       "sprite": { "kind": "none" },
-      "size": { "w": 620, "h": 96 },
-      "position": { "x": 90, "y": 248 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 84, "y": 352 },
       "tags": ["ui"],
       "layer": 999,
       "behaviors": [
-        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "pick-level-2", "requireKey": "level-2:sel" } }
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "echo-level-2", "requireKey": "level-2:sel" } }
+      ]
+    },
+    {
+      "id": "card-2-race-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#112a33", "stroke": "#28d0ff", "strokeWidth": 2 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 300, "y": 352 },
+      "tags": ["ui"],
+      "layer": 3
+    },
+    {
+      "id": "card-2-race-label",
+      "sprite": { "kind": "text", "text": "👻 RACE", "font": "16px monospace", "color": "#aef0ff", "align": "center" },
+      "size": { "w": 200, "h": 22 },
+      "position": { "x": 400, "y": 365 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-2-race-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 300, "y": 352 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "race-level-2", "requireKey": "level-2:sel" } }
+      ]
+    },
+    {
+      "id": "card-2-trial-frame",
+      "sprite": { "kind": "shape", "shape": "rect", "color": "#33291a", "stroke": "#ffd24a", "strokeWidth": 2 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 516, "y": 352 },
+      "tags": ["ui"],
+      "layer": 3
+    },
+    {
+      "id": "card-2-trial-label",
+      "sprite": { "kind": "text", "text": "⏱ TIME TRIAL", "font": "15px monospace", "color": "#ffe9a8", "align": "center" },
+      "size": { "w": 200, "h": 22 },
+      "position": { "x": 616, "y": 365 },
+      "tags": ["ui"],
+      "layer": 10
+    },
+    {
+      "id": "card-2-trial-tap",
+      "sprite": { "kind": "none" },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 516, "y": 352 },
+      "tags": ["ui"],
+      "layer": 999,
+      "behaviors": [
+        { "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "trial-level-2", "requireKey": "level-2:sel" } }
       ]
     },
 
@@ -131,15 +273,15 @@
       "id": "back-label",
       "sprite": { "kind": "text", "text": "↩ BACK  (Esc)", "font": "16px monospace", "color": "#cfd2e6", "align": "center" },
       "size": { "w": 240, "h": 24 },
-      "position": { "x": 400, "y": 404 },
+      "position": { "x": 400, "y": 432 },
       "tags": ["ui"],
       "layer": 10
     },
     {
       "id": "back-tap",
       "sprite": { "kind": "none" },
-      "size": { "w": 240, "h": 44 },
-      "position": { "x": 280, "y": 392 },
+      "size": { "w": 200, "h": 44 },
+      "position": { "x": 300, "y": 424 },
       "tags": ["ui"],
       "layer": 999,
       "behaviors": [{ "type": "tap-emit", "part": "tap-emit@1.1.0", "params": { "emitOnTap": "menu-back" } }]
@@ -163,8 +305,12 @@
   ],
   "flow": {
     "on": {
-      "pick-level-1": "@level:level-1",
-      "pick-level-2": "@level:level-2"
+      "echo-level-1": "@level:level-1",
+      "race-level-1": "@level:level-1",
+      "trial-level-1": "@level:level-1",
+      "echo-level-2": "@level:level-2",
+      "race-level-2": "@level:level-2",
+      "trial-level-2": "@level:level-2"
     },
     "persist": []
   }

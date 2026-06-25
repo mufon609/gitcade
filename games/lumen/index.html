@@ -40,6 +40,15 @@
       }
       #pause-btn { right: 8px; }
       #mute-btn { left: 8px; }
+      /* Practice-mode banner (Echo / Race the Ghost / Time-Trial), shown only during a level-select
+         launch — names the mode and, for time-trial, the best to beat. Hidden during the campaign. */
+      #mode-badge {
+        position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 5;
+        display: none; max-width: 70%; padding: 6px 14px; border-radius: 9px;
+        border: 1px solid rgba(154, 92, 255, .5); background: rgba(21, 15, 51, .82);
+        color: var(--ink); font-size: 13px; letter-spacing: 1px; white-space: nowrap;
+        pointer-events: none; text-shadow: 0 1px 0 #070512;
+      }
       /* The HUD is DATA: screen-space canvas entities (screen:true) authored in play-base,
          drawn fixed under the follow-camera by the engine — no DOM overlay, no host mirror. */
       /* Overlays: pause, start, result. */
@@ -78,6 +87,7 @@
       <div id="fx-overlay"></div>
       <button id="pause-btn" aria-label="Pause">II</button>
       <button id="mute-btn" aria-label="Mute audio">🔊</button>
+      <div id="mode-badge" aria-live="polite"></div>
 
       <div id="pause-overlay" class="overlay">
         <div class="card">

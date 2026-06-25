@@ -1,8 +1,8 @@
 {
   "name": "@gitcade/game-lumen",
   "private": true,
-  "version": "0.3.0",
-  "description": "Lumen: Echoes of the Dusklands — a GitCade ecosystem platformer composed from @gitcade/library parts, with a deterministic replay 'Echo' intro.",
+  "version": "1.0.0",
+  "description": "Lumen: Echoes of the Dusklands — a GitCade ecosystem platformer composed from @gitcade/library parts: a deterministic replay 'Echo' intro, a two-level campaign, and a level-select with Replay / Race-the-Ghost / Time-Trial modes.",
   "type": "module",
   "scripts": {
     "gen:art": "node scripts/gen-art.mjs",

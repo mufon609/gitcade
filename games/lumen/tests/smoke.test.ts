@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createGame, createReplay, snapshotWorld, MemoryStorage, type Game, type RunRecording } from "@gitcade/sdk";
-import { createLibraryRegistry, restoreRecordingEntry, createRunStore } from "@gitcade/library";
+import { createLibraryRegistry, restoreRecordingEntry, createRunStore, createCampaign } from "@gitcade/library";
 import { registerCustomBehaviors } from "../src/custom-behaviors/index.js";
-import { createCampaign } from "../src/campaign.js";
 import manifest from "../game.json";
 import config from "../config.json";
 import playBase from "../src/scenes/play-base.json";
@@ -1095,7 +1094,7 @@ describe("lumen EASY difficulty — generous checkpoints + no blind jumps onto h
 
 describe("lumen Phase-2 — the Echo shows the level you're ON + the end-of-level CHOICE", () => {
   // The PURE campaign-nav policy main.ts reads off manifest.levels (the choice's advance-vs-re-enter
-  // targets + the per-level Echo key) — factored into src/campaign.ts so it's tested without the DOM glue.
+  // targets + the per-level Echo key) — the library's `createCampaign`, tested here without the DOM glue.
   const campaign = createCampaign(manifest.levels as string[]);
 
   it("(b) choice nav: Continue advances to the next level, Replay re-enters the cleared one, the final level wins", () => {
@@ -1247,14 +1246,14 @@ describe("lumen Phase-5 — the run-store + the DATA level-select menu", () => {
     expect(g.world.state["level-2:time"]).toBe("");
   });
 
-  it("the menu GATES by the won-set and ROUTES a won pick via @level:<id>", async () => {
+  it("the menu GATES mode buttons by the won-set and ROUTES a won pick via @level:<id>", async () => {
     const storage = new MemoryStorage();
     const store = createRunStore({ storage });
     await store.recordRun({ recording: recordReal("level-1", 30), score: 7, won: true }); // level-1 cleared, level-2 NOT
 
     // Boot the menu WITH the level sequence (the portable-host path) so the menu's @level edges resolve
     // IN-ENGINE — proving the routing end-to-end. (lumen's own host boots it with levels:[] and intercepts
-    // the pick to wrap it in an Echo; the menu's DATA contract is identical either way.)
+    // the per-mode event to launch a practice mode; the menu's DATA contract is identical either way.)
     const g = bootMenu(storage);
     g.stepFrames(1);
     await flush();
@@ -1262,14 +1261,14 @@ describe("lumen Phase-5 — the run-store + the DATA level-select menu", () => {
     expect(g.world.state["level-1:sel"]).toBe(true);
     expect(g.world.state["level-2:sel"]).toBe(false);
 
-    // Tap the LOCKED level-2 card → the gated tap-emit must NOT emit ⇒ no transition (won-gating, as DATA).
-    g.world.input.tap(400, 296); // center of card-2-tap (90..710 × 248..344)
+    // Tap a LOCKED level-2 mode button → the gated tap-emit must NOT emit ⇒ no transition (won-gating, as DATA).
+    g.world.input.tap(400, 374); // center of card-2-race-tap (300..500 × 352..396)
     g.stepFrames(1);
     expect(g.scene.id).toBe("menu");
 
-    // Tap the CLEARED level-1 card → it emits pick-level-1 → flow @level:level-1 → the menu jumps to level-1
-    // and world.state.level becomes its 1-based stage index. The pick routed introspectively, by id.
-    g.world.input.tap(400, 180); // center of card-1-tap (90..710 × 132..228)
+    // Tap a CLEARED level-1 mode button → it emits race-level-1 → flow @level:level-1 → the menu jumps to
+    // level-1 and world.state.level becomes its 1-based stage index. The pick routed by id, mode-agnostic.
+    g.world.input.tap(400, 208); // center of card-1-race-tap (300..500 × 186..230)
     g.stepFrames(1);
     expect(g.scene.id).toBe("level-1");
     expect(g.world.state.level).toBe(1);
@@ -1280,8 +1279,82 @@ describe("lumen Phase-5 — the run-store + the DATA level-select menu", () => {
     let back = 0;
     g.world.events.on("menu-back", () => (back += 1));
     g.stepFrames(1);
-    g.world.input.tap(400, 414); // center of back-tap (280..520 × 392..436)
+    g.world.input.tap(400, 446); // center of back-tap (300..500 × 424..468)
     g.stepFrames(1);
     expect(back).toBe(1);
+  });
+});
+
+describe("lumen Phase-6 — level-select MODES (the data contract + the modes' entry-state semantics)", () => {
+  // Boot the menu exactly as the host's openMenu does (persistence loads the run-store index; level-select
+  // projects it; the gated mode `tap-emit`s read the per-level `:sel` flag).
+  function bootMenu(storage: MemoryStorage, opts: Record<string, unknown> = {}): Game {
+    const registry = createLibraryRegistry();
+    registerCustomBehaviors(registry);
+    return createGame({ manifest, config, scenes: [playBase, level1, level2, menu] }, { canvas: null, registry, storage, entrySceneId: "menu", ...opts });
+  }
+  function recordReal(sceneId: string, ticks: number): RunRecording {
+    const g = isoBoot(sceneId, { seed: SEED, record: true });
+    g.stepFrames(ticks);
+    return g.getRecording();
+  }
+  const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
+
+  it("each CLEARED card offers THREE gated mode events (echo/race/trial); a LOCKED card emits NONE", async () => {
+    const storage = new MemoryStorage();
+    const store = createRunStore({ storage, metric: "fastest" }); // lumen's own metric
+    await store.recordRun({ recording: recordReal("level-1", 30), score: 7, won: true }); // level-1 CLEARED; level-2 LOCKED
+
+    // Boot with levels:[] (lumen's own host path) so @level no-ops and we observe the RAW mode events the
+    // host would intercept — proving the menu DATA emits a per-(level, mode) event, gated by the won-set.
+    const g = bootMenu(storage, { levels: [] });
+    g.stepFrames(1);
+    await flush();
+    g.stepFrames(1);
+    const fired: string[] = [];
+    for (const ev of ["echo-level-1", "race-level-1", "trial-level-1", "echo-level-2", "race-level-2", "trial-level-2"]) {
+      g.world.events.on(ev, () => fired.push(ev));
+    }
+    // level-1 (CLEARED): echo x84..284, race x300..500, trial x516..716 — all at the mode row y186..230.
+    g.world.input.tap(184, 208);
+    g.stepFrames(1);
+    g.world.input.tap(400, 208);
+    g.stepFrames(1);
+    g.world.input.tap(616, 208);
+    g.stepFrames(1);
+    // level-2 (LOCKED): the same three buttons (mode row y352..396) are gated → none emit.
+    g.world.input.tap(184, 374);
+    g.stepFrames(1);
+    g.world.input.tap(400, 374);
+    g.stepFrames(1);
+    g.world.input.tap(616, 374);
+    g.stepFrames(1);
+
+    expect(fired).toEqual(["echo-level-1", "race-level-1", "trial-level-1"]); // only the cleared level's three, in tap order
+    expect(g.scene.id).toBe("menu"); // levels:[] ⇒ the @level edges no-op; lumen's host does the real launching
+  });
+
+  it("a mode launch boots the level CANONICAL (full hp, nothing carried) — distinct from the campaign carry", () => {
+    // launchReplay/launchMode boot the chosen level via createGame `entrySceneId` with NO
+    // restoreRecordingEntry — a fresh ISOLATION boot. So level-2 starts at FULL hp with no carriedHp, even
+    // though the CAMPAIGN enters it from a (possibly low-hp) carry. This is the mode launch's boot path.
+    const g = isoBoot("level-2", { seed: SEED });
+    expect(g.world.state.carriedHp).toBeUndefined(); // nothing carried — no restoreRecordingEntry on a mode launch
+    g.stepFrames(1); // the player's health-and-death seeds hp
+    expect(player(g)!.state.hp).toBe(config.playerHp); // FULL hp — the canonical start ALL three modes use
+    // (The campaign retry path restoreRecordingEntry()s a recorded entry instead — covered by the
+    // restore-entry suite + Phase-2's live-retry test; a mode launch deliberately skips it.)
+  });
+
+  it("the ghost / showcase source is the FASTEST clear (run-store metric 'fastest' — a speedrun ghost)", async () => {
+    // lumen builds its run-store with metric:"fastest", so bestRecording is the fewest-TICK clear — what
+    // RACE replays as the ghost and REPLAY (Echo) showcases. Record a SLOW clear, then a FAST clear.
+    const storage = new MemoryStorage();
+    const store = createRunStore({ storage, metric: "fastest" }); // exactly lumen's main.ts config
+    await store.recordRun({ recording: recordReal("level-1", 80), score: 5, won: true });
+    await store.recordRun({ recording: recordReal("level-1", 40), score: 5, won: true });
+    const best = await store.bestRecording("level-1");
+    expect(best!.frameCount).toBe(40); // the FASTEST clear is kept as the ghost source (not the slow 80-tick one)
+    expect((await store.bestFor("level-1"))!.ticks).toBe(40); // best TIME tracks it (deterministic ticks, never wall-clock)
   });
 });

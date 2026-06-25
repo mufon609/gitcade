@@ -56,7 +56,7 @@ until its pinned dependencies are live on public npm and its standalone repo exi
 
 | Slug | Repo URL (to be created) | Tier | Proves |
 |---|---|---|---|
-| lumen | https://github.com/gitcade-games/lumen | ecosystem | side-scrolling platformer; deterministic run-recorder "Echo" replay intro, parallax depth, scrolling screen-space HUD, checkpoints + lives/respawn, two-level campaign with carry-over — the showcase that drove sdk + library **1.13.0** |
+| lumen | https://github.com/gitcade-games/lumen | ecosystem | side-scrolling platformer; deterministic run-recorder "Echo" replay intro, parallax depth, scrolling screen-space HUD, checkpoints + lives/respawn, two-level campaign with carry-over, and a level-select with three replay-driven modes (Echo / Race-the-Ghost / Time-Trial) — the showcase that drove sdk + library **1.13.0** |
 
 **Why lumen is pending:** it pins `@gitcade/sdk@1.13.0` + `@gitcade/library@1.13.0`, which are staged
 on `main` but not yet on public npm (latest is `1.12.0` / `1.12.1`). The build worker installs a

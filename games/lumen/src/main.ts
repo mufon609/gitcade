@@ -3,8 +3,9 @@
  * (the `play-base` shell + the `level-1`/`level-2` levels), composing only @gitcade/library +
  * SDK parts. No balance or gameplay logic lives here.
  *
- * The three things data can't express are the ECHO ATTEMPT LOOP, the END-OF-LEVEL CHOICE, and the
- * LEVEL-SELECT launch:
+ * The things data can't express are the ECHO ATTEMPT LOOP, the END-OF-LEVEL CHOICE, the LEVEL-SELECT
+ * launch, and the level-select PRACTICE MODES (multi-Game orchestration — a replay over a 2nd Game, a
+ * live run + a concurrent ghost Game):
  *
  *  - ECHO. Each attempt is RECORDED (the SDK run-recorder, `createGame({ seed, record:true })` →
  *    `getRecording()`), and the NEXT attempt of THAT LEVEL opens with an arcade ATTRACT loop of your
@@ -19,9 +20,12 @@
  *    the level you just cleared — its Echo, then live) or "→ Continue" (advance to the next level,
  *    carrying your stats, exactly as before). The final Beacon still wins; draining your lives still loses.
  *
- *  - LEVEL SELECT. The result + choice cards reach a DATA-authored level-select menu (`menu.json`, booted
- *    by `openMenu`): cards for each cleared level (won-gated + best score/time), a pick of which relaunches
- *    that level fresh — its Echo, then live. See `openMenu` for why the host wraps the menu's `@level` edges.
+ *  - LEVEL SELECT + MODES. The result + choice cards reach a DATA-authored level-select menu (`menu.json`,
+ *    booted by `openMenu`): a card per cleared level (won-gated + best score/time), each offering THREE
+ *    practice modes the host launches — REPLAY (watch your best run's Echo), RACE THE GHOST (live play with
+ *    your best run as a lockstep translucent ghost), and TIME-TRIAL (a fresh run versus your best
+ *    TIME/SCORE). ALL boot the level from a CANONICAL start (full hp, no mid-campaign carry — that carry is
+ *    ONLY the campaign retry). See `launchReplay`/`launchMode`, and `openMenu` for the menu's `@level` edges.
  *
  * Per-level recordings + progress are the library RUN-STORE's job now (`createRunStore`): it keeps each
  * level's LAST recording (the Echo source — a SINGLE recording spanning level-1 → level-2 would desync on
@@ -41,8 +45,16 @@ import {
   ScreenEffects,
   attachScreenEffects,
   attachReplayLoop,
+  ReplayIntro,
+  attachReplayIntro,
+  attachGhostRace,
+  type GhostRace,
+  type GhostRaceHandle,
   createRunStore,
+  type RecordOutcome,
+  type LevelBest,
   restoreRecordingEntry,
+  createCampaign,
 } from "@gitcade/library";
 import manifest from "../game.json";
 import config from "../config.json";
@@ -52,7 +64,6 @@ import level2 from "./scenes/level-2.json";
 import menu from "./scenes/menu.json";
 import { registerCustomBehaviors } from "./custom-behaviors/index.js";
 import { makeStorage } from "./host/storage.js";
-import { createCampaign } from "./campaign.js";
 
 const registry = createLibraryRegistry();
 registerCustomBehaviors(registry);
@@ -60,6 +71,10 @@ registerCustomBehaviors(registry);
 const audio = new LibraryAudioPlayer();
 // Audio level is data: $cfg.volume, so it's tunable like any balance value.
 audio.setVolume(typeof (config as Record<string, number>).volume === "number" ? (config as Record<string, number>).volume : 0.5);
+// A MUTED player for the SECOND Game a replay (Echo) or a race-the-ghost runs in — its simulated SFX must
+// not double over the live soundtrack (the global `audio` owns the music). Muted ⇒ play()/startMusic no-op.
+const silentAudio = new LibraryAudioPlayer();
+silentAudio.setMuted(true);
 
 const canvas = document.getElementById("game") as HTMLCanvasElement;
 const storage = makeStorage(manifest.slug);
@@ -89,12 +104,19 @@ const levelLabel = campaign.label;
 // {slot:"progress", keys:["runWon","runBest"]}: the menu scene's `persistence` system LOADS it into
 // world.state, where `level-select` projects it and a gated `tap-emit` reads the won-set — so the menu's
 // data is real, with no host mirror. Best TIME is the recording's deterministic tick count, never wall-clock.
-const store = createRunStore({ storage });
-// recordRuns are chained so sequential run-ends never race the index's read-modify-write; fire-and-forget,
-// so a failed write costs only the next Echo / a stale best — never the live game (the result/retry path).
+// Metric `"fastest"`: the BEST recording is the fewest-tick CLEAR — the unifying metric across the three
+// level-select modes (race a SPEEDRUN ghost, beat the best TIME, watch the fastest run). Best SCORE +
+// best TIME are tracked regardless, so the menu still shows both; only which single recording is kept as
+// the ghost/showcase changes. (The campaign Echo replays the LAST run, so it is metric-independent.)
+const store = createRunStore({ storage, metric: "fastest" });
+// recordRuns are chained so sequential run-ends never race the index's read-modify-write. The campaign
+// path fires-and-forgets (a failed write costs only the next Echo / a stale best — never the live game);
+// the practice modes AWAIT the returned RecordOutcome to surface live-vs-best + NEW BEST on the result.
 let recordChain: Promise<unknown> = Promise.resolve();
-function recordRun(recording: RunRecording, score: number, won: boolean): void {
-  recordChain = recordChain.then(() => store.recordRun({ recording, score, won })).catch(() => {});
+function recordRun(recording: RunRecording, score: number, won: boolean): Promise<RecordOutcome | null> {
+  const done = recordChain.then(() => store.recordRun({ recording, score, won }));
+  recordChain = done.catch(() => {}); // keep the chain serialized even after a failed write
+  return done.catch(() => null); // callers never see a rejection — a failed fold just yields null
 }
 
 // `currentLevel` — the level the loop is on (which Echo to show, where to boot live). PERSISTED so a
@@ -142,12 +164,30 @@ const menuBtn = document.getElementById("menu-btn");
 const choiceMenuBtn = document.getElementById("choice-menu-btn");
 const pauseBtn = document.getElementById("pause-btn");
 const muteBtn = document.getElementById("mute-btn");
+// Practice-mode banner (shown only during a level-select launch — Echo / Race / Time-Trial).
+const modeBadge = document.getElementById("mode-badge");
 // The HUD is DATA now — screen-space canvas entities (screen:true) the engine draws fixed
 // under the follow-camera (motes/level/lives text bound to format-binding, hp a hud-bar
 // reading the player's state). No host mirror: the game owns its HUD like any other scene data.
 const show = (el: HTMLElement | null, on: boolean): void => {
   if (el) el.style.display = on ? "grid" : "none";
 };
+// Hide every between-runs overlay at once — the common pre-launch reset (attempt / mode launch / menu).
+function hideOverlays(): void {
+  show(startOverlay, false);
+  show(resultOverlay, false);
+  show(pauseOverlay, false);
+  show(choiceOverlay, false);
+}
+// The mode banner is a plain block (not one of the grid overlays), so it toggles on its own.
+function showModeBadge(text: string): void {
+  if (!modeBadge) return;
+  modeBadge.textContent = text;
+  modeBadge.style.display = "block";
+}
+function hideModeBadge(): void {
+  if (modeBadge) modeBadge.style.display = "none";
+}
 
 // --- dev-only debug seam -----------------------------------------------------
 // Stripped from the production build via `import.meta.env.DEV` (absent from the shipped build-worker
@@ -163,12 +203,23 @@ interface LumenDev {
   level: string;
   /** Coarse loop phase a harness can poll: `boot|echo|start|live|choice|result|menu`. */
   phase: string;
+  /** The active level-select practice mode (`echo|race|trial`), or `null` during the campaign loop. */
+  mode: string | null;
+  /** The live ghost-race controller while RACING (read `ghostFrame`/`done` for lockstep), else `null`. */
+  race: GhostRace | null;
 }
 const dev: LumenDev | null = import.meta.env.DEV
-  ? ((window as unknown as { __lumen: LumenDev }).__lumen = { game: null, menu: null, level: firstLevel, phase: "boot" })
+  ? ((window as unknown as { __lumen: LumenDev }).__lumen = { game: null, menu: null, level: firstLevel, phase: "boot", mode: null, race: null })
   : null;
 const setPhase = (phase: string): void => {
   if (dev) dev.phase = phase;
+};
+// The active practice mode (or null for the campaign loop). Clearing it also clears the race controller,
+// so a campaign re-entry never leaves a stale ghost handle on the dev seam.
+const setMode = (mode: string | null): void => {
+  if (!dev) return;
+  dev.mode = mode;
+  if (mode === null) dev.race = null;
 };
 
 // --- screen juice (presentation only) ----------------------------------------
@@ -221,15 +272,74 @@ window.addEventListener("keydown", (e) => {
 // Pause button forwards to the CURRENT live game's SDK-owned toggle (no-op during the Echo).
 if (pauseBtn) pauseBtn.onclick = () => liveGame?.togglePause();
 
+// --- shared live-game wiring (host reactions) --------------------------------
+// Every live run — the campaign loop AND the level-select practice modes — reacts to the same events the
+// same way: FLASH on outcomes (host overlay), the in-engine camera-SHAKE nudge ("shake" → camera-shake
+// system), and the pause overlay + audio re-gate. Factored here so a mode launch and the campaign share
+// ONE wiring, not two copies. Every lethal cause routes through the player's health-and-death, so "died"
+// is the ONE canonical "player died" signal the FX bind to.
+function wireLiveGame(live: Game): void {
+  fx.bindToEvents(live.world, {
+    died: (f) => f.flash("#ff4fb0", 0.24),
+    "level-clear": (f) => f.flash("#ffe0a8", 0.3), // a stage cleared (every Beacon)
+    "levels-complete": (f) => f.flash("#ffe0a8", 0.4), // the FINAL beacon — the campaign win
+    gameover: (f) => f.flash("#ff4fb0", 0.4),
+  });
+  const shake = (magnitude: number, duration: number): void => {
+    live.world.events.emit("shake", { magnitude, duration });
+  };
+  live.world.events.on("died", () => shake(9, 0.35));
+  live.world.events.on("level-clear", () => shake(6, 0.5));
+  live.world.events.on("levels-complete", () => shake(6, 0.5));
+  live.world.events.on("gameover", () => shake(12, 0.5));
+  // The SDK owns the freeze + the Esc/P key (pauseKeys); it emits "pause-changed" and the host reacts.
+  live.world.events.on("pause-changed", (e) => {
+    show(pauseOverlay, (e as { paused: boolean }).paused);
+    syncAudio();
+  });
+}
+
+// --- the result card (shared by the campaign + the practice modes) -----------
+// Show the result card + arm its actions after a beat (so a movement key still held at the end doesn't
+// instant-act): any key / tap → `onRetry`; L / the "≡ Level select" button → the menu hub. Only the
+// title/sub text and the retry action differ between a campaign result and a mode result.
+function showResult(title: string, sub: string, onRetry: () => void): void {
+  setPhase("result");
+  if (resultTitle) resultTitle.textContent = title;
+  if (resultSub) resultSub.textContent = sub;
+  show(resultOverlay, true);
+  setTimeout(() => {
+    const leave = (go: () => void): void => {
+      window.removeEventListener("keydown", onKey);
+      resultOverlay?.removeEventListener("pointerdown", onAct);
+      menuBtn?.removeEventListener("pointerdown", swallow);
+      menuBtn?.removeEventListener("click", onMenu);
+      go();
+    };
+    const onAct = (): void => leave(onRetry);
+    const onMenu = (): void => leave(openMenu);
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.code === "KeyL") {
+        e.preventDefault();
+        onMenu();
+      } else onAct();
+    };
+    const swallow = (e: Event): void => e.stopPropagation(); // a button tap must not ALSO trigger the overlay
+    window.addEventListener("keydown", onKey);
+    resultOverlay?.addEventListener("pointerdown", onAct);
+    menuBtn?.addEventListener("pointerdown", swallow);
+    menuBtn?.addEventListener("click", onMenu);
+  }, retryArmDelayMs);
+}
+
 // --- the Echo attempt loop ---------------------------------------------------
 // Open an attempt of `sceneId` (defaults to the level the loop is on): attract-loop ITS Echo, then live.
 async function attempt(sceneId: string = currentLevel): Promise<void> {
   liveGame = null;
   if (dev) dev.game = null;
-  show(startOverlay, false);
-  show(resultOverlay, false);
-  show(pauseOverlay, false);
-  show(choiceOverlay, false);
+  setMode(null); // the campaign loop is not a practice mode
+  hideModeBadge();
+  hideOverlays();
 
   // A storage READ that rejects must NOT brick the boot/retry (a black canvas) — degrade to
   // "no Echo this run" (the first-run path), exactly as if there were no prior recording.
@@ -306,30 +416,9 @@ function startLive(sceneId: string, prior: RunRecording | null): void {
   if (dev) dev.game = live;
   resumeAudio();
 
-  // FLASH on outcomes (host overlay); SHAKE in-engine via the camera-shake system ("shake").
-  // Every lethal cause — spikes, the void, a drained wraith — now routes through the player's
-  // `health-and-death`, so "died" is the ONE canonical "player died" signal: the flash, the shake,
-  // and the in-engine `explosion` (bound to "died" in play-base) all fire for ALL three the same way.
-  fx.bindToEvents(live.world, {
-    died: (f) => f.flash("#ff4fb0", 0.24),
-    "level-clear": (f) => f.flash("#ffe0a8", 0.3), // a stage cleared (every Beacon)
-    "levels-complete": (f) => f.flash("#ffe0a8", 0.4), // the FINAL beacon — the win
-    gameover: (f) => f.flash("#ff4fb0", 0.4),
-  });
-  const shake = (magnitude: number, duration: number): void => {
-    live.world.events.emit("shake", { magnitude, duration });
-  };
-  live.world.events.on("died", () => shake(9, 0.35));
-  live.world.events.on("level-clear", () => shake(6, 0.5));
-  live.world.events.on("levels-complete", () => shake(6, 0.5));
-  live.world.events.on("gameover", () => shake(12, 0.5));
-
-  // Pause overlay + audio re-gate. The SDK owns the freeze + the Esc/P key (pauseKeys);
-  // it emits "pause-changed" and the host just REACTS.
-  live.world.events.on("pause-changed", (e) => {
-    show(pauseOverlay, (e as { paused: boolean }).paused);
-    syncAudio();
-  });
+  // FX flashes + the in-engine camera-shake nudge + the pause overlay/audio re-gate — the host reactions
+  // shared with the level-select practice modes (see wireLiveGame).
+  wireLiveGame(live);
 
   // Persist the recording on BOTH outcomes, so even a failed run becomes the next Echo — but a
   // storage WRITE that rejects must cost ONLY next run's Echo, never the result/retry screen (and
@@ -340,45 +429,21 @@ function startLive(sceneId: string, prior: RunRecording | null): void {
     if (finished) return;
     finished = true;
     const motes = (live.world.state.motes as number) ?? 0;
-    const endedIn = live.scene.id; // the level the run ENDED in — its recording is per-level (no transition)
-    const recording = live.getRecording(); // capture before stop() tears the loop down
+    const recording = live.getRecording(); // capture before stop() tears the loop down (recording.sceneId IS the level we ended in — per-level)
     live.stop();
     syncAudio();
-    setPhase("result");
     // A win ends the campaign → the next attempt RESTARTS at the first level. A loss keeps `currentLevel`
     // as the level we ended in, so the retry re-enters THAT level (its Echo, then live).
     if (won) setCurrentLevel(firstLevel);
-    if (resultTitle) resultTitle.textContent = won ? "THE BEACON IS LIT" : "THE VOID CLAIMS YOU";
-    if (resultSub) resultSub.textContent = `◆ ${motes} motes gathered`;
-    show(resultOverlay, true);
-    // Arm the result actions after a beat so a movement key still held at death doesn't instant-retry.
-    // Any key / tap → Echo again; L / the "≡ Level select" button → the menu hub.
-    setTimeout(() => {
-      const leave = (go: () => void): void => {
-        window.removeEventListener("keydown", onKey);
-        resultOverlay?.removeEventListener("pointerdown", onRetry);
-        menuBtn?.removeEventListener("pointerdown", swallow);
-        menuBtn?.removeEventListener("click", onMenu);
-        go();
-      };
-      const onRetry = (): void => leave(() => void attempt()); // currentLevel (first level after a win, else where we died)
-      const onMenu = (): void => leave(openMenu);
-      const onKey = (e: KeyboardEvent): void => {
-        if (e.code === "KeyL") {
-          e.preventDefault();
-          onMenu();
-        } else onRetry();
-      };
-      const swallow = (e: Event): void => e.stopPropagation(); // a button tap must not ALSO retry the overlay
-      window.addEventListener("keydown", onKey);
-      resultOverlay?.addEventListener("pointerdown", onRetry);
-      menuBtn?.addEventListener("pointerdown", swallow);
-      menuBtn?.addEventListener("click", onMenu);
-    }, retryArmDelayMs);
+    showResult(
+      won ? "THE BEACON IS LIT" : "THE VOID CLAIMS YOU",
+      `◆ ${motes} motes gathered`,
+      () => void attempt(), // currentLevel (first level after a win, else where we died) — Echo, then live
+    );
     // Fold this finished run into the run-store: updates THIS level's LAST recording (the next Echo) +
-    // the won-set / best score+time. A win records the final level as cleared; a death records a loss
-    // (best score can still rise; the won-set never shrinks). recording.sceneId IS `endedIn` (per-level).
-    recordRun(recording, motes, won);
+    // the won-set / best score+time. A win records the level as cleared; a death records a loss (best
+    // score can still rise; the won-set never shrinks). Fire-and-forget — the campaign ignores the outcome.
+    void recordRun(recording, motes, won);
   };
 
   // Between-levels CHOICE. A Beacon emits "level-clear". For every level BUT the last, the host CARRIES
@@ -407,7 +472,7 @@ function startLive(sceneId: string, prior: RunRecording | null): void {
     const hp = (live.world.state.carriedHp as number) ?? 0;
     const motes = (live.world.state.motes as number) ?? 0;
     const lives = (live.world.state.lives as number) ?? 0;
-    recordRun(live.getRecording(), motes, true); // a non-final clear ⇒ this level is won (recording.sceneId === justCleared)
+    void recordRun(live.getRecording(), motes, true); // a non-final clear ⇒ this level is won (recording.sceneId === justCleared)
     const next = nextLevelId(justCleared)!; // non-final ⇒ present
     // Advance now (drains at the end of THIS tick) and re-arm so the next level records fresh from tick 0.
     live.requestNextLevel();
@@ -475,15 +540,182 @@ function startLive(sceneId: string, prior: RunRecording | null): void {
   live.start();
 }
 
+// --- level-select practice modes (host-orchestrated, multi-Game) -------------
+// A cleared level launches from the level-select in one of THREE modes, ALL from a CANONICAL start (full
+// hp, nothing carried — the ONLY carry is the campaign retry's restoreRecordingEntry). The menu emits a
+// per-(level, mode) event (`echo-/race-/trial-<id>`); the host catches it (see openMenu) and runs the
+// right Game/mode here. Multi-Game orchestration — a replay over a 2nd Game, a live run + a ghost Game —
+// is host CODE (the same reason ReplayIntro / GhostRace are), so it lives here, not in the menu data.
+
+/**
+ * REPLAY (Echo) — watch your fastest CLEAR (the run-store's BEST by the "fastest" metric, else the LAST
+ * run) of a cleared level on the canvas, then return to the level-select. A pure SDK replay over a fresh,
+ * seeded, input-less Game booted at the level (createReplay restores its entry-state + RNG phase, so an
+ * isolation boot replays faithfully); any key, or the playthrough ending, hands back to the hub. No live
+ * play and nothing recorded — it is a showcase.
+ */
+async function launchReplay(levelId: string): Promise<void> {
+  liveGame = null; // a replay is not pausable/live — clear the live pointer so pause/audio gate cleanly
+  setMode("echo");
+  setPhase("echo");
+  hideOverlays();
+  let rec: RunRecording | null = null;
+  try {
+    rec = (await store.bestRecording(levelId)) ?? (await store.lastRecording(levelId));
+  } catch {
+    rec = null;
+  }
+  if (!rec) {
+    openMenu(); // nothing recorded yet (shouldn't happen for a won level) — back to the hub
+    return;
+  }
+  showModeBadge(`▶ ECHO — ${levelLabel(levelId)}`);
+  const replayGame = createGame(raw, { canvas, registry, audio: silentAudio, seed: rec.seed, entrySceneId: rec.sceneId, attachInput: false });
+  if (dev) dev.game = replayGame; // the harness can read the replay world
+  const intro = new ReplayIntro({
+    game: replayGame,
+    recording: rec,
+    onDone: () => {
+      hideModeBadge();
+      if (dev) dev.game = null;
+      openMenu(); // completion OR a skip key → return to the level-select
+    },
+  });
+  attachReplayIntro(intro, canvas, {
+    prompt: "▶ ECHO — press any key for level select",
+    tint: "#4b3f8f",
+    tintAlpha: 0.22,
+    // The player's whole vocabulary, so "any key" returns to the menu.
+    skipKeys: ["Space", "Enter", "Escape", "KeyL", "KeyG", "KeyP", "KeyW", "KeyA", "KeyS", "KeyD", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"],
+  });
+}
+
+/**
+ * RACE / TIME-TRIAL — a fresh CANONICAL live run of a cleared level, RECORDED and folded into the
+ * run-store so a faster/higher run updates the bests. RACE overlays your best run as a lockstep,
+ * translucent ghost (attachGhostRace — a 2nd headless, muted, input-less Game driven by createReplay,
+ * INERT to the live sim: the live run records byte-identically with or without it); TIME-TRIAL surfaces
+ * the best TIME/SCORE to beat (the badge + the
+ * result's live-vs-best). Clearing the level (success) OR draining out (failure) → the result card: any
+ * key retries the SAME level + mode, L / the button returns to the level-select. A practice run is
+ * single-level — it never `requestNextLevel`s, so "levels-complete" is a campaign-only edge here.
+ */
+async function launchMode(levelId: string, mode: "race" | "trial"): Promise<void> {
+  setMode(mode);
+  setPhase("live");
+  hideOverlays();
+  // Read the bests BEFORE booting (storage is async; createGame/start are sync): the ghost source + the
+  // target to beat. A degraded read just means no ghost / no target line — never a broken launch.
+  let bestRec: RunRecording | null = null;
+  let bestScalars: LevelBest | null = null;
+  try {
+    bestRec = await store.bestRecording(levelId);
+  } catch {
+    bestRec = null;
+  }
+  try {
+    bestScalars = await store.bestFor(levelId);
+  } catch {
+    bestScalars = null;
+  }
+
+  const live = createGame(raw, {
+    canvas,
+    registry,
+    audio,
+    storage,
+    seed: SEED,
+    record: true,
+    entrySceneId: levelId,
+    pauseKeys: ["Escape", "KeyP"],
+    pauseScenes: ["level-1", "level-2"],
+  });
+  // CANONICAL start: NO restoreRecordingEntry — a fresh isolation boot is full hp with nothing carried.
+  liveGame = live;
+  if (dev) dev.game = live;
+  resumeAudio();
+  wireLiveGame(live);
+
+  // RACE: attach the best run as a lockstep ghost over the live frame (a 2nd headless, muted, input-less
+  // Game driven by createReplay; INERT to the live sim — only the canvas is shared). No best ⇒ no ghost.
+  let ghost: GhostRaceHandle | null = null;
+  if (mode === "race" && bestRec) {
+    const ghostGame = createGame(raw, { canvas: null, registry, audio: silentAudio, seed: bestRec.seed, entrySceneId: bestRec.sceneId, attachInput: false });
+    ghost = attachGhostRace({ liveGame: live, ghostGame, recording: bestRec });
+    if (dev) dev.race = ghost.race;
+  } else if (dev) {
+    dev.race = null;
+  }
+  showModeBadge(modeBadgeText(mode, levelId, bestScalars, mode === "race" && !!bestRec));
+
+  let finished = false;
+  const finishMode = async (won: boolean): Promise<void> => {
+    if (finished) return;
+    finished = true;
+    const motes = (live.world.state.motes as number) ?? 0;
+    const recording = live.getRecording();
+    live.stop();
+    ghost?.stop();
+    if (dev) dev.race = null;
+    hideModeBadge();
+    syncAudio();
+    // Fold the run in and AWAIT the outcome (what improved) to surface live-vs-best + a NEW BEST marker.
+    const outcome = await recordRun(recording, motes, won);
+    const { title, sub } = modeResultText(mode, levelId, won, motes, recording, outcome);
+    showResult(title, sub, () => void launchMode(levelId, mode)); // retry the SAME level + mode
+  };
+  // A practice run is single-level: clearing it (the beacon's "level-clear", final or not) is success and
+  // we NEVER requestNextLevel, so "levels-complete" never fires here. Draining out ("gameover") = failure.
+  live.world.events.on("level-clear", () => void finishMode(true));
+  live.world.events.on("gameover", () => void finishMode(false));
+
+  live.start();
+}
+
+/** The practice-mode banner text. Race names the ghost; time-trial names the best TIME (+ SCORE) to beat. */
+function modeBadgeText(mode: "race" | "trial", levelId: string, best: LevelBest | null, hasGhost: boolean): string {
+  const where = levelLabel(levelId);
+  if (mode === "race") return hasGhost ? `👻 RACE THE GHOST — ${where}` : `👻 RACE — ${where} (set a time to spawn a ghost)`;
+  const t = best?.seconds != null ? `⧗ ${best.seconds.toFixed(1)}s` : "⧗ —";
+  const s = best ? `◆ ${best.score}` : "◆ —";
+  return `⏱ TIME TRIAL — ${where} · beat ${t} / ${s}`;
+}
+
+/**
+ * The practice-mode result title + sub: the run's own TIME (its deterministic tick length × fixedDt —
+ * never wall-clock) and SCORE against the stored best, flagging a new best. A failure has no completion
+ * time (a fast death is not a fast clear), so it shows score only.
+ */
+function modeResultText(
+  mode: "race" | "trial",
+  levelId: string,
+  won: boolean,
+  motes: number,
+  rec: RunRecording,
+  outcome: RecordOutcome | null,
+): { title: string; sub: string } {
+  const best = outcome?.best ?? null;
+  if (!won) {
+    const bestT = best?.seconds != null ? `  ·  best ⧗ ${best.seconds.toFixed(1)}s` : "";
+    return { title: "THE VOID CLAIMS YOU", sub: `◆ ${motes}${bestT}` };
+  }
+  const runSecs = rec.frameCount * rec.fixedDt; // deterministic tick length → time
+  const bestSecs = best?.seconds != null ? `${best.seconds.toFixed(1)}s` : "—";
+  const flags = [outcome?.newBestTime ? "BEST TIME" : "", outcome?.newBestScore ? "BEST SCORE" : ""].filter(Boolean).join(" · ");
+  const title = outcome?.newBestTime ? (mode === "race" ? "GHOST OUTRUN!" : "NEW RECORD!") : "THE BEACON IS LIT";
+  const tail = flags ? `  ✦ NEW ${flags}!` : "";
+  return { title, sub: `⧗ ${runSecs.toFixed(1)}s  (best ${bestSecs})  ·  ◆ ${motes}${tail}` };
+}
+
 // --- the level-select menu (a host-orchestrated phase) -----------------------
 // Reachable from the result + choice cards (the "≡ Level select" button / L). The menu is a DATA scene
-// (menu.json: per-level cards + the `level-select` projection + a won-gated `tap-emit` + `@level` flow
-// edges); the HOST boots it as its OWN Game and turns a card pick into a fresh attempt — wrapping level
-// entry in lumen's signature Echo, exactly as every other launch does. Booting with `levels: []` makes the
-// menu's `@level:<id>` edges a NO-OP in this game (resolveLevelTarget returns null with no sequence), so
-// they stay the portable, validator-checked data contract a non-wrapping host would follow while lumen's
-// pick listeners do the launching. The menu's `persistence` system loads the run-store's progress index, so
-// the cards' won-gating + best score/time are real data — no host mirror.
+// (menu.json: per-level cards, each with three mode buttons — Echo / Race / Time-Trial — that are won-
+// gated `tap-emit`s + `@level` flow edges, over the `level-select` projection); the HOST boots it as its
+// OWN Game and turns a (level, mode) pick into the matching practice-mode launch. Booting with `levels: []`
+// makes the menu's `@level:<id>` edges a NO-OP in this game (resolveLevelTarget returns null with no
+// sequence), so they stay the portable, validator-checked data contract a non-wrapping host would follow
+// (it would simply play the level) while lumen's listeners add the mode. The menu's `persistence` system
+// loads the run-store's progress index, so the cards' won-gating + best score/time are real data — no host mirror.
 let menuGame: Game | null = null;
 function openMenu(): void {
   if (menuGame) return; // already open
@@ -492,10 +724,9 @@ function openMenu(): void {
   liveGame?.stop();
   liveGame = null;
   if (dev) dev.game = null;
-  show(startOverlay, false);
-  show(resultOverlay, false);
-  show(pauseOverlay, false);
-  show(choiceOverlay, false);
+  setMode(null); // the hub is not a practice mode
+  hideModeBadge();
+  hideOverlays();
   setPhase("menu");
 
   const m = createGame(raw, { canvas, registry, storage, entrySceneId: "menu", levels: [], attachInput: true });
@@ -509,17 +740,15 @@ function openMenu(): void {
     if (dev) dev.menu = null;
     go();
   };
-  // A pick → launch that level fresh (its Echo, then live), exactly like a retry. The gated tap-emit only
-  // emits for CLEARED levels (level-select projects the per-level `:sel` flag it reads), so a pick is always
-  // a won level. The `pick-<id>` event IS the menu's `@level:<id>` flow key — the host intercepts it to add
-  // the Echo wrapper (the in-engine jump no-ops here, see the levels:[] note above).
+  // A mode pick (per cleared level) → leave the menu and launch THAT mode. The gated tap-emits only emit
+  // for CLEARED levels (level-select projects the per-level `:sel` flag they read), so every pick is a won
+  // level. `<mode>-<id>` IS the menu's `@level:<id>` flow key — the host intercepts it to run lumen's mode
+  // launch (the in-engine jump no-ops here, see the levels:[] note above). A practice mode does NOT touch
+  // `currentLevel` (the campaign position), so "back" / a later result still returns to the campaign level.
   for (const id of LEVELS) {
-    m.world.events.on(`pick-${id}`, () =>
-      leave(() => {
-        setCurrentLevel(id);
-        void attempt(id);
-      }),
-    );
+    m.world.events.on(`echo-${id}`, () => leave(() => void launchReplay(id)));
+    m.world.events.on(`race-${id}`, () => leave(() => void launchMode(id, "race")));
+    m.world.events.on(`trial-${id}`, () => leave(() => void launchMode(id, "trial")));
   }
   // Back (the "↩ BACK" card or Esc) → return to the level you were on: its Echo, then live.
   const back = (): void => leave(() => void attempt());

@@ -1,4 +1,4 @@
-import type { World } from "./world.js";
+import type { World, Camera } from "./world.js";
 import type { Entity } from "./entity.js";
 import type { Background } from "../schema/scene.js";
 import type { ShapeSprite, SheetSprite, TextSprite } from "../schema/sprite.js";
@@ -8,6 +8,50 @@ type Ctx = CanvasRenderingContext2D;
 
 /** Viewport CULL RECT in WORLD coords (left/top/right/bottom) — the window tiles & entities draw into. */
 type CullRect = { l: number; t: number; r: number; b: number };
+
+/**
+ * Options for {@link Renderer.renderOverlay} — the GHOST/overlay primitive: draw a SUBSET of one
+ * world's entities OVER the current canvas contents (no clear, no background) through an arbitrary
+ * camera. The substrate for a ghost/time-trial race: a stored run replays in a SEPARATE Game and its
+ * avatar is composited over the live frame at its world position relative to the player's view.
+ */
+export interface OverlayOptions {
+  /**
+   * Camera basis to draw THROUGH — the transform origin. Default `world.camera`. For a ghost, pass
+   * the LIVE game's camera so the ghost appears at its WORLD position relative to the player's current
+   * view (not the ghost's own camera). Read-only: the overlay never writes it.
+   */
+  camera?: Camera;
+  /**
+   * Which entities to draw. Returns true to include. Default: every drawable entity. For a ghost,
+   * pass `e => e.hasTag("player")` so ONLY the avatar is drawn — the ghost world still STEPS fully
+   * (faithful positions), but its enemies/FX are NOT re-drawn over the live ones.
+   */
+  filter?: (e: Entity) => boolean;
+  /**
+   * Render-interpolation factor (`accumulator / fixedDt`, in [0,1)) — the SAME value the live frame
+   * was drawn with, so the ghost interpolates between its last two ticks in lockstep with the view.
+   * Default 1 (draw at the latest tick).
+   */
+  alpha?: number;
+  /**
+   * LAYER translucency in [0,1] applied to the whole drawn subset (the "this is a ghost" wash) —
+   * composes with each entity's own `opacity`. Default 1 (opaque). A ghost typically uses ~0.45.
+   */
+  opacity?: number;
+  /**
+   * Optional tint color composited over ONLY the ghost's pixels (an isolated colorize, so the live
+   * frame beneath is untouched) — the per-ghost analogue of the replay-intro's wash. Omit for none.
+   */
+  tint?: string;
+  /** Tint strength in [0,1] (only with {@link tint}). Default 0.5. */
+  tintAlpha?: number;
+}
+
+/** Clamp to [0,1] — the overlay opacity/tint-alpha guard. */
+function clamp01(n: number): number {
+  return n < 0 ? 0 : n > 1 ? 1 : n;
+}
 
 /**
  * The render-interpolation offset from a body/camera's CURRENT (latest-tick) position on one
@@ -85,6 +129,15 @@ function clamp(n: number, lo: number, hi: number): number {
  */
 export class Renderer {
   private images = new Map<string, HTMLImageElement>();
+  /**
+   * Lazily-allocated offscreen compositing layer for a TINTED {@link renderOverlay} — a ghost is
+   * rendered into it in isolation so a `source-atop` tint colorizes ONLY the ghost's pixels (never
+   * the live frame beneath), then the layer is composited onto the main canvas at the layer opacity.
+   * Created on first tinted overlay and reused/resized across frames; `null` until then (and for the
+   * untinted overlay path, which draws straight to the main canvas). Browser-only — headless never
+   * reaches it (a null `ctx` short-circuits {@link renderOverlay}).
+   */
+  private overlayLayer: { canvas: HTMLCanvasElement; ctx: Ctx } | null = null;
 
   constructor(private readonly ctx: Ctx | null) {}
 
@@ -194,6 +247,179 @@ export class Renderer {
       screenList.sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
       for (const e of screenList) this.drawEntity(ctx, e, world, 1);
     }
+  }
+
+  /**
+   * Draw a SUBSET of `world`'s entities OVER whatever is already on the canvas — the GHOST/overlay
+   * primitive. Unlike {@link render} it draws NO background and issues NO clear, so it composites on
+   * top of the live frame the host just drew; and it draws through `opts.camera` (default
+   * `world.camera`), so a ghost's avatar can be drawn through the LIVE camera and appear at its WORLD
+   * position relative to the player's current view. Only entities passing `opts.filter` are drawn
+   * (default: all drawable) — the ghost World still STEPS in full, but typically only its avatar is
+   * re-drawn, never its enemies/FX over the live ones. The whole subset is washed to `opts.opacity`
+   * (translucency) and optionally colorized by `opts.tint` (isolated to the ghost's own pixels via an
+   * offscreen layer, so the live frame beneath is untouched).
+   *
+   * RENDER-ONLY and READ-ONLY: it reads `world`'s entities + the camera and draws; it mutates neither
+   * world. So compositing a ghost cannot perturb the live simulation — the determinism of the live run
+   * is identical with or without an overlay attached. No-op headless (a null context). SCREEN-space
+   * (`screen:true`) entities are skipped: a ghost is a world-space body, and a ghost HUD over the live
+   * HUD is not wanted. Mirrors {@link render}'s camera-basis + per-entity interpolation exactly (same
+   * `interpOffset`/snap/cull), so the ghost moves as smoothly as the live world it rides over.
+   */
+  renderOverlay(world: World, opts: OverlayOptions = {}): void {
+    const ctx = this.ctx;
+    if (!ctx) return; // headless / no-canvas — nothing to composite onto
+
+    const cam = opts.camera ?? world.camera;
+    const vw = cam.width;
+    const vh = cam.height;
+    const snap = Math.min(vw, vh);
+    const alpha = opts.alpha ?? 1;
+    // The interpolated camera basis — IDENTICAL math to render(), so a ghost drawn through the live
+    // camera lands at exactly the scroll/shake the live frame used this paint. (For a ghost `cam` is
+    // the LIVE camera, but `world` is the GHOST world — the two are deliberately decoupled here.)
+    const camX = cam.x + interpOffset(cam.prevX ?? cam.x, cam.x, alpha, snap) + (cam.shakeX ?? 0);
+    const camY = cam.y + interpOffset(cam.prevY ?? cam.y, cam.y, alpha, snap) + (cam.shakeY ?? 0);
+    const cull: CullRect = { l: camX - CULL_MARGIN, t: camY - CULL_MARGIN, r: camX + vw + CULL_MARGIN, b: camY + vh + CULL_MARGIN };
+
+    const filter = opts.filter;
+    const drawList: Entity[] = [];
+    for (const e of world.entities) {
+      if (!e.alive || e.visible === false || e.sprite.kind === "none") continue;
+      if (e.screen) continue; // a ghost is world-space; skip screen-space HUD entities
+      if (filter && !filter(e)) continue;
+      if (this.inView(e, alpha, snap, cull)) drawList.push(e);
+    }
+    if (drawList.length === 0) return; // nothing of the subset is on screen — leave the live frame as-is
+    drawList.sort((a, b) => a.layer - b.layer || a.zIndex - b.zIndex);
+
+    const opacity = clamp01(opts.opacity ?? 1);
+
+    // TINTED path: render the subset into an isolated offscreen layer, tint ONLY those pixels
+    // (source-atop), then composite the layer onto the main canvas at `opacity`. This is the only way
+    // to colorize the ghost without bleeding the tint onto the live frame underneath.
+    if (opts.tint) {
+      const layer = this.ensureOverlayLayer();
+      if (layer) {
+        this.paintTintedOverlay(ctx, layer, world, drawList, camX, camY, alpha, snap, opacity, opts.tint, clamp01(opts.tintAlpha ?? 0.5));
+        return;
+      }
+      // No offscreen available (an exotic/mock context) — fall through to the untinted translucent draw.
+    }
+
+    // UNTINTED path: draw straight onto the main canvas at the layer opacity (composes with each
+    // entity's own `opacity` via globalAlpha inside drawEntity).
+    ctx.save();
+    ctx.globalAlpha = ctx.globalAlpha * opacity;
+    this.paintOverlayEntities(ctx, world, drawList, camX, camY, alpha, snap);
+    ctx.restore();
+  }
+
+  /**
+   * Paint `drawList` (already filtered + sorted) through the camera basis `camX`/`camY` onto `ctx` —
+   * the shared body of {@link renderOverlay}'s direct and offscreen paths. Mirrors {@link render}'s
+   * per-entity interpolation: each body is translated by its own {@link interpOffset} between the last
+   * two ticks, and {@link drawEntity} interpolates its rotation/scale + applies its opacity. `ctx` may
+   * be the main context (untinted path) or the offscreen layer (tinted path) — the draw logic is one.
+   */
+  private paintOverlayEntities(ctx: Ctx, world: World, drawList: Entity[], camX: number, camY: number, alpha: number, snap: number): void {
+    const scrolled = camX !== 0 || camY !== 0;
+    if (scrolled) {
+      ctx.save();
+      ctx.translate(-Math.round(camX), -Math.round(camY));
+    }
+    for (const e of drawList) {
+      const dx = interpOffset(e.body.prevX, e.x, alpha, snap);
+      const dy = interpOffset(e.body.prevY, e.y, alpha, snap);
+      if (dx !== 0 || dy !== 0) {
+        ctx.save();
+        ctx.translate(dx, dy);
+        this.drawEntity(ctx, e, world, alpha);
+        ctx.restore();
+      } else {
+        this.drawEntity(ctx, e, world, alpha);
+      }
+    }
+    if (scrolled) ctx.restore();
+  }
+
+  /**
+   * The tinted {@link renderOverlay} path. Renders the subset into the isolated `layer` (cleared each
+   * frame, transformed to MATCH the main canvas's logical→device transform), tints ONLY the drawn
+   * pixels via `source-atop`, then composites the layer onto the main canvas at `opacity` in device
+   * space. Isolation is the whole point: the tint can't touch the live frame because the layer holds
+   * only the ghost.
+   */
+  private paintTintedOverlay(
+    mainCtx: Ctx,
+    layer: { canvas: HTMLCanvasElement; ctx: Ctx },
+    world: World,
+    drawList: Entity[],
+    camX: number,
+    camY: number,
+    alpha: number,
+    snap: number,
+    opacity: number,
+    tint: string,
+    tintAlpha: number,
+  ): void {
+    const lc = layer.canvas;
+    const lcx = layer.ctx;
+    const w = lc.width;
+    const h = lc.height;
+    // Clear the reused layer in DEVICE space, then copy the main canvas's logical→device transform so
+    // the ghost draws at the same device pixels it would on the main canvas.
+    lcx.setTransform(1, 0, 0, 1, 0, 0);
+    lcx.globalAlpha = 1;
+    lcx.globalCompositeOperation = "source-over";
+    lcx.clearRect(0, 0, w, h);
+    const m = mainCtx.getTransform();
+    lcx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+    this.paintOverlayEntities(lcx, world, drawList, camX, camY, alpha, snap);
+    // Tint ONLY the just-drawn ghost pixels (source-atop keeps the fill where the layer already has
+    // content, i.e. the ghost silhouette), in device space.
+    lcx.setTransform(1, 0, 0, 1, 0, 0);
+    lcx.globalCompositeOperation = "source-atop";
+    lcx.globalAlpha = tintAlpha;
+    lcx.fillStyle = tint;
+    lcx.fillRect(0, 0, w, h);
+    lcx.globalCompositeOperation = "source-over";
+    lcx.globalAlpha = 1;
+    // Composite the isolated, tinted ghost onto the live frame at the layer opacity (device space, so
+    // the 1:1 blit ignores the logical transform).
+    mainCtx.save();
+    mainCtx.setTransform(1, 0, 0, 1, 0, 0);
+    mainCtx.globalAlpha = opacity;
+    mainCtx.drawImage(lc, 0, 0);
+    mainCtx.restore();
+  }
+
+  /**
+   * Lazily create / resize the offscreen overlay layer to match the main canvas's backing store.
+   * Returns `null` when no offscreen is constructible (a mock/exotic context with no `getTransform`,
+   * no `canvas`, or no `ownerDocument`) — {@link renderOverlay} then falls back to the untinted draw.
+   */
+  private ensureOverlayLayer(): { canvas: HTMLCanvasElement; ctx: Ctx } | null {
+    const main = this.ctx;
+    if (!main || typeof main.getTransform !== "function" || !main.canvas) return null;
+    const mc = main.canvas;
+    const w = mc.width;
+    const h = mc.height;
+    if (w <= 0 || h <= 0) return null;
+    let layer = this.overlayLayer;
+    if (!layer) {
+      const doc = mc.ownerDocument ?? (typeof document !== "undefined" ? document : null);
+      if (!doc || typeof doc.createElement !== "function") return null;
+      const c = doc.createElement("canvas");
+      const cx = c.getContext("2d");
+      if (!cx) return null;
+      layer = { canvas: c, ctx: cx };
+      this.overlayLayer = layer;
+    }
+    if (layer.canvas.width !== w) layer.canvas.width = w;
+    if (layer.canvas.height !== h) layer.canvas.height = h;
+    return layer;
   }
 
   /**

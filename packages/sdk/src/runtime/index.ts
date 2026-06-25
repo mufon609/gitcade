@@ -48,7 +48,7 @@ export {
 } from "./channels.js";
 export { Input, type Pointer, type Tap, type ActionBinding } from "./input.js";
 export { AudioPlayer, supportsMusic, type MusicChannel } from "./audio.js";
-export { Renderer } from "./renderer.js";
+export { Renderer, type OverlayOptions } from "./renderer.js";
 export { buildEntity } from "./entity-factory.js";
 export { resolveParams, num, str, bool, strArray, cooldown } from "./params.js";
 export {

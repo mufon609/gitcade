@@ -11,7 +11,7 @@ import type { StorageAdapter } from "../storage/adapters.js";
 import { MemoryStorage } from "../storage/adapters.js";
 import { buildEntity } from "./entity-factory.js";
 import { resolveParams } from "./params.js";
-import { Renderer } from "./renderer.js";
+import { Renderer, type OverlayOptions } from "./renderer.js";
 import { createDefaultRegistry } from "./defaults.js";
 import type { ResolvedParams, SystemFn } from "./types.js";
 import { LEVELS_COMPLETE, PAUSE_CHANGED } from "./channels.js";
@@ -144,6 +144,13 @@ export class Game {
   private readonly levelsComplete?: string;
   /** Run recorder when built with `{ seed, record: true }`; `null` ⇒ not recording (byte-identical path). */
   private readonly recorder: RunRecorder | null = null;
+  /**
+   * Optional per-frame post-render callback (see {@link setFrameHook}) — called once per rendered
+   * animation frame, AFTER {@link render}, with the same interpolation `alpha`. `null` by default, so
+   * the rAF loop is byte-identical to today; a host sets it to composite an OVERLAY (a ghost via
+   * {@link renderGhost}, a debug HUD) over the live frame WITHOUT having to own the loop. Render-only.
+   */
+  private frameHook: ((alpha: number) => void) | null = null;
 
   constructor(opts: GameOptions) {
     if (opts.scenes.length === 0) throw new Error("Game requires at least one scene");
@@ -472,6 +479,36 @@ export class Game {
   }
 
   /**
+   * Composite a GHOST — a translucent subset of ANOTHER world's entities — OVER the current frame,
+   * drawn through THIS game's camera so it appears at its world position relative to the player's
+   * view (a ghost/time-trial race against a stored run). The stored run replays in `ghostWorld` (a
+   * SEPARATE Game driven by `createReplay`), and this draws its chosen subset (default: all drawable;
+   * a race passes `filter: e => e.hasTag("player")`) over the live frame WITHOUT clearing it.
+   *
+   * Render-only + read-only: it reads `ghostWorld` + this game's camera and draws — it mutates
+   * NEITHER world, so the live simulation/determinism is identical with or without a ghost attached.
+   * No-op headless. Call it from a per-frame {@link setFrameHook} so it paints right after the live
+   * world each frame. (The `camera` is always THIS game's — that's the point of a ghost overlay — so
+   * it can't be overridden here; reach {@link Renderer.renderOverlay} directly for a custom camera.)
+   */
+  renderGhost(ghostWorld: World, opts: Omit<OverlayOptions, "camera"> = {}): void {
+    this.renderer.renderOverlay(ghostWorld, { ...opts, camera: this.world.camera });
+  }
+
+  /**
+   * Set (or clear, with `null`) a per-frame post-render callback — the overlay seam. It fires ONCE
+   * per rendered animation frame inside {@link start}'s rAF loop, AFTER {@link render}, with the same
+   * render-interpolation `alpha`, so a host can composite something over the freshly-drawn live frame
+   * (a ghost via {@link renderGhost}, a debug HUD, a minimap) without owning the loop — the Game keeps
+   * its input/pause/visibility/resize/audio lifecycle intact. Default unset ⇒ the loop is unchanged.
+   * Render-only: the hook runs outside the fixed-update, so it cannot affect the simulation snapshot.
+   * (Direct `render()` callers — replays, headless tests — do NOT fire it; it is a real-time-loop seam.)
+   */
+  setFrameHook(fn: ((alpha: number) => void) | null): void {
+    this.frameHook = fn;
+  }
+
+  /**
    * Match the canvas backing store to its CURRENT CSS display size × `devicePixelRatio`, and scale the
    * 2D context so the renderer keeps drawing in LOGICAL scene coordinates (the scene fills the canvas).
    * Unlike reading `devicePixelRatio` once at construction, this can be re-run — start() calls it on a
@@ -608,7 +645,12 @@ export class Game {
       }
       // Render with the leftover-accumulator fraction so bodies/camera draw interpolated between the
       // last two fixed ticks — smooth motion when this rAF frame ran 0, 1, or N sim ticks.
-      this.render(this.accumulator / this.fixedDt);
+      const alpha = this.accumulator / this.fixedDt;
+      this.render(alpha);
+      // Post-render overlay seam: a host-set hook composites a ghost/HUD over the just-drawn frame,
+      // at the SAME alpha, every frame. Null by default ⇒ byte-identical loop; render-only ⇒ the
+      // simulation/determinism is untouched whether or not a hook is attached.
+      this.frameHook?.(alpha);
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);

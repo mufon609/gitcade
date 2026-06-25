@@ -51,3 +51,14 @@ export {
   type RunProgress,
   type LevelBest,
 } from "./run-store.js";
+
+/**
+ * {@link attachGhostRace} / {@link GhostRace} — the GHOST / TIME-TRIAL host helper: the player plays a
+ * level LIVE while a stored best run ({@link createRunStore}'s `bestRecording`) replays CONCURRENTLY as
+ * a translucent ghost on the same canvas, in lockstep (one ghost tick per live fixed-update). Built on
+ * the SDK overlay primitive (`Game.renderGhost` / `Renderer.renderOverlay`, new in sdk 1.13.0): the
+ * ghost's avatar is drawn through the LIVE camera, over the live frame, without clearing it. The ghost
+ * is a SEPARATE, headless, input-less Game — it reads nothing from the live world and is INERT to its
+ * determinism (the only shared resource is the canvas). Host-side CODE, no CATALOG entry.
+ */
+export { attachGhostRace, GhostRace, type GhostRaceOptions, type GhostRaceHandle } from "./ghost-race.js";

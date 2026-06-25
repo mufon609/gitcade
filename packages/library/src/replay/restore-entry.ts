@@ -1,3 +1,4 @@
+import { applyRecordingEntry } from "@gitcade/sdk";
 import type { Game, RunRecording } from "@gitcade/sdk";
 
 /**
@@ -10,32 +11,24 @@ import type { Game, RunRecording } from "@gitcade/sdk";
  * level-select) resumes from the SAME start the run was recorded at — and the Echo of that recording
  * and the live run it precedes share one start state.
  *
+ * It is a THIN host-facing wrapper over the SDK's {@link applyRecordingEntry} — the determinism contract
+ * is SHARED with the replay path, not re-derived: {@link createReplay} primes its replay game with the
+ * exact same primitive, so a live run driven through the recorded input would reproduce the recording
+ * byte-for-byte (the equivalence the restore-entry conformance test guards). Keeping the live and replay
+ * restores as ONE function is what makes that guarantee structural rather than a coincidence two copies
+ * happen to preserve.
+ *
  * Call it AFTER `createGame` (so `loadScene` has run) and BEFORE `game.start()` / the first `update()`.
  * The live recorder then captures this same entry as the NEW run's frame 0, keeping every re-entry
- * self-consistent (its own recording replays in isolation at the same state + phase). It mirrors
- * {@link createReplay}'s restore EXACTLY — clear-then-assign `world.state`, then `advanceRngTo` — so a
- * live run driven through the recorded input would reproduce the recording byte-for-byte: the
- * determinism contract is SHARED with the replay path, not re-derived.
+ * self-consistent (its own recording replays in isolation at the same state + phase).
  *
  * Purely additive + back-compatible: a recording WITHOUT `entryState`/`entryRngCalls` (an older one, or
- * a from-scratch entry-level run that carried nothing) restores nothing — both guards fall through — so
- * it is a safe no-op there, and re-entering the FIRST level (whose captured entry is just the stamped
- * `level` index) restores a slice the fresh boot already established. Host-side CODE like the rest of
- * `replay/` (it orchestrates a Game): it registers no runtime type and adds no CATALOG entry.
+ * a from-scratch entry-level run that carried nothing) restores nothing — both guards in the primitive
+ * fall through — so it is a safe no-op there, and re-entering the FIRST level (whose captured entry is
+ * just the stamped `level` index) restores a slice the fresh boot already established. Host-side CODE
+ * like the rest of `replay/` (it orchestrates a Game): it registers no runtime type and adds no CATALOG
+ * entry.
  */
 export function restoreRecordingEntry(game: Game, recording: RunRecording): void {
-  if (recording.entryState) {
-    const state = game.world.state;
-    // Clear-then-assign (createReplay's own pattern) makes `world.state` EXACTLY the captured slice,
-    // not a merge over whatever the fresh boot seeded. The JSON round-trip deep-clones so the live state
-    // never aliases the recording as it mutates — anything a recording can carry is JSON-serializable by
-    // construction, so the round-trip is total.
-    for (const k of Object.keys(state)) delete state[k];
-    Object.assign(state, JSON.parse(JSON.stringify(recording.entryState)) as Record<string, unknown>);
-  }
-  if (recording.entryRngCalls !== undefined) {
-    // Fast-forward the fresh game's seeded stream to the phase the recorded run entered at (no-op when
-    // already at/past it). A from-scratch entry level recorded phase 0, so this is a no-op there too.
-    game.world.advanceRngTo(recording.entryRngCalls);
-  }
+  applyRecordingEntry(game, recording);
 }

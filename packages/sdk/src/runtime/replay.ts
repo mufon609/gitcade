@@ -293,6 +293,41 @@ export function createReplay(game: Game, recording: RunRecording): ReplayControl
   return new ReplayDriver(game, recording);
 }
 
+/**
+ * Apply a recording's captured ENTRY onto a game's world — the SINGLE source of truth for the
+ * isolation-boot restore that sits ON the determinism line. {@link createReplay} calls it internally to
+ * prime its REPLAY game, and the library's `restoreRecordingEntry` wraps it to prime a LIVE
+ * (host-`start()`ed) game; both therefore establish byte-identical start state from the SAME code, so a
+ * live re-entry of a level and the replay of that run cannot drift apart (the equivalence the
+ * restore-entry conformance test guards).
+ *
+ * Two restores, exactly as captured at the recording's frame 0 (see {@link RunRecorder.capture}):
+ *  - {@link RunRecording.entryState}: clear-then-assign `world.state` to EXACTLY the captured slice (the
+ *    carriedHp / motes / lives a level was entered with) — `loadScene`'s own carry pattern, so an
+ *    isolation boot at {@link RunRecording.sceneId} resumes from the carry instead of from scene
+ *    defaults. The deep clone keeps the live state from aliasing the recording as either mutates.
+ *  - {@link RunRecording.entryRngCalls}: fast-forward the seeded stream to the phase the run entered at
+ *    (via {@link World.advanceRngTo}) — an isolation boot starts at position 0, so the prior levels'
+ *    entropy is replayed as one advance; a path already at/past the phase no-ops (never double-advances).
+ *
+ * Additive + back-compatible: a recording WITHOUT entry data (an older one, or a from-scratch entry-level
+ * run that carried nothing) restores nothing — both guards fall through — so it is a safe no-op. Call it
+ * AFTER `createGame` (so `loadScene` has run) and BEFORE the first `update()` / `game.start()`.
+ */
+export function applyRecordingEntry(game: Game, recording: RunRecording): void {
+  // Clear-then-assign makes `world.state` EXACTLY the captured slice (not a merge over the fresh boot's
+  // seed); the JSON-clone keeps the live state from aliasing the recording as it mutates.
+  if (recording.entryState) {
+    const state = game.world.state;
+    for (const k of Object.keys(state)) delete state[k];
+    Object.assign(state, cloneState(recording.entryState));
+  }
+  // Fast-forward the fresh seeded stream to the recorded entry phase (no-op once at/past it).
+  if (recording.entryRngCalls !== undefined) {
+    game.world.advanceRngTo(recording.entryRngCalls);
+  }
+}
+
 /** The {@link ReplayController} implementation (private; consumers get the interface from {@link createReplay}). */
 class ReplayDriver implements ReplayController {
   readonly game: Game;
@@ -308,27 +343,13 @@ class ReplayDriver implements ReplayController {
     this.game = game;
     this.recording = recording;
     this.input = game.world.input;
-    // Restore the captured entry state onto `world.state` BEFORE tick 0, so a level booted IN ISOLATION
-    // (a fresh Game at `recording.sceneId`) resumes from the carried slice the recorded run entered with
-    // — the carriedHp / motes / lives a mid-campaign level was handed. Without it an isolation boot
-    // starts from defaults and diverges (e.g. a different starting hp → a different damage outcome).
-    // Clear-then-assign (loadScene's own carry pattern) makes `world.state` EXACTLY the captured slice;
-    // the deep copy keeps the live state from aliasing the recording as it mutates. A recording with no
-    // entryState (older, or a from-scratch entry level) skips this and replays exactly as before.
-    if (recording.entryState) {
-      const state = game.world.state;
-      for (const k of Object.keys(state)) delete state[k];
-      Object.assign(state, cloneState(recording.entryState));
-    }
-    // Restore the seeded-RNG PHASE: fast-forward this fresh game's stream to the position the recorded
-    // run was at on entry. An isolation boot starts at position 0, so the prior levels' entropy is
-    // replayed as a single advance; a replay that reached the level by re-playing the prior levels is
-    // already in phase, so advanceRngTo no-ops (never double-advances). Without it, a level whose prior
-    // levels consumed entropy would draw different rng values from tick 0 and diverge. Skipped (no-op)
-    // when the recording carries no phase — an older recording, or a from-scratch entry level (phase 0).
-    if (recording.entryRngCalls !== undefined) {
-      game.world.advanceRngTo(recording.entryRngCalls);
-    }
+    // Restore the captured entry (carried `world.state` slice + seeded-RNG phase) onto this fresh,
+    // isolation-booted game BEFORE tick 0, via the shared primitive {@link applyRecordingEntry} — the
+    // SAME restore the library's live `restoreRecordingEntry` applies, so a live re-entry and this replay
+    // start byte-identical. A level booted at `recording.sceneId` thus resumes from the carriedHp / motes
+    // / lives + RNG phase it entered with; a recording with no entry data is a safe no-op (older, or a
+    // from-scratch entry level) and replays exactly as before.
+    applyRecordingEntry(game, recording);
   }
 
   get frame(): number {

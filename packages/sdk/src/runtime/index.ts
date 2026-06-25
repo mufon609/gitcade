@@ -84,9 +84,12 @@ export {
 // Run recorder + replay driver (additive, browser-safe). A Game built with `{ seed, record: true }`
 // captures its per-tick input — delta-encoded held keys + tap edges — read via `getRecording()` /
 // re-armed via `resetRecording()`; `createReplay` re-drives a fresh seeded Game through a recording
-// byte-for-byte. The substrate for ghost replays / verifiable speedruns.
+// byte-for-byte. The substrate for ghost replays / verifiable speedruns. `applyRecordingEntry` is the
+// shared isolation-boot restore (carried `world.state` + RNG phase) createReplay uses internally and the
+// library's live `restoreRecordingEntry` wraps — one source of truth on the determinism line.
 export {
   createReplay,
+  applyRecordingEntry,
   type RecordedFrame,
   type RunRecording,
   type ReplayController,

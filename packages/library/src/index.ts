@@ -65,3 +65,12 @@ export { snapToGrid, randomFreeCell, type Vec2, type CellBounds, type RandomFree
  * otherwise re-derive as host boilerplate. Both are pure.
  */
 export { formatCompact, cappedOfflineGain } from "./util.js";
+
+/**
+ * {@link createCampaign} — the PURE, scene-agnostic level-navigation policy a host loop reads off an
+ * ordered level sequence (`manifest.levels`): first / next / isFinal / label. The host-side companion to
+ * the SDK's `@next`/`@first`/`@level` flow tokens for a loop that wraps level entry in its own ceremony
+ * (an Echo intro, a between-levels choice, a level-select hub). Pure data over a string list — no SDK, no
+ * DOM, no CATALOG entry. Reusable across campaign games.
+ */
+export { createCampaign, type Campaign } from "./campaign.js";

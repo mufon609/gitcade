@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Game, Renderer, SceneSchema, createDefaultRegistry } from "../src/index.js";
+import { Game, Renderer, SceneSchema, createDefaultRegistry, snapshotWorld } from "../src/index.js";
 
 /**
  * 1.13.0 — the additive GHOST/OVERLAY render surface: `Renderer.renderOverlay` + `Game.renderGhost` +
@@ -177,6 +177,41 @@ describe("Game.renderGhost — composites a ghost world through THIS game's came
     // Through the LIVE camera (-60), not the ghost's own. `===` so a -0 from `-Math.round(0)` (the same
     // value render() produces; identical to 0 for canvas) matches 0.
     expect(probe.translates.some((t) => t.x === -60 && t.y === 0)).toBe(true);
+  });
+});
+
+describe("renderOverlay / renderGhost — RENDER-ONLY (the draw body never mutates the drawn world)", () => {
+  // The library ghost-race suite proves the overlay is inert to the LIVE world with draw() a headless
+  // no-op (a null ctx). This closes the complementary seam: when the draw body ACTUALLY RUNS (a real ctx,
+  // real shape sprites), it reads the world + camera and paints — it must mutate NEITHER. `snapshotWorld`
+  // byte-identity across a draw is the proof, so a ghost overlay can never perturb the run it rides over.
+  it("snapshotWorld(world) is byte-identical before and after renderOverlay draws (untinted + camera + alpha)", () => {
+    const game = makeWorld();
+    game.stepFrames(3); // exercise the real per-entity prev-transform path the overlay interpolates from
+    const before = snapshotWorld(game.world);
+    const { ctx, fillRects } = fakeCtx();
+    const r = new Renderer(ctx);
+    r.renderOverlay(game.world, { filter: (e) => e.hasTag("player"), opacity: 0.45 });
+    r.renderOverlay(game.world, {}); // whole-world subset
+    r.renderOverlay(game.world, { camera: { x: 60, y: 20, width: 800, height: 600, prevX: 50, prevY: 10 }, alpha: 0.5, tint: "#28d0ff" });
+    expect(fillRects.length).toBeGreaterThan(0); // it really drew (not a vacuous no-op pass)
+    expect(snapshotWorld(game.world)).toBe(before); // …and the drawn world is untouched
+  });
+
+  it("snapshotWorld(ghostWorld) is byte-identical before and after a renderGhost draw through the live camera", () => {
+    // A LIVE game whose renderer holds a real (fake) ctx, compositing a SEPARATE ghost world.
+    const probe = fakeCtx();
+    const liveCanvas = { width: 800, height: 600, getContext: () => probe.ctx } as unknown as HTMLCanvasElement;
+    const liveScene = SceneSchema.parse({ id: "track", size: { width: 800, height: 600 }, entities: [], systems: [] });
+    const live = new Game({ scenes: [liveScene], config: {}, registry: createDefaultRegistry(), canvas: liveCanvas });
+    const ghost = makeWorld();
+    ghost.stepFrames(2);
+    const before = snapshotWorld(ghost.world);
+    live.world.camera.x = 60;
+    live.world.camera.prevX = 60;
+    live.renderGhost(ghost.world, { filter: (e) => e.hasTag("player"), opacity: 0.45, tint: "#28d0ff" });
+    expect(probe.fillRects.length).toBeGreaterThan(0); // the ghost avatar drew
+    expect(snapshotWorld(ghost.world)).toBe(before); // the ghost world is read-only to the composite
   });
 });
 

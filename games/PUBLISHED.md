@@ -1,6 +1,6 @@
 # PUBLISHED.md — Seed Game Repos
 
-The six seed games and the scaffold template, published as standalone public repos
+The seven seed games and the scaffold template, published as standalone public repos
 in the **gitcade-games** GitHub org. Each game repo contains ONLY that game (not
 the monorepo), builds from a clean clone against `@gitcade/sdk` + `@gitcade/library`
 from public npm, and passes `gitcade validate`. No `.github/workflows` exist on any
@@ -8,8 +8,8 @@ repo (the platform pipeline is the CI — locked decision). The platform seed sc
 ([`platform/web/scripts/seed.ts`](../platform/web/scripts/seed.ts)) consumes the
 `repoUrl` list below.
 
-Default branch: `main`. Visibility: public. Current release: all six pin
-`@gitcade/sdk@1.12.0` + `@gitcade/library@1.12.1`.
+Default branch: `main`. Visibility: public. Current release: all seven pin
+`@gitcade/sdk@1.13.0` + `@gitcade/library@1.13.0`.
 
 ## Seed games
 
@@ -21,6 +21,7 @@ Default branch: `main`. Visibility: public. Current release: all six pin
 | tower-defense | https://github.com/gitcade-games/tower-defense | https://github.com/gitcade-games/tower-defense.git | ecosystem | wave-spawner, path-following, currency, upgrade-tree, win/lose — **100% config-driven** |
 | idle-clicker | https://github.com/gitcade-games/idle-clicker | https://github.com/gitcade-games/idle-clicker.git | ecosystem | currency, upgrade-tree, timers, offline progress via SDK storage — **100% config-driven** |
 | survival-arena | https://github.com/gitcade-games/survival-arena | https://github.com/gitcade-games/survival-arena.git | ecosystem | ai-chase swarms, shoot, health, wave scaling, FX showcase |
+| lumen | https://github.com/gitcade-games/lumen | https://github.com/gitcade-games/lumen.git | ecosystem | side-scrolling platformer; deterministic run-recorder "Echo" replay intro, two-level campaign with carry-over, and a level-select with three replay-driven modes (Echo / Race-the-Ghost / Time-Trial) — the showcase that drove sdk + library **1.13.0** |
 
 ## Scaffold template
 
@@ -54,18 +55,4 @@ heading, and the release tooling iterates the `GAMES` list in
 [`tools/release/lib.mjs`](../tools/release/lib.mjs) (which does not include them). A game stays here
 until its pinned dependencies are live on public npm and its standalone repo exists.
 
-| Slug | Repo URL (to be created) | Tier | Proves |
-|---|---|---|---|
-| lumen | https://github.com/gitcade-games/lumen | ecosystem | side-scrolling platformer; deterministic run-recorder "Echo" replay intro, parallax depth, scrolling screen-space HUD, checkpoints + lives/respawn, two-level campaign with carry-over, and a level-select with three replay-driven modes (Echo / Race-the-Ghost / Time-Trial) — the showcase that drove sdk + library **1.13.0** |
-
-**Why lumen is pending:** it pins `@gitcade/sdk@1.13.0` + `@gitcade/library@1.13.0`, which are staged
-on `main` but not yet on public npm (latest is `1.12.0` / `1.12.1`). The build worker installs a
-game's pins from public npm, so lumen cannot build through the pipeline until that release ships.
-
-**To promote it to a live seed game (each step human-gated):**
-1. Publish `sdk@1.13.0` + `library@1.13.0` to npm: `npm run release:publish -- --yes`.
-2. Create the public `gitcade-games/lumen` repo.
-3. Add `"lumen"` to the `GAMES` list in [`tools/release/lib.mjs`](../tools/release/lib.mjs) so the
-   repo-sync + MinIO-artifact steps include it.
-4. Move the lumen row above into the **Seed games** table — `seed.ts` then enqueues it through the
-   normal `publishGame` path, and the worker builds + validates it like any other.
+_None currently pending — lumen was promoted to the Seed games table above on its 1.13.0 publish (2026-06-25)._

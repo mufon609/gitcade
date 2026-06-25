@@ -19,8 +19,8 @@ import { fileURLToPath } from "node:url";
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const ORG = "gitcade-games";
 
-/** The six seed games. dir name === manifest slug === gitcade-games repo name. */
-export const GAMES = ["snake", "helicopter", "breakout", "tower-defense", "idle-clicker", "survival-arena"];
+/** The seven seed games. dir name === manifest slug === gitcade-games repo name. */
+export const GAMES = ["snake", "helicopter", "breakout", "tower-defense", "idle-clicker", "survival-arena", "lumen"];
 
 // ── tiny logger ──────────────────────────────────────────────────────────────
 const C = { reset: "\x1b[0m", dim: "\x1b[2m", red: "\x1b[31m", green: "\x1b[32m", yellow: "\x1b[33m", cyan: "\x1b[36m", bold: "\x1b[1m" };

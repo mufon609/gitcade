@@ -33,3 +33,21 @@ export { attachReplayLoop, type ReplayLoopOptions } from "./replay-loop.js";
  * entry. (sdk 1.13.0 — uses createGame `entrySceneId` + `RunRecording.entryState`/`entryRngCalls`.)
  */
 export { restoreRecordingEntry } from "./restore-entry.js";
+
+/**
+ * {@link createRunStore} — the per-level RUN-STORE: the durable data layer the Echo, level-select, and race
+ * modes read. Generalizes lumen's single `run:<sceneId>` key into, per level, the LAST + BEST recordings
+ * (raw JSON via `world.storage`) plus the won-set and best TIME / SCORE (a small, bindable progress index
+ * in the `manifest.persist` shape). Best time is the recording's deterministic TICK count, never wall-clock.
+ * Host-side CODE like the rest of `replay/` (no CATALOG entry). The data layer for the level-select UI.
+ */
+export {
+  createRunStore,
+  type RunStore,
+  type RunStoreOptions,
+  type RunResult,
+  type RunMetric,
+  type RecordOutcome,
+  type RunProgress,
+  type LevelBest,
+} from "./run-store.js";

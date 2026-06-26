@@ -17,6 +17,7 @@ import { createLibraryRegistry } from "../src/registry.js";
 import { registerCustomBehaviors as registerBreakout } from "../../../games/breakout/src/custom-behaviors/index.js";
 import { registerCustomBehaviors as registerHelicopter } from "../../../games/helicopter/src/custom-behaviors/index.js";
 import { registerCustomBehaviors as registerIdleClicker } from "../../../games/idle-clicker/src/custom-behaviors/index.js";
+import { registerCustomBehaviors as registerLumen } from "../../../games/lumen/src/custom-behaviors/index.js";
 import { registerCustomBehaviors as registerSnake } from "../../../games/snake/src/custom-behaviors/index.js";
 import { registerCustomBehaviors as registerSurvivalArena } from "../../../games/survival-arena/src/custom-behaviors/index.js";
 import { registerCustomBehaviors as registerTowerDefense } from "../../../games/tower-defense/src/custom-behaviors/index.js";
@@ -79,29 +80,45 @@ const proofCases: Case[] = fs
     };
   });
 
-// --- Seed games: library + each game's custom parts, nudged into gameplay (mirrors smoke boots). ---
-const GAME_CUSTOM: Record<string, (registry: Registry) => void> = {
-  breakout: registerBreakout,
-  helicopter: registerHelicopter,
-  "idle-clicker": registerIdleClicker,
-  snake: registerSnake,
-  "survival-arena": registerSurvivalArena,
-  "tower-defense": registerTowerDefense,
+// --- Seed games: library + each game's custom parts, booted as that game's own smoke test boots it. -
+// How a seed game enters gameplay is part of the contract, so the conformance boot mirrors it: the
+// title games tap their play scene off the "start-pressed" flow edge, while Lumen has no title — it
+// boots its first level directly (an `entrySceneId`). One descriptor per game captures that, so
+// covering a NEW game stays a one-line append (its register hook + any non-default entry/start).
+interface SeedGame {
+  register: (registry: Registry) => void;
+  /** Boot this scene id directly (Lumen's levels); omit to use the manifest entryPoint title scene. */
+  entrySceneId?: string;
+  /** Emit the title's "start-pressed" edge to enter play (default); false for a game that boots into play. */
+  start?: boolean;
+}
+const SEED_GAMES: Record<string, SeedGame> = {
+  breakout: { register: registerBreakout },
+  helicopter: { register: registerHelicopter },
+  "idle-clicker": { register: registerIdleClicker },
+  // Lumen ships NO custom parts (pure SDK + library composition) and has no title — it boots level-1
+  // directly, exactly as its smoke test does. Its cross-engine determinism therefore rides entirely on
+  // the library parts already anchored here; this case pins the COMPOSITION, not new transcendental code.
+  lumen: { register: registerLumen, entrySceneId: "level-1", start: false },
+  snake: { register: registerSnake },
+  "survival-arena": { register: registerSurvivalArena },
+  "tower-defense": { register: registerTowerDefense },
 };
 
-const gameCases: Case[] = Object.keys(GAME_CUSTOM).map((name) => {
+const gameCases: Case[] = Object.keys(SEED_GAMES).map((name) => {
+  const spec = SEED_GAMES[name];
   const src = loadDir(path.join(GAMES_DIR, name));
-  const registerCustom = GAME_CUSTOM[name];
   return {
     name: `game:${name}`,
     frames: 180,
     make: (rng: () => number): Game => {
       const registry = createLibraryRegistry();
-      registerCustom(registry);
-      const game = createGame(src, { canvas: null, registry, rng });
-      // Every seed game's title boots its play scene off the "start-pressed" flow edge (the
-      // title's tap-emit button); both runs nudge identically, so gameplay is what's compared.
-      game.world.events.emit("start-pressed");
+      spec.register(registry);
+      const game = createGame(src, { canvas: null, registry, rng, entrySceneId: spec.entrySceneId });
+      // Nudge into gameplay exactly as each game's smoke boot does: a title game leaves its title off
+      // the "start-pressed" edge; a title-less game (Lumen) is already in play. Both settle two ticks,
+      // so what the conformance compares is live gameplay either way.
+      if (spec.start !== false) game.world.events.emit("start-pressed");
       game.stepFrames(2);
       return game;
     },
@@ -130,9 +147,9 @@ function fingerprint(make: (rng: () => number) => Game, frames: number): string 
 }
 
 describe("determinism conformance (seed games + library proofs)", () => {
-  it("enumerates every proof and all six seed games (no silent skip)", () => {
+  it("enumerates every proof and all seven seed games (no silent skip)", () => {
     expect(proofCases.length).toBeGreaterThanOrEqual(12);
-    expect(gameCases.length).toBe(6);
+    expect(gameCases.length).toBe(7);
   });
 
   it.each(CASES)(
